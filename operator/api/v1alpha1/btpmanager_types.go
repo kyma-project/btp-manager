@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/kyma-project/module-manager/operator/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,7 +30,8 @@ type BtpManagerSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of BtpManager. Edit btpmanager_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Foo         string `json:"foo,omitempty"`
+	ReleaseName string `json:"releaseName,omitempty"`
 }
 
 // BtpManagerStatus defines the observed state of BtpManager
@@ -46,8 +48,22 @@ type BtpManager struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BtpManagerSpec   `json:"spec,omitempty"`
-	Status BtpManagerStatus `json:"status,omitempty"`
+	Spec   BtpManagerSpec `json:"spec,omitempty"`
+	Status types.Status   `json:"status,omitempty"`
+}
+
+var _ types.CustomObject = &BtpManager{}
+
+func (s *BtpManager) GetStatus() types.Status {
+	return s.Status
+}
+
+func (s *BtpManager) SetStatus(status types.Status) {
+	s.Status = status
+}
+
+func (s *BtpManager) ComponentName() string {
+	return "btp-manager"
 }
 
 //+kubebuilder:object:root=true

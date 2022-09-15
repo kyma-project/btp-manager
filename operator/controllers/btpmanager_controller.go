@@ -17,21 +17,29 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
-
+	"fmt"
+	"github.com/kyma-project/module-manager/operator/pkg/declarative"
+	"github.com/kyma-project/module-manager/operator/pkg/types"
+	"github.com/kyma-project/test-operator/operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	operatorv1alpha1 "github.com/kyma-project/test-operator/operator/api/v1alpha1"
 )
 
 // BtpManagerReconciler reconciles a BtpManager object
 type BtpManagerReconciler struct {
+	declarative.ManifestReconciler
 	client.Client
 	Scheme *runtime.Scheme
+	*rest.Config
 }
+
+const (
+	chartPath    = "./module-chart"
+	chartNs      = "redis"
+	nameOverride = "custom-name-override"
+)
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpmanagers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpmanagers/status,verbs=get;update;patch
@@ -46,17 +54,55 @@ type BtpManagerReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *BtpManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+/*func (r *BtpManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here
 
 	return ctrl.Result{}, nil
-}
+}*/
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
+	if err := r.initReconciler(mgr); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&operatorv1alpha1.BtpManager{}).
+		For(&v1alpha1.BtpManager{}).
 		Complete(r)
+}
+
+// initReconciler injects the required configuration into the declarative reconciler.
+func (r *BtpManagerReconciler) initReconciler(mgr ctrl.Manager) error {
+	manifestResolver := &ManifestResolver{}
+	return r.Inject(mgr, &v1alpha1.BtpManager{},
+		declarative.WithManifestResolver(manifestResolver),
+	)
+}
+
+// ManifestResolver represents the chart information for the passed Sample resource.
+type ManifestResolver struct{}
+
+// Get returns the chart information to be processed.
+func (m *ManifestResolver) Get(obj types.BaseCustomObject) (types.InstallationSpec, error) {
+	btpManager, valid := obj.(*v1alpha1.BtpManager)
+	if !valid {
+		return types.InstallationSpec{},
+			fmt.Errorf("invalid type conversion for %s", client.ObjectKeyFromObject(obj))
+	}
+	return types.InstallationSpec{
+		ChartPath:   chartPath,
+		ReleaseName: btpManager.Spec.ReleaseName,
+		ChartFlags: types.ChartFlags{
+			ConfigFlags: types.Flags{
+				"Namespace":       chartNs,
+				"CreateNamespace": true,
+			},
+			SetFlags: types.Flags{
+				"nameOverride": nameOverride,
+			},
+		},
+	}, nil
 }
