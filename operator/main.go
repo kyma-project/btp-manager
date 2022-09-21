@@ -48,6 +48,10 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+const (
+	chartPath = "./module-chart"
+)
+
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -90,8 +94,9 @@ func main() {
 	}
 
 	if err = (&controllers.BtpManagerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		ChartPath: chartPath,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpManager")
 		os.Exit(1)

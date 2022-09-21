@@ -12,5 +12,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: op-skr-registry.localhost:58145/unsigned/operator-images/template-operator
-  newTag: 0.0.4
+  newName: op-skr-registry.localhost:49162/unsigned/operator-images/btp-manager-operator
+  newTag: 0.0.1

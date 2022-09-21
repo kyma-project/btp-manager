@@ -1,4 +1,9 @@
-# More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
-# Ignore build and test binaries.
-bin/
-testbin/
+# Ignore all
+**
+# Allow
+!./main.go
+!api
+!controllers
+!module-chart
+!go.sum
+!go.mod

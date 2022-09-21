@@ -33,10 +33,10 @@ type BtpManagerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	*rest.Config
+	ChartPath string
 }
 
 const (
-	chartPath    = "./module-chart"
 	chartNs      = "redis"
 	nameOverride = "custom-name-override"
 )
@@ -44,6 +44,11 @@ const (
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpmanagers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpmanagers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpmanagers/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch;get;list;watch
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
+
+// TODO: dynamically create RBACs! Remove line below.
+//+kubebuilder:rbac:groups="*",resources="*",verbs=get;list;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -59,7 +64,7 @@ const (
 
 	// TODO(user): your logic here
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, nilž
 }*/
 
 // SetupWithManager sets up the controller with the Manager.
@@ -76,14 +81,18 @@ func (r *BtpManagerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // initReconciler injects the required configuration into the declarative reconciler.
 func (r *BtpManagerReconciler) initReconciler(mgr ctrl.Manager) error {
-	manifestResolver := &ManifestResolver{}
+	manifestResolver := &ManifestResolver{
+		chartPath: r.ChartPath,
+	}
 	return r.Inject(mgr, &v1alpha1.BtpManager{},
 		declarative.WithManifestResolver(manifestResolver),
 	)
 }
 
 // ManifestResolver represents the chart information for the passed Sample resource.
-type ManifestResolver struct{}
+type ManifestResolver struct {
+	chartPath string
+}
 
 // Get returns the chart information to be processed.
 func (m *ManifestResolver) Get(obj types.BaseCustomObject) (types.InstallationSpec, error) {
@@ -93,7 +102,7 @@ func (m *ManifestResolver) Get(obj types.BaseCustomObject) (types.InstallationSp
 			fmt.Errorf("invalid type conversion for %s", client.ObjectKeyFromObject(obj))
 	}
 	return types.InstallationSpec{
-		ChartPath:   chartPath,
+		ChartPath:   m.chartPath,
 		ReleaseName: btpManager.Spec.ReleaseName,
 		ChartFlags: types.ChartFlags{
 			ConfigFlags: types.Flags{

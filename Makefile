@@ -1,9 +1,9 @@
 # Module Name used for bundling the OCI Image and later on for referencing in the Kyma Modules
-MODULE_NAME ?= template
+MODULE_NAME ?= btp-manager
 # Semantic Module Version used for identifying the build
-MODULE_VERSION ?= 0.0.4
+MODULE_VERSION ?= 0.0.1
 # Module Registry used for pushing the image
-MODULE_REGISTRY_PORT ?= 58149
+MODULE_REGISTRY_PORT ?= 49168
 MODULE_REGISTRY ?= op-kcp-registry.localhost:$(MODULE_REGISTRY_PORT)/unsigned
 # Desired Channel of the Generated Module Template
 MODULE_TEMPLATE_CHANNEL ?= stable
@@ -13,7 +13,7 @@ MODULE_TEMPLATE_CHANNEL ?= stable
 # MODULE_CREDENTIALS ?= testuser:testpw
 
 # Image URL to use all building/pushing image targets
-IMG_REGISTRY_PORT ?= 58145
+IMG_REGISTRY_PORT ?= 49162
 IMG_REGISTRY ?= op-skr-registry.localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
 IMG ?= $(IMG_REGISTRY)/$(MODULE_NAME)-operator:$(MODULE_VERSION)
 

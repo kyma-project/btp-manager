@@ -1,6 +1,7 @@
 apiVersion: operator.kyma-project.io/v1alpha1
 kind: BtpManager
 metadata:
-  name: btpmanager-sample
+  name: btpmanager-sample2
 spec:
   # TODO(user): Add fields here
+  foo: test5559

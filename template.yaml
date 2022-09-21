@@ -1,14 +1,14 @@
 apiVersion: operator.kyma-project.io/v1alpha1
 kind: ModuleTemplate
 metadata:
-  name: moduletemplate-template
+  name: moduletemplate-btp-manager
   namespace: kyma-system
   labels:
     "operator.kyma-project.io/managed-by": "lifecycle-manager"
     "operator.kyma-project.io/controller-name": "manifest"
-    "operator.kyma-project.io/module-name": "template"
+    "operator.kyma-project.io/module-name": "btp-manager"
   annotations:
-    "operator.kyma-project.io/module-version": "0.0.4"
+    "operator.kyma-project.io/module-version": "0.0.1"
     "operator.kyma-project.io/module-provider": "internal"
     "operator.kyma-project.io/descriptor-schema-version": "v2"
 spec:
@@ -18,34 +18,42 @@ spec:
     apiVersion: operator.kyma-project.io/v1alpha1
     kind: BtpManager
     metadata:
-      name: btpmanager-sample
+      name: btpmanager-sample2
     spec:
       # TODO(user): Add fields here
+      foo: test5559
   descriptor:
     component:
       componentReferences: []
-      name: kyma.project.io/module/template
+      name: kyma.project.io/module/btp-manager
       provider: internal
       repositoryContexts:
-      - baseUrl: op-kcp-registry.localhost:58149/unsigned
+      - baseUrl: op-kcp-registry.localhost:49168/unsigned
         componentNameMapping: urlPath
         type: ociRegistry
       resources:
+      - access:
+          digest: sha256:b022cb47cecf8d39442fab3d4836506f845e1f4d6fb9d7957e7dafe583f44084
+          type: localOciBlob
+        name: btp-manager-operator
+        relation: local
+        type: helm-chart
+        version: 0.0.1
       - access:
           digest: sha256:a4aca11972fd7761d7a69f4f30003c55e748b7a204609dac9893fe3c0cfe4c20
           type: localOciBlob
         name: template-operator
         relation: local
         type: helm-chart
-        version: 0.0.4
+        version: 0.0.1
       - access:
           digest: sha256:db86408caca4c94250d8291aa79655b84146f9cc45e0da49f05a52b3722d74a0
           type: localOciBlob
         name: config
         relation: local
         type: yaml
-        version: 0.0.4
+        version: 0.0.1
       sources: []
-      version: 0.0.4
+      version: 0.0.1
     meta:
       schemaVersion: v2
