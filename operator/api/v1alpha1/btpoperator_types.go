@@ -23,17 +23,17 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// BtpManagerSpec defines the desired state of BtpManager
-type BtpManagerSpec struct {
+// BtpOperatorSpec defines the desired state of BtpOperator
+type BtpOperatorSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of BtpManager. Edit btpmanager_types.go to remove/update
+	// Foo is an example field of BtpOperator. Edit btpoperator_types.go to remove/update
 	Foo string `json:"foo,omitempty"`
 }
 
-// BtpManagerStatus defines the observed state of BtpManager
-type BtpManagerStatus struct {
+// BtpOperatorStatus defines the observed state of BtpOperator
+type BtpOperatorStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -41,24 +41,24 @@ type BtpManagerStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// BtpManager is the Schema for the btpmanagers API
-type BtpManager struct {
+// BtpOperator is the Schema for the btpoperators API
+type BtpOperator struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BtpManagerSpec   `json:"spec,omitempty"`
-	Status BtpManagerStatus `json:"status,omitempty"`
+	Spec   BtpOperatorSpec   `json:"spec,omitempty"`
+	Status BtpOperatorStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// BtpManagerList contains a list of BtpManager
-type BtpManagerList struct {
+// BtpOperatorList contains a list of BtpOperator
+type BtpOperatorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []BtpManager `json:"items"`
+	Items           []BtpOperator `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&BtpManager{}, &BtpManagerList{})
+	SchemeBuilder.Register(&BtpOperator{}, &BtpOperatorList{})
 }

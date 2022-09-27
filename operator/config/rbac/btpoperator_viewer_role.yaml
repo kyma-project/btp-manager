@@ -1,24 +1,27 @@
+# permissions for end users to view btpoperators.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: clusterrole
-    app.kubernetes.io/instance: proxy-role
-    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/instance: btpoperator-viewer-role
+    app.kubernetes.io/component: rbac
     app.kubernetes.io/created-by: btp-manager
     app.kubernetes.io/part-of: btp-manager
     app.kubernetes.io/managed-by: kustomize
-  name: proxy-role
+  name: btpoperator-viewer-role
 rules:
 - apiGroups:
-  - authentication.k8s.io
+  - operator.kyma-project.io
   resources:
-  - tokenreviews
+  - btpoperators
   verbs:
-  - create
+  - get
+  - list
+  - watch
 - apiGroups:
-  - authorization.k8s.io
+  - operator.kyma-project.io
   resources:
-  - subjectaccessreviews
+  - btpoperators/status
   verbs:
-  - create
+  - get
