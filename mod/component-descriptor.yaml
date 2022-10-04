@@ -1,0 +1,21 @@
+component:
+  componentReferences: []
+  name: kyma.project.io/module/btp-operator
+  provider: internal
+  repositoryContexts:
+  - baseUrl: localhost:5000/unsigned
+    componentNameMapping: urlPath
+    type: ociRegistry
+  resources:
+  - access:
+      filename: sha256:e8a8bb6359aa2e18a0fa2ad77dab9f6311a66cfbac9edde87bb6388ced6a681a
+      mediaType: application/gzip
+      type: localFilesystemBlob
+    name: btp-manager
+    relation: local
+    type: helm-chart
+    version: 0.0.1
+  sources: []
+  version: 0.0.1
+meta:
+  schemaVersion: v2
