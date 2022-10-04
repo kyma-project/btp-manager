@@ -3,8 +3,8 @@ MODULE_NAME ?= btp-operator
 # Semantic Module Version used for identifying the build
 MODULE_VERSION ?= 0.0.1
 # Module Registry used for pushing the image
-MODULE_REGISTRY_PORT ?= 5000
-MODULE_REGISTRY ?= localhost:$(MODULE_REGISTRY_PORT)/unsigned
+MODULE_REGISTRY_PORT ?= 60770
+MODULE_REGISTRY ?= op-kcp-registry.localhost:$(MODULE_REGISTRY_PORT)/unsigned
 # Desired Channel of the Generated Module Template
 MODULE_TEMPLATE_CHANNEL ?= stable
 
@@ -13,8 +13,8 @@ MODULE_TEMPLATE_CHANNEL ?= stable
 # MODULE_CREDENTIALS ?= testuser:testpw
 
 # Image URL to use all building/pushing image targets
-IMG_REGISTRY_PORT ?= $(MODULE_REGISTRY_PORT)
-IMG_REGISTRY ?= localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
+IMG_REGISTRY_PORT ?= 60765
+IMG_REGISTRY ?= op-skr-registry.localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
 IMG ?= $(IMG_REGISTRY)/$(MODULE_NAME)-operator:$(MODULE_VERSION)
 
 COMPONENT_CLI_VERSION ?= latest
@@ -76,6 +76,7 @@ operator/docker-push:
 
 TEMPLATE_DIR ?= charts/$(MODULE_NAME)-operator
 GEN_CHART ?= sh hack/gen-chart.sh
+GEN_MODULE_TEMPLATE ?= sh hack/gen-mod-template.sh
 
 .PHONY: module-operator-chart
 module-operator-chart: operator/manifests kustomize ## Bundle the Module Operator Chart
@@ -95,7 +96,6 @@ module-build: kyma module-operator-chart module-default ## Build the Module and 
 
 .PHONY: module-template-push
 module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODULE_REGISTRY
-	sh hack/local-template.sh
 	kubectl apply -f template.yaml
 
 .PHONY: module-default
@@ -114,7 +114,7 @@ KYMA_STABILITY ?= unstable
 
 KYMA ?= $(LOCALBIN)/kyma-$(KYMA_STABILITY)
 kyma: $(KYMA) ## Download kyma locally if necessary.
-$(KYMA): $(LOCALBIN)
+$(KYMA):
 	test -f $@ || curl -# -Lo $(KYMA) https://storage.googleapis.com/kyma-cli-$(KYMA_STABILITY)/kyma-darwin
 	chmod 0100 $(KYMA)
 
