@@ -3,8 +3,8 @@ MODULE_NAME ?= btp-operator
 # Semantic Module Version used for identifying the build
 MODULE_VERSION ?= 0.0.1
 # Module Registry used for pushing the image
-MODULE_REGISTRY_PORT ?= 5000
-MODULE_REGISTRY ?= localhost:$(MODULE_REGISTRY_PORT)/unsigned
+MODULE_REGISTRY_PORT ?= 60770
+MODULE_REGISTRY ?= op-kcp-registry.localhost:$(MODULE_REGISTRY_PORT)/unsigned
 # Desired Channel of the Generated Module Template
 MODULE_TEMPLATE_CHANNEL ?= stable
 
@@ -13,8 +13,8 @@ MODULE_TEMPLATE_CHANNEL ?= stable
 # MODULE_CREDENTIALS ?= testuser:testpw
 
 # Image URL to use all building/pushing image targets
-IMG_REGISTRY_PORT ?= $(MODULE_REGISTRY_PORT)
-IMG_REGISTRY ?= localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
+IMG_REGISTRY_PORT ?= 60765
+IMG_REGISTRY ?= op-skr-registry.localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
 IMG ?= $(IMG_REGISTRY)/$(MODULE_NAME)-operator:$(MODULE_VERSION)
 
 COMPONENT_CLI_VERSION ?= latest
