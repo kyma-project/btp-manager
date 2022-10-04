@@ -1,0 +1,44 @@
+apiVersion: operator.kyma-project.io/v1alpha1
+kind: ModuleTemplate
+metadata:
+  name: moduletemplate-btp-operator
+  namespace: kyma-system
+  labels:
+    "operator.kyma-project.io/managed-by": "lifecycle-manager"
+    "operator.kyma-project.io/controller-name": "manifest"
+    "operator.kyma-project.io/module-name": "btp-operator"
+  annotations:
+    "operator.kyma-project.io/module-version": "0.0.1"
+    "operator.kyma-project.io/module-provider": "internal"
+    "operator.kyma-project.io/descriptor-schema-version": "v2"
+spec:
+  target: remote
+  channel: stable
+  data:
+    apiVersion: operator.kyma-project.io/v1alpha1
+    kind: BtpOperator
+    metadata:
+      name: btpoperator
+    spec:
+      # TODO(user): Add fields here
+  descriptor:
+    component:
+      componentReferences: []
+      name: kyma.project.io/module/btp-operator
+      provider: internal
+      repositoryContexts:
+      - baseUrl: localhost:5000/unsigned
+        componentNameMapping: urlPath
+        type: ociRegistry
+      resources:
+      - access:
+          digest: sha256:e8a8bb6359aa2e18a0fa2ad77dab9f6311a66cfbac9edde87bb6388ced6a681a
+          type: localOciBlob
+        name: btp-manager
+        relation: local
+        type: helm-chart
+        version: 0.0.1
+      sources: []
+      version: 0.0.1
+    meta:
+      schemaVersion: v2

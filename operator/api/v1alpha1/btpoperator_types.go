@@ -17,37 +17,47 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/kyma-project/module-manager/operator/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const componentName = "btp-operator"
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// BtpOperatorSpec defines the desired state of BtpOperator
-type BtpOperatorSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of BtpOperator. Edit btpoperator_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-}
-
-// BtpOperatorStatus defines the observed state of BtpOperator
-type BtpOperatorStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
-
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="State",type=string,JSONPath=".status.state"
 
 // BtpOperator is the Schema for the btpoperators API
 type BtpOperator struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BtpOperatorSpec   `json:"spec,omitempty"`
-	Status BtpOperatorStatus `json:"status,omitempty"`
+	Spec   BtpOperatorSpec `json:"spec,omitempty"`
+	Status types.Status    `json:"status,omitempty"`
+}
+
+// BtpOperatorSpec defines the desired state of BtpOperator
+type BtpOperatorSpec struct {
+	ReleaseName string `json:"releaseName,omitempty"`
+	Foo         string `json:"foo,omitempty"`
+	Test        bool   `json:"test,omitempty"`
+}
+
+var _ types.CustomObject = &BtpOperator{}
+
+func (o *BtpOperator) ComponentName() string {
+	return componentName
+}
+
+func (o *BtpOperator) GetStatus() types.Status {
+	return o.Status
+}
+
+func (o *BtpOperator) SetStatus(status types.Status) {
+	o.Status = status
 }
 
 //+kubebuilder:object:root=true
