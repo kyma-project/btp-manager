@@ -17,162 +17,78 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"fmt"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	"github.com/kyma-project/module-manager/operator/pkg/declarative"
+	"github.com/kyma-project/module-manager/operator/pkg/types"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+const (
+	operatorName = "btp-manager"
+	labelKey     = "app.kubernetes.io/managed-by"
+	chartPath    = "./module-chart"
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	declarative.ManifestReconciler
+	*rest.Config
 }
-
-const (
-	btpOperatorGroup           = "services.cloud.sap.com"
-	btpOperatorApiVer          = "v1"
-	btpOperatorServiceInstance = "ServiceInstance"
-	btpOperatorServiceBinding  = "ServiceBinding"
-)
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the BtpOperator object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
-func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("reconcile of deprovisioning started.")
-
-	btpManager := v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, req.NamespacedName, &btpManager); err != nil {
-		logger.Error(err, "failed to get btp manager")
-		if errors.IsNotFound(err) {
-			//It means that btp manager was deleted in current Reconcile occurrence.
-			//We can use this, because DeletionMode is saved on BTP Managaer Spec (which is reset now)
-			return ctrl.Result{}, nil
-		}
-
-		return ctrl.Result{}, err
-	}
-
-	underDeletion := !btpManager.ObjectMeta.DeletionTimestamp.IsZero()
-	if underDeletion {
-		logger.Info("btp operator is under deletion")
-	}
-
-	// TODO(user): your logic here
-
-	return ctrl.Result{}, nil
-}
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch;get;list;watch
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
+	if err := r.initReconciler(mgr); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{}).
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) Deprovision(ctx *context.Context) error {
-	bindingGvk, ok := r.GetBtpGvk(ctx, btpOperatorServiceBinding)
-	if !ok {
-		return nil
-	}
-
-	instanceGvk, ok := r.GetBtpGvk(ctx, btpOperatorServiceInstance)
-	if !ok {
-		return nil
-	}
-
-	allDeletionsOk := true
-
-	if errors := r.HardDelete(ctx, bindingGvk); len(errors) > 0 {
-		allDeletionsOk = false
-	}
-
-	if errors := r.HardDelete(ctx, instanceGvk); len(errors) > 0 {
-		allDeletionsOk = false
-	}
-
-	if allDeletionsOk {
-		//Remove Resources
-		if errors := r.SoftDelete(ctx, bindingGvk); len(errors) > 0 {
-
-		}
-
-		if errors := r.SoftDelete(ctx, instanceGvk); len(errors) > 0 {
-
-		}
-	} else {
-		//Soft Delete
-
-		//Remove Resources
-	}
-
-	return nil
+func (r *BtpOperatorReconciler) initReconciler(mgr ctrl.Manager) error {
+	manifestResolver := &ManifestResolver{}
+	return r.Inject(mgr, &v1alpha1.BtpOperator{},
+		declarative.WithManifestResolver(manifestResolver),
+		declarative.WithCustomResourceLabels(map[string]string{labelKey: operatorName}),
+		// declarative.WithPostRenderTransform(transform),
+		declarative.WithResourcesReady(true),
+	)
 }
 
-func (r *BtpOperatorReconciler) GetBtpGvk(ctx *context.Context, kind string) (schema.GroupVersionKind, bool) {
-	logger := log.FromContext(*ctx)
-	if kind != btpOperatorServiceBinding && kind != btpOperatorServiceInstance {
-		logger.Error(nil, "%s as kind not supported.", kind)
-		return schema.GroupVersionKind{}, false
-	}
-	return schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: kind}, true
+/*
+// transform modifies the resources based on some criteria, before installation.
+func transform(_ context.Context, _ types.BaseCustomObject, manifestResources *types.ManifestResources) error {
+
 }
+*/
 
-func (r *BtpOperatorReconciler) SoftDelete(ctx *context.Context, gvk schema.GroupVersionKind) bool {
-	logger := log.FromContext(*ctx)
-	ok := true
+// ManifestResolver represents the chart information for the passed Sample resource.
+type ManifestResolver struct{}
 
-	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(gvk)
-	if err := r.List(*ctx, list); err != nil {
-		logger.Error(err, "error occurred in soft delete when listing btp operator resources")
-		return false
+// Get returns the chart information to be processed.
+func (m *ManifestResolver) Get(obj types.BaseCustomObject) (types.InstallationSpec, error) {
+	btpServiceOperator, valid := obj.(*v1alpha1.BtpOperator)
+	if !valid {
+		return types.InstallationSpec{},
+			fmt.Errorf("invalid type conversion for %s", client.ObjectKeyFromObject(obj))
 	}
-
-	for _, item := range list.Items {
-		item.SetFinalizers([]string{})
-		if err := r.Update(*ctx, &item); err != nil {
-			logger.Error(err, "error occurred in soft delete when updating btp operator resources")
-			ok = false
-		}
-	}
-
-	return ok
-}
-
-func (r *BtpOperatorReconciler) HardDelete(ctx *context.Context, gvk schema.GroupVersionKind) []error {
-	logger := log.FromContext(*ctx)
-	errors = make([]error, 0)
-
-	if ctx == nil {
-		logger.Error(nil, "ctx not set")
-		return false
-	}
-
-	obj := unstructured.Unstructured{}
-	obj.SetGroupVersionKind(gvk)
-	if err := r.DeleteAllOf(*ctx, &obj); err != nil {
-		logger.Error(err, "delete all of gvk failed")
-		return false
-	}
-
-	return true
+	return types.InstallationSpec{
+		ChartPath:   chartPath,
+		ReleaseName: btpServiceOperator.Spec.ReleaseName,
+	}, nil
 }
