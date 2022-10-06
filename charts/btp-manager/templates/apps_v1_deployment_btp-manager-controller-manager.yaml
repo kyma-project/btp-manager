@@ -63,7 +63,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: op-skr-registry.localhost:60765/unsigned/operator-images/btp-operator-operator:0.0.1
+        image: op-skr-registry.localhost:60765/unsigned/operator-images/btp-manager:0.0.1
         livenessProbe:
           httpGet:
             path: /healthz

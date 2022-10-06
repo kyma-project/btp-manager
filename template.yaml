@@ -18,6 +18,12 @@ spec:
     apiVersion: operator.kyma-project.io/v1alpha1
     kind: BtpOperator
     metadata:
+      labels:
+        app.kubernetes.io/name: btpoperator
+        app.kubernetes.io/instance: btpoperator
+        app.kubernetes.io/part-of: btp-manager
+        app.kuberentes.io/managed-by: kustomize
+        app.kubernetes.io/created-by: btp-manager
       name: btpoperator
     spec:
       # TODO(user): Add fields here
@@ -27,12 +33,12 @@ spec:
       name: kyma.project.io/module/btp-operator
       provider: internal
       repositoryContexts:
-      - baseUrl: localhost:5000/unsigned
+      - baseUrl: op-kcp-registry.localhost:60770/unsigned
         componentNameMapping: urlPath
         type: ociRegistry
       resources:
       - access:
-          digest: sha256:e8a8bb6359aa2e18a0fa2ad77dab9f6311a66cfbac9edde87bb6388ced6a681a
+          digest: sha256:9637c060d1eab052eb4d34065373d6a26c802b0f018889511078839a111043e5
           type: localOciBlob
         name: btp-manager
         relation: local
