@@ -66,7 +66,7 @@ func (r *BtpOperatorReconciler) initReconciler(mgr ctrl.Manager) error {
 		declarative.WithManifestResolver(manifestResolver),
 		declarative.WithCustomResourceLabels(map[string]string{labelKey: operatorName}),
 		// declarative.WithPostRenderTransform(transform),
-		declarative.WithResourcesReady(true),
+		// declarative.WithResourcesReady(true),
 	)
 }
 
