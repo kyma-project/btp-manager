@@ -1,0 +1,23 @@
+# The OWNERS file is the Prow feature that allows you to create an ownership structure across the entire repository.
+# This file consists of the list of `approvers` and `reviewers` and `labels`.
+#
+# The basic structure of this file is as follows:
+# reviewers:
+#   - githubUser1
+#   - githubUser2
+#   - githubUserN
+# approvers:
+#   - githubUser1
+#   - githubUser2
+#   - girhubUserN
+# labels: # optional
+#   - label1
+#   - label2
+# Having the same set of reviewers and approvers is considered a bad practice and should be avoided!
+#
+#
+# You can use multiple OWNERS files across the entire repository to diversify the ownership of specific directories between multiple people.
+#
+# For more information, refer to the official Kubernetes documentation.
+# https://github.com/kubernetes/community/blob/master/contributors/guide/owners.md
+# https://github.com/kubernetes/test-infra/blob/master/prow/ANNOUNCEMENTS.md
