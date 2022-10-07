@@ -5,30 +5,13 @@
 # https://github.com/kubernetes/community/blob/master/contributors/guide/owners.md#owners_aliases
 
 aliases:
-  documentation-reviewers:
-    - klaudiagrz
-    - mmitoraj
-    - majakurcius
-    - NHingerl
-    - grego952
-  documentation-approvers:
-    - klaudiagrz
-    - mmitoraj
-    - majakurcius
-    - NHingerl
-    - grego952
-  technical-writers:
-    - klaudiagrz
-    - mmitoraj
-    - majakurcius
-    - NHingerl
-    - grego952
-  ci-reviewers:
-    - Ressetkk
-    - Halamix2
-    - dekiel
-    - kasiakepka
-  ci-approvers:
-    - Ressetkk
-    - Halamix2
-    - dekiel
+  gophers:
+    - IwonaLanger
+    - PK85
+    - jaroslaw-pieszka
+    - piotrmiskiewicz
+    - ralikio
+    - szwedm
+    - tillknuesting
+    - ukff
+    - wozniakjan
