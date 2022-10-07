@@ -16,9 +16,11 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-project/module-manager/operator/pkg/types"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,27 +42,6 @@ type BtpOperatorReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the BtpOperator object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
-func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
-
-	_, _ = r.HandleDeprovisioning(ctx, req)
-
-	return ctrl.Result{}, nil
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -68,7 +49,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) HandleDeprovisioning(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
+
+func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	btpManager := v1alpha1.BtpOperator{}
@@ -77,16 +62,85 @@ func (r *BtpOperatorReconciler) HandleDeprovisioning(ctx context.Context, req ct
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-
 		return ctrl.Result{}, err
 	}
 
-	markedForDelete := !btpManager.ObjectMeta.DeletionTimestamp.IsZero()
-	if markedForDelete {
-		logger.Info("btp operator is under deletion")
+	deletion := !btpManager.ObjectMeta.DeletionTimestamp.IsZero()
+	if deletion {
+		err := r.HandleDeprovisioning(ctx, &btpManager)
+		if err != nil {
+			logger.Error(err, "deprovisioning failed")
+			btpManager.Status.State = types.StateError
+			return ctrl.Result{}, err
+		} else {
+			btpManager.Status.State = types.StateReady
+			return ctrl.Result{}, nil
+		}
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *BtpOperatorReconciler) HandleDeprovisioning(ctx context.Context, btpManager *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+
+	bindingGvk, err := r.GetBtpGvk(btpOperatorServiceBinding)
+	if err != nil {
+		return err
+	}
+
+	instanceGvk, err := r.GetBtpGvk(btpOperatorServiceInstance)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("btp operator is under deletion")
+
+	hardDeleteChannel := make(chan bool)
+	go func() {
+		anyFail := false
+		if err := r.HardDelete(&ctx, bindingGvk); err != nil {
+			logger.Error(err, "failed to hard delete bindings")
+			anyFail = true
+		}
+
+		if err := r.HardDelete(&ctx, instanceGvk); err != nil {
+			logger.Error(err, "failed to hard delete instances")
+			anyFail = true
+		}
+
+		hardDeleteChannel <- anyFail
+	}()
+
+	select {
+	case hardDeleteOk := <-hardDeleteChannel:
+		if hardDeleteOk {
+			logger.Info("hard delete success")
+			if err := r.RemoveInstalledResources(); err != nil {
+				logger.Error(err, "failed to remove related installed resources")
+				return err
+			}
+		} else {
+			logger.Info("hard delete failed. trying to perform soft delete")
+
+			if err := r.SoftDelete(&ctx, instanceGvk); err != nil {
+				logger.Error(err, "soft deletion of instances failed")
+			}
+
+			if err := r.SoftDelete(&ctx, bindingGvk); err != nil {
+				logger.Error(err, "hard deletion of bindings failed")
+			}
+
+			if err := r.RemoveInstalledResources(); err != nil {
+				logger.Error(err, "failed to remove related installed resources")
+				return err
+			}
+		}
+	case <-time.After(time.Second * 1):
+		fmt.Println("TIMEOUT!!!")
+	}
+
+	return nil
 }
 
 func (r *BtpOperatorReconciler) GetBtpGvk(kind string) (schema.GroupVersionKind, error) {
@@ -110,26 +164,30 @@ func (r *BtpOperatorReconciler) HardDelete(ctx *context.Context, gvk schema.Grou
 	return nil
 }
 
-func (r *BtpOperatorReconciler) SoftDelete(ctx *context.Context, gvk schema.GroupVersionKind) []error {
-	errs := make([]error, 0)
+func (r *BtpOperatorReconciler) SoftDelete(ctx *context.Context, gvk schema.GroupVersionKind) error {
+	errs := fmt.Errorf("")
 
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(gvk)
-	if err := r.List(*ctx, list); err != nil {
-		errs = append(errs, err)
+	if errs := r.List(*ctx, list); errs != nil {
+		errs = fmt.Errorf("%w; could not list in soft delete", errs)
 		return errs
 	}
 
 	for _, item := range list.Items {
 		item.SetFinalizers([]string{})
 		if err := r.Update(*ctx, &item); err != nil {
-			errs = append(errs, fmt.Errorf("error occurred in soft delete when updating btp operator resources"))
+			errs = fmt.Errorf("%w; error occurred in soft delete when updating btp operator resources", err)
 		}
 	}
 
-	return nil
+	if errs != nil && len(errs.Error()) > 0 {
+		return errs
+	} else {
+		return nil
+	}
 }
 
-func (r *BtpOperatorReconciler) RemoveInstalledResources() {
-
+func (r *BtpOperatorReconciler) RemoveInstalledResources() error {
+	return nil
 }
