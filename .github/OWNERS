@@ -1,0 +1,7 @@
+reviewers:
+  - ci-reviewers
+approvers:
+  - ci-approvers
+
+labels:
+  - area/ci
