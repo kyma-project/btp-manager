@@ -1,0 +1,11 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: my-binding
+spec:
+  serviceInstanceName: my-service-instance
+  externalName: my-binding-external
+  secretName: mySecret
+  parameters:
+    key1: val1
+    key2: val2
