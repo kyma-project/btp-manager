@@ -20,21 +20,29 @@ import (
 	"context"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	"github.com/kyma-project/module-manager/operator/pkg/custom"
+	"github.com/kyma-project/module-manager/operator/pkg/manifest"
+	"github.com/kyma-project/module-manager/operator/pkg/types"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
-	operatorName = "btp-manager"
-	labelKey     = "app.kubernetes.io/managed-by"
-	chartPath    = "./module-chart"
+	chartPath         = "./module-chart"
+	chartNamespace    = "kyma-system"
+	operatorName      = "btp-manager"
+	labelKey          = "app.kubernetes.io/managed-by"
+	deletionFinalizer = "custom-deletion-finalizer"
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
 	client.Client
+	*rest.Config
 	Scheme *runtime.Scheme
 }
 
@@ -52,16 +60,67 @@ type BtpOperatorReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	// TODO(user): your logic here
+	btpOperatorCr := &v1alpha1.BtpOperator{}
+	if err := r.Get(ctx, req.NamespacedName, btpOperatorCr); err != nil {
+		logger.Error(err, "unable to fetch BtpOperator")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Install
+	_ = manifest.InstallInfo{
+		ChartInfo: &manifest.ChartInfo{
+			ChartPath: chartPath,
+			Flags: types.ChartFlags{
+				ConfigFlags: types.Flags{
+					"Namespace":       chartNamespace,
+					"CreateNamespace": true,
+				},
+			},
+		},
+		ResourceInfo: manifest.ResourceInfo{},
+		ClusterInfo: custom.ClusterInfo{
+			Config: r.Config,
+			Client: r.Client,
+		},
+		Ctx:              ctx,
+		CheckFn:          nil,
+		CheckReadyStates: true,
+	}
+
+	if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
+		return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
+	}
+
+	switch btpOperatorCr.Status.State {
+	case "":
+		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
+	}
+
+	/*
+		var existingBtpOperators v1alpha1.BtpOperatorList
+		if err := r.List(ctx, &existingBtpOperators); err != nil {
+			logger.Error(err, "unable to fetch existing BtpOperators")
+			return ctrl.Result{}, err
+		}
+	*/
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{}).
 		Complete(r)
+}
+
+func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	status := cr.GetStatus()
+	status.State = types.StateProcessing
+	cr.SetStatus(status)
+	return r.Update(ctx, cr)
 }
