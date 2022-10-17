@@ -18,11 +18,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,6 +40,7 @@ const (
 	operatorName      = "btp-manager"
 	labelKey          = "app.kubernetes.io/managed-by"
 	deletionFinalizer = "custom-deletion-finalizer"
+	requeueInterval   = time.Second * 3
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
@@ -69,27 +73,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Install
-	_ = manifest.InstallInfo{
-		ChartInfo: &manifest.ChartInfo{
-			ChartPath: chartPath,
-			Flags: types.ChartFlags{
-				ConfigFlags: types.Flags{
-					"Namespace":       chartNamespace,
-					"CreateNamespace": true,
-				},
-			},
-		},
-		ResourceInfo: manifest.ResourceInfo{},
-		ClusterInfo: custom.ClusterInfo{
-			Config: r.Config,
-			Client: r.Client,
-		},
-		Ctx:              ctx,
-		CheckFn:          nil,
-		CheckReadyStates: true,
-	}
-
 	if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
 		return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
 	}
@@ -97,6 +80,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	switch btpOperatorCr.Status.State {
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
+	case types.StateProcessing:
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
 	}
 
 	/*
@@ -120,7 +105,71 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	status := cr.GetStatus()
-	status.State = types.StateProcessing
+	status.WithState(types.StateProcessing)
 	cr.SetStatus(status)
-	return r.Update(ctx, cr)
+	return r.Status().Update(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+
+	status := cr.GetStatus()
+
+	installInfo, err := r.getInstallInfo(ctx, cr)
+	if err != nil {
+		logger.Error(err, "while preparing InstallInfo")
+		return err
+	}
+	if installInfo.ChartPath == "" {
+		return fmt.Errorf("no chart path available for processing")
+	}
+
+	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{})
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
+		status.WithState(types.StateError)
+		cr.SetStatus(status)
+		return r.Status().Update(ctx, cr)
+	}
+	if ready {
+		status.WithState(types.StateReady)
+		cr.SetStatus(status)
+		return r.Status().Update(ctx, cr)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (manifest.InstallInfo, error) {
+	unstructuredObj := &unstructured.Unstructured{}
+	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
+	if err != nil {
+		return manifest.InstallInfo{}, err
+	}
+	unstructuredObj.Object = unstructuredBase
+
+	installInfo := manifest.InstallInfo{
+		ChartInfo: &manifest.ChartInfo{
+			ChartPath:   chartPath,
+			ReleaseName: cr.GetName(),
+			Flags: types.ChartFlags{
+				ConfigFlags: types.Flags{
+					"Namespace":       chartNamespace,
+					"CreateNamespace": true,
+				},
+			},
+		},
+		ResourceInfo: manifest.ResourceInfo{
+			BaseResource: unstructuredObj,
+		},
+		ClusterInfo: custom.ClusterInfo{
+			Config: r.Config,
+			Client: r.Client,
+		},
+		Ctx:              ctx,
+		CheckFn:          nil,
+		CheckReadyStates: true,
+	}
+
+	return installInfo, nil
 }
