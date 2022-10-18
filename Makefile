@@ -27,6 +27,7 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+//test
 
 # This will change the flags of the `kyma alpha module create` command in case we spot credentials
 # Otherwise we will assume http-based local registries without authentication (e.g. for k3d)
