@@ -83,6 +83,7 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(context.Background())
+
 	btpManager := v1alpha1.BtpOperator{}
 	if err := r.Get(context.Background(), req.NamespacedName, &btpManager); err != nil {
 		logger.Error(err, "failed to get btp manager")
@@ -91,8 +92,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, err
 	}
-
-	r.namespace = btpManager.Spec.ReleaseName
 
 	deletionTimestampSet := btpManager.ObjectMeta.DeletionTimestamp.IsZero() == false
 	if deletionTimestampSet && btpManager.Status.State != types.StateDeleting {
@@ -139,16 +138,17 @@ func (r *BtpOperatorReconciler) HandleDeprovisioning() error {
 	hardDeleteChannel := make(chan bool)
 	go func() {
 		anyFail := false
-		if err := r.HardDelete(bindingGvk, "default"); err != nil {
+		if err := r.HardDelete(bindingGvk); err != nil {
 			logger.Error(err, "failed to hard delete bindings")
 			anyFail = true
 		}
 
-		if err := r.HardDelete(instanceGvk, "default"); err != nil {
+		if err := r.HardDelete(instanceGvk); err != nil {
 			logger.Error(err, "failed to hard delete instances")
 			anyFail = true
 		}
 
+		//anyFail = true
 		hardDeleteChannel <- anyFail
 	}()
 
@@ -195,30 +195,24 @@ func (r *BtpOperatorReconciler) HandleHardDeleteFail(instanceGvk *schema.GroupVe
 	return nil
 }
 
-func (r *BtpOperatorReconciler) HardDelete(gvk schema.GroupVersionKind, namespace string) error {
+func (r *BtpOperatorReconciler) HardDelete(gvk schema.GroupVersionKind) error {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(gvk)
 
-	if err := r.DeleteAllOf(context.Background(), obj, client.InNamespace(namespace)); err != nil {
-		return err
-	}
+	for _, namespace := range r.namespaces.Items {
+		listGvk := gvk
+		listGvk.Kind = gvk.Kind + "List"
 
-	return nil
-}
+		lst := &unstructured.UnstructuredList{}
+		lst.SetGroupVersionKind(listGvk)
 
-func (r *BtpOperatorReconciler) DeleteWebhooks() error {
-	mutatingWebHook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	mutatingWebHook.Name = "sap-btp-operator-mutating-webhook-configuration"
+		if err := r.List(context.Background(), lst, client.InNamespace(namespace.Name)); err != nil {
+			return err
+		}
 
-	if err := r.Delete(context.Background(), mutatingWebHook); err != nil {
-		return err
-	}
-
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	validatingWebhook.Name = "sap-btp-operator-validating-webhook-configuration"
-
-	if err := r.Delete(context.Background(), validatingWebhook); err != nil {
-		return err
+		if err := r.DeleteAllOf(context.Background(), obj, client.InNamespace(namespace.Name)); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -250,42 +244,71 @@ func (r *BtpOperatorReconciler) SoftDelete(gvk schema.GroupVersionKind) error {
 }
 
 func (r *BtpOperatorReconciler) RemoveInstalledResources() error {
+	time.Sleep(time.Second * 30)
 	c, cerr := clientset.NewForConfig(r.Config)
 	if cerr != nil {
 		return cerr
 	}
 
-	_, resourceList, err := c.ServerGroupsAndResources()
+	_, apiResourceList, err := c.ServerGroupsAndResources()
 	if err != nil {
 		return err
 	}
 
-	var errls []error
-	for _, resource := range resourceList {
-		gv, _ := schema.ParseGroupVersion(resource.GroupVersion)
-		for _, nestedResource := range resource.APIResources {
+	errs := fmt.Errorf("")
+	//var edeb []error
+	for _, apiResource := range apiResourceList {
+		gv, _ := schema.ParseGroupVersion(apiResource.GroupVersion)
+		for _, apiResourceNested := range apiResource.APIResources {
 			gvk := schema.GroupVersionKind{
 				Version: gv.Version,
 				Group:   gv.Group,
-				Kind:    nestedResource.Kind,
+				Kind:    apiResourceNested.Kind,
+			}
+
+			var hasDeleteVerb bool = false
+			for _, verb := range apiResourceNested.Verbs {
+				if verb == "delete" || verb == "deletecollection" {
+					hasDeleteVerb = true
+					break
+				}
+			}
+
+			if !hasDeleteVerb {
+				continue
 			}
 
 			obj := &unstructured.Unstructured{}
 			obj.SetGroupVersionKind(gvk)
 
-			if nestedResource.Namespaced {
-				if errl := r.DeleteAllOf(context.Background(), obj, client.InNamespace("default"), client.MatchingLabels{"managed-by": "btp-operator"}); errl != nil {
-					errls = append(errls, errl)
+			if apiResourceNested.Namespaced {
+				for _, namespace := range r.namespaces.Items {
+					if err := r.DeleteAllOf(context.Background(), obj, client.InNamespace(namespace.Name), client.MatchingLabels{"managed-by": "btp-operator"}); err != nil {
+						if !errors.IsNotFound(err) {
+							errs = fmt.Errorf("%w; error occurred in soft delete when updating btp operator resources", err)
+							//edeb = append(edeb, err)
+						}
+					}
 				}
 			} else {
-				if errl := r.DeleteAllOf(context.Background(), obj, client.MatchingLabels{"managed-by": "btp-operator"}); errl != nil {
-					errls = append(errls, errl)
+				if err := r.DeleteAllOf(context.Background(), obj, client.MatchingLabels{"managed-by": "btp-operator"}); err != nil {
+					if !errors.IsNotFound(err) {
+						errs = fmt.Errorf("%w; error occurred in soft delete when updating btp operator resources", err)
+						//edeb = append(edeb, err)
+					}
 				}
 			}
 		}
 	}
 
+	fmt.Print(errs)
 	return nil
+
+	/*if errs != nil && len(errs.Error()) > 0 {
+		return errs
+	} else {
+		return nil
+	}*/
 }
 
 func (r *BtpOperatorReconciler) DeleteDeployment() error {
@@ -295,5 +318,23 @@ func (r *BtpOperatorReconciler) DeleteDeployment() error {
 	if err := r.Delete(context.Background(), deployment); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) DeleteWebhooks() error {
+	mutatingWebHook := &admissionregistrationv1.MutatingWebhookConfiguration{}
+	mutatingWebHook.Name = "sap-btp-operator-mutating-webhook-configuration"
+
+	if err := r.Delete(context.Background(), mutatingWebHook); err != nil {
+		return err
+	}
+
+	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+	validatingWebhook.Name = "sap-btp-operator-validating-webhook-configuration"
+
+	if err := r.Delete(context.Background(), validatingWebhook); err != nil {
+		return err
+	}
+
 	return nil
 }

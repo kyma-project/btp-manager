@@ -17,11 +17,17 @@ limitations under the License.
 package controllers
 
 import (
-	"path/filepath"
-	"testing"
-
-	. "github.com/onsi/ginkgo/v2"
+	"context"
+	"fmt"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"os"
+	"os/exec"
+	"path/filepath"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"testing"
+	"time"
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -39,7 +45,11 @@ import (
 
 var cfg *rest.Config
 var k8sClient client.Client
+var k8sManager manager.Manager
 var testEnv *envtest.Environment
+var ctx context.Context
+var cancel context.CancelFunc
+var reconciler BtpOperatorReconciler
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -49,11 +59,26 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+	ctx, cancel = context.WithCancel(context.TODO())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
+	}
+	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
+
+	useLocalCluster := true
+	if useLocalCluster {
+		cmd, er := exec.Command("/bin/sh", "runlocal.sh").Output()
+		if er != nil {
+			e := string(er.Error())
+			fmt.Printf("error %s", e)
+		}
+		output := string(cmd)
+		fmt.Print(output)
+
+		Expect(os.Setenv("USE_EXISTING_CLUSTER", "true")).To(Succeed())
 	}
 
 	var err error
@@ -71,9 +96,29 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme.Scheme,
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	reconciler := &BtpOperatorReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}
+	reconciler.SetupCfg(NewCfg(time.Minute * 20))
+
+	err = reconciler.SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	go func() {
+		defer GinkgoRecover()
+		err = k8sManager.Start(ctx)
+		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
+	}()
 })
 
 var _ = AfterSuite(func() {
+	cancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
