@@ -17,78 +17,158 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	"github.com/kyma-project/module-manager/operator/pkg/declarative"
+	"github.com/kyma-project/module-manager/operator/pkg/custom"
+	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
-	operatorName = "btp-manager"
-	labelKey     = "app.kubernetes.io/managed-by"
-	chartPath    = "./module-chart"
+	chartPath         = "./module-chart"
+	chartNamespace    = "kyma-system"
+	operatorName      = "btp-manager"
+	labelKey          = "app.kubernetes.io/managed-by"
+	deletionFinalizer = "custom-deletion-finalizer"
+	requeueInterval   = time.Second * 3
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	declarative.ManifestReconciler
 	*rest.Config
+	Scheme *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch;get;list;watch
-//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
+
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+// TODO(user): Modify the Reconcile function to compare the state specified by
+// the BtpOperator object against the actual cluster state, and then
+// perform operations to make the cluster state reflect the state specified by
+// the user.
+//
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
+func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+
+	// TODO(user): your logic here
+	btpOperatorCr := &v1alpha1.BtpOperator{}
+	if err := r.Get(ctx, req.NamespacedName, btpOperatorCr); err != nil {
+		logger.Error(err, "unable to fetch BtpOperator")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
+		return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
+	}
+
+	switch btpOperatorCr.Status.State {
+	case "":
+		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
+	case types.StateProcessing:
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
+	}
+
+	/*
+		var existingBtpOperators v1alpha1.BtpOperatorList
+		if err := r.List(ctx, &existingBtpOperators); err != nil {
+			logger.Error(err, "unable to fetch existing BtpOperators")
+			return ctrl.Result{}, err
+		}
+	*/
+
+	return ctrl.Result{}, nil
+}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
-	if err := r.initReconciler(mgr); err != nil {
-		return err
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{}).
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) initReconciler(mgr ctrl.Manager) error {
-	manifestResolver := &ManifestResolver{}
-	return r.Inject(mgr, &v1alpha1.BtpOperator{},
-		declarative.WithManifestResolver(manifestResolver),
-		declarative.WithCustomResourceLabels(map[string]string{labelKey: operatorName}),
-		// declarative.WithPostRenderTransform(transform),
-		// declarative.WithResourcesReady(true),
-	)
+func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	status := cr.GetStatus()
+	status.WithState(types.StateProcessing)
+	cr.SetStatus(status)
+	return r.Status().Update(ctx, cr)
 }
 
-/*
-// transform modifies the resources based on some criteria, before installation.
-func transform(_ context.Context, _ types.BaseCustomObject, manifestResources *types.ManifestResources) error {
+func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
 
-}
-*/
+	status := cr.GetStatus()
 
-// ManifestResolver represents the chart information for the passed Sample resource.
-type ManifestResolver struct{}
-
-// Get returns the chart information to be processed.
-func (m *ManifestResolver) Get(obj types.BaseCustomObject) (types.InstallationSpec, error) {
-	btpServiceOperator, valid := obj.(*v1alpha1.BtpOperator)
-	if !valid {
-		return types.InstallationSpec{},
-			fmt.Errorf("invalid type conversion for %s", client.ObjectKeyFromObject(obj))
+	installInfo, err := r.getInstallInfo(ctx, cr)
+	if err != nil {
+		logger.Error(err, "while preparing InstallInfo")
+		return err
 	}
-	return types.InstallationSpec{
-		ChartPath:   chartPath,
-		ReleaseName: btpServiceOperator.Spec.ReleaseName,
-	}, nil
+	if installInfo.ChartPath == "" {
+		return fmt.Errorf("no chart path available for processing")
+	}
+
+	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{})
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
+		status.WithState(types.StateError)
+		cr.SetStatus(status)
+		return r.Status().Update(ctx, cr)
+	}
+	if ready {
+		status.WithState(types.StateReady)
+		cr.SetStatus(status)
+		return r.Status().Update(ctx, cr)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (manifest.InstallInfo, error) {
+	unstructuredObj := &unstructured.Unstructured{}
+	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
+	if err != nil {
+		return manifest.InstallInfo{}, err
+	}
+	unstructuredObj.Object = unstructuredBase
+
+	installInfo := manifest.InstallInfo{
+		ChartInfo: &manifest.ChartInfo{
+			ChartPath:   chartPath,
+			ReleaseName: cr.GetName(),
+			Flags: types.ChartFlags{
+				ConfigFlags: types.Flags{
+					"Namespace":       chartNamespace,
+					"CreateNamespace": true,
+					"Wait":            true,
+				},
+			},
+		},
+		ResourceInfo: manifest.ResourceInfo{
+			BaseResource: unstructuredObj,
+		},
+		ClusterInfo: custom.ClusterInfo{
+			Config: r.Config,
+			Client: r.Client,
+		},
+		Ctx: ctx,
+	}
+
+	return installInfo, nil
 }
