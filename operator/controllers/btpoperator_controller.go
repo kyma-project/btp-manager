@@ -115,6 +115,8 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	status := cr.GetStatus()
 
+	r.addLabelsToCr(cr)
+
 	installInfo, err := r.getInstallInfo(ctx, cr)
 	if err != nil {
 		logger.Error(err, "while preparing InstallInfo")
@@ -124,7 +126,24 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{})
+	transform := func(ctx context.Context, base types.BaseCustomObject, res *types.ManifestResources) error {
+		baseLabels := base.GetLabels()
+		if _, found := baseLabels[labelKey]; !found {
+			return fmt.Errorf("missing %s label in %s base resource", labelKey, base.GetName())
+		}
+		for _, item := range res.Items {
+			itemLabels := item.GetLabels()
+			if len(itemLabels) == 0 {
+				itemLabels = make(map[string]string)
+			}
+			itemLabels[labelKey] = baseLabels[labelKey]
+			item.SetLabels(itemLabels)
+		}
+
+		return nil
+	}
+
+	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{transform})
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 		status.WithState(types.StateError)
@@ -171,4 +190,11 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 	}
 
 	return installInfo, nil
+}
+
+func (r *BtpOperatorReconciler) addLabelsToCr(cr *v1alpha1.BtpOperator) {
+	if len(cr.Labels) == 0 {
+		cr.Labels = make(map[string]string)
+	}
+	cr.Labels[labelKey] = operatorName
 }
