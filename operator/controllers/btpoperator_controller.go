@@ -156,6 +156,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 				ConfigFlags: types.Flags{
 					"Namespace":       chartNamespace,
 					"CreateNamespace": true,
+					"Wait":            true,
 				},
 			},
 		},
@@ -166,9 +167,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 			Config: r.Config,
 			Client: r.Client,
 		},
-		Ctx:              ctx,
-		CheckFn:          nil,
-		CheckReadyStates: true,
+		Ctx: ctx,
 	}
 
 	return installInfo, nil
