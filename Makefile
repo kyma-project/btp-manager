@@ -1,5 +1,7 @@
 # Module Name used for bundling the OCI Image and later on for referencing in the Kyma Modules
 MODULE_NAME ?= btp-operator
+# Operator name for the module
+OPERATOR_NAME ?= btp-manager
 # Semantic Module Version used for identifying the build
 MODULE_VERSION ?= 0.0.1
 # Module Registry used for pushing the image
@@ -15,7 +17,7 @@ MODULE_TEMPLATE_CHANNEL ?= stable
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY_PORT ?= 60765
 IMG_REGISTRY ?= op-skr-registry.localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
-IMG ?= $(IMG_REGISTRY)/$(MODULE_NAME)-operator:$(MODULE_VERSION)
+IMG ?= $(IMG_REGISTRY)/$(OPERATOR_NAME):$(MODULE_VERSION)
 
 COMPONENT_CLI_VERSION ?= latest
 
@@ -74,7 +76,7 @@ operator/docker-push:
 
 ##@ Module
 
-TEMPLATE_DIR ?= charts/$(MODULE_NAME)-operator
+TEMPLATE_DIR ?= charts/$(OPERATOR_NAME)
 GEN_CHART ?= sh hack/gen-chart.sh
 
 .PHONY: module-operator-chart
@@ -83,7 +85,7 @@ module-operator-chart: operator/manifests kustomize ## Bundle the Module Operato
 	cd operator/config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build operator/config/default -o $(TEMPLATE_DIR)/templates/
 	mv $(TEMPLATE_DIR)/templates/apiextensions.k8s.io_v1_customresourcedefinition_* $(TEMPLATE_DIR)/crds
-	MODULE_NAME=$(MODULE_NAME) MODULE_VERSION=$(MODULE_VERSION) $(GEN_CHART) > $(TEMPLATE_DIR)/Chart.yaml
+	OPERATOR_NAME=$(OPERATOR_NAME) MODULE_VERSION=$(MODULE_VERSION) $(GEN_CHART) > $(TEMPLATE_DIR)/Chart.yaml
 
 .PHONY: module-image
 module-image: operator/docker-build operator/docker-push ## Build the Module Image and push it to a registry defined in IMG_REGISTRY
