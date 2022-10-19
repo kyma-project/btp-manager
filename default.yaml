@@ -5,7 +5,6 @@ metadata:
     app.kubernetes.io/name: btpoperator
     app.kubernetes.io/instance: btpoperator
     app.kubernetes.io/part-of: btp-manager
-    app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: btp-manager
   name: btpoperator
 spec:

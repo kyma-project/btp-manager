@@ -113,7 +113,7 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 
-	status := cr.GetStatus()
+	r.addTempLabelsToCr(cr)
 
 	installInfo, err := r.getInstallInfo(ctx, cr)
 	if err != nil {
@@ -124,7 +124,9 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{})
+	status := cr.GetStatus()
+
+	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 		status.WithState(types.StateError)
@@ -138,6 +140,13 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
+	if len(cr.Labels) == 0 {
+		cr.Labels = make(map[string]string)
+	}
+	cr.Labels[labelKey] = operatorName
 }
 
 func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (manifest.InstallInfo, error) {
@@ -171,4 +180,21 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 	}
 
 	return installInfo, nil
+}
+
+func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.BaseCustomObject, res *types.ManifestResources) error {
+	baseLabels := base.GetLabels()
+	if _, found := baseLabels[labelKey]; !found {
+		return fmt.Errorf("missing %s label in %s base resource", labelKey, base.GetName())
+	}
+	for _, item := range res.Items {
+		itemLabels := item.GetLabels()
+		if len(itemLabels) == 0 {
+			itemLabels = make(map[string]string)
+		}
+		itemLabels[labelKey] = baseLabels[labelKey]
+		item.SetLabels(itemLabels)
+	}
+
+	return nil
 }
