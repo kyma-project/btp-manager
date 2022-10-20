@@ -45,7 +45,7 @@ const (
 	secretLabelValue  = "kyma-environment-broker"
 	secretName        = "btp-manager-secret"
 	deletionFinalizer = "custom-deletion-finalizer"
-	requeueInterval   = time.Second * 3
+	requeueInterval   = time.Second * 5
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
