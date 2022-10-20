@@ -42,6 +42,16 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	btpOperatorGroup               = "services.cloud.sap.com"
+	btpOperatorApiVerV1            = "v1"
+	btpOperatorApiVerV2            = "v2"
+	btpOperatorServiceInstance     = "ServiceInstance"
+	btpOperatorServiceInstanceList = btpOperatorServiceInstance + "List"
+	btpOperatorServiceBinding      = "ServiceBinding"
+	btpOperatorServiceBindingList  = btpOperatorServiceBinding + "List"
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -94,7 +104,9 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}
-	reconciler.SetupCfg(controllers.NewCfg(time.Minute * 20))
+
+	cfg := controllers.NewReconcileConfig(btpOperatorApiVerV1, btpOperatorGroup, btpOperatorServiceInstance, btpOperatorServiceBinding, time.Minute*20)
+	reconciler.SetReconcileConfig(cfg)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
