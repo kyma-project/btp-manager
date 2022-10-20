@@ -25,6 +25,7 @@ import (
 	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -38,7 +39,11 @@ const (
 	chartPath         = "./module-chart"
 	chartNamespace    = "kyma-system"
 	operatorName      = "btp-manager"
-	labelKey          = "app.kubernetes.io/managed-by"
+	labelKeyForChart  = "app.kubernetes.io/managed-by"
+	secretNameField   = ".metadata.name"
+	secretLabelKey    = "kyma-project.io/provided-by"
+	secretLabelValue  = "kyma-environment-broker"
+	secretName        = "btp-manager-secret"
 	deletionFinalizer = "custom-deletion-finalizer"
 	requeueInterval   = time.Second * 3
 )
@@ -73,6 +78,11 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	if _, err := r.getRequiredSecret(ctx); err != nil {
+		logger.Error(err, "while getting required Secret")
+		return ctrl.Result{}, err
+	}
+
 	if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
 		return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
 	}
@@ -95,11 +105,25 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
+func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (v1.Secret, error) {
+	secrets := &v1.SecretList{}
+	if err := r.List(ctx, secrets, client.MatchingFields{secretNameField: secretName}, client.MatchingLabels{secretLabelKey: secretLabelValue}); err != nil {
+		return v1.Secret{}, fmt.Errorf("unable to fetch Secret provided by KEB for BTP Manager: %w", err)
+	}
+	switch secretsNum := len(secrets.Items); secretsNum {
+	case 1:
+		return secrets.Items[0], nil
+	default:
+		return v1.Secret{}, fmt.Errorf("required number of Secrets for BTP Manager: 1, found: %d", secretsNum)
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{}).
+		Owns(&v1.Secret{}).
 		Complete(r)
 }
 
@@ -146,7 +170,7 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	if len(cr.Labels) == 0 {
 		cr.Labels = make(map[string]string)
 	}
-	cr.Labels[labelKey] = operatorName
+	cr.Labels[labelKeyForChart] = operatorName
 }
 
 func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (manifest.InstallInfo, error) {
@@ -184,15 +208,15 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.BaseCustomObject, res *types.ManifestResources) error {
 	baseLabels := base.GetLabels()
-	if _, found := baseLabels[labelKey]; !found {
-		return fmt.Errorf("missing %s label in %s base resource", labelKey, base.GetName())
+	if _, found := baseLabels[labelKeyForChart]; !found {
+		return fmt.Errorf("missing %s label in %s base resource", labelKeyForChart, base.GetName())
 	}
 	for _, item := range res.Items {
 		itemLabels := item.GetLabels()
 		if len(itemLabels) == 0 {
 			itemLabels = make(map[string]string)
 		}
-		itemLabels[labelKey] = baseLabels[labelKey]
+		itemLabels[labelKeyForChart] = baseLabels[labelKeyForChart]
 		item.SetLabels(itemLabels)
 	}
 
