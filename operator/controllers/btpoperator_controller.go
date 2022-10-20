@@ -40,10 +40,10 @@ const (
 	chartNamespace    = "kyma-system"
 	operatorName      = "btp-manager"
 	labelKeyForChart  = "app.kubernetes.io/managed-by"
-	secretNameField   = ".metadata.name"
+	secretNameField   = "metadata.name"
 	secretLabelKey    = "kyma-project.io/provided-by"
 	secretLabelValue  = "kyma-environment-broker"
-	secretName        = "btp-manager-secret"
+	secretName        = "sap-btp-manager"
 	deletionFinalizer = "custom-deletion-finalizer"
 	requeueInterval   = time.Second * 5
 )
@@ -121,9 +121,17 @@ func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (v1.Secre
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
+
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1.Secret{}, secretNameField, func(rawObj client.Object) []string {
+		secret := rawObj.(*v1.Secret)
+		return []string{secret.GetName()}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{}).
-		Owns(&v1.Secret{}).
+		// Owns(&v1.Secret{}).
 		Complete(r)
 }
 
