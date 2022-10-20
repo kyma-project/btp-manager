@@ -37,33 +37,41 @@ import (
 )
 
 const (
-	chartPath                      = "./module-chart"
-	chartNamespace                 = "kyma-system"
-	operatorName                   = "btp-manager"
-	labelKey                       = "app.kubernetes.io/managed-by"
-	deletionFinalizer              = "custom-deletion-finalizer"
-	requeueInterval                = time.Second * 3
-	btpOperatorGroup               = "services.cloud.sap.com"
-	btpOperatorApiVer              = "v1"
-	btpOperatorServiceInstance     = "ServiceInstance"
-	btpOperatorServiceInstanceList = btpOperatorServiceInstance + "List"
-	btpOperatorServiceBinding      = "ServiceBinding"
-	btpOperatorServiceBindingList  = btpOperatorServiceBinding + "List"
+	chartPath         = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
+	chartNamespace    = "kyma-system"
+	operatorName      = "btp-manager"
+	labelKey          = "app.kubernetes.io/managed-by"
+	deletionFinalizer = "custom-deletion-finalizer"
+	requeueInterval   = time.Second * 3
 )
 
-var (
-	bindingGvk  = schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: btpOperatorServiceBinding}
-	instanceGvk = schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: btpOperatorServiceInstance}
-)
-
-type Cfg struct {
-	timeout time.Duration
+type ReconcilerConfig struct {
+	timeout                        time.Duration
+	btpOperatorGroup               string
+	btpOperatorApiVer              string
+	btpOperatorServiceInstance     string
+	btpOperatorServiceInstanceList string
+	btpOperatorServiceBinding      string
+	btpOperatorServiceBindingList  string
+	namespaces                     corev1.NamespaceList
+	fakeHardDeletionFailForTest    bool
 }
 
-func NewCfg(time time.Duration) *Cfg {
-	return &Cfg{
-		timeout: time,
+func NewReconcileConfig(apiVer string, operatorGroup string, bindingKind string, instanceKind string, timeout time.Duration, fakeFail bool) ReconcilerConfig {
+	return ReconcilerConfig{
+		timeout:                        timeout,
+		btpOperatorGroup:               operatorGroup,
+		btpOperatorApiVer:              apiVer,
+		btpOperatorServiceInstance:     instanceKind,
+		btpOperatorServiceInstanceList: instanceKind + "List",
+		btpOperatorServiceBinding:      bindingKind,
+		btpOperatorServiceBindingList:  bindingKind + "List",
+		fakeHardDeletionFailForTest:    fakeFail,
 	}
+}
+
+func (r *BtpOperatorReconciler) SetReconcileConfig(reconcilerConfig ReconcilerConfig) {
+	r.reconcilerConfig = reconcilerConfig
 }
 
 // BtpOperatorReconciler reconciles a BtpOperator object
@@ -71,14 +79,24 @@ type BtpOperatorReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	*rest.Config
-	cfg        *Cfg
-	namespaces corev1.NamespaceList
+	reconcilerConfig ReconcilerConfig
+	namespaces       corev1.NamespaceList
 }
 
-func (r *BtpOperatorReconciler) SetupCfg(cfg *Cfg) {
-	if cfg != nil {
-		r.cfg = cfg
+func (r *BtpOperatorReconciler) GetGvk(kind string) schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   r.reconcilerConfig.btpOperatorGroup,
+		Version: r.reconcilerConfig.btpOperatorApiVer,
+		Kind:    kind,
 	}
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.BtpOperator{}).
+		Complete(r)
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
@@ -97,15 +115,21 @@ func (r *BtpOperatorReconciler) SetupCfg(cfg *Cfg) {
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
 	btpOperatorCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, btpOperatorCr); err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
 		logger.Error(err, "unable to fetch BtpOperator")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
 	}
 
 	if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
 		return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
+	}
+
+	if !btpOperatorCr.ObjectMeta.DeletionTimestamp.IsZero() && btpOperatorCr.Status.State != types.StateDeleting {
+		return ctrl.Result{}, r.SetDeletingState(ctx, btpOperatorCr)
 	}
 
 	switch btpOperatorCr.Status.State {
@@ -113,6 +137,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
 	case types.StateProcessing:
 		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
+	case types.StateDeleting:
+		return ctrl.Result{}, r.HandleDeletingState(ctx, btpOperatorCr)
 	}
 
 	/*
@@ -126,19 +152,19 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Config = mgr.GetConfig()
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.BtpOperator{}).
-		Complete(r)
+func (r *BtpOperatorReconciler) SetStatus(new types.State, ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	status := cr.GetStatus()
+	status.WithState(new)
+	cr.SetStatus(status)
+	return r.Status().Update(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) SetDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	return r.SetStatus(types.StateDeleting, ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	status := cr.GetStatus()
-	status.WithState(types.StateProcessing)
-	cr.SetStatus(status)
-	return r.Status().Update(ctx, cr)
+	return r.SetStatus(types.StateProcessing, ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -155,19 +181,37 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	status := cr.GetStatus()
-
 	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		status.WithState(types.StateError)
-		cr.SetStatus(status)
-		return r.Status().Update(ctx, cr)
+		return r.SetStatus(types.StateError, ctx, cr)
 	}
 	if ready {
-		status.WithState(types.StateReady)
-		cr.SetStatus(status)
-		return r.Status().Update(ctx, cr)
+		return r.SetStatus(types.StateReady, ctx, cr)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(context.Background())
+
+	r.namespaces = corev1.NamespaceList{}
+	if err := r.List(ctx, &(r.namespaces)); err != nil {
+		logger.Error(err, "cannot list namespaces")
+		return err
+	}
+
+	err := r.handleDeprovisioning()
+	if err != nil {
+		logger.Error(err, "deprovisioning failed")
+		return r.SetStatus(types.StateError, ctx, cr)
+	} else {
+		cr.SetFinalizers([]string{})
+		if err := r.Update(ctx, cr); err != nil {
+			return err
+		}
+		return r.SetStatus(types.StateReady, ctx, cr)
 	}
 
 	return nil
@@ -229,48 +273,11 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 	return nil
 }
 
-//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
-
-func (r *BtpOperatorReconciler) Reconcile2(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(context.Background())
-
-	btpManager := v1alpha1.BtpOperator{}
-	if err := r.Get(context.Background(), req.NamespacedName, &btpManager); err != nil {
-		logger.Error(err, "failed to get btp manager")
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
-
-	deletionTimestampSet := btpManager.ObjectMeta.DeletionTimestamp.IsZero() == false
-	if deletionTimestampSet && btpManager.Status.State != types.StateDeleting {
-		btpManager.Status.State = types.StateDeleting
-
-		r.namespaces = corev1.NamespaceList{}
-		if err := r.List(context.Background(), &(r.namespaces)); err != nil {
-			logger.Error(err, "cannot list namespaces")
-			return ctrl.Result{}, err
-		}
-
-		err := r.handleDeprovisioning()
-		if err != nil {
-			logger.Error(err, "deprovisioning failed")
-			btpManager.Status.State = types.StateError
-			return ctrl.Result{}, err
-		} else {
-			btpManager.Status.State = types.StateReady
-			return ctrl.Result{}, nil
-		}
-	}
-
-	return ctrl.Result{}, nil
-}
-
 func (r *BtpOperatorReconciler) handleDeprovisioning() error {
 	logger := log.FromContext(context.Background())
+
+	bindingGvk := r.GetGvk(r.reconcilerConfig.btpOperatorServiceBinding)
+	instanceGvk := r.GetGvk(r.reconcilerConfig.btpOperatorServiceInstance)
 
 	logger.Info("btp operator is under deletion")
 
@@ -289,6 +296,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning() error {
 
 		if anyErr {
 			success <- false
+			return
 		}
 
 		for {
@@ -332,12 +340,12 @@ func (r *BtpOperatorReconciler) handleDeprovisioning() error {
 				return err
 			}
 		} else {
-			if err := r.handleHardDeleteFail(); err != nil {
+			if err := r.handleHardDeleteFail(&instanceGvk, &bindingGvk); err != nil {
 				return err
 			}
 		}
-	case <-time.After(r.cfg.timeout):
-		if err := r.handleHardDeleteFail(); err != nil {
+	case <-time.After(r.reconcilerConfig.timeout):
+		if err := r.handleHardDeleteFail(&instanceGvk, &bindingGvk); err != nil {
 			return err
 		}
 	}
@@ -355,7 +363,7 @@ func (r *BtpOperatorReconciler) deleteDeployment() error {
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleHardDeleteFail() error {
+func (r *BtpOperatorReconciler) handleHardDeleteFail(instanceGvk *schema.GroupVersionKind, bindingGvk *schema.GroupVersionKind) error {
 	logger := log.FromContext(context.Background())
 
 	logger.Info("hard delete failed. trying to perform soft delete")
@@ -386,15 +394,19 @@ func (r *BtpOperatorReconciler) hardDelete(gvk schema.GroupVersionKind) error {
 		}
 	}
 
+	if r.reconcilerConfig.fakeHardDeletionFailForTest {
+		return errors.NewServiceUnavailable("Not avaiable due to test mode.")
+	}
+
 	return nil
 }
 
-func (r *BtpOperatorReconciler) softDelete(gvk schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) softDelete(gvk *schema.GroupVersionKind) error {
 	errs := fmt.Errorf("")
 	listGvk := gvk
 	listGvk.Kind = gvk.Kind + "List"
 	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(listGvk)
+	list.SetGroupVersionKind(*listGvk)
 	if errs := r.List(context.Background(), list); errs != nil {
 		errs = fmt.Errorf("%w; could not list in soft delete", errs)
 		return errs
