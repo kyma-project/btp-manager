@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -200,7 +199,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		return err
 	}
 
-	err := r.handleDeprovisioning()
+	err := r.handleDeprovisioning(ctx, cr)
 	if err != nil {
 		logger.Error(err, "deprovisioning failed")
 		return r.SetStatus(types.StateError, ctx, cr)
@@ -211,8 +210,6 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		}
 		return r.SetStatus(types.StateReady, ctx, cr)
 	}
-
-	return nil
 }
 
 func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
@@ -271,9 +268,8 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleDeprovisioning() error {
+func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(context.Background())
-
 	logger.Info("btp operator is under deletion")
 
 	hardDeleteChannel := make(chan bool)
@@ -330,17 +326,17 @@ func (r *BtpOperatorReconciler) handleDeprovisioning() error {
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
 			logger.Info("hard delete success")
-			if err := r.removeInstalledResources(); err != nil {
+			if err := r.removeInstalledResources(ctx, cr); err != nil {
 				logger.Error(err, "failed to remove related installed resources")
 				return err
 			}
 		} else {
-			if err := r.handleHardDeleteFail(); err != nil {
+			if err := r.handleHardDeleteFail(ctx, cr); err != nil {
 				return err
 			}
 		}
 	case <-time.After(r.reconcilerConfig.timeout):
-		if err := r.handleHardDeleteFail(); err != nil {
+		if err := r.handleHardDeleteFail(ctx, cr); err != nil {
 			return err
 		}
 	}
@@ -358,7 +354,7 @@ func (r *BtpOperatorReconciler) deleteDeployment() error {
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleHardDeleteFail() error {
+func (r *BtpOperatorReconciler) handleHardDeleteFail(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(context.Background())
 
 	logger.Info("hard delete failed. trying to perform soft delete")
@@ -371,7 +367,7 @@ func (r *BtpOperatorReconciler) handleHardDeleteFail() error {
 		logger.Error(err, "hard deletion of bindings failed")
 	}
 
-	if err := r.removeInstalledResources(); err != nil {
+	if err := r.removeInstalledResources(ctx, cr); err != nil {
 		logger.Error(err, "failed to remove related installed resources")
 		return err
 	}
@@ -404,9 +400,9 @@ func (r *BtpOperatorReconciler) softDelete(gvk *schema.GroupVersionKind) error {
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(listGvk)
 
-	if errs := r.List(context.Background(), list); errs != nil {
-		errs = fmt.Errorf("%w; could not list in soft delete", errs)
-		return errs
+	if err := r.List(context.Background(), list); err != nil {
+		err = fmt.Errorf("%w; could not list in soft delete", err)
+		return err
 	}
 
 	for _, item := range list.Items {
@@ -423,65 +419,46 @@ func (r *BtpOperatorReconciler) softDelete(gvk *schema.GroupVersionKind) error {
 	}
 }
 
-func (r *BtpOperatorReconciler) removeInstalledResources() error {
-	time.Sleep(time.Second * 10)
-	c, cerr := clientset.NewForConfig(r.Config)
-	if cerr != nil {
-		return cerr
-	}
+func (r *BtpOperatorReconciler) removeInstalledResources(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(context.Background())
 
-	_, apiResourceList, err := c.ServerGroupsAndResources()
+	unstructuredObj := &unstructured.Unstructured{}
+	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
 		return err
 	}
+	unstructuredObj.Object = unstructuredBase
 
-	errs := fmt.Errorf("")
-	//var edeb []error
-	for _, apiResource := range apiResourceList {
-		gv, _ := schema.ParseGroupVersion(apiResource.GroupVersion)
-		for _, apiResourceNested := range apiResource.APIResources {
-			gvk := schema.GroupVersionKind{
-				Version: gv.Version,
-				Group:   gv.Group,
-				Kind:    apiResourceNested.Kind,
-			}
-
-			var hasDeleteVerb bool = false
-			for _, verb := range apiResourceNested.Verbs {
-				if verb == "delete" || verb == "deletecollection" {
-					hasDeleteVerb = true
-					break
-				}
-			}
-
-			if !hasDeleteVerb {
-				continue
-			}
-
-			obj := &unstructured.Unstructured{}
-			obj.SetGroupVersionKind(gvk)
-
-			if apiResourceNested.Namespaced {
-				for _, namespace := range r.namespaces.Items {
-					if err := r.DeleteAllOf(context.Background(), obj, client.InNamespace(namespace.Name), client.MatchingLabels{"managed-by": "btp-operator"}); err != nil {
-						if !errors.IsNotFound(err) {
-							errs = fmt.Errorf("%w; error occurred in soft delete when updating btp operator resources", err)
-							//edeb = append(edeb, err)
-						}
-					}
-				}
-			} else {
-				if err := r.DeleteAllOf(context.Background(), obj, client.MatchingLabels{"managed-by": "btp-operator"}); err != nil {
-					if !errors.IsNotFound(err) {
-						errs = fmt.Errorf("%w; error occurred in soft delete when updating btp operator resources", err)
-						//edeb = append(edeb, err)
-					}
-				}
-			}
-		}
+	uninstallInfo := manifest.InstallInfo{
+		ChartInfo: &manifest.ChartInfo{
+			ChartPath:   chartPath,
+			ReleaseName: cr.GetName(),
+			Flags: types.ChartFlags{
+				ConfigFlags: types.Flags{
+					"Namespace": chartNamespace,
+					"Wait":      true,
+				},
+			},
+		},
+		ResourceInfo: manifest.ResourceInfo{
+			BaseResource: unstructuredObj,
+		},
+		ClusterInfo: custom.ClusterInfo{
+			Config: r.Config,
+			Client: r.Client,
+		},
+		Ctx: ctx,
 	}
 
-	fmt.Print(errs)
+	ok, uninstallErr := manifest.UninstallChart(&logger, uninstallInfo, []types.ObjectTransform{})
+
+	if err != nil {
+		return uninstallErr
+	}
+
+	if !ok {
+		return errors.NewInternalError(fmt.Errorf("uninstall chart dosent return success"))
+	}
 
 	return nil
 }
