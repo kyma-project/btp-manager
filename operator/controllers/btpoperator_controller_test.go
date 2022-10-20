@@ -15,16 +15,6 @@ import (
 	"time"
 )
 
-const (
-	btpOperatorGroup               = "services.cloud.sap.com"
-	btpOperatorApiVer              = "v1"
-	btpOperatorApiVerBadOne        = "v2"
-	btpOperatorServiceInstance     = "ServiceInstance"
-	btpOperatorServiceInstanceList = btpOperatorServiceInstance + "List"
-	btpOperatorServiceBinding      = "ServiceBinding"
-	btpOperatorServiceBindingList  = btpOperatorServiceBinding + "List"
-)
-
 func PreHardDelete() error {
 	deployment := &appsv1.Deployment{}
 	deployment.Name = "sap-btp-operator-controller-manager"
@@ -103,7 +93,7 @@ var _ = Describe("provisioning test within service instances and bindings", func
 		err = k8sClient.Create(ctx, btpOperator)
 		Expect(err).To(BeNil())
 
-		time.Sleep(time.Second * 20)
+		time.Sleep(time.Second * 30)
 
 		instanceGvk := schema.GroupVersionKind{
 			Group:   btpOperatorGroup,
@@ -125,24 +115,21 @@ var _ = Describe("provisioning test within service instances and bindings", func
 	})
 
 	It("soft delete (after timeout) should succeed", func() {
-		cfg := NewReconcileConfig(btpOperatorApiVer, btpOperatorGroup, btpOperatorServiceBinding, btpOperatorServiceInstance, time.Nanosecond, false)
-		reconciler.SetReconcileConfig(cfg)
+		reconciler.SetReconcileConfig(NewReconcileConfig(time.Nanosecond, false))
 
 		triggerDelete()
 		doChecks()
 	})
 
 	It("soft delete (after hard deletion fail) should succeed", func() {
-		cfg := NewReconcileConfig(btpOperatorApiVer, btpOperatorGroup, btpOperatorServiceBinding, btpOperatorServiceInstance, time.Minute*1, true)
-		reconciler.SetReconcileConfig(cfg)
+		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, true))
 
 		triggerDelete()
 		doChecks()
 	})
 
 	It("hard delete should succeed", func() {
-		cfg := NewReconcileConfig(btpOperatorApiVer, btpOperatorGroup, btpOperatorServiceBinding, btpOperatorServiceInstance, time.Minute*1, false)
-		reconciler.SetReconcileConfig(cfg)
+		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, false))
 
 		PreHardDelete()
 		triggerDelete()
@@ -173,7 +160,7 @@ func triggerDelete() {
 	btpOperator.Namespace = "default"
 	err := k8sClient.Delete(ctx, &btpOperator)
 	Expect(err).To(BeNil())
-	time.Sleep(time.Second * 120)
+	time.Sleep(time.Second * 30)
 }
 
 func doChecks() {

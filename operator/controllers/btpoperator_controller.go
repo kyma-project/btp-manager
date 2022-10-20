@@ -37,36 +37,42 @@ import (
 )
 
 const (
-	chartPath         = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
-	chartNamespace    = "kyma-system"
-	operatorName      = "btp-manager"
-	labelKey          = "app.kubernetes.io/managed-by"
-	deletionFinalizer = "custom-deletion-finalizer"
-	requeueInterval   = time.Second * 3
+	chartPath                      = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
+	chartNamespace                 = "kyma-system"
+	operatorName                   = "btp-manager"
+	labelKey                       = "app.kubernetes.io/managed-by"
+	deletionFinalizer              = "custom-deletion-finalizer"
+	requeueInterval                = time.Second * 3
+	btpOperatorGroup               = "services.cloud.sap.com"
+	btpOperatorApiVer              = "v1"
+	btpOperatorServiceInstance     = "ServiceInstance"
+	btpOperatorServiceInstanceList = btpOperatorServiceInstance + "List"
+	btpOperatorServiceBinding      = "ServiceBinding"
+	btpOperatorServiceBindingList  = btpOperatorServiceBinding + "List"
 )
 
-type ReconcilerConfig struct {
-	timeout                        time.Duration
-	btpOperatorGroup               string
-	btpOperatorApiVer              string
-	btpOperatorServiceInstance     string
-	btpOperatorServiceInstanceList string
-	btpOperatorServiceBinding      string
-	btpOperatorServiceBindingList  string
-	namespaces                     corev1.NamespaceList
-	fakeHardDeletionFailForTest    bool
+var (
+	bindingGvk  = getGvk(btpOperatorServiceInstance)
+	instanceGvk = getGvk(btpOperatorServiceBinding)
+)
+
+func getGvk(kind string) schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   btpOperatorGroup,
+		Version: btpOperatorApiVer,
+		Kind:    kind,
+	}
 }
 
-func NewReconcileConfig(apiVer string, operatorGroup string, bindingKind string, instanceKind string, timeout time.Duration, fakeFail bool) ReconcilerConfig {
+type ReconcilerConfig struct {
+	timeout                     time.Duration
+	fakeHardDeletionFailForTest bool
+}
+
+func NewReconcileConfig(timeout time.Duration, fakeFail bool) ReconcilerConfig {
 	return ReconcilerConfig{
-		timeout:                        timeout,
-		btpOperatorGroup:               operatorGroup,
-		btpOperatorApiVer:              apiVer,
-		btpOperatorServiceInstance:     instanceKind,
-		btpOperatorServiceInstanceList: instanceKind + "List",
-		btpOperatorServiceBinding:      bindingKind,
-		btpOperatorServiceBindingList:  bindingKind + "List",
-		fakeHardDeletionFailForTest:    fakeFail,
+		timeout:                     timeout,
+		fakeHardDeletionFailForTest: fakeFail,
 	}
 }
 
@@ -81,14 +87,6 @@ type BtpOperatorReconciler struct {
 	*rest.Config
 	reconcilerConfig ReconcilerConfig
 	namespaces       corev1.NamespaceList
-}
-
-func (r *BtpOperatorReconciler) GetGvk(kind string) schema.GroupVersionKind {
-	return schema.GroupVersionKind{
-		Group:   r.reconcilerConfig.btpOperatorGroup,
-		Version: r.reconcilerConfig.btpOperatorApiVer,
-		Kind:    kind,
-	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -276,9 +274,6 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 func (r *BtpOperatorReconciler) handleDeprovisioning() error {
 	logger := log.FromContext(context.Background())
 
-	bindingGvk := r.GetGvk(r.reconcilerConfig.btpOperatorServiceBinding)
-	instanceGvk := r.GetGvk(r.reconcilerConfig.btpOperatorServiceInstance)
-
 	logger.Info("btp operator is under deletion")
 
 	hardDeleteChannel := make(chan bool)
@@ -340,12 +335,12 @@ func (r *BtpOperatorReconciler) handleDeprovisioning() error {
 				return err
 			}
 		} else {
-			if err := r.handleHardDeleteFail(&instanceGvk, &bindingGvk); err != nil {
+			if err := r.handleHardDeleteFail(); err != nil {
 				return err
 			}
 		}
 	case <-time.After(r.reconcilerConfig.timeout):
-		if err := r.handleHardDeleteFail(&instanceGvk, &bindingGvk); err != nil {
+		if err := r.handleHardDeleteFail(); err != nil {
 			return err
 		}
 	}
@@ -363,16 +358,16 @@ func (r *BtpOperatorReconciler) deleteDeployment() error {
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleHardDeleteFail(instanceGvk *schema.GroupVersionKind, bindingGvk *schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) handleHardDeleteFail() error {
 	logger := log.FromContext(context.Background())
 
 	logger.Info("hard delete failed. trying to perform soft delete")
 
-	if err := r.softDelete(instanceGvk); err != nil {
+	if err := r.softDelete(&instanceGvk); err != nil {
 		logger.Error(err, "soft deletion of instances failed")
 	}
 
-	if err := r.softDelete(bindingGvk); err != nil {
+	if err := r.softDelete(&bindingGvk); err != nil {
 		logger.Error(err, "hard deletion of bindings failed")
 	}
 
@@ -403,10 +398,12 @@ func (r *BtpOperatorReconciler) hardDelete(gvk schema.GroupVersionKind) error {
 
 func (r *BtpOperatorReconciler) softDelete(gvk *schema.GroupVersionKind) error {
 	errs := fmt.Errorf("")
-	listGvk := gvk
+
+	listGvk := *gvk
 	listGvk.Kind = gvk.Kind + "List"
 	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(*listGvk)
+	list.SetGroupVersionKind(listGvk)
+
 	if errs := r.List(context.Background(), list); errs != nil {
 		errs = fmt.Errorf("%w; could not list in soft delete", errs)
 		return errs
@@ -427,7 +424,7 @@ func (r *BtpOperatorReconciler) softDelete(gvk *schema.GroupVersionKind) error {
 }
 
 func (r *BtpOperatorReconciler) removeInstalledResources() error {
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 10)
 	c, cerr := clientset.NewForConfig(r.Config)
 	if cerr != nil {
 		return cerr
