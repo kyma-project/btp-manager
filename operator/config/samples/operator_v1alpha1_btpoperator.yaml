@@ -2,7 +2,7 @@ apiVersion: operator.kyma-project.io/v1alpha1
 kind: BtpOperator
 metadata:
   labels:
-    app.kubernetes.io/name: btpoperator2
+    app.kubernetes.io/name: btpoperator
     app.kubernetes.io/instance: btpoperator-sample
     app.kubernetes.io/part-of: btp-manager
     app.kuberentes.io/managed-by: kustomize
