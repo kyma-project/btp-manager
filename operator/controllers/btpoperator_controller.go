@@ -17,7 +17,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,32 +35,33 @@ import (
 )
 
 const (
-	chartPath                      = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
-	chartNamespace                 = "kyma-system"
-	operatorName                   = "btp-manager"
-	labelKey                       = "app.kubernetes.io/managed-by"
-	deletionFinalizer              = "custom-deletion-finalizer"
-	requeueInterval                = time.Second * 3
-	btpOperatorGroup               = "services.cloud.sap.com"
-	btpOperatorApiVer              = "v1"
-	btpOperatorServiceInstance     = "ServiceInstance"
-	btpOperatorServiceInstanceList = btpOperatorServiceInstance + "List"
-	btpOperatorServiceBinding      = "ServiceBinding"
-	btpOperatorServiceBindingList  = btpOperatorServiceBinding + "List"
+	chartPath         = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
+	chartNamespace    = "kyma-system"
+	operatorName      = "btp-manager"
+	labelKey          = "app.kubernetes.io/managed-by"
+	deletionFinalizer = "custom-deletion-finalizer"
+	requeueInterval   = time.Second * 3
+)
+
+const (
+	btpOperatorGroup           = "services.cloud.sap.com"
+	btpOperatorApiVer          = "v1"
+	btpOperatorServiceInstance = "ServiceInstance"
+	btpOperatorServiceBinding  = "ServiceBinding"
 )
 
 var (
-	bindingGvk  = getGvk(btpOperatorServiceInstance)
-	instanceGvk = getGvk(btpOperatorServiceBinding)
-)
-
-func getGvk(kind string) schema.GroupVersionKind {
-	return schema.GroupVersionKind{
+	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
 		Version: btpOperatorApiVer,
-		Kind:    kind,
+		Kind:    btpOperatorServiceBinding,
 	}
-}
+	instanceGvk = schema.GroupVersionKind{
+		Group:   btpOperatorGroup,
+		Version: btpOperatorApiVer,
+		Kind:    btpOperatorServiceInstance,
+	}
+)
 
 type ReconcilerConfig struct {
 	timeout                     time.Duration
@@ -85,7 +85,6 @@ type BtpOperatorReconciler struct {
 	Scheme *runtime.Scheme
 	*rest.Config
 	reconcilerConfig ReconcilerConfig
-	namespaces       corev1.NamespaceList
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -192,13 +191,6 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(context.Background())
-
-	r.namespaces = corev1.NamespaceList{}
-	if err := r.List(ctx, &(r.namespaces)); err != nil {
-		logger.Error(err, "cannot list namespaces")
-		return err
-	}
-
 	err := r.handleDeprovisioning(ctx, cr)
 	if err != nil {
 		logger.Error(err, "deprovisioning failed")
@@ -272,15 +264,20 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	logger := log.FromContext(context.Background())
 	logger.Info("btp operator is under deletion")
 
+	namespaces := &corev1.NamespaceList{}
+	if err := r.List(ctx, namespaces); err != nil {
+		return err
+	}
+
 	hardDeleteChannel := make(chan bool)
 	go func(success chan bool) {
 		anyErr := false
-		if err := r.hardDelete(bindingGvk); err != nil {
+		if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
 			logger.Error(err, "failed to hard delete bindings")
 			anyErr = true
 		}
 
-		if err := r.hardDelete(instanceGvk); err != nil {
+		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
 			logger.Error(err, "failed to hard delete instances")
 			anyErr = true
 		}
@@ -292,21 +289,25 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 
 		for {
 			resourcesLeft := true
-			for _, namespace := range r.namespaces.Items {
+			for _, namespace := range namespaces.Items {
 
 				bindings := &unstructured.UnstructuredList{}
 				bindings.SetGroupVersionKind(bindingGvk)
-				if err := r.List(context.Background(), bindings, client.InNamespace(namespace.Name)); err != nil {
+				if err := r.List(ctx, bindings, client.InNamespace(namespace.Name)); err != nil {
 					if !errors.IsNotFound(err) {
 						logger.Error(err, "failed to list bindings")
+						success <- false
+						return
 					}
 				}
 
 				instances := &unstructured.UnstructuredList{}
 				instances.SetGroupVersionKind(instanceGvk)
-				if err := r.List(context.Background(), instances, client.InNamespace(namespace.Name)); err != nil {
+				if err := r.List(ctx, instances, client.InNamespace(namespace.Name)); err != nil {
 					if !errors.IsNotFound(err) {
 						logger.Error(err, "failed to list instances")
+						success <- false
+						return
 					}
 				}
 
@@ -344,27 +345,18 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	return nil
 }
 
-func (r *BtpOperatorReconciler) deleteDeployment() error {
-	deployment := &appsv1.Deployment{}
-	deployment.Name = "sap-btp-operator-controller-manager"
-	deployment.Namespace = "default"
-	if err := r.Delete(context.Background(), deployment); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (r *BtpOperatorReconciler) handleHardDeleteFail(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(context.Background())
-
 	logger.Info("hard delete failed. trying to perform soft delete")
 
-	if err := r.softDelete(&instanceGvk); err != nil {
+	if err := r.softDelete(ctx, &instanceGvk); err != nil {
 		logger.Error(err, "soft deletion of instances failed")
+		return err
 	}
 
-	if err := r.softDelete(&bindingGvk); err != nil {
+	if err := r.softDelete(ctx, &bindingGvk); err != nil {
 		logger.Error(err, "hard deletion of bindings failed")
+		return err
 	}
 
 	if err := r.removeInstalledResources(ctx, cr); err != nil {
@@ -375,12 +367,12 @@ func (r *BtpOperatorReconciler) handleHardDeleteFail(ctx context.Context, cr *v1
 	return nil
 }
 
-func (r *BtpOperatorReconciler) hardDelete(gvk schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(gvk)
 
-	for _, namespace := range r.namespaces.Items {
-		if err := r.DeleteAllOf(context.Background(), obj, client.InNamespace(namespace.Name)); err != nil {
+	for _, namespace := range namespaces.Items {
+		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(namespace.Name)); err != nil {
 			return err
 		}
 	}
@@ -392,15 +384,11 @@ func (r *BtpOperatorReconciler) hardDelete(gvk schema.GroupVersionKind) error {
 	return nil
 }
 
-func (r *BtpOperatorReconciler) softDelete(gvk *schema.GroupVersionKind) error {
-	errs := fmt.Errorf("")
-
-	listGvk := *gvk
-	listGvk.Kind = gvk.Kind + "List"
+func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.GroupVersionKind) error {
 	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(listGvk)
+	list.SetGroupVersionKind(*gvk)
 
-	if err := r.List(context.Background(), list); err != nil {
+	if err := r.List(ctx, list); err != nil {
 		err = fmt.Errorf("%w; could not list in soft delete", err)
 		return err
 	}
@@ -408,15 +396,11 @@ func (r *BtpOperatorReconciler) softDelete(gvk *schema.GroupVersionKind) error {
 	for _, item := range list.Items {
 		item.SetFinalizers([]string{})
 		if err := r.Update(context.Background(), &item); err != nil {
-			errs = fmt.Errorf("%w; error occurred in soft delete when updating btp operator resources", err)
+			return err
 		}
 	}
 
-	if errs != nil && len(errs.Error()) > 0 {
-		return errs
-	} else {
-		return nil
-	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) removeInstalledResources(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -451,11 +435,9 @@ func (r *BtpOperatorReconciler) removeInstalledResources(ctx context.Context, cr
 	}
 
 	ok, uninstallErr := manifest.UninstallChart(&logger, uninstallInfo, []types.ObjectTransform{})
-
 	if err != nil {
 		return uninstallErr
 	}
-
 	if !ok {
 		return errors.NewInternalError(fmt.Errorf("uninstall chart dosent return success"))
 	}

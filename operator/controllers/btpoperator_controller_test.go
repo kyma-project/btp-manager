@@ -1,116 +1,39 @@
 package controllers
 
 import (
-	"fmt"
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
 
-func PreHardDelete() error {
-	deployment := &appsv1.Deployment{}
-	deployment.Name = "sap-btp-operator-controller-manager"
-	deployment.Namespace = "default"
-	if err := k8sClient.Delete(ctx, deployment); err != nil {
-		return err
-	}
-
-	mutatingWebHook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	mutatingWebHook.Name = "sap-btp-operator-mutating-webhook-configuration"
-
-	if err := k8sClient.Delete(ctx, mutatingWebHook); err != nil {
-		return err
-	}
-
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	validatingWebhook.Name = "sap-btp-operator-validating-webhook-configuration"
-
-	if err := k8sClient.Delete(ctx, validatingWebhook); err != nil {
-		return err
-	}
-
-	x := func(gvk schema.GroupVersionKind) error {
-		errs := fmt.Errorf("")
-		listGvk := gvk
-		listGvk.Kind = gvk.Kind + "List"
-		list := &unstructured.UnstructuredList{}
-		list.SetGroupVersionKind(listGvk)
-		if errs := k8sClient.List(ctx, list); errs != nil {
-			errs = fmt.Errorf("%w; could not list in soft delete", errs)
-			return errs
-		}
-
-		for _, item := range list.Items {
-			item.SetFinalizers([]string{})
-			if err := k8sClient.Update(ctx, &item); err != nil {
-				errs = fmt.Errorf("%w; error occurred in soft delete when updating btp operator resources", err)
-			}
-		}
-
-		if errs != nil && len(errs.Error()) > 0 {
-			return errs
-		} else {
-			return nil
-		}
-	}
-
-	bindingGvk := schema.GroupVersionKind{
-		Group:   btpOperatorGroup,
-		Version: btpOperatorApiVer,
-		Kind:    btpOperatorServiceBinding,
-	}
-	if err := x(bindingGvk); err != nil {
-		return err
-	}
-
-	instanceGvk := schema.GroupVersionKind{
-		Group:   btpOperatorGroup,
-		Version: btpOperatorApiVer,
-		Kind:    btpOperatorServiceInstance,
-	}
-	if err := x(instanceGvk); err != nil {
-		return err
-	}
-
-	return nil
-}
+const (
+	testOperatorName = "btp-operator-tests"
+	testNamespace    = "default"
+	instanceName     = "my-service-instance"
+	bindingName      = "my-binding"
+)
 
 var _ = Describe("provisioning test within service instances and bindings", func() {
 	BeforeEach(func() {
-		btpOperator := &v1alpha1.BtpOperator{}
-		btpOperator.Namespace = "default"
-		btpOperator.Name = "btpoperator-sample"
+		btpOperator := getBtpOperator()
 
-		var err error
-		err = k8sClient.Create(ctx, btpOperator)
+		err := k8sClient.Create(ctx, &btpOperator)
 		Expect(err).To(BeNil())
 
 		time.Sleep(time.Second * 30)
 
-		instanceGvk := schema.GroupVersionKind{
-			Group:   btpOperatorGroup,
-			Version: btpOperatorApiVer,
-			Kind:    btpOperatorServiceInstance,
-		}
-
-		createResource(instanceGvk, "default", "my-service-instance")
+		createResource(instanceGvk, testNamespace, instanceName)
 		ensureResourceExists(instanceGvk)
 
-		bindingGvk := schema.GroupVersionKind{
-			Group:   btpOperatorGroup,
-			Version: btpOperatorApiVer,
-			Kind:    btpOperatorServiceBinding,
-		}
-
-		createResource(bindingGvk, "default", "my-binding")
+		createResource(bindingGvk, testNamespace, bindingName)
 		ensureResourceExists(bindingGvk)
 	})
 
@@ -131,90 +54,92 @@ var _ = Describe("provisioning test within service instances and bindings", func
 	It("hard delete should succeed", func() {
 		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, false))
 
-		PreHardDelete()
 		triggerDelete()
 		doChecks()
 	})
 })
 
+func getBtpOperator() v1alpha1.BtpOperator {
+	btpOperator := v1alpha1.BtpOperator{}
+	btpOperator.Name = testOperatorName
+	btpOperator.Namespace = testNamespace
+	return btpOperator
+}
+
 func ensureResourceExists(gvk schema.GroupVersionKind) {
-	lst := &unstructured.UnstructuredList{}
-	lst.SetGroupVersionKind(gvk)
-	err := k8sClient.List(ctx, lst)
+	list := &unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(gvk)
+	err := k8sClient.List(ctx, list)
 	Expect(err).To(BeNil())
-	Expect(lst.Items).To(HaveLen(1))
+	Expect(list.Items).To(HaveLen(1))
 }
 
 func createResource(gvk schema.GroupVersionKind, namespace string, name string) {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(gvk)
-	obj.SetNamespace(namespace)
-	obj.SetName(name)
-	err := k8sClient.Create(ctx, obj)
+	object := &unstructured.Unstructured{}
+	object.SetGroupVersionKind(gvk)
+	object.SetNamespace(namespace)
+	object.SetName(name)
+	err := k8sClient.Create(ctx, object)
 	Expect(err).To(BeNil())
 }
 
 func triggerDelete() {
-	btpOperator := v1alpha1.BtpOperator{}
-	btpOperator.Name = "btpoperator-sample"
-	btpOperator.Namespace = "default"
+	btpOperator := getBtpOperator()
 	err := k8sClient.Delete(ctx, &btpOperator)
 	Expect(err).To(BeNil())
 	time.Sleep(time.Second * 30)
 }
 
 func doChecks() {
-	checkIfNoServicesExists(btpOperatorServiceBindingList)
-	checkIfNoServicesExists(btpOperatorServiceInstanceList)
+	checkIfNoServicesExists(btpOperatorServiceBinding)
+	checkIfNoServicesExists(btpOperatorServiceInstance)
 	checkIfNoBtpResourceExists()
 }
 
 func checkIfNoServicesExists(kind string) {
-	lst := unstructured.UnstructuredList{}
-	lst.SetGroupVersionKind(schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: kind})
-	_ = k8sClient.List(ctx, &lst)
-	Expect(lst.Items).To(HaveLen(0))
+	list := unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: kind})
+	err := k8sClient.List(ctx, &list)
+	Expect(errors.IsNotFound(err)).To(BeTrue())
+	Expect(list.Items).To(HaveLen(0))
 }
 
 func checkIfNoBtpResourceExists() {
-	c, err1 := clientset.NewForConfig(cfg)
-	Expect(err1).To(BeNil())
+	cs, err := clientset.NewForConfig(cfg)
+	Expect(err).To(BeNil())
 
-	_, resourceList, err2 := c.ServerGroupsAndResources()
-	Expect(err2).To(BeNil())
+	_, resourceMap, err := cs.ServerGroupsAndResources()
+	Expect(err).To(BeNil())
 
 	namespaces := &corev1.NamespaceList{}
-	err3 := k8sClient.List(ctx, namespaces)
-	Expect(err3).To(BeNil())
+	err = k8sClient.List(ctx, namespaces)
+	Expect(err).To(BeNil())
 
-	var found bool
-	for _, resource := range resourceList {
+	labelMatcher := client.MatchingLabels{labelKey: operatorName}
+	fail := false
+	for _, resource := range resourceMap {
 		gv, _ := schema.ParseGroupVersion(resource.GroupVersion)
-		for _, nestedResource := range resource.APIResources {
-			lst := &unstructured.UnstructuredList{}
-			lst.SetGroupVersionKind(schema.GroupVersionKind{
+		for _, apiResource := range resource.APIResources {
+			list := &unstructured.UnstructuredList{}
+			gvk := schema.GroupVersionKind{
 				Version: gv.Version,
 				Group:   gv.Group,
-				Kind:    nestedResource.Kind + "List",
-			})
-
+				Kind:    apiResource.Kind,
+			}
+			list.SetGroupVersionKind(gvk)
 			for _, namespace := range namespaces.Items {
-				if nestedResource.Namespaced {
-					_ = k8sClient.List(ctx, lst, client.InNamespace(namespace.Name), client.MatchingLabels{"managed-by": "btp-operator"})
-					if len(lst.Items) > 0 {
-						found = true
+				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelMatcher); err != nil {
+					ignore := errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
+					if !ignore {
+						fail = true
 						break
 					}
-				} else {
-					_ = k8sClient.List(ctx, lst, client.MatchingLabels{"managed-by": "btp-operator"})
-					if len(lst.Items) > 0 {
-						found = true
-						break
-					}
+				} else if len(list.Items) > 0 {
+					fail = true
+					break
 				}
 			}
 		}
 	}
-
-	Expect(found).To(BeFalse())
+	Expect(fail).To(BeFalse())
 }
