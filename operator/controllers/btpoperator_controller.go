@@ -40,9 +40,6 @@ const (
 	chartNamespace    = "kyma-system"
 	operatorName      = "btp-manager"
 	labelKeyForChart  = "app.kubernetes.io/managed-by"
-	secretNameField   = "metadata.name"
-	secretLabelKey    = "kyma-project.io/provided-by"
-	secretLabelValue  = "kyma-environment-broker"
 	secretName        = "sap-btp-manager"
 	deletionFinalizer = "custom-deletion-finalizer"
 	requeueInterval   = time.Second * 5
@@ -76,8 +73,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		logger.Error(err, "unable to fetch BtpOperator")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
-	logger.Info("Starting BTP Operator reconciliation", "triggered by", btpOperatorCr.Name, "in namespace", btpOperatorCr.Namespace)
 
 	// temporary disable adding finalizer
 	/*
@@ -128,6 +123,9 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Starting BTP Operator reconciliation")
+
 	status := cr.GetStatus()
 	cr.SetStatus(status.WithState(types.StateProcessing))
 	return r.Status().Update(ctx, cr)
@@ -152,7 +150,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	r.addTempLabelsToCr(cr)
 
-	installInfo, err := r.getInstallInfo(ctx, cr)
+	installInfo, err := r.getInstallInfo(ctx, cr, secret)
 	if err != nil {
 		logger.Error(err, "while preparing InstallInfo")
 		return err
@@ -182,7 +180,7 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	cr.Labels[labelKeyForChart] = operatorName
 }
 
-func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (manifest.InstallInfo, error) {
+func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *v1.Secret) (manifest.InstallInfo, error) {
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
@@ -199,6 +197,19 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 					"Namespace":       chartNamespace,
 					"CreateNamespace": true,
 					"Wait":            true,
+				},
+				SetFlags: types.Flags{
+					"manager": map[string]interface{}{
+						"secret": map[string]interface{}{
+							"clientid":     string(secret.Data["clientid"]),
+							"clientsecret": string(secret.Data["clientsecret"]),
+							"sm_url":       string(secret.Data["sm_url"]),
+							"tokenurl":     string(secret.Data["tokenurl"]),
+						},
+					},
+					"cluster": map[string]interface{}{
+						"id": string(secret.Data["clientid"]),
+					},
 				},
 			},
 		},
@@ -233,9 +244,9 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 }
 
 func (r *BtpOperatorReconciler) verifySecret(secret *v1.Secret) error {
-	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "tokenurlsuffix", "cluster_id"}
+	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
 	for _, key := range requiredKeys {
-		value, exists := secret.StringData[key]
+		value, exists := secret.Data[key]
 		if !exists {
 			return fmt.Errorf("key %s not found", key)
 		}
