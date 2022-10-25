@@ -26,12 +26,12 @@ import (
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -71,25 +71,22 @@ type BtpOperatorReconciler struct {
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
 	btpOperatorCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, btpOperatorCr); err != nil {
 		logger.Error(err, "unable to fetch BtpOperator")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if _, err := r.getRequiredSecret(ctx); err != nil {
-		logger.Error(err, "while getting required Secret")
-		return ctrl.Result{}, err
-	}
-
-	if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
-		return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
-	}
+	// temporary disable adding finalizer
+	/*
+		if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
+			return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
+		}
+	*/
 
 	switch btpOperatorCr.Status.State {
 	case "":
-		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
+		return r.HandleInitialState(ctx, btpOperatorCr)
 	case types.StateProcessing:
 		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
 	}
@@ -105,29 +102,22 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (v1.Secret, error) {
-	secrets := &v1.SecretList{}
-	if err := r.List(ctx, secrets, client.MatchingFields{secretNameField: secretName}, client.MatchingLabels{secretLabelKey: secretLabelValue}); err != nil {
-		return v1.Secret{}, fmt.Errorf("unable to fetch Secret provided by KEB for BTP Manager: %w", err)
+func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*v1.Secret, error) {
+	secret := &v1.Secret{}
+	objKey := client.ObjectKey{Namespace: chartNamespace, Name: secretName}
+	if err := r.Get(ctx, objKey, secret); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, chartNamespace)
+		}
+		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
 	}
-	switch secretsNum := len(secrets.Items); secretsNum {
-	case 1:
-		return secrets.Items[0], nil
-	default:
-		return v1.Secret{}, fmt.Errorf("required number of Secrets for BTP Manager: 1, found: %d", secretsNum)
-	}
+
+	return secret, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
-
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1.Secret{}, secretNameField, func(rawObj client.Object) []string {
-		secret := rawObj.(*v1.Secret)
-		return []string{secret.GetName()}
-	}); err != nil {
-		return err
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{}).
@@ -135,11 +125,21 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	status := cr.GetStatus()
+
+	if _, err := r.getRequiredSecret(ctx); err != nil {
+		logger.Error(err, "while getting required Secret")
+		status.WithState(types.StateError)
+		cr.SetStatus(status)
+		return ctrl.Result{Requeue: false}, r.Status().Update(ctx, cr)
+	}
+
 	status.WithState(types.StateProcessing)
 	cr.SetStatus(status)
-	return r.Status().Update(ctx, cr)
+
+	return ctrl.Result{}, r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
