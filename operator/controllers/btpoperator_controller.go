@@ -77,6 +77,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	logger.Info("Starting BTP Operator reconciliation", "triggered by", btpOperatorCr.Name, "in namespace", btpOperatorCr.Namespace)
+
 	// temporary disable adding finalizer
 	/*
 		if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
@@ -86,7 +88,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	switch btpOperatorCr.Status.State {
 	case "":
-		return r.HandleInitialState(ctx, btpOperatorCr)
+		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
 	case types.StateProcessing:
 		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
 	}
@@ -125,7 +127,13 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
+func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	status := cr.GetStatus()
+	cr.SetStatus(status.WithState(types.StateProcessing))
+	return r.Status().Update(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	status := cr.GetStatus()
 
@@ -133,21 +141,14 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
 		cr.SetStatus(status.WithState(types.StateError))
-		return ctrl.Result{}, r.Status().Update(ctx, cr)
+		return r.Status().Update(ctx, cr)
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
 		cr.SetStatus(status.WithState(types.StateError))
-		return ctrl.Result{}, r.Status().Update(ctx, cr)
+		return r.Status().Update(ctx, cr)
 	}
-
-	cr.SetStatus(status.WithState(types.StateProcessing))
-	return ctrl.Result{}, r.Status().Update(ctx, cr)
-}
-
-func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
 
 	r.addTempLabelsToCr(cr)
 
@@ -160,18 +161,14 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	status := cr.GetStatus()
-
 	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		status.WithState(types.StateError)
-		cr.SetStatus(status)
+		cr.SetStatus(status.WithState(types.StateError))
 		return r.Status().Update(ctx, cr)
 	}
 	if ready {
-		status.WithState(types.StateReady)
-		cr.SetStatus(status)
+		cr.SetStatus(status.WithState(types.StateReady))
 		return r.Status().Update(ctx, cr)
 	}
 
