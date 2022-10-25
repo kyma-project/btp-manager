@@ -129,16 +129,20 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 	logger := log.FromContext(ctx)
 	status := cr.GetStatus()
 
-	if _, err := r.getRequiredSecret(ctx); err != nil {
-		logger.Error(err, "while getting required Secret")
-		status.WithState(types.StateError)
-		cr.SetStatus(status)
-		return ctrl.Result{Requeue: false}, r.Status().Update(ctx, cr)
+	secret, err := r.getRequiredSecret(ctx)
+	if err != nil {
+		logger.Error(err, "while getting the required Secret")
+		cr.SetStatus(status.WithState(types.StateError))
+		return ctrl.Result{}, r.Status().Update(ctx, cr)
 	}
 
-	status.WithState(types.StateProcessing)
-	cr.SetStatus(status)
+	if err = r.verifySecret(secret); err != nil {
+		logger.Error(err, "while verifying the required Secret")
+		cr.SetStatus(status.WithState(types.StateError))
+		return ctrl.Result{}, r.Status().Update(ctx, cr)
+	}
 
+	cr.SetStatus(status.WithState(types.StateProcessing))
 	return ctrl.Result{}, r.Status().Update(ctx, cr)
 }
 
@@ -226,6 +230,21 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 		}
 		itemLabels[labelKeyForChart] = baseLabels[labelKeyForChart]
 		item.SetLabels(itemLabels)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) verifySecret(secret *v1.Secret) error {
+	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "tokenurlsuffix", "cluster_id"}
+	for _, key := range requiredKeys {
+		value, exists := secret.StringData[key]
+		if !exists {
+			return fmt.Errorf("key %s not found", key)
+		}
+		if len(value) == 0 {
+			return fmt.Errorf("missing value for %s key", key)
+		}
 	}
 
 	return nil
