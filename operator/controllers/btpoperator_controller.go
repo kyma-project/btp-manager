@@ -17,10 +17,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	v1 "k8s.io/api/apps/v1"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
@@ -37,8 +42,8 @@ import (
 const (
 	chartPath         = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
 	chartNamespace    = "kyma-system"
-	operatorName      = "btp-manager"
-	labelKey          = "app.kubernetes.io/managed-by"
+	operatorName      = "btp-operator"
+	labelKey          = "managed-by"
 	deletionFinalizer = "custom-deletion-finalizer"
 	requeueInterval   = time.Second * 3
 )
@@ -48,6 +53,7 @@ const (
 	btpOperatorApiVer          = "v1"
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
+	retryInterval              = time.Second * 10
 )
 
 var (
@@ -61,17 +67,18 @@ var (
 		Version: btpOperatorApiVer,
 		Kind:    btpOperatorServiceInstance,
 	}
+	labelFilter = client.MatchingLabels{labelKey: operatorName}
 )
 
 type ReconcilerConfig struct {
-	timeout                     time.Duration
-	fakeHardDeletionFailForTest bool
+	timeout            time.Duration
+	hardDeleteTestMode bool
 }
 
-func NewReconcileConfig(timeout time.Duration, fakeFail bool) ReconcilerConfig {
+func NewReconcileConfig(timeout time.Duration, hardDeleteTestMode bool) ReconcilerConfig {
 	return ReconcilerConfig{
-		timeout:                     timeout,
-		fakeHardDeletionFailForTest: fakeFail,
+		timeout:            timeout,
+		hardDeleteTestMode: hardDeleteTestMode,
 	}
 }
 
@@ -190,12 +197,12 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(context.Background())
-	err := r.handleDeprovisioning(ctx, cr)
-	if err != nil {
+	logger := log.FromContext(ctx)
+	if err := r.handleDeprovisioning(ctx); err != nil {
 		logger.Error(err, "deprovisioning failed")
 		return r.SetStatus(types.StateError, ctx, cr)
 	} else {
+		logger.Info("deprovisioning success. clearing finalizers for btp manager")
 		cr.SetFinalizers([]string{})
 		if err := r.Update(ctx, cr); err != nil {
 			return err
@@ -260,84 +267,36 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(context.Background())
+func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error {
+	logger := log.FromContext(ctx)
 	logger.Info("btp operator is under deletion")
 
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
 		return err
 	}
+	if err := r.handlePreDelete(ctx); err != nil {
+		return err
+	}
 
 	hardDeleteChannel := make(chan bool)
-	go func(success chan bool) {
-		anyErr := false
-		if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-			logger.Error(err, "failed to hard delete bindings")
-			anyErr = true
-		}
-
-		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-			logger.Error(err, "failed to hard delete instances")
-			anyErr = true
-		}
-
-		if anyErr {
-			success <- false
-			return
-		}
-
-		for {
-			resourcesLeft := true
-			for _, namespace := range namespaces.Items {
-
-				bindings := &unstructured.UnstructuredList{}
-				bindings.SetGroupVersionKind(bindingGvk)
-				if err := r.List(ctx, bindings, client.InNamespace(namespace.Name)); err != nil {
-					if !errors.IsNotFound(err) {
-						logger.Error(err, "failed to list bindings")
-						success <- false
-						return
-					}
-				}
-
-				instances := &unstructured.UnstructuredList{}
-				instances.SetGroupVersionKind(instanceGvk)
-				if err := r.List(ctx, instances, client.InNamespace(namespace.Name)); err != nil {
-					if !errors.IsNotFound(err) {
-						logger.Error(err, "failed to list instances")
-						success <- false
-						return
-					}
-				}
-
-				resourcesLeft = len(bindings.Items) > 0 || len(instances.Items) > 0
-			}
-
-			if !resourcesLeft {
-				success <- true
-				return
-			}
-
-			time.Sleep(time.Second * 10)
-		}
-	}(hardDeleteChannel)
+	go r.handleHardDelete(ctx, namespaces, hardDeleteChannel)
 
 	select {
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
 			logger.Info("hard delete success")
-			if err := r.removeInstalledResources(ctx, cr); err != nil {
+			if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
 				logger.Error(err, "failed to remove related installed resources")
 				return err
 			}
 		} else {
-			if err := r.handleHardDeleteFail(ctx, cr); err != nil {
+			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 				return err
 			}
 		}
 	case <-time.After(r.reconcilerConfig.timeout):
-		if err := r.handleHardDeleteFail(ctx, cr); err != nil {
+		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			return err
 		}
 	}
@@ -345,8 +304,76 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleHardDeleteFail(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(context.Background())
+func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, success chan bool) {
+	defer close(success)
+	logger := log.FromContext(ctx)
+	anyErr := false
+
+	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
+		anyErr = true
+	}
+
+	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
+		anyErr = true
+	}
+
+	if r.reconcilerConfig.hardDeleteTestMode {
+		anyErr = true
+	}
+
+	if anyErr {
+		success <- false
+		return
+	}
+
+	for {
+		err, resourcesLeft := r.checkIfAnyResourcesLeft(ctx, namespaces)
+		if err != nil {
+			logger.Error(err, "Checking failed")
+			success <- false
+			return
+		}
+		if !resourcesLeft {
+			success <- true
+			return
+		}
+		time.Sleep(retryInterval)
+	}
+}
+
+func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, namespaces *corev1.NamespaceList) (error, bool) {
+	list := func(namespace string, gvk schema.GroupVersionKind) (error, bool) {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(gvk)
+		if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
+			if !errors.IsNotFound(err) {
+				return err, true
+			}
+		}
+
+		return nil, len(list.Items) > 0
+	}
+
+	for _, namespace := range namespaces.Items {
+		var err error
+		err, instancesLeft := list(namespace.Name, instanceGvk)
+		if err != nil {
+			return err, true
+		}
+		err, bindingsLeft := list(namespace.Name, bindingGvk)
+		if err != nil {
+			return err, true
+		}
+		if instancesLeft == false && bindingsLeft == false {
+			return nil, false
+		}
+	}
+
+	return nil, true
+}
+
+func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
+	logger := log.FromContext(ctx)
 	logger.Info("hard delete failed. trying to perform soft delete")
 
 	if err := r.softDelete(ctx, &instanceGvk); err != nil {
@@ -359,7 +386,7 @@ func (r *BtpOperatorReconciler) handleHardDeleteFail(ctx context.Context, cr *v1
 		return err
 	}
 
-	if err := r.removeInstalledResources(ctx, cr); err != nil {
+	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
 		logger.Error(err, "failed to remove related installed resources")
 		return err
 	}
@@ -368,25 +395,25 @@ func (r *BtpOperatorReconciler) handleHardDeleteFail(ctx context.Context, cr *v1
 }
 
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(gvk)
+	logger := log.FromContext(ctx)
+	object := &unstructured.Unstructured{}
+	object.SetGroupVersionKind(gvk)
 
 	for _, namespace := range namespaces.Items {
-		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(namespace.Name)); err != nil {
+		if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name)); err != nil {
+			logger.Error(err, "Err while doing delete all of")
 			return err
 		}
-	}
-
-	if r.reconcilerConfig.fakeHardDeletionFailForTest {
-		return errors.NewServiceUnavailable("Not avaiable due to test mode.")
 	}
 
 	return nil
 }
 
 func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.GroupVersionKind) error {
+	listGvk := *gvk
+	listGvk.Kind = gvk.Kind + "List"
 	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(*gvk)
+	list.SetGroupVersionKind(listGvk)
 
 	if err := r.List(ctx, list); err != nil {
 		err = fmt.Errorf("%w; could not list in soft delete", err)
@@ -403,44 +430,94 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 	return nil
 }
 
-func (r *BtpOperatorReconciler) removeInstalledResources(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(context.Background())
+func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
+	deployment := &v1.Deployment{}
+	deployment.Name = "sap-btp-operator-controller-manager"
+	deployment.Namespace = "kyma-system"
+	if err := r.Delete(ctx, deployment); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
 
-	unstructuredObj := &unstructured.Unstructured{}
-	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
+	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
+	if err := r.DeleteAllOf(ctx, mutatingWebhook); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+	if err := r.DeleteAllOf(ctx, validatingWebhook); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
+	time.Sleep(time.Second * 10)
+
+	err, gvks := r.discoverDeletableGvks()
 	if err != nil {
 		return err
 	}
-	unstructuredObj.Object = unstructuredBase
 
-	uninstallInfo := manifest.InstallInfo{
-		ChartInfo: &manifest.ChartInfo{
-			ChartPath:   chartPath,
-			ReleaseName: cr.GetName(),
-			Flags: types.ChartFlags{
-				ConfigFlags: types.Flags{
-					"Namespace": chartNamespace,
-					"Wait":      true,
-				},
-			},
-		},
-		ResourceInfo: manifest.ResourceInfo{
-			BaseResource: unstructuredObj,
-		},
-		ClusterInfo: custom.ClusterInfo{
-			Config: r.Config,
-			Client: r.Client,
-		},
-		Ctx: ctx,
+	if err := r.deleteAllOfinstalledResources(ctx, namespaces, gvks); err != nil {
+		return err
 	}
 
-	ok, uninstallErr := manifest.UninstallChart(&logger, uninstallInfo, []types.ObjectTransform{})
+	return nil
+}
+
+func (r *BtpOperatorReconciler) discoverDeletableGvks() (error, []schema.GroupVersionKind) {
+	var err error
+	cs, err := clientset.NewForConfig(r.Config)
 	if err != nil {
-		return uninstallErr
-	}
-	if !ok {
-		return errors.NewInternalError(fmt.Errorf("uninstall chart dosent return success"))
+		return fmt.Errorf("failed to create clientset from config %w", err), []schema.GroupVersionKind{}
 	}
 
+	_, apiResourceList, err := cs.ServerGroupsAndResources()
+	if err != nil {
+		return fmt.Errorf("failed to get server group and resources %w", err), []schema.GroupVersionKind{}
+	}
+
+	gvks := make([]schema.GroupVersionKind, 0)
+	for _, resourceMap := range apiResourceList {
+		gv, _ := schema.ParseGroupVersion(resourceMap.GroupVersion)
+		for _, apiResource := range resourceMap.APIResources {
+			for _, verb := range apiResource.Verbs {
+				if verb == "delete" || verb == "deletecollection" {
+					gvks = append(gvks, schema.GroupVersionKind{
+						Version: gv.Version,
+						Group:   gv.Group,
+						Kind:    apiResource.Kind,
+					})
+					break
+				}
+			}
+		}
+	}
+
+	return nil, gvks
+}
+
+func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
+	logger := log.FromContext(ctx)
+	for _, gvk := range gvks {
+		object := &unstructured.Unstructured{}
+		object.SetGroupVersionKind(gvk)
+		for _, namespace := range namespaces.Items {
+			if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name), labelFilter); err != nil {
+				if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+					return err
+				} else {
+					logger.Error(err, "failed to use deleteallof on given resource")
+				}
+			}
+		}
+	}
 	return nil
 }

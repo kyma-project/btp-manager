@@ -115,31 +115,29 @@ func checkIfNoBtpResourceExists() {
 	err = k8sClient.List(ctx, namespaces)
 	Expect(err).To(BeNil())
 
-	labelMatcher := client.MatchingLabels{labelKey: operatorName}
-	fail := false
+	found := false
 	for _, resource := range resourceMap {
 		gv, _ := schema.ParseGroupVersion(resource.GroupVersion)
 		for _, apiResource := range resource.APIResources {
 			list := &unstructured.UnstructuredList{}
-			gvk := schema.GroupVersionKind{
+			list.SetGroupVersionKind(schema.GroupVersionKind{
 				Version: gv.Version,
 				Group:   gv.Group,
 				Kind:    apiResource.Kind,
-			}
-			list.SetGroupVersionKind(gvk)
+			})
 			for _, namespace := range namespaces.Items {
-				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelMatcher); err != nil {
+				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelFilter); err != nil {
 					ignore := errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
 					if !ignore {
-						fail = true
+						found = true
 						break
 					}
 				} else if len(list.Items) > 0 {
-					fail = true
+					found = true
 					break
 				}
 			}
 		}
 	}
-	Expect(fail).To(BeFalse())
+	Expect(found).To(BeFalse())
 }
