@@ -29,10 +29,17 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrlTypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -55,6 +62,7 @@ type BtpOperatorReconciler struct {
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -86,6 +94,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
 	case types.StateProcessing:
 		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
+		/*case types.StateError:
+		return ctrl.Result{}, r.HandleErrorState(ctx, btpOperatorCr)*/
 	}
 
 	/*
@@ -118,7 +128,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{}).
-		// Owns(&v1.Secret{}).
+		Watches(
+			&source.Kind{Type: &v1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.getBtpOperatorInReadyState),
+			builder.WithPredicates(r.watchPredicates()),
+		).
 		Complete(r)
 }
 
@@ -256,4 +270,41 @@ func (r *BtpOperatorReconciler) verifySecret(secret *v1.Secret) error {
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) getBtpOperatorInReadyState(secret client.Object) []reconcile.Request {
+	btpOperators := &v1alpha1.BtpOperatorList{}
+	err := r.List(context.Background(), btpOperators)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	requests := make([]reconcile.Request, len(btpOperators.Items))
+	for i, item := range btpOperators.Items {
+		requests[i] = reconcile.Request{NamespacedName: ctrlTypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
+	}
+
+	return requests
+}
+
+func (r *BtpOperatorReconciler) watchPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return e.Object.GetName() == secretName && e.Object.GetNamespace() == chartNamespace
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld.GetName() == secretName && e.ObjectOld.GetNamespace() == chartNamespace {
+				return e.ObjectOld != e.ObjectNew
+			}
+			return false
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("")
+
+	status := cr.GetStatus()
+	cr.SetStatus(status.WithState(types.StateProcessing))
+	return r.Status().Update(ctx, cr)
 }
