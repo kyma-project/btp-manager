@@ -323,12 +323,12 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	logger := log.FromContext(ctx)
 
 	anyErr := false
-
-	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
+	if err := r.removeGvkInNamespaces(ctx, namespaces, bindingGvk, client.MatchingLabels{}); err != nil {
+		logger.Error(err, "hard delete of binding failed")
 		anyErr = true
 	}
-
-	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
+	if err := r.removeGvkInNamespaces(ctx, namespaces, instanceGvk, client.MatchingLabels{}); err != nil {
+		logger.Error(err, "hard delete of instance failed")
 		anyErr = true
 	}
 
@@ -402,21 +402,6 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
 		logger.Error(err, "failed to remove related installed resources")
 		return err
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
-	logger := log.FromContext(ctx)
-	object := &unstructured.Unstructured{}
-	object.SetGroupVersionKind(gvk)
-
-	for _, namespace := range namespaces.Items {
-		if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name)); err != nil {
-			logger.Error(err, "Err while doing delete all of")
-			return err
-		}
 	}
 
 	return nil
@@ -498,8 +483,10 @@ func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Conte
 		return err
 	}
 
-	if err := r.deleteAllOfinstalledResources(ctx, namespaces, gvks); err != nil {
-		return err
+	for _, gvk := range gvks {
+		if err := r.removeGvkInNamespaces(ctx, namespaces, gvk, labelFilter); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -538,17 +525,37 @@ func (r *BtpOperatorReconciler) discoverDeletableGvks() (error, []schema.GroupVe
 	return nil, gvks
 }
 
-func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
-	logger := log.FromContext(ctx)
-	for _, gvk := range gvks {
-		object := &unstructured.Unstructured{}
-		object.SetGroupVersionKind(gvk)
-		for _, namespace := range namespaces.Items {
-			if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name), labelFilter); err != nil {
-				if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+func (r *BtpOperatorReconciler) removeGvkInNamespaces(ctx context.Context, namespace *corev1.NamespaceList, gvk schema.GroupVersionKind, labelsFilter client.MatchingLabels) error {
+
+	if gvk.Kind == "configmap" || gvk.Kind == "ConfigMap" {
+		fmt.Print("a")
+	}
+
+	canSkipErr := func(err error) bool {
+		return errors.IsNotFound(err) || errors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)
+	}
+
+	for _, namespace := range namespace.Items {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(gvk)
+		if len(labelsFilter) == 0 {
+			if err := r.List(ctx, list, client.InNamespace(namespace.Name)); err != nil {
+				if !canSkipErr(err) {
 					return err
-				} else {
-					logger.Error(err, "failed to use deleteallof on given resource")
+				}
+			}
+		} else {
+			if err := r.List(ctx, list, client.InNamespace(namespace.Name), labelsFilter); err != nil {
+				if !canSkipErr(err) {
+					return err
+				}
+			}
+		}
+
+		for _, item := range list.Items {
+			if err := r.Delete(ctx, &item); err != nil {
+				if !canSkipErr(err) {
+					return err
 				}
 			}
 		}
