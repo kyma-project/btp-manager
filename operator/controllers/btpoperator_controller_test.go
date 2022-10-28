@@ -38,21 +38,21 @@ var _ = Describe("provisioning test within service instances and bindings", func
 	})
 
 	It("soft delete (after timeout) should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Nanosecond, false))
+		reconciler.SetReconcileConfig(NewReconcileConfig(time.Second, testScenarioWithTimeout))
 
 		triggerDelete()
 		doChecks()
 	})
 
 	It("soft delete (after hard deletion fail) should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, true))
+		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, testScenarioWithError))
 
 		triggerDelete()
 		doChecks()
 	})
 
 	It("hard delete should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, false))
+		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, ""))
 
 		triggerDelete()
 		doChecks()
@@ -92,6 +92,7 @@ func triggerDelete() {
 
 func doChecks() {
 	checkIfNoServicesExists(btpOperatorServiceBinding)
+	checkIfNoBindingSecretExists()
 	checkIfNoServicesExists(btpOperatorServiceInstance)
 	checkIfNoBtpResourceExists()
 }
@@ -100,8 +101,15 @@ func checkIfNoServicesExists(kind string) {
 	list := unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: kind})
 	err := k8sClient.List(ctx, &list)
-	Expect(errors.IsNotFound(err)).To(BeTrue())
+	Expect(err).To(BeNil())
 	Expect(list.Items).To(HaveLen(0))
+}
+
+func checkIfNoBindingSecretExists() {
+	secret := &corev1.Secret{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: testNamespace}, secret)
+	Expect(*secret).To(BeEquivalentTo(corev1.Secret{}))
+	Expect(errors.IsNotFound(err)).To(BeTrue())
 }
 
 func checkIfNoBtpResourceExists() {

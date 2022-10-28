@@ -56,6 +56,11 @@ const (
 	retryInterval              = time.Second * 10
 )
 
+const (
+	testScenarioWithError   = "causeErrror"
+	testScenarioWithTimeout = "causeTimeOut"
+)
+
 var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
@@ -71,14 +76,14 @@ var (
 )
 
 type ReconcilerConfig struct {
-	timeout            time.Duration
-	hardDeleteTestMode bool
+	timeout  time.Duration
+	testFlag string
 }
 
-func NewReconcileConfig(timeout time.Duration, hardDeleteTestMode bool) ReconcilerConfig {
+func NewReconcileConfig(timeout time.Duration, testFlag string) ReconcilerConfig {
 	return ReconcilerConfig{
-		timeout:            timeout,
-		hardDeleteTestMode: hardDeleteTestMode,
+		timeout:  timeout,
+		testFlag: testFlag,
 	}
 }
 
@@ -207,7 +212,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		if err := r.Update(ctx, cr); err != nil {
 			return err
 		}
-		return r.SetStatus(types.StateReady, ctx, cr)
+		return nil
 	}
 }
 
@@ -304,9 +309,19 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 	return nil
 }
 
+func (r *BtpOperatorReconciler) handleHardDeleteTest(anyErr *bool) {
+	if r.reconcilerConfig.testFlag == testScenarioWithError {
+		*anyErr = true
+	}
+	if r.reconcilerConfig.testFlag == testScenarioWithTimeout {
+		time.Sleep(time.Second * 5)
+	}
+}
+
 func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, success chan bool) {
 	defer close(success)
 	logger := log.FromContext(ctx)
+
 	anyErr := false
 
 	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
@@ -317,9 +332,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		anyErr = true
 	}
 
-	if r.reconcilerConfig.hardDeleteTestMode {
-		anyErr = true
-	}
+	r.handleHardDeleteTest(&anyErr)
 
 	if anyErr {
 		success <- false
@@ -420,10 +433,30 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 		return err
 	}
 
+	isBinding := gvk.Kind == btpOperatorServiceBinding
 	for _, item := range list.Items {
 		item.SetFinalizers([]string{})
 		if err := r.Update(context.Background(), &item); err != nil {
 			return err
+		}
+
+		if isBinding {
+			secret := &corev1.Secret{}
+			secret.Name = item.GetName()
+			secret.Namespace = item.GetNamespace()
+			if err := r.Delete(ctx, secret); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := r.List(ctx, list); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if len(list.Items) > 0 {
+			return fmt.Errorf("finalizers deletion assurance has failed")
 		}
 	}
 
@@ -495,6 +528,7 @@ func (r *BtpOperatorReconciler) discoverDeletableGvks() (error, []schema.GroupVe
 						Group:   gv.Group,
 						Kind:    apiResource.Kind,
 					})
+
 					break
 				}
 			}
