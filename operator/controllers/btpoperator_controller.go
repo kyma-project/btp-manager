@@ -40,10 +40,10 @@ import (
 )
 
 const (
-	chartPath         = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
+	chartPath         = "./module-chart"
 	chartNamespace    = "kyma-system"
-	operatorName      = "btp-operator"
-	labelKey          = "managed-by"
+	operatorName      = "btp-manager"
+	labelKey          = "app.kubernetes.io/managed-by"
 	deletionFinalizer = "custom-deletion-finalizer"
 	requeueInterval   = time.Second * 3
 )
@@ -459,14 +459,14 @@ func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
 	}
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, mutatingWebhook); err != nil {
+	if err := r.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, validatingWebhook); err != nil {
+	if err := r.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
