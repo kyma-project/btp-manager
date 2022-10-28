@@ -450,9 +450,7 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 
 func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
 	deployment := &v1.Deployment{}
-	deployment.Name = "sap-btp-operator-controller-manager"
-	deployment.Namespace = "kyma-system"
-	if err := r.Delete(ctx, deployment); err != nil {
+	if err := r.DeleteAllOf(ctx, deployment, labelFilter); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
