@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
@@ -302,11 +303,31 @@ func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			return e.Object.GetName() == secretName && e.Object.GetNamespace() == chartNamespace
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			return secret.Name == secretName && secret.Namespace == chartNamespace
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			return secret.Name == secretName && secret.Namespace == chartNamespace
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectOld.GetName() == secretName && e.ObjectOld.GetNamespace() == chartNamespace {
-				return e.ObjectOld != e.ObjectNew
+			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			newSecret, ok := e.ObjectNew.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			if (oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace) &&
+				(newSecret.Name == secretName && newSecret.Namespace == chartNamespace) {
+				return !reflect.DeepEqual(oldSecret.Data, newSecret.Data)
 			}
 			return false
 		},
