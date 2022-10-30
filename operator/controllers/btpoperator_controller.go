@@ -25,11 +25,11 @@ import (
 	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	ctrlTypes "k8s.io/apimachinery/pkg/types"
+	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -76,27 +76,13 @@ type BtpOperatorReconciler struct {
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	btpOperatorCr := &v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, req.NamespacedName, btpOperatorCr); err != nil {
+	cr := &v1alpha1.BtpOperator{}
+	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		logger.Error(err, "unable to fetch BtpOperator")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// temporary disable adding finalizer
-	/*
-		if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
-			return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
-		}
-	*/
-
-	switch btpOperatorCr.Status.State {
-	case "":
-		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
-	case types.StateProcessing:
-		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
-		/*case types.StateError:
-		return ctrl.Result{}, r.HandleErrorState(ctx, btpOperatorCr)*/
-	}
+	logger.Info("Starting BTP Operator reconciliation")
 
 	/*
 		var existingBtpOperators v1alpha1.BtpOperatorList
@@ -106,39 +92,28 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	*/
 
-	return ctrl.Result{}, nil
-}
-
-func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*v1.Secret, error) {
-	secret := &v1.Secret{}
-	objKey := client.ObjectKey{Namespace: chartNamespace, Name: secretName}
-	if err := r.Get(ctx, objKey, secret); err != nil {
-		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, chartNamespace)
+	// temporary disable adding finalizer
+	/*
+		if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
+			return ctrl.Result{}, r.Update(ctx, cr)
 		}
-		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
+	*/
+
+	switch cr.Status.State {
+	case "":
+		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
+	case types.StateProcessing:
+		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
+	case types.StateError:
+		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
 	}
 
-	return secret, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Config = mgr.GetConfig()
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.BtpOperator{}).
-		Watches(
-			&source.Kind{Type: &v1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.getBtpOperatorInReadyState),
-			builder.WithPredicates(r.watchPredicates()),
-		).
-		Complete(r)
+	return ctrl.Result{}, nil
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Starting BTP Operator reconciliation")
+	logger.Info("Handling Initial state")
 
 	status := cr.GetStatus()
 	cr.SetStatus(status.WithState(types.StateProcessing))
@@ -147,6 +122,8 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
+	logger.Info("Handling Processing state")
+
 	status := cr.GetStatus()
 
 	secret, err := r.getRequiredSecret(ctx)
@@ -187,6 +164,19 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	return nil
 }
 
+func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	objKey := client.ObjectKey{Namespace: chartNamespace, Name: secretName}
+	if err := r.Get(ctx, objKey, secret); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, chartNamespace)
+		}
+		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
+	}
+
+	return secret, nil
+}
+
 func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	if len(cr.Labels) == 0 {
 		cr.Labels = make(map[string]string)
@@ -194,7 +184,7 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	cr.Labels[labelKeyForChart] = operatorName
 }
 
-func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *v1.Secret) (manifest.InstallInfo, error) {
+func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (manifest.InstallInfo, error) {
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
@@ -240,6 +230,21 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 	return installInfo, nil
 }
 
+func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
+	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
+	for _, key := range requiredKeys {
+		value, exists := secret.Data[key]
+		if !exists {
+			return fmt.Errorf("key %s not found", key)
+		}
+		if len(value) == 0 {
+			return fmt.Errorf("missing value for %s key", key)
+		}
+	}
+
+	return nil
+}
+
 func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.BaseCustomObject, res *types.ManifestResources) error {
 	baseLabels := base.GetLabels()
 	if _, found := baseLabels[labelKeyForChart]; !found {
@@ -257,22 +262,30 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 	return nil
 }
 
-func (r *BtpOperatorReconciler) verifySecret(secret *v1.Secret) error {
-	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
-	for _, key := range requiredKeys {
-		value, exists := secret.Data[key]
-		if !exists {
-			return fmt.Errorf("key %s not found", key)
-		}
-		if len(value) == 0 {
-			return fmt.Errorf("missing value for %s key", key)
-		}
-	}
+func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling Error state")
 
-	return nil
+	status := cr.GetStatus()
+	cr.SetStatus(status.WithState(types.StateProcessing))
+	return r.Status().Update(ctx, cr)
 }
 
-func (r *BtpOperatorReconciler) getBtpOperatorInReadyState(secret client.Object) []reconcile.Request {
+// SetupWithManager sets up the controller with the Manager.
+func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.BtpOperator{}).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
+			builder.WithPredicates(r.watchSecretPredicates()),
+		).
+		Complete(r)
+}
+
+func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client.Object) []reconcile.Request {
 	btpOperators := &v1alpha1.BtpOperatorList{}
 	err := r.List(context.Background(), btpOperators)
 	if err != nil {
@@ -280,13 +293,13 @@ func (r *BtpOperatorReconciler) getBtpOperatorInReadyState(secret client.Object)
 	}
 	requests := make([]reconcile.Request, len(btpOperators.Items))
 	for i, item := range btpOperators.Items {
-		requests[i] = reconcile.Request{NamespacedName: ctrlTypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
+		requests[i] = reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
 	}
 
 	return requests
 }
 
-func (r *BtpOperatorReconciler) watchPredicates() predicate.Funcs {
+func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			return e.Object.GetName() == secretName && e.Object.GetNamespace() == chartNamespace
@@ -298,13 +311,4 @@ func (r *BtpOperatorReconciler) watchPredicates() predicate.Funcs {
 			return false
 		},
 	}
-}
-
-func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("")
-
-	status := cr.GetStatus()
-	cr.SetStatus(status.WithState(types.StateProcessing))
-	return r.Status().Update(ctx, cr)
 }
