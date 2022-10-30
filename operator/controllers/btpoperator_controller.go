@@ -106,7 +106,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case types.StateProcessing:
 		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
-		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
@@ -277,7 +277,8 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.BtpOperator{}).
+		For(&v1alpha1.BtpOperator{},
+			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
@@ -330,6 +331,30 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 				return !reflect.DeepEqual(oldSecret.Data, newSecret.Data)
 			}
 			return false
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newBtpOperator, ok := e.ObjectNew.(*v1alpha1.BtpOperator)
+			if !ok {
+				return false
+			}
+			if newBtpOperator.GetStatus().State == types.StateError {
+				return false
+			}
+			return true
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return true
 		},
 	}
 }
