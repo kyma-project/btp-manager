@@ -26,7 +26,6 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,12 +38,11 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = clientgoscheme.Scheme
 	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 
@@ -103,7 +101,7 @@ func main() {
 
 	reconciler := &controllers.BtpOperatorReconciler{
 		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Scheme: scheme,
 	}
 
 	reconciler.SetReconcileConfig(controllers.NewReconcileConfig(time.Minute*20, ""))
