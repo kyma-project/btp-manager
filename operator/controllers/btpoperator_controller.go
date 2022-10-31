@@ -127,6 +127,15 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	logger.Info("Starting BTP Operator reconciliation")
+
+	/*
+		var existingBtpOperators v1alpha1.BtpOperatorList
+		if err := r.List(ctx, &existingBtpOperators); err != nil {
+			logger.Error(err, "unable to fetch existing BtpOperators")
+			return ctrl.Result{}, err
+		}
+	*/
+
 	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
 		return ctrl.Result{}, r.Update(ctx, cr)
 	}
