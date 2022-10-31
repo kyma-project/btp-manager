@@ -104,8 +104,8 @@ func (r *BtpOperatorReconciler) SetReconcileConfig(reconcilerConfig ReconcilerCo
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
 	*rest.Config
+	Scheme           *runtime.Scheme
 	reconcilerConfig ReconcilerConfig
 }
 
@@ -148,7 +148,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
