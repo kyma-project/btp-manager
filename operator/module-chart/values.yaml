@@ -12,6 +12,7 @@ manager:
   replica_count: 1
   enable_leader_election: false
   management_namespace:
+  priorityClassName: kyma-system
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
     tag: v0.2.5
