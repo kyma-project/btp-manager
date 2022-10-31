@@ -16,7 +16,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -26,20 +25,16 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+	"reflect"
 
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
-	"github.com/kyma-project/module-manager/operator/pkg/types"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -87,7 +82,7 @@ var (
 		Version: btpOperatorApiVer,
 		Kind:    btpOperatorServiceInstance,
 	}
-	labelFilter = client.MatchingLabels{labelKey: operatorName}
+	labelFilter = client.MatchingLabels{labelKeyForChart: operatorName}
 )
 
 type ReconcilerConfig struct {
@@ -114,14 +109,6 @@ type BtpOperatorReconciler struct {
 	reconcilerConfig ReconcilerConfig
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Config = mgr.GetConfig()
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.BtpOperator{}).
-		Complete(r)
-}
-
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
@@ -130,8 +117,8 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	btpOperatorCr := &v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, req.NamespacedName, btpOperatorCr); err != nil {
+	cr := &v1alpha1.BtpOperator{}
+	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -140,21 +127,23 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	logger.Info("Starting BTP Operator reconciliation")
-	if ctrlutil.AddFinalizer(btpOperatorCr, deletionFinalizer) {
-		return ctrl.Result{}, r.Update(ctx, btpOperatorCr)
+	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
+		return ctrl.Result{}, r.Update(ctx, cr)
 	}
 
-	if !btpOperatorCr.ObjectMeta.DeletionTimestamp.IsZero() && btpOperatorCr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.SetDeletingState(ctx, btpOperatorCr)
+	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
+		return ctrl.Result{}, r.SetDeletingState(ctx, cr)
 	}
 
-	switch btpOperatorCr.Status.State {
+	switch cr.Status.State {
 	case "":
-		return ctrl.Result{}, r.HandleInitialState(ctx, btpOperatorCr)
+		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, btpOperatorCr)
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, cr)
+	case types.StateError:
+		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
-		return ctrl.Result{}, r.HandleDeletingState(ctx, btpOperatorCr)
+		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
