@@ -245,9 +245,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	status := cr.GetStatus()
-	cr.SetStatus(status.WithState(types.StateProcessing))
-	return r.Status().Update(ctx, cr)
+	return r.SetStatus(types.StateProcessing, ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -520,7 +518,7 @@ func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.Group
 }
 
 func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, namespaces *corev1.NamespaceList) (error, bool) {
-	list := func(namespace string, gvk schema.GroupVersionKind) (error, bool) {
+	anyLeft := func(namespace string, gvk schema.GroupVersionKind) (error, bool) {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
 		if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
@@ -533,11 +531,11 @@ func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, nam
 	}
 
 	for _, namespace := range namespaces.Items {
-		err, instancesLeft := list(namespace.Name, instanceGvk)
+		err, instancesLeft := anyLeft(namespace.Name, instanceGvk)
 		if err != nil {
 			return err, true
 		}
-		err, bindingsLeft := list(namespace.Name, bindingGvk)
+		err, bindingsLeft := anyLeft(namespace.Name, bindingGvk)
 		if err != nil {
 			return err, true
 		}
@@ -676,7 +674,6 @@ func (r *BtpOperatorReconciler) discoverDeletableGvks() (error, []schema.GroupVe
 						Group:   gv.Group,
 						Kind:    apiResource.Kind,
 					})
-
 					break
 				}
 			}
