@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"os"
-	"os/exec"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -50,15 +49,6 @@ func init() {
 }
 
 func main() {
-
-	//only for development
-	cmd := exec.Command("/bin/sh", "prerun.sh")
-	if err := cmd.Run(); err != nil {
-		panic(err)
-	} else {
-		setupLog.Info("prerun.sh loaded")
-	}
-
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
