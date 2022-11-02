@@ -20,10 +20,13 @@ const (
 	testNamespace    = "default"
 	instanceName     = "my-service-instance"
 	bindingName      = "my-binding"
+	kymaNamespace    = "kyma-system"
 )
 
-var _ = Describe("provisioning test within service instances and bindings", func() {
+var _ = Describe("deprovisioning tests", func() {
 	BeforeEach(func() {
+		createSecret()
+
 		btpOperator := getBtpOperator()
 
 		err := k8sClient.Create(ctx, &btpOperator)
@@ -62,6 +65,34 @@ var _ = Describe("provisioning test within service instances and bindings", func
 		doChecks()
 	})
 })
+
+func createSecret() {
+	namespace := &corev1.Namespace{}
+	namespace.Name = kymaNamespace
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
+	if errors.IsNotFound(err) {
+		err = k8sClient.Create(ctx, namespace)
+	}
+	Expect(err).To(BeNil())
+
+	secret := &corev1.Secret{}
+	secret.Type = corev1.SecretTypeOpaque
+	secret.Name = "sap-btp-manager"
+	secret.Namespace = kymaNamespace
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)
+	if errors.IsNotFound(err) {
+		secret.Data = map[string][]byte{
+			"clientid":     []byte("dGVzdF9jbGllbnRpZA=="),
+			"clientsecret": []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
+			"sm_url":       []byte("dGVzdF9zbV91cmw="),
+			"tokenurl":     []byte("dGVzdF90b2tlbnVybA=="),
+			"cluster_id":   []byte("dGVzdF9jbHVzdGVyX2lk"),
+		}
+		err = k8sClient.Create(ctx, secret)
+	}
+
+	Expect(err).To(BeNil())
+}
 
 func getBtpOperator() v1alpha1.BtpOperator {
 	btpOperator := v1alpha1.BtpOperator{}
