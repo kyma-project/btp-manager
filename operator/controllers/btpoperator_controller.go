@@ -26,7 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"reflect"
-
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
@@ -36,15 +38,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -90,14 +89,14 @@ type ReconcilerConfig struct {
 	testFlag string
 }
 
-func NewReconcileConfig(timeout time.Duration, testFlag string) ReconcilerConfig {
-	return ReconcilerConfig{
+func NewReconcileConfig(timeout time.Duration, testFlag string) *ReconcilerConfig {
+	return &ReconcilerConfig{
 		timeout:  timeout,
 		testFlag: testFlag,
 	}
 }
 
-func (r *BtpOperatorReconciler) SetReconcileConfig(reconcilerConfig ReconcilerConfig) {
+func (r *BtpOperatorReconciler) SetReconcileConfig(reconcilerConfig *ReconcilerConfig) {
 	r.reconcilerConfig = reconcilerConfig
 }
 
@@ -106,7 +105,22 @@ type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
 	Scheme           *runtime.Scheme
-	reconcilerConfig ReconcilerConfig
+	reconcilerConfig *ReconcilerConfig
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.BtpOperator{},
+			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
+			builder.WithPredicates(r.watchSecretPredicates()),
+		).
+		Complete(r)
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
@@ -141,7 +155,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.SetDeletingState(ctx, cr)
+		return ctrl.Result{}, r.SetStatus(types.StateDeleting, ctx, cr)
 	}
 
 	switch cr.Status.State {
@@ -158,15 +172,25 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
+func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client.Object) []reconcile.Request {
+	btpOperators := &v1alpha1.BtpOperatorList{}
+	err := r.List(context.Background(), btpOperators)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	requests := make([]reconcile.Request, len(btpOperators.Items))
+	for i, item := range btpOperators.Items {
+		requests[i] = reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
+	}
+
+	return requests
+}
+
 func (r *BtpOperatorReconciler) SetStatus(new types.State, ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	status := cr.GetStatus()
 	status.WithState(new)
 	cr.SetStatus(status)
 	return r.Status().Update(ctx, cr)
-}
-
-func (r *BtpOperatorReconciler) SetDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	return r.SetStatus(types.StateDeleting, ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -215,6 +239,15 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling Error state")
+
+	status := cr.GetStatus()
+	cr.SetStatus(status.WithState(types.StateProcessing))
+	return r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -329,6 +362,64 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 	return nil
 }
 
+func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			return secret.Name == secretName && secret.Namespace == chartNamespace
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			return secret.Name == secretName && secret.Namespace == chartNamespace
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			newSecret, ok := e.ObjectNew.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			if (oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace) &&
+				(newSecret.Name == secretName && newSecret.Namespace == chartNamespace) {
+				return !reflect.DeepEqual(oldSecret.Data, newSecret.Data)
+			}
+			return false
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newBtpOperator, ok := e.ObjectNew.(*v1alpha1.BtpOperator)
+			if !ok {
+				return false
+			}
+			if newBtpOperator.GetStatus().State == types.StateError {
+				return false
+			}
+			return true
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return true
+		},
+	}
+}
+
 func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 	logger.Info("btp operator is under deletion")
@@ -389,7 +480,9 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		anyErr = true
 	}
 
-	r.handleHardDeleteTest(&anyErr)
+	if r.reconcilerConfig.testFlag != "" {
+		r.handleHardDeleteTest(&anyErr)
+	}
 
 	if anyErr {
 		success <- false
@@ -606,100 +699,4 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 		}
 	}
 	return nil
-}
-
-func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Error state")
-
-	status := cr.GetStatus()
-	cr.SetStatus(status.WithState(types.StateProcessing))
-	return r.Status().Update(ctx, cr)
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Config = mgr.GetConfig()
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.BtpOperator{},
-			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
-		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
-			builder.WithPredicates(r.watchSecretPredicates()),
-		).
-		Complete(r)
-}
-
-func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client.Object) []reconcile.Request {
-	btpOperators := &v1alpha1.BtpOperatorList{}
-	err := r.List(context.Background(), btpOperators)
-	if err != nil {
-		return []reconcile.Request{}
-	}
-	requests := make([]reconcile.Request, len(btpOperators.Items))
-	for i, item := range btpOperators.Items {
-		requests[i] = reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
-	}
-
-	return requests
-}
-
-func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			secret, ok := e.Object.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			secret, ok := e.Object.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			newSecret, ok := e.ObjectNew.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			if (oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace) &&
-				(newSecret.Name == secretName && newSecret.Namespace == chartNamespace) {
-				return !reflect.DeepEqual(oldSecret.Data, newSecret.Data)
-			}
-			return false
-		},
-	}
-}
-
-func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return true
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			newBtpOperator, ok := e.ObjectNew.(*v1alpha1.BtpOperator)
-			if !ok {
-				return false
-			}
-			if newBtpOperator.GetStatus().State == types.StateError {
-				return false
-			}
-			return true
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return true
-		},
-	}
 }
