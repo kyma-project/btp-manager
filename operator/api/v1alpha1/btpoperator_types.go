@@ -40,11 +40,7 @@ type BtpOperator struct {
 }
 
 // BtpOperatorSpec defines the desired state of BtpOperator
-type BtpOperatorSpec struct {
-	ReleaseName string `json:"releaseName,omitempty"`
-	Foo         string `json:"foo,omitempty"`
-	Test        bool   `json:"test,omitempty"`
-}
+type BtpOperatorSpec struct{}
 
 var _ types.CustomObject = &BtpOperator{}
 
