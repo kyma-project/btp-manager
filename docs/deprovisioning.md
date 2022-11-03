@@ -15,4 +15,4 @@ Regardless of mode, in the next step, the all BtpOperator resources marked with 
 If the process runs successfully, the finalizer on `yourbtpoperator` itself is removed and the resource is deleted.
 If an error occurs during deprovisioning, `yourbtpoperator` is set to `Error`.
 
-![KEB diagram](./assets/keb-architecture.svg)
+![Deprovisioning diagram](./assets/deprovisioning.svg)
