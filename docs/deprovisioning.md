@@ -1,18 +1,18 @@
 ## Deprovisioning
 
-To start deprovisioning proccess use:
+To start the deprovisioning process, use the following command:
 
 ```
 kubectl delete btpoperator yourbtpoperator
 ```
 
-This command will trigger deletion of all service bindings, service instances and btp operator resources on your cluster.
+The command triggers deletion of all service bindings, service instances and BtpOperator resources on your cluster.
 
-At first, the deletion of deployment and webhooks which yourbtpoperator manages will happen, then deprovisioning flow will try to perform deletion in hard delete mode, which mean it will find all service bindings(and their secrets) and service instances across all namespaces and will try to make kubernetes delete on it.
+After the deletion of deployment and webhooks which `yourbtpoperator` manages, the deprovisioning flow tries to perform deletion in hard delete mode. When it finds all service bindings and their secrets, and service instances across all namespaces, it tries to delete Kubernetes.
 The time limit for this operation is 20 minutes.
-After this time, or in case of error in hard deletion, the system will go into soft delete mode which mean deletion of finalizers from service instances and bindings.
-Regardless of mode, at later step, the all btp operator resources marked with label "managed-by:btp-operator" are deleted.
-If proccess pass with success then finally finalizer on yourbtpoperator itself is removed and the resource is deleted.
-If any error will happen during deprovisioning, then yourbtpoperator will be set to Error state.
+After this time, or in case of an error in hard deletion, the system goes into soft delete mode, which runs deletion of finalizers from service instances and bindings.
+Regardless of mode, in the next step, the all BtpOperator resources marked with the "managed-by:btp-operator" label are deleted.
+If the process runs successfully, the finalizer on `yourbtpoperator` itself is removed and the resource is deleted.
+If an error occurs during deprovisioning, `yourbtpoperator` is set to `Error`.
 
 ![KEB diagram](./assets/keb-architecture.svg)
