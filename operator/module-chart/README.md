@@ -108,7 +108,7 @@ caBundle: {{ b64enc $ca.Cert }}
 
 ### Add sap-btp-operator labels
 
-The deployment and service must contain btp operator specific labels (deployment spec, deployment template and the service labels selector):
+The deployment and service must contain btp-operator specific labels (deployment spec, deployment template and the service labels selector):
 ```yaml
 app.kubernetes.io/instance: sap-btp-operator
 app.kubernetes.io/name: sap-btp-operator
