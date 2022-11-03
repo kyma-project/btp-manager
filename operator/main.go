@@ -19,12 +19,12 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,14 +37,14 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = clientgoscheme.Scheme
 	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -89,10 +89,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.BtpOperatorReconciler{
+	reconciler := &controllers.BtpOperatorReconciler{
 		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+		Scheme: scheme,
+	}
+
+	reconciler.SetReconcileConfig(controllers.NewReconcileConfig(time.Minute*20, ""))
+
+	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
 		os.Exit(1)
 	}
@@ -112,4 +116,5 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+
 }
