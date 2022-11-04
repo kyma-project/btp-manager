@@ -57,8 +57,9 @@ const (
 	labelKeyForChart  = "app.kubernetes.io/managed-by"
 	secretName        = "sap-btp-manager"
 	deletionFinalizer = "custom-deletion-finalizer"
-	requeueInterval   = time.Second * 5
 	deploymentName    = "sap-btp-operator-controller-manager"
+	requeueInterval   = time.Minute * 5
+	readyTimeout      = time.Minute * 1
 )
 
 const (
@@ -157,13 +158,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
 		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	case types.StateReady:
-		return ctrl.Result{}, r.HandleReadyState(ctx, cr)
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleReadyState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
@@ -312,6 +313,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 					"Namespace":       chartNamespace,
 					"CreateNamespace": true,
 					"Wait":            true,
+					"Timeout":         readyTimeout,
 				},
 				SetFlags: types.Flags{
 					"manager": map[string]interface{}{
