@@ -730,11 +730,11 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 	return nil
 }
 
-func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	return nil
-}
-
 func (r *BtpOperatorReconciler) UpdateBtpOperatorState(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State) error {
 	cr.SetStatus(cr.Status.WithState(newState))
 	return r.Status().Update(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	return nil
 }
