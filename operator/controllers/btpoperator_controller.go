@@ -266,6 +266,9 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 			return fmt.Errorf("while getting existing BtpOperators: %w", err)
 		}
 		for _, item := range existingBtpOperators.Items {
+			if item.GetUID() == cr.GetUID() {
+				continue
+			}
 			cr := item
 			if err := r.UpdateBtpOperatorState(ctx, &cr, types.StateProcessing); err != nil {
 				logger.Error(err, "unable to set \"Processing\" state")
