@@ -259,6 +259,18 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		if err := r.Update(ctx, cr); err != nil {
 			return err
 		}
+		existingBtpOperators := &v1alpha1.BtpOperatorList{}
+		if err := r.List(ctx, existingBtpOperators); err != nil {
+			logger.Error(err, "unable to fetch existing BtpOperators")
+			return fmt.Errorf("while getting existing BtpOperators: %w", err)
+		}
+		for _, item := range existingBtpOperators.Items {
+			cr := item
+			if err := r.UpdateBtpOperatorState(ctx, &cr, types.StateProcessing); err != nil {
+				logger.Error(err, "unable to set \"Processing\" state")
+			}
+		}
+
 		return nil
 	}
 }
