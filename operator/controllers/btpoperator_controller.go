@@ -41,6 +41,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -62,7 +63,7 @@ const (
 
 const (
 	btpOperatorGroup           = "services.cloud.sap.com"
-	btpOperatorApiVer          = "appsv1"
+	btpOperatorApiVer          = "v1"
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
 	retryInterval              = time.Second * 10
@@ -144,11 +145,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	/*
-		if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
-			return ctrl.Result{}, r.Update(ctx, cr)
-		}
-	*/
+	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
+		return ctrl.Result{}, r.Update(ctx, cr)
+	}
+
+	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
+		return ctrl.Result{}, r.UpdateBtpOperatorState(ctx, cr, types.StateDeleting)
+	}
 
 	switch cr.Status.State {
 	case "":
@@ -157,6 +160,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+	case types.StateDeleting:
+		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	case types.StateReady:
 		return ctrl.Result{}, r.HandleReadyState(ctx, cr)
 	}
