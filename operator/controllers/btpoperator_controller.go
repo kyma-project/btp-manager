@@ -483,6 +483,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			return
 		default:
 		}
+
 		err, resourcesLeft := r.checkIfAnyResourcesLeft(ctx, namespaces)
 		if err != nil {
 			logger.Error(err, "leftover resources check failed")
@@ -677,10 +678,14 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		gvks = append(gvks, sch)
 	}
 
-	root := fmt.Sprintf("%s/templates/", chartNamespace)
+	root := fmt.Sprintf("%s/templates/", chartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+
+		if !strings.HasSuffix(info.Name(), ".yml") {
+			return nil
 		}
 
 		bytes, err := os.ReadFile(fmt.Sprintf("%s/%s", root, info.Name()))
@@ -698,11 +703,11 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 			lines := strings.Split(part, "\n")
 			for _, line := range lines {
 				if strings.HasPrefix(line, "apiVersion:") {
-					yamlGvk.APIVersion = strings.Split(line, ":")[1]
+					yamlGvk.APIVersion = strings.TrimSpace(strings.Split(line, ":")[1])
 				}
 
 				if strings.HasPrefix(line, "kind:") {
-					yamlGvk.Kind = strings.Split(line, ":")[1]
+					yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
 				}
 			}
 			if yamlGvk.Kind == "" || yamlGvk.APIVersion == "" {
@@ -737,9 +742,9 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 
 func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
 	for _, gvk := range gvks {
-		object := &unstructured.Unstructured{}
-		object.SetGroupVersionKind(gvk)
-		if err := r.DeleteAllOf(ctx, object, client.InNamespace(chartNamespace), labelFilter); err != nil {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(gvk)
+		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(chartNamespace), labelFilter); err != nil {
 			if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
 				return err
 			}
