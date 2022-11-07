@@ -617,7 +617,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 		logger.Error(err, "soft deletion of bindings failed")
 		return err
 	}
-	if err := r.ensureResourcesDosentExists(ctx, &bindingGvk); err != nil {
+	if err := r.ensureResourcesDontExist(ctx, &bindingGvk); err != nil {
 		logger.Error(err, "bindings still exists")
 		return err
 	}
@@ -626,7 +626,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 		logger.Error(err, "soft deletion of instances failed")
 		return err
 	}
-	if err := r.ensureResourcesDosentExists(ctx, &instanceGvk); err != nil {
+	if err := r.ensureResourcesDontExist(ctx, &instanceGvk); err != nil {
 		logger.Error(err, "instances still exists")
 		return err
 	}
@@ -647,7 +647,7 @@ func (r *BtpOperatorReconciler) GvkToList(gvk *schema.GroupVersionKind) *unstruc
 	return list
 }
 
-func (r *BtpOperatorReconciler) ensureResourcesDosentExists(ctx context.Context, gvk *schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk *schema.GroupVersionKind) error {
 	list := r.GvkToList(gvk)
 
 	if err := r.List(ctx, list); err != nil {
