@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -32,6 +33,7 @@ const (
 	bindingName           = "my-binding"
 	kymaNamespace         = "kyma-system"
 	secretYamlPath        = "testdata/test-secret.yaml"
+	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
 	testTimeout           = time.Second * 10
 )
 
@@ -63,6 +65,17 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 
 var _ = Describe("BTP Operator controller", func() {
 	var cr *v1alpha1.BtpOperator
+
+	BeforeEach(func() {
+		pClass, err := createPriorityClassFromYaml()
+		Expect(err).To(BeNil())
+		Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
+		Expect(k8sClient.Create(ctx, &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: kymaNamespace,
+			},
+		})).To(Succeed())
+	})
 
 	Describe("Provisioning", func() {
 		BeforeEach(func() {
@@ -215,6 +228,20 @@ func createSecretFromYaml() (*corev1.Secret, error) {
 	}
 
 	return secret, nil
+}
+
+func createPriorityClassFromYaml() (*schedulingv1.PriorityClass, error) {
+	pClass := &schedulingv1.PriorityClass{}
+	data, err := os.ReadFile(priorityClassYamlPath)
+	if err != nil {
+		return nil, fmt.Errorf("while reading the required PriorityClass YAML: %w", err)
+	}
+	err = yaml.Unmarshal(data, pClass)
+	if err != nil {
+		return nil, fmt.Errorf("while unmarshalling PriorityClass YAML to struct: %w", err)
+	}
+
+	return pClass, nil
 }
 
 func ensureResourceExists(gvk schema.GroupVersionKind) {
