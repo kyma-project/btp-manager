@@ -3,10 +3,12 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -14,18 +16,23 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	testOperatorName = "btp-operator-tests"
-	testNamespace    = "default"
-	instanceName     = "my-service-instance"
-	bindingName      = "my-binding"
-	kymaNamespace    = "kyma-system"
-	testTimeout      = time.Second * 10
+	btpOperatorKind       = "BtpOperator"
+	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
+	btpOperatorName       = "btp-operator-test"
+	testNamespace         = "default"
+	instanceName          = "my-service-instance"
+	bindingName           = "my-binding"
+	kymaNamespace         = "kyma-system"
+	secretYamlPath        = "testdata/test-secret.yaml"
+	testTimeout           = time.Second * 10
 )
 
 type fakeK8s struct {
@@ -54,47 +61,93 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 	return nil
 }
 
-var _ = Describe("deprovisioning tests", func() {
-	BeforeEach(func() {
-		createSecret()
+var _ = Describe("BTP Operator controller", func() {
+	var cr *v1alpha1.BtpOperator
 
-		btpOperator := getBtpOperator()
+	Describe("Provisioning", func() {
+		BeforeEach(func() {
+			ctx = context.Background()
+			cr = createBtpOperator()
+		})
 
-		err := k8sClient.Create(ctx, &btpOperator)
-		Expect(err).To(BeNil())
+		Context("When the required Secret is missing", func() {
+			It("should return error while getting the required Secret", func() {
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+			})
+		})
 
-		time.Sleep(time.Second * 30)
+		Context("When the required Secret does not have all required keys", func() {
+			It("should return error while verifying keys", func() {
+				secret, err := createSecretFromYaml()
+				Expect(err).To(BeNil())
+				delete(secret.Data, "cluster_id")
+				delete(secret.Data, "clientsecret")
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+			})
+		})
 
-		err = clearWebhooks()
-		Expect(err).To(BeNil())
+		Context("When the required Secret's keys do not have all values", func() {
+			It("should return error while verifying values", func() {
+				secret, err := createSecretFromYaml()
+				Expect(err).To(BeNil())
+				secret.StringData["cluster_id"] = ""
+				secret.StringData["clientsecret"] = ""
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+			})
+		})
 
-		createResource(instanceGvk, testNamespace, instanceName)
-		ensureResourceExists(instanceGvk)
-
-		createResource(bindingGvk, testNamespace, bindingName)
-		ensureResourceExists(bindingGvk)
 	})
 
-	It("soft delete (after timeout) should succeed", func() {
-		reconciler.SetTimeout(testTimeout)
-		reconciler.Client = newFakeK8s(reconciler.Client)
+	Describe("Deprovisioning", func() {
+		BeforeEach(func() {
+			createSecret()
 
-		triggerDelete()
-		doChecks()
-	})
+			btpOperator := createBtpOperator()
 
-	It("soft delete (after hard deletion fail) should succeed", func() {
-		reconciler.SetTimeout(time.Minute * 1)
-		reconciler.Client = newFakeK8s(reconciler.Client)
+			err := k8sClient.Create(ctx, btpOperator)
+			Expect(err).To(BeNil())
 
-		triggerDelete()
-		doChecks()
-	})
+			time.Sleep(time.Second * 30)
 
-	It("hard delete should succeed", func() {
-		reconciler.SetTimeout(time.Minute * 1)
+			err = clearWebhooks()
+			Expect(err).To(BeNil())
 
-		doChecks()
+			createResource(instanceGvk, testNamespace, instanceName)
+			ensureResourceExists(instanceGvk)
+
+			createResource(bindingGvk, testNamespace, bindingName)
+			ensureResourceExists(bindingGvk)
+		})
+
+		It("soft delete (after timeout) should succeed", func() {
+			reconciler.SetTimeout(testTimeout)
+			reconciler.Client = newFakeK8s(reconciler.Client)
+
+			triggerDelete()
+			doChecks()
+		})
+
+		It("soft delete (after hard deletion fail) should succeed", func() {
+			reconciler.SetTimeout(time.Minute * 1)
+			reconciler.Client = newFakeK8s(reconciler.Client)
+
+			triggerDelete()
+			doChecks()
+		})
+
+		It("hard delete should succeed", func() {
+			reconciler.SetTimeout(time.Minute * 1)
+
+			doChecks()
+		})
 	})
 })
 
@@ -126,11 +179,31 @@ func createSecret() {
 	Expect(err).To(BeNil())
 }
 
-func getBtpOperator() v1alpha1.BtpOperator {
-	btpOperator := v1alpha1.BtpOperator{}
-	btpOperator.Name = testOperatorName
-	btpOperator.Namespace = testNamespace
-	return btpOperator
+func createBtpOperator() *v1alpha1.BtpOperator {
+	return &v1alpha1.BtpOperator{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       btpOperatorKind,
+			APIVersion: btpOperatorApiVersion,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      btpOperatorName,
+			Namespace: testNamespace,
+		},
+	}
+}
+
+func createSecretFromYaml() (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	data, err := os.ReadFile(secretYamlPath)
+	if err != nil {
+		return nil, fmt.Errorf("while reading the required Secret YAML: %w", err)
+	}
+	err = yaml.Unmarshal(data, secret)
+	if err != nil {
+		return nil, fmt.Errorf("while unmarshalling Secret YAML to struct: %w", err)
+	}
+
+	return secret, nil
 }
 
 func ensureResourceExists(gvk schema.GroupVersionKind) {
@@ -167,8 +240,8 @@ func clearWebhooks() error {
 }
 
 func triggerDelete() {
-	btpOperator := getBtpOperator()
-	err := k8sClient.Delete(ctx, &btpOperator)
+	btpOperator := createBtpOperator()
+	err := k8sClient.Delete(ctx, btpOperator)
 	Expect(err).To(BeNil())
 	time.Sleep(time.Second * 30)
 }
