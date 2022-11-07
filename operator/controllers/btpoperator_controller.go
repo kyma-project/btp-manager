@@ -1,9 +1,12 @@
 /*
 Copyright 2022.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,14 +25,27 @@ import (
 	"strings"
 	"time"
 
+	"reflect"
+	"time"
+
+	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	"github.com/kyma-project/module-manager/operator/pkg/custom"
+	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -44,20 +60,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
-	chartPath         = "/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/operator/module-chart"
+	chartPath         = "./module-chart"
 	chartNamespace    = "kyma-system"
 	operatorName      = "btp-manager"
 	labelKeyForChart  = "app.kubernetes.io/managed-by"
 	secretName        = "sap-btp-manager"
 	deletionFinalizer = "custom-deletion-finalizer"
-	requeueInterval   = time.Second * 5
 	deploymentName    = "sap-btp-operator-controller-manager"
+	requeueInterval   = time.Minute * 5
+	readyTimeout      = time.Minute * 1
 )
 
 const (
@@ -109,21 +128,6 @@ type BtpOperatorReconciler struct {
 	reconcilerConfig *ReconcilerConfig
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Config = mgr.GetConfig()
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.BtpOperator{},
-			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
-		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
-			builder.WithPredicates(r.watchSecretPredicates()),
-		).
-		Complete(r)
-}
-
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
@@ -135,68 +139,87 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if errors.IsNotFound(err) {
+			logger.Info("BtpOperator resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "unable to fetch BtpOperator")
+		logger.Error(err, "unable to fetch BtpOperator resource")
 		return ctrl.Result{}, err
 	}
 
-	logger.Info("Starting BTP Operator reconciliation")
+	existingBtpOperators := &v1alpha1.BtpOperatorList{}
+	if err := r.List(ctx, existingBtpOperators); err != nil {
+		logger.Error(err, "unable to fetch existing BtpOperators")
+		return ctrl.Result{}, err
+	}
 
-	/*
-		var existingBtpOperators v1alpha1.BtpOperatorList
-		if err := r.List(ctx, &existingBtpOperators); err != nil {
-			logger.Error(err, "unable to fetch existing BtpOperators")
-			return ctrl.Result{}, err
+	if len(existingBtpOperators.Items) > 1 {
+		oldestCr := r.getOldestCR(existingBtpOperators)
+		if cr.GetUID() == oldestCr.GetUID() {
+			cr.Status.Conditions = nil
+		} else {
+			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, cr)
 		}
-	*/
+	}
 
 	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
 		return ctrl.Result{}, r.Update(ctx, cr)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(types.StateDeleting, ctx, cr)
+		return ctrl.Result{}, r.UpdateBtpOperatorState(ctx, cr, types.StateDeleting)
 	}
 
 	switch cr.Status.State {
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
 		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
+	case types.StateReady:
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleReadyState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client.Object) []reconcile.Request {
-	btpOperators := &v1alpha1.BtpOperatorList{}
-	err := r.List(context.Background(), btpOperators)
-	if err != nil {
-		return []reconcile.Request{}
+func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOperatorList) *v1alpha1.BtpOperator {
+	oldestCr := existingBtpOperators.Items[0]
+	for _, item := range existingBtpOperators.Items {
+		itemCreationTimestamp := &item.CreationTimestamp
+		if !(oldestCr.CreationTimestamp.Before(itemCreationTimestamp)) {
+			oldestCr = item
+		}
 	}
-	requests := make([]reconcile.Request, len(btpOperators.Items))
-	for i, item := range btpOperators.Items {
-		requests[i] = reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
-	}
-
-	return requests
+	return &oldestCr
 }
 
-func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(new types.State, ctx context.Context, cr *v1alpha1.BtpOperator) error {
+func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling redundant BtpOperator CR")
+
 	status := cr.GetStatus()
-	cr.SetStatus(status.WithState(new))
+	status.Conditions = make([]*metav1.Condition, 0)
+	errorCondition := &metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionFalse,
+		ObservedGeneration: 0,
+		LastTransitionTime: metav1.Time{Time: time.Now()},
+		Reason:             "OlderCRExists",
+		Message: fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace reconciles the operand",
+			oldestCr.GetName(), oldestCr.GetNamespace()),
+	}
+	status.Conditions = append(status.Conditions, errorCondition)
+	cr.SetStatus(status.WithState(types.StateError))
 	return r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
-	return r.UpdateBtpOperatorStatus(types.StateProcessing, ctx, cr)
+	return r.UpdateBtpOperatorState(ctx, cr, types.StateProcessing)
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -232,34 +255,42 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		return r.UpdateBtpOperatorStatus(types.StateError, ctx, cr)
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
 	if ready {
-		return r.UpdateBtpOperatorStatus(types.StateReady, ctx, cr)
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateReady)
 	}
 
 	return nil
-}
-
-func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Error state")
-
-	return r.UpdateBtpOperatorStatus(types.StateProcessing, ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	if err := r.handleDeprovisioning(ctx); err != nil {
 		logger.Error(err, "deprovisioning failed")
-		return r.UpdateBtpOperatorStatus(types.StateError, ctx, cr)
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
-	logger.Info("deprovisioning success. clearing finalizers for btp manager")
-	cr.SetFinalizers([]string{})
-	if err := r.Update(ctx, cr); err != nil {
-		return fmt.Errorf("clean of finilizers failed for btp operator instance %w", err)
-	}
-	return nil
+		logger.Info("deprovisioning success. clearing finalizers for btp manager")
+		cr.SetFinalizers([]string{})
+		if err := r.Update(ctx, cr); err != nil {
+			return err
+		}
+		existingBtpOperators := &v1alpha1.BtpOperatorList{}
+		if err := r.List(ctx, existingBtpOperators); err != nil {
+			logger.Error(err, "unable to fetch existing BtpOperators")
+			return fmt.Errorf("while getting existing BtpOperators: %w", err)
+		}
+		for _, item := range existingBtpOperators.Items {
+			if item.GetUID() == cr.GetUID() {
+				continue
+			}
+			cr := item
+			if err := r.UpdateBtpOperatorState(ctx, &cr, types.StateProcessing); err != nil {
+				logger.Error(err, "unable to set \"Processing\" state")
+			}
+		}
+
+		return nil
 }
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
@@ -299,6 +330,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 					"Namespace":       chartNamespace,
 					"CreateNamespace": true,
 					"Wait":            true,
+					"Timeout":         readyTimeout,
 				},
 				SetFlags: types.Flags{
 					"manager": map[string]interface{}{
@@ -356,7 +388,44 @@ func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.B
 		itemLabels[labelKeyForChart] = baseLabels[labelKeyForChart]
 		item.SetLabels(itemLabels)
 	}
+
 	return nil
+}
+
+func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling Error state")
+
+	return r.UpdateBtpOperatorState(ctx, cr, types.StateProcessing)
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.BtpOperator{},
+			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
+			builder.WithPredicates(r.watchSecretPredicates()),
+		).
+		Complete(r)
+}
+
+func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client.Object) []reconcile.Request {
+	btpOperators := &v1alpha1.BtpOperatorList{}
+	err := r.List(context.Background(), btpOperators)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	requests := make([]reconcile.Request, len(btpOperators.Items))
+	for i, item := range btpOperators.Items {
+		requests[i] = reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
+	}
+
+	return requests
 }
 
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
@@ -626,7 +695,7 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 }
 
 func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
-	deployment := &v1.Deployment{}
+	deployment := &appsv1.Deployment{}
 	deployment.Namespace = chartNamespace
 	deployment.Name = deploymentName
 	if err := r.Delete(ctx, deployment); err != nil {
@@ -750,5 +819,14 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 			}
 		}
 	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) UpdateBtpOperatorState(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State) error {
+	cr.SetStatus(cr.Status.WithState(newState))
+	return r.Status().Update(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	return nil
 }
