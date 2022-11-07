@@ -527,11 +527,11 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 
 	anyErr := false
 	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-		logger.Error(err, "while doing hard delete of binding")
+		logger.Error(err, "while hard deleting binding")
 		anyErr = true
 	}
 	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-		logger.Error(err, "while doing hard delete of binding")
+		logger.Error(err, "while hard deleting instances")
 		anyErr = true
 	}
 
