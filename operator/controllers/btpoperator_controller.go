@@ -201,6 +201,15 @@ func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr 
 	return r.Status().Update(ctx, cr)
 }
 
+func (r *BtpOperatorReconciler) UpdateBtpOperatorState(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State) error {
+	cr.SetStatus(cr.Status.WithState(newState))
+	return r.Status().Update(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	return nil
+}
+
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
@@ -518,11 +527,11 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 
 	anyErr := false
 	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-		logger.Error(err, "error while doing hard delete of binding")
+		logger.Error(err, "while doing hard delete of binding")
 		anyErr = true
 	}
 	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-		logger.Error(err, "error while doing hard delete of binding")
+		logger.Error(err, "while doing hard delete of binding")
 		anyErr = true
 	}
 
@@ -559,7 +568,7 @@ func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.Group
 
 	for _, namespace := range namespaces.Items {
 		if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name)); err != nil {
-			logger.Error(err, "err while deleting all resources", "kind", object.GetKind())
+			logger.Error(err, "while deleting all resources", "kind", object.GetKind())
 			return err
 		}
 	}
@@ -765,7 +774,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 				}
 			}
 			if yamlGvk.Kind == "" || yamlGvk.APIVersion == "" {
-				return fmt.Errorf("error")
+				return fmt.Errorf("missing data in part of chart %s", info.Name())
 			}
 
 			apiVersion := strings.Split(yamlGvk.APIVersion, "/")
@@ -782,7 +791,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 					Group:   apiVersion[0],
 				})
 			} else {
-				return fmt.Errorf("error")
+				return fmt.Errorf("incorrect split of apiVersion")
 			}
 
 		}
@@ -804,14 +813,5 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 			}
 		}
 	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) UpdateBtpOperatorState(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State) error {
-	cr.SetStatus(cr.Status.WithState(newState))
-	return r.Status().Update(ctx, cr)
-}
-
-func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	return nil
 }
