@@ -345,15 +345,30 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 }
 
 func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
+	missingKeys := make([]string, 0)
+	missingValues := make([]string, 0)
+	errs := make([]string, 0)
 	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
 	for _, key := range requiredKeys {
 		value, exists := secret.Data[key]
 		if !exists {
-			return fmt.Errorf("key %s not found", key)
+			missingKeys = append(missingKeys, key)
+			continue
 		}
 		if len(value) == 0 {
-			return fmt.Errorf("missing value for %s key", key)
+			missingValues = append(missingValues, key)
 		}
+	}
+	if len(missingKeys) > 0 {
+		missingKeysMsg := fmt.Sprintf("key(s) %s not found", strings.Join(missingKeys, ", "))
+		errs = append(errs, missingKeysMsg)
+	}
+	if len(missingValues) > 0 {
+		missingValuesMsg := fmt.Sprintf("missing value(s) for %s key(s)", strings.Join(missingValues, ", "))
+		errs = append(errs, missingValuesMsg)
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
 
 	return nil
