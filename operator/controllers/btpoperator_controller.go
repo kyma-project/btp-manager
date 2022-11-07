@@ -385,22 +385,21 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client.Object) []reconcile.Request {
+func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
 	btpOperators := &v1alpha1.BtpOperatorList{}
 	err := r.List(context.Background(), btpOperators)
 	if err != nil {
 		return []reconcile.Request{}
 	}
-	requests := make([]reconcile.Request, len(btpOperators.Items))
-	for i, item := range btpOperators.Items {
-		requests[i] = reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
-	}
+	requests := make([]reconcile.Request, 0)
+	oldestCr := r.getOldestCR(btpOperators)
+	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
 
 	return requests
 }
