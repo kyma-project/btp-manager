@@ -655,7 +655,7 @@ func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gv
 			return err
 		}
 	} else if len(list.Items) > 0 {
-		return fmt.Errorf("list returned more than 0 records")
+		return fmt.Errorf("list returned %d records", len(list.Items))
 	}
 
 	return nil
