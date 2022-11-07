@@ -25,18 +25,13 @@ import (
 	"strings"
 	"time"
 
-	"reflect"
-	"time"
-
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	v1 "k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,21 +45,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	"github.com/kyma-project/module-manager/operator/pkg/custom"
-	"github.com/kyma-project/module-manager/operator/pkg/manifest"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -270,27 +256,27 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		logger.Error(err, "deprovisioning failed")
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
-		logger.Info("deprovisioning success. clearing finalizers for btp manager")
-		cr.SetFinalizers([]string{})
-		if err := r.Update(ctx, cr); err != nil {
-			return err
+	logger.Info("deprovisioning success. clearing finalizers for btp manager")
+	cr.SetFinalizers([]string{})
+	if err := r.Update(ctx, cr); err != nil {
+		return err
+	}
+	existingBtpOperators := &v1alpha1.BtpOperatorList{}
+	if err := r.List(ctx, existingBtpOperators); err != nil {
+		logger.Error(err, "unable to fetch existing BtpOperators")
+		return fmt.Errorf("while getting existing BtpOperators: %w", err)
+	}
+	for _, item := range existingBtpOperators.Items {
+		if item.GetUID() == cr.GetUID() {
+			continue
 		}
-		existingBtpOperators := &v1alpha1.BtpOperatorList{}
-		if err := r.List(ctx, existingBtpOperators); err != nil {
-			logger.Error(err, "unable to fetch existing BtpOperators")
-			return fmt.Errorf("while getting existing BtpOperators: %w", err)
+		cr := item
+		if err := r.UpdateBtpOperatorState(ctx, &cr, types.StateProcessing); err != nil {
+			logger.Error(err, "unable to set \"Processing\" state")
 		}
-		for _, item := range existingBtpOperators.Items {
-			if item.GetUID() == cr.GetUID() {
-				continue
-			}
-			cr := item
-			if err := r.UpdateBtpOperatorState(ctx, &cr, types.StateProcessing); err != nil {
-				logger.Error(err, "unable to set \"Processing\" state")
-			}
-		}
+	}
 
-		return nil
+	return nil
 }
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
