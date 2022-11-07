@@ -16,20 +16,23 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"time"
+
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/apps/v1"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/module-manager/operator/pkg/custom"
@@ -65,11 +68,6 @@ const (
 	retryInterval              = time.Second * 10
 )
 
-const (
-	testScenarioWithError   = "causeErrror"
-	testScenarioWithTimeout = "causeTimeOut"
-)
-
 var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
@@ -84,15 +82,18 @@ var (
 	labelFilter = client.MatchingLabels{labelKeyForChart: operatorName}
 )
 
-type ReconcilerConfig struct {
-	timeout  time.Duration
-	testFlag string
+type btpOperatorGvk struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
 }
 
-func NewReconcileConfig(timeout time.Duration, testFlag string) *ReconcilerConfig {
+type ReconcilerConfig struct {
+	timeout time.Duration
+}
+
+func NewReconcileConfig(timeout time.Duration) *ReconcilerConfig {
 	return &ReconcilerConfig{
-		timeout:  timeout,
-		testFlag: testFlag,
+		timeout: timeout,
 	}
 }
 
@@ -155,7 +156,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.SetStatus(types.StateDeleting, ctx, cr)
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(types.StateDeleting, ctx, cr)
 	}
 
 	switch cr.Status.State {
@@ -186,17 +187,16 @@ func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client
 	return requests
 }
 
-func (r *BtpOperatorReconciler) SetStatus(new types.State, ctx context.Context, cr *v1alpha1.BtpOperator) error {
+func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(new types.State, ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	status := cr.GetStatus()
-	status.WithState(new)
-	cr.SetStatus(status)
+	cr.SetStatus(status.WithState(new))
 	return r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
-	return r.SetStatus(types.StateProcessing, ctx, cr)
+	return r.UpdateBtpOperatorStatus(types.StateProcessing, ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -232,10 +232,10 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		return r.SetStatus(types.StateError, ctx, cr)
+		return r.UpdateBtpOperatorStatus(types.StateError, ctx, cr)
 	}
 	if ready {
-		return r.SetStatus(types.StateReady, ctx, cr)
+		return r.UpdateBtpOperatorStatus(types.StateReady, ctx, cr)
 	}
 
 	return nil
@@ -245,22 +245,21 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.SetStatus(types.StateProcessing, ctx, cr)
+	return r.UpdateBtpOperatorStatus(types.StateProcessing, ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	if err := r.handleDeprovisioning(ctx); err != nil {
 		logger.Error(err, "deprovisioning failed")
-		return r.SetStatus(types.StateError, ctx, cr)
-	} else {
-		logger.Info("deprovisioning success. clearing finalizers for btp manager")
-		cr.SetFinalizers([]string{})
-		if err := r.Update(ctx, cr); err != nil {
-			return err
-		}
-		return nil
+		return r.UpdateBtpOperatorStatus(types.StateError, ctx, cr)
 	}
+	logger.Info("deprovisioning success. clearing finalizers for btp manager")
+	cr.SetFinalizers([]string{})
+	if err := r.Update(ctx, cr); err != nil {
+		return fmt.Errorf("clean of finilizers failed for btp operator instance %w", err)
+	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
@@ -420,7 +419,7 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 
 func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error {
 	logger := log.FromContext(ctx)
-	logger.Info("btp operator is under deletion")
+	logger.Info("Deprovisioning BTP Operator")
 
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
@@ -431,7 +430,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 	}
 
 	hardDeleteChannel := make(chan bool)
-	go r.handleHardDelete(ctx, namespaces, hardDeleteChannel)
+	timeoutChannel := make(chan bool)
+	go r.handleHardDelete(ctx, namespaces, hardDeleteChannel, timeoutChannel)
 
 	select {
 	case hardDeleteOk := <-hardDeleteChannel:
@@ -447,6 +447,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 			}
 		}
 	case <-time.After(r.reconcilerConfig.timeout):
+		logger.Info("timeoutChannel of hard delete", "timeoutChannel", r.reconcilerConfig.timeout)
+		timeoutChannel <- true
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			return err
 		}
@@ -455,31 +457,19 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleHardDeleteTest(anyErr *bool) {
-	if r.reconcilerConfig.testFlag == testScenarioWithError {
-		*anyErr = true
-	}
-	if r.reconcilerConfig.testFlag == testScenarioWithTimeout {
-		time.Sleep(time.Second * 5)
-	}
-}
-
-func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, success chan bool) {
+func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, success chan bool, timeout chan bool) {
 	defer close(success)
+	defer close(timeout)
 	logger := log.FromContext(ctx)
 
 	anyErr := false
 	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-		logger.Error(err, "hard delete of binding failed")
+		logger.Error(err, "error while doing hard delete of binding")
 		anyErr = true
 	}
 	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-		logger.Error(err, "hard delete of instance failed")
+		logger.Error(err, "error while doing hard delete of binding")
 		anyErr = true
-	}
-
-	if r.reconcilerConfig.testFlag != "" {
-		r.handleHardDeleteTest(&anyErr)
 	}
 
 	if anyErr {
@@ -488,9 +478,14 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	}
 
 	for {
+		select {
+		case <-timeout:
+			return
+		default:
+		}
 		err, resourcesLeft := r.checkIfAnyResourcesLeft(ctx, namespaces)
 		if err != nil {
-			logger.Error(err, "Checking failed")
+			logger.Error(err, "leftover resources check failed")
 			success <- false
 			return
 		}
@@ -509,7 +504,7 @@ func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.Group
 
 	for _, namespace := range namespaces.Items {
 		if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name)); err != nil {
-			logger.Error(err, "Err while doing delete all of")
+			logger.Error(err, "err while deleting all resources", "kind", object.GetKind())
 			return err
 		}
 	}
@@ -531,33 +526,44 @@ func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, nam
 	}
 
 	for _, namespace := range namespaces.Items {
-		err, instancesLeft := anyLeft(namespace.Name, instanceGvk)
-		if err != nil {
-			return err, true
-		}
 		err, bindingsLeft := anyLeft(namespace.Name, bindingGvk)
 		if err != nil {
 			return err, true
 		}
-		if instancesLeft == false && bindingsLeft == false {
-			return nil, false
+		if bindingsLeft {
+			return nil, true
+		}
+		err, instancesLeft := anyLeft(namespace.Name, instanceGvk)
+		if err != nil {
+			return err, true
+		}
+		if instancesLeft {
+			return nil, true
 		}
 	}
 
-	return nil, true
+	return nil, false
 }
 
 func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
 	logger := log.FromContext(ctx)
 	logger.Info("hard delete failed. trying to perform soft delete")
 
+	if err := r.softDelete(ctx, &bindingGvk); err != nil {
+		logger.Error(err, "soft deletion of bindings failed")
+		return err
+	}
+	if err := r.ensureResourcesDosentExists(ctx, &bindingGvk); err != nil {
+		logger.Error(err, "bindings still exists")
+		return err
+	}
+
 	if err := r.softDelete(ctx, &instanceGvk); err != nil {
 		logger.Error(err, "soft deletion of instances failed")
 		return err
 	}
-
-	if err := r.softDelete(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "hard deletion of bindings failed")
+	if err := r.ensureResourcesDosentExists(ctx, &instanceGvk); err != nil {
+		logger.Error(err, "instances still exists")
 		return err
 	}
 
@@ -569,15 +575,33 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	return nil
 }
 
-func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) GvkToList(gvk *schema.GroupVersionKind) *unstructured.UnstructuredList {
 	listGvk := *gvk
 	listGvk.Kind = gvk.Kind + "List"
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(listGvk)
+	return list
+}
+
+func (r *BtpOperatorReconciler) ensureResourcesDosentExists(ctx context.Context, gvk *schema.GroupVersionKind) error {
+	list := r.GvkToList(gvk)
 
 	if err := r.List(ctx, list); err != nil {
-		err = fmt.Errorf("%w; could not list in soft delete", err)
-		return err
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else if len(list.Items) > 0 {
+		return fmt.Errorf("list returned more than 0 records")
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.GroupVersionKind) error {
+	list := r.GvkToList(gvk)
+
+	if err := r.List(ctx, list); err != nil {
+		return fmt.Errorf("%w; could not list in soft delete", err)
 	}
 
 	isBinding := gvk.Kind == btpOperatorServiceBinding
@@ -591,19 +615,9 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 			secret := &corev1.Secret{}
 			secret.Name = item.GetName()
 			secret.Namespace = item.GetNamespace()
-			if err := r.Delete(ctx, secret); err != nil {
+			if err := r.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
 				return err
 			}
-		}
-	}
-
-	if err := r.List(ctx, list); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if len(list.Items) > 0 {
-			return fmt.Errorf("finalizers deletion assurance has failed")
 		}
 	}
 
@@ -640,7 +654,7 @@ func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
 	time.Sleep(time.Second * 10)
 
-	err, gvks := r.discoverDeletableGvks()
+	gvks, err := r.gatherChartGvks()
 	if err != nil {
 		return err
 	}
@@ -652,46 +666,82 @@ func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Conte
 	return nil
 }
 
-func (r *BtpOperatorReconciler) discoverDeletableGvks() (error, []schema.GroupVersionKind) {
-	cs, err := clientset.NewForConfig(r.Config)
-	if err != nil {
-		return fmt.Errorf("failed to create clientset from config %w", err), []schema.GroupVersionKind{}
-	}
-
-	_, apiResourceList, err := cs.ServerGroupsAndResources()
-	if err != nil {
-		return fmt.Errorf("failed to get server group and resources %w", err), []schema.GroupVersionKind{}
-	}
-
-	gvks := make([]schema.GroupVersionKind, 0)
-	for _, resourceMap := range apiResourceList {
-		gv, _ := schema.ParseGroupVersion(resourceMap.GroupVersion)
-		for _, apiResource := range resourceMap.APIResources {
-			for _, verb := range apiResource.Verbs {
-				if verb == "delete" || verb == "deletecollection" {
-					gvks = append(gvks, schema.GroupVersionKind{
-						Version: gv.Version,
-						Group:   gv.Group,
-						Kind:    apiResource.Kind,
-					})
-					break
-				}
+func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, error) {
+	var gvks []schema.GroupVersionKind
+	appendToSlice := func(sch schema.GroupVersionKind) {
+		for _, gvk := range gvks {
+			if reflect.DeepEqual(gvk, sch) {
+				return
 			}
 		}
+		gvks = append(gvks, sch)
 	}
 
-	return nil, gvks
+	root := fmt.Sprintf("%s/templates/", chartNamespace)
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		bytes, err := os.ReadFile(fmt.Sprintf("%s/%s", root, info.Name()))
+		if err != nil {
+			return err
+		}
+
+		wholeFile := string(bytes)
+		parts := strings.Split(wholeFile, "---\n")
+		for _, part := range parts {
+			if part == "" || strings.HasPrefix(part, "{{") {
+				continue
+			}
+			var yamlGvk btpOperatorGvk
+			lines := strings.Split(part, "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "apiVersion:") {
+					yamlGvk.APIVersion = strings.Split(line, ":")[1]
+				}
+
+				if strings.HasPrefix(line, "kind:") {
+					yamlGvk.Kind = strings.Split(line, ":")[1]
+				}
+			}
+			if yamlGvk.Kind == "" || yamlGvk.APIVersion == "" {
+				return fmt.Errorf("error")
+			}
+
+			apiVersion := strings.Split(yamlGvk.APIVersion, "/")
+			if len(apiVersion) == 1 {
+				appendToSlice(schema.GroupVersionKind{
+					Kind:    yamlGvk.Kind,
+					Version: apiVersion[0],
+					Group:   "",
+				})
+			} else if len(apiVersion) == 2 {
+				appendToSlice(schema.GroupVersionKind{
+					Kind:    yamlGvk.Kind,
+					Version: apiVersion[1],
+					Group:   apiVersion[0],
+				})
+			} else {
+				return fmt.Errorf("error")
+			}
+
+		}
+		return nil
+	}); err != nil {
+		return []schema.GroupVersionKind{}, err
+	}
+
+	return gvks, nil
 }
 
 func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
 	for _, gvk := range gvks {
 		object := &unstructured.Unstructured{}
 		object.SetGroupVersionKind(gvk)
-		for _, namespace := range namespaces.Items {
-			if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name), labelFilter); err != nil {
-				if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
-					return err
-				}
+		if err := r.DeleteAllOf(ctx, object, client.InNamespace(chartNamespace), labelFilter); err != nil {
+			if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+				return err
 			}
 		}
 	}
