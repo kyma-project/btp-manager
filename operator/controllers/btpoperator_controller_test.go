@@ -104,6 +104,17 @@ var _ = Describe("BTP Operator controller", func() {
 			})
 		})
 
+		Context("When the required Secret is present and all it's data is correct", func() {
+			It("should provision BTP Service Operator successfully", func() {
+				secret, err := createSecretFromYaml()
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Eventually(cr.GetStatus().State, time.Second*30, time.Second*1).Should(Equal(types.StateReady))
+			})
+		})
+
 	})
 
 	Describe("Deprovisioning", func() {
