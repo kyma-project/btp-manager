@@ -501,7 +501,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 			}
 		}
 	case <-time.After(r.reconcilerConfig.timeout):
-		logger.Info("timeoutChannel of hard delete", "timeoutChannel", r.reconcilerConfig.timeout)
+		logger.Info("timeout of hard delete", "duration", r.reconcilerConfig.timeout)
 		timeoutChannel <- true
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			return err
