@@ -397,6 +397,9 @@ func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret clie
 	if err != nil {
 		return []reconcile.Request{}
 	}
+	if len(btpOperators.Items) == 0 {
+		return nil
+	}
 	requests := make([]reconcile.Request, 0)
 	oldestCr := r.getOldestCR(btpOperators)
 	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
@@ -826,6 +829,8 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		logger.Error(err, "while verifying the required Secret")
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
+
+	r.addTempLabelsToCr(cr)
 
 	installInfo, err := r.getInstallInfo(ctx, cr, secret)
 	if err != nil {
