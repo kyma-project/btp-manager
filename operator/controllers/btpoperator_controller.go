@@ -91,26 +91,16 @@ type btpOperatorGvk struct {
 	Kind       string `yaml:"kind"`
 }
 
-type ReconcilerConfig struct {
-	timeout time.Duration
-}
-
-func NewReconcileConfig(timeout time.Duration) *ReconcilerConfig {
-	return &ReconcilerConfig{
-		timeout: timeout,
-	}
-}
-
-func (r *BtpOperatorReconciler) SetReconcileConfig(reconcilerConfig *ReconcilerConfig) {
-	r.reconcilerConfig = reconcilerConfig
-}
-
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
-	Scheme           *runtime.Scheme
-	reconcilerConfig *ReconcilerConfig
+	Scheme  *runtime.Scheme
+	timeout time.Duration
+}
+
+func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
+	r.timeout = timeout
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
@@ -509,8 +499,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 				return err
 			}
 		}
-	case <-time.After(r.reconcilerConfig.timeout):
-		logger.Info("timeout of hard delete", "duration", r.reconcilerConfig.timeout)
+	case <-time.After(r.timeout):
+		logger.Info("timeout of hard delete", "duration", r.timeout)
 		timeoutChannel <- true
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			return err
@@ -731,14 +721,17 @@ func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Conte
 }
 
 func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, error) {
-	var gvks []schema.GroupVersionKind
-	appendToSlice := func(sch schema.GroupVersionKind) {
-		for _, gvk := range gvks {
-			if reflect.DeepEqual(gvk, sch) {
+	var allGvks []schema.GroupVersionKind
+	appendToSlice := func(gvk schema.GroupVersionKind) {
+		if reflect.DeepEqual(gvk, schema.GroupVersionKind{}) {
+			return
+		}
+		for _, v := range allGvks {
+			if reflect.DeepEqual(gvk, v) {
 				return
 			}
 		}
-		gvks = append(gvks, sch)
+		allGvks = append(allGvks, gvk)
 	}
 
 	root := fmt.Sprintf("%s/templates/", chartPath)
@@ -756,48 +749,59 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 			return err
 		}
 
-		wholeFile := string(bytes)
-		parts := strings.Split(wholeFile, "---\n")
-		for _, part := range parts {
-			if part == "" || strings.HasPrefix(part, "{{") {
-				continue
-			}
-			var yamlGvk btpOperatorGvk
-			lines := strings.Split(part, "\n")
-			for _, line := range lines {
-				if strings.HasPrefix(line, "apiVersion:") {
-					yamlGvk.APIVersion = strings.TrimSpace(strings.Split(line, ":")[1])
-				}
+		fileGvks, err := r.extractGvkFromYml(string(bytes))
+		if err != nil {
+			return err
+		}
 
-				if strings.HasPrefix(line, "kind:") {
-					yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
-				}
-			}
-			if yamlGvk.Kind == "" || yamlGvk.APIVersion == "" {
-				return fmt.Errorf("missing data in part of chart %s", info.Name())
+		for _, gvk := range fileGvks {
+			appendToSlice(gvk)
+		}
+
+		return nil
+	}); err != nil {
+		return []schema.GroupVersionKind{}, err
+	}
+
+	return allGvks, nil
+}
+
+func (r *BtpOperatorReconciler) extractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
+	var gvks []schema.GroupVersionKind
+	parts := strings.Split(wholeFile, "---\n")
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		var yamlGvk btpOperatorGvk
+		lines := strings.Split(part, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "apiVersion:") {
+				yamlGvk.APIVersion = strings.TrimSpace(strings.Split(line, ":")[1])
 			}
 
+			if strings.HasPrefix(line, "kind:") {
+				yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
+			}
+		}
+		if yamlGvk.Kind != "" && yamlGvk.APIVersion != "" {
 			apiVersion := strings.Split(yamlGvk.APIVersion, "/")
 			if len(apiVersion) == 1 {
-				appendToSlice(schema.GroupVersionKind{
+				gvks = append(gvks, schema.GroupVersionKind{
 					Kind:    yamlGvk.Kind,
 					Version: apiVersion[0],
 					Group:   "",
 				})
 			} else if len(apiVersion) == 2 {
-				appendToSlice(schema.GroupVersionKind{
+				gvks = append(gvks, schema.GroupVersionKind{
 					Kind:    yamlGvk.Kind,
 					Version: apiVersion[1],
 					Group:   apiVersion[0],
 				})
 			} else {
-				return fmt.Errorf("incorrect split of apiVersion")
+				return nil, fmt.Errorf("incorrect split of apiVersion")
 			}
-
 		}
-		return nil
-	}); err != nil {
-		return []schema.GroupVersionKind{}, err
 	}
 
 	return gvks, nil

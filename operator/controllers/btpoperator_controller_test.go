@@ -43,7 +43,7 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	if reflect.DeepEqual(gvk, instanceGvk) || reflect.DeepEqual(gvk, bindingGvk) {
-		if reconciler.reconcilerConfig.timeout == testTimeout {
+		if reconciler.timeout == testTimeout {
 			time.Sleep(testTimeout * 2)
 			return nil
 		}
@@ -76,7 +76,7 @@ var _ = Describe("deprovisioning tests", func() {
 	})
 
 	It("soft delete (after timeout) should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(testTimeout))
+		reconciler.SetTimeout(testTimeout)
 		reconciler.Client = newFakeK8s(reconciler.Client)
 
 		triggerDelete()
@@ -84,7 +84,7 @@ var _ = Describe("deprovisioning tests", func() {
 	})
 
 	It("soft delete (after hard deletion fail) should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute * 1))
+		reconciler.SetTimeout(time.Minute * 1)
 		reconciler.Client = newFakeK8s(reconciler.Client)
 
 		triggerDelete()
@@ -92,7 +92,7 @@ var _ = Describe("deprovisioning tests", func() {
 	})
 
 	It("hard delete should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute * 1))
+		reconciler.SetTimeout(time.Minute * 1)
 
 		doChecks()
 	})
