@@ -488,9 +488,6 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 	if err := r.List(ctx, namespaces); err != nil {
 		return err
 	}
-	if err := r.handlePreDelete(ctx); err != nil {
-		return err
-	}
 
 	hardDeleteChannel := make(chan bool)
 	timeoutChannel := make(chan bool)
@@ -613,6 +610,10 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	logger := log.FromContext(ctx)
 	logger.Info("hard delete failed. trying to perform soft delete")
 
+	if err := r.preSoftDeleteCleanup(ctx); err != nil {
+		return err
+	}
+
 	if err := r.softDelete(ctx, &bindingGvk); err != nil {
 		logger.Error(err, "soft deletion of bindings failed")
 		return err
@@ -688,11 +689,9 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
+func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
 	deployment := &appsv1.Deployment{}
-	deployment.Namespace = chartNamespace
-	deployment.Name = deploymentName
-	if err := r.Delete(ctx, deployment); err != nil {
+	if err := r.DeleteAllOf(ctx, deployment, labelFilter); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
