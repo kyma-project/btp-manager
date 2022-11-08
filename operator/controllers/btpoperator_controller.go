@@ -53,15 +53,16 @@ import (
 )
 
 const (
-	chartPath         = "./module-chart"
-	chartNamespace    = "kyma-system"
-	operatorName      = "btp-manager"
-	labelKeyForChart  = "app.kubernetes.io/managed-by"
-	secretName        = "sap-btp-manager"
-	deletionFinalizer = "custom-deletion-finalizer"
-	deploymentName    = "sap-btp-operator-controller-manager"
-	requeueInterval   = time.Minute * 5
-	readyTimeout      = time.Minute * 1
+	chartPath                      = "./module-chart"
+	chartNamespace                 = "kyma-system"
+	operatorName                   = "btp-manager"
+	labelKeyForChart               = "app.kubernetes.io/managed-by"
+	secretName                     = "sap-btp-manager"
+	deletionFinalizer              = "custom-deletion-finalizer"
+	deploymentName                 = "sap-btp-operator-controller-manager"
+	processingStateRequeueInterval = time.Minute * 5
+	readyStateRequeueInterval      = time.Hour * 1
+	readyTimeout                   = time.Minute * 1
 )
 
 const (
@@ -148,13 +149,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{RequeueAfter: processingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
 		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	case types.StateReady:
-		return ctrl.Result{RequeueAfter: requeueInterval}, r.HandleReadyState(ctx, cr)
+		return ctrl.Result{RequeueAfter: readyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
@@ -196,10 +197,6 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorState(ctx context.Context, cr *
 	return r.Status().Update(ctx, cr)
 }
 
-func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	return nil
-}
-
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
@@ -210,19 +207,15 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Processing state")
 
-	status := cr.GetStatus()
-
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		cr.SetStatus(status.WithState(types.StateError))
-		return r.Status().Update(ctx, cr)
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		cr.SetStatus(status.WithState(types.StateError))
-		return r.Status().Update(ctx, cr)
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -392,22 +385,24 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForAllBtpOperators),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForAllBtpOperators(secret client.Object) []reconcile.Request {
+func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
 	btpOperators := &v1alpha1.BtpOperatorList{}
 	err := r.List(context.Background(), btpOperators)
 	if err != nil {
 		return []reconcile.Request{}
 	}
-	requests := make([]reconcile.Request, len(btpOperators.Items))
-	for i, item := range btpOperators.Items {
-		requests[i] = reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: item.GetName(), Namespace: item.GetNamespace()}}
+	if len(btpOperators.Items) == 0 {
+		return nil
 	}
+	requests := make([]reconcile.Request, 0)
+	oldestCr := r.getOldestCR(btpOperators)
+	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
 
 	return requests
 }
@@ -817,5 +812,42 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 			}
 		}
 	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling Ready state")
+
+	secret, err := r.getRequiredSecret(ctx)
+	if err != nil {
+		logger.Error(err, "while getting the required Secret")
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+	}
+
+	if err = r.verifySecret(secret); err != nil {
+		logger.Error(err, "while verifying the required Secret")
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+	}
+
+	r.addTempLabelsToCr(cr)
+
+	installInfo, err := r.getInstallInfo(ctx, cr, secret)
+	if err != nil {
+		logger.Error(err, "while preparing InstallInfo")
+		return err
+	}
+	if installInfo.ChartPath == "" {
+		return fmt.Errorf("no chart path available for processing")
+	}
+
+	ready, err := manifest.ConsistencyCheck(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+	} else if !ready {
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateProcessing)
+	}
+
 	return nil
 }
