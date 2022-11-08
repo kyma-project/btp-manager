@@ -41,6 +41,10 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	timeout = time.Minute * 20
+)
+
 func init() {
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
@@ -94,7 +98,7 @@ func main() {
 		Scheme: scheme,
 	}
 
-	reconciler.SetReconcileConfig(controllers.NewReconcileConfig(time.Minute*20, ""))
+	reconciler.SetTimeout(timeout)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
@@ -116,5 +120,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-
 }

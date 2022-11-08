@@ -1,6 +1,11 @@
 package controllers
 
 import (
+	"context"
+	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -12,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 const (
@@ -21,7 +25,34 @@ const (
 	instanceName     = "my-service-instance"
 	bindingName      = "my-binding"
 	kymaNamespace    = "kyma-system"
+	testTimeout      = time.Second * 10
 )
+
+type fakeK8s struct {
+	client.Client
+}
+
+func newFakeK8s(c client.Client) *fakeK8s {
+	return &fakeK8s{c}
+}
+
+func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
+	if err := f.Client.DeleteAllOf(ctx, obj, opts...); err != nil {
+		return err
+	}
+
+	gvk := obj.GetObjectKind().GroupVersionKind()
+	if reflect.DeepEqual(gvk, instanceGvk) || reflect.DeepEqual(gvk, bindingGvk) {
+		if reconciler.timeout == testTimeout {
+			time.Sleep(testTimeout * 2)
+			return nil
+		}
+
+		return fmt.Errorf("error")
+	}
+
+	return nil
+}
 
 var _ = Describe("deprovisioning tests", func() {
 	BeforeEach(func() {
@@ -45,23 +76,24 @@ var _ = Describe("deprovisioning tests", func() {
 	})
 
 	It("soft delete (after timeout) should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Second, testScenarioWithTimeout))
+		reconciler.SetTimeout(testTimeout)
+		reconciler.Client = newFakeK8s(reconciler.Client)
 
 		triggerDelete()
 		doChecks()
 	})
 
 	It("soft delete (after hard deletion fail) should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, testScenarioWithError))
+		reconciler.SetTimeout(time.Minute * 1)
+		reconciler.Client = newFakeK8s(reconciler.Client)
 
 		triggerDelete()
 		doChecks()
 	})
 
 	It("hard delete should succeed", func() {
-		reconciler.SetReconcileConfig(NewReconcileConfig(time.Minute*1, ""))
+		reconciler.SetTimeout(time.Minute * 1)
 
-		triggerDelete()
 		doChecks()
 	})
 })
