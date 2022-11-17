@@ -22,6 +22,7 @@ jobs:
     - uses: actions/checkout@v2 
     - name: Prepare docker registry and k3s cluster
       run: |
+        chmod +x ./testing/k3s-e2e-test.sh
         ./testing/k3s-e2e-test.sh
         while [[ $(kubectl get nodes -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "Waiting for cluster nodes to be ready"; sleep 2; done
     -
