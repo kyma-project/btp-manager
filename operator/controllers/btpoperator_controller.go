@@ -243,11 +243,13 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
+	logger.Info("Handling Deleting state")
+
 	if err := r.handleDeprovisioning(ctx); err != nil {
 		logger.Error(err, "deprovisioning failed")
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
-	logger.Info("deprovisioning success. clearing finalizers for btp manager")
+	logger.Info("Deprovisioning success. Clearing finalizers in CR")
 	cr.SetFinalizers([]string{})
 	if err := r.Update(ctx, cr); err != nil {
 		return err
@@ -482,7 +484,6 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 
 func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Deprovisioning BTP Operator")
 
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
@@ -496,18 +497,19 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 	select {
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
-			logger.Info("hard delete success")
+			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
 			if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
-				logger.Error(err, "failed to remove related installed resources")
+				logger.Error(err, "failed to remove chart resources")
 				return err
 			}
 		} else {
+			logger.Info("Service Instances and Service Bindings hard delete failed.")
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 				return err
 			}
 		}
 	case <-time.After(r.timeout):
-		logger.Info("timeout of hard delete", "duration", r.timeout)
+		logger.Info("hard delete timeout reached", "duration", r.timeout)
 		timeoutChannel <- true
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			return err
@@ -521,14 +523,15 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	defer close(success)
 	defer close(timeout)
 	logger := log.FromContext(ctx)
+	logger.Info("Deprovisioning BTP Operator - hard delete")
 
 	anyErr := false
 	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-		logger.Error(err, "while hard deleting binding")
+		logger.Error(err, "while deleting bindings")
 		anyErr = true
 	}
 	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-		logger.Error(err, "while hard deleting instances")
+		logger.Error(err, "while deleting instances")
 		anyErr = true
 	}
 
@@ -608,32 +611,32 @@ func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, nam
 
 func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
 	logger := log.FromContext(ctx)
-	logger.Info("hard delete failed. trying to perform soft delete")
+	logger.Info("Deprovisioning BTP Operator - soft delete")
 
 	if err := r.preSoftDeleteCleanup(ctx); err != nil {
 		return err
 	}
 
 	if err := r.softDelete(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "soft deletion of bindings failed")
+		logger.Error(err, "while deleting bindings")
 		return err
 	}
 	if err := r.ensureResourcesDontExist(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "bindings still exists")
+		logger.Error(err, "bindings still exist")
 		return err
 	}
 
 	if err := r.softDelete(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "soft deletion of instances failed")
+		logger.Error(err, "while deleting instances")
 		return err
 	}
 	if err := r.ensureResourcesDontExist(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "instances still exists")
+		logger.Error(err, "instances still exist")
 		return err
 	}
 
 	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
-		logger.Error(err, "failed to remove related installed resources")
+		logger.Error(err, "failed to remove chart resources")
 		return err
 	}
 
