@@ -17,9 +17,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v2 
+    - uses: actions/checkout@v3 
     - name: Prepare docker registry and k3s cluster
       run: |
         chmod +x ./testing/k3s-e2e-test.sh
