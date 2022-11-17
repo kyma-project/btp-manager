@@ -3,7 +3,7 @@ set -o errexit
 
 echo "Starting docker registry"
 sudo mkdir -p /etc/rancher/k3s
-sudo cp registries.yaml /etc/rancher/k3s
+sudo cp testing/registries.yaml /etc/rancher/k3s
 docker run -d \
 -p 5000:5000 \
 --restart=always \
