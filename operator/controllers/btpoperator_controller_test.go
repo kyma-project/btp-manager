@@ -67,67 +67,66 @@ var _ = Describe("BTP Operator controller", func() {
 	var cr *v1alpha1.BtpOperator
 
 	BeforeEach(func() {
-		pClass, err := createPriorityClassFromYaml()
-		Expect(err).To(BeNil())
-		Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
-		Expect(k8sClient.Create(ctx, &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: kymaNamespace,
-			},
-		})).To(Succeed())
+		ctx = context.Background()
 	})
 
-	Describe("Provisioning", func() {
-		BeforeEach(func() {
-			ctx = context.Background()
+	Describe("Provisioning", Ordered, func() {
+		BeforeAll(func() {
+			pClass, err := createPriorityClassFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
+
+			Expect(k8sClient.Create(ctx, &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: kymaNamespace,
+				},
+			})).To(Succeed())
+
 			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 		})
 
-		Context("When the required Secret is missing", func() {
+		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
-				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+				Eventually(getCurrentCrState).Should(Equal(types.StateError))
 			})
 		})
 
-		Context("When the required Secret does not have all required keys", func() {
-			It("should return error while verifying keys", func() {
-				secret, err := createSecretFromYaml()
+		Context("The required Secret exists", func() {
+			BeforeEach(func() {
+				createSecret, err := createSecretFromYaml()
 				Expect(err).To(BeNil())
-				delete(secret.Data, "cluster_id")
-				delete(secret.Data, "clientsecret")
-				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+				Eventually(k8sClient.Create(ctx, createSecret)).Should(Succeed())
+			})
+
+			AfterEach(func() {
+				deleteSecret := &corev1.Secret{}
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, deleteSecret)).To(Succeed())
+				Eventually(k8sClient.Delete(ctx, deleteSecret)).Should(Succeed())
+			})
+
+			When("the required Secret does not have all required keys", func() {
+				It("should return error while verifying keys", func() {
+					existingSecret := &corev1.Secret{}
+					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, existingSecret)).To(Succeed())
+					delete(existingSecret.Data, "cluster_id")
+					delete(existingSecret.Data, "clientsecret")
+					Eventually(k8sClient.Update(ctx, existingSecret)).Should(Succeed())
+					Eventually(getCurrentCrState).Should(Equal(types.StateError))
+				})
+			})
+
+			When("the required Secret's keys do not have all values", func() {
+				It("should return error while verifying values", func() {
+					existingSecret := &corev1.Secret{}
+					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, existingSecret)).To(Succeed())
+					existingSecret.Data["cluster_id"] = []byte("")
+					existingSecret.Data["clientsecret"] = []byte("")
+					Eventually(k8sClient.Update(ctx, existingSecret)).Should(Succeed())
+					Eventually(getCurrentCrState).Should(Equal(types.StateError))
+				})
 			})
 		})
-
-		Context("When the required Secret's keys do not have all values", func() {
-			It("should return error while verifying values", func() {
-				secret, err := createSecretFromYaml()
-				Expect(err).To(BeNil())
-				secret.StringData["cluster_id"] = ""
-				secret.StringData["clientsecret"] = ""
-				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-				Expect(cr.GetStatus().State).To(Equal(types.StateError))
-			})
-		})
-
-		Context("When the required Secret is present and all it's data is correct", func() {
-			It("should provision BTP Service Operator successfully", func() {
-				secret, err := createSecretFromYaml()
-				Expect(err).To(BeNil())
-				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-				Eventually(cr.GetStatus().State, time.Second*30, time.Second*1).Should(Equal(types.StateReady))
-			})
-		})
-
 	})
 
 	Describe("Deprovisioning", func() {
@@ -174,6 +173,14 @@ var _ = Describe("BTP Operator controller", func() {
 		})
 	})
 })
+
+func getCurrentCrState() types.State {
+	cr := &v1alpha1.BtpOperator{}
+	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr); err != nil {
+		return ""
+	}
+	return cr.GetStatus().State
+}
 
 func createSecret() {
 	namespace := &corev1.Namespace{}
