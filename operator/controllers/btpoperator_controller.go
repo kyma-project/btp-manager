@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -229,7 +228,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
+	ready, err := manifest.InstallChart(logger, installInfo, []types.ObjectTransform{r.labelTransform}, nil)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
@@ -292,16 +291,16 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	cr.Labels[labelKeyForChart] = operatorName
 }
 
-func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (manifest.InstallInfo, error) {
+func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (types.InstallInfo, error) {
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
-		return manifest.InstallInfo{}, err
+		return types.InstallInfo{}, err
 	}
 	unstructuredObj.Object = unstructuredBase
 
-	installInfo := manifest.InstallInfo{
-		ChartInfo: &manifest.ChartInfo{
+	installInfo := types.InstallInfo{
+		ChartInfo: &types.ChartInfo{
 			ChartPath:   chartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
@@ -326,10 +325,10 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 				},
 			},
 		},
-		ResourceInfo: manifest.ResourceInfo{
+		ResourceInfo: types.ResourceInfo{
 			BaseResource: unstructuredObj,
 		},
-		ClusterInfo: custom.ClusterInfo{
+		ClusterInfo: types.ClusterInfo{
 			Config: r.Config,
 			Client: r.Client,
 		},
@@ -858,7 +857,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.ConsistencyCheck(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
+	ready, err := manifest.ConsistencyCheck(logger, installInfo, []types.ObjectTransform{r.labelTransform}, nil)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
