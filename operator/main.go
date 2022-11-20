@@ -43,7 +43,8 @@ var (
 )
 
 const (
-	timeout = time.Minute * 20
+	timeout   = time.Minute * 20
+	chartPath = "./module-chart"
 )
 
 func init() {
@@ -95,8 +96,9 @@ func main() {
 	}
 
 	reconciler := &controllers.BtpOperatorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: scheme,
+		Client:    mgr.GetClient(),
+		Scheme:    scheme,
+		ChartPath: chartPath,
 	}
 
 	reconciler.SetTimeout(timeout)

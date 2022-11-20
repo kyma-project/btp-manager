@@ -52,7 +52,6 @@ import (
 )
 
 const (
-	chartPath                      = "./module-chart"
 	chartNamespace                 = "kyma-system"
 	operatorName                   = "btp-manager"
 	labelKeyForChart               = "app.kubernetes.io/managed-by"
@@ -95,8 +94,9 @@ type btpOperatorGvk struct {
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
-	Scheme  *runtime.Scheme
-	timeout time.Duration
+	Scheme    *runtime.Scheme
+	timeout   time.Duration
+	ChartPath string
 }
 
 func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
@@ -301,7 +301,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 	installInfo := types.InstallInfo{
 		ChartInfo: &types.ChartInfo{
-			ChartPath:   chartPath,
+			ChartPath:   r.ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
@@ -740,7 +740,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		allGvks = append(allGvks, gvk)
 	}
 
-	root := fmt.Sprintf("%s/templates/", chartPath)
+	root := fmt.Sprintf("%s/templates/", r.ChartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
