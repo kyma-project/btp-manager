@@ -35,6 +35,9 @@ const (
 	secretYamlPath        = "testdata/test-secret.yaml"
 	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
 	testTimeout           = time.Second * 10
+	stateChangeTimeout    = time.Second * 5
+	pollingIntevral       = time.Second * 1
+	deleteTimeout         = time.Second * 30
 )
 
 type fakeK8s struct {
@@ -63,14 +66,14 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 	return nil
 }
 
-var _ = Describe("BTP Operator controller", func() {
+var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
 
 	BeforeEach(func() {
 		ctx = context.Background()
 	})
 
-	Describe("Provisioning", Ordered, func() {
+	Describe("Provisioning", func() {
 		BeforeAll(func() {
 			pClass, err := createPriorityClassFromYaml()
 			Expect(err).To(BeNil())
@@ -86,61 +89,72 @@ var _ = Describe("BTP Operator controller", func() {
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 		})
 
+		AfterAll(func() {
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
+		})
+
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
 				Eventually(getCurrentCrState).Should(Equal(types.StateError))
 			})
 		})
 
-		Context("The required Secret exists", func() {
-			BeforeEach(func() {
-				createSecret, err := createSecretFromYaml()
-				Expect(err).To(BeNil())
-				Eventually(k8sClient.Create(ctx, createSecret)).Should(Succeed())
-			})
-
+		Describe("The required Secret exists", func() {
 			AfterEach(func() {
 				deleteSecret := &corev1.Secret{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, deleteSecret)).To(Succeed())
-				Eventually(k8sClient.Delete(ctx, deleteSecret)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateError))
 			})
 
 			When("the required Secret does not have all required keys", func() {
 				It("should return error while verifying keys", func() {
-					existingSecret := &corev1.Secret{}
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, existingSecret)).To(Succeed())
-					delete(existingSecret.Data, "cluster_id")
-					delete(existingSecret.Data, "clientsecret")
-					Eventually(k8sClient.Update(ctx, existingSecret)).Should(Succeed())
-					Eventually(getCurrentCrState).Should(Equal(types.StateError))
+					secret, err := createSecretWithoutKeys()
+					Expect(err).To(BeNil())
+					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateError))
 				})
 			})
 
 			When("the required Secret's keys do not have all values", func() {
 				It("should return error while verifying values", func() {
-					existingSecret := &corev1.Secret{}
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, existingSecret)).To(Succeed())
-					existingSecret.Data["cluster_id"] = []byte("")
-					existingSecret.Data["clientsecret"] = []byte("")
-					Eventually(k8sClient.Update(ctx, existingSecret)).Should(Succeed())
-					Eventually(getCurrentCrState).Should(Equal(types.StateError))
+					secret, err := createSecretWithoutValues()
+					Expect(err).To(BeNil())
+					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateError))
 				})
 			})
+
+			/*
+				When("the required Secret is correct", func() {
+					It("should install chart successfully", func() {
+						secret, err := createCorrectSecretFromYaml()
+						Expect(err).To(BeNil())
+						Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
+						// requires real cluster, envtest doesn't start kube-controller-manager
+						// see: https://book.kubebuilder.io/reference/envtest.html#configuring-envtest-for-integration-tests
+						//      https://book.kubebuilder.io/reference/envtest.html#testing-considerations
+						Eventually(getCurrentCrState).WithTimeout(time.Second * 30).WithPolling(time.Second * 1).Should(Equal(types.StateReady))
+					})
+				})
+			*/
 		})
 	})
 
 	Describe("Deprovisioning", func() {
-		BeforeEach(func() {
+		BeforeAll(func() {
 			createSecret()
+		})
 
-			btpOperator := createBtpOperator()
+		BeforeEach(func() {
+			cr := createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateReady))
 
-			err := k8sClient.Create(ctx, btpOperator)
-			Expect(err).To(BeNil())
-
-			time.Sleep(time.Second * 30)
-
-			err = clearWebhooks()
+			err := clearWebhooks()
 			Expect(err).To(BeNil())
 
 			createResource(instanceGvk, testNamespace, instanceName)
@@ -154,7 +168,10 @@ var _ = Describe("BTP Operator controller", func() {
 			reconciler.SetTimeout(testTimeout)
 			reconciler.Client = newFakeK8s(reconciler.Client)
 
-			triggerDelete()
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 
@@ -162,13 +179,20 @@ var _ = Describe("BTP Operator controller", func() {
 			reconciler.SetTimeout(time.Minute * 1)
 			reconciler.Client = newFakeK8s(reconciler.Client)
 
-			triggerDelete()
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 
 		It("hard delete should succeed", func() {
 			reconciler.SetTimeout(time.Minute * 1)
 
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 	})
@@ -180,6 +204,12 @@ func getCurrentCrState() types.State {
 		return ""
 	}
 	return cr.GetStatus().State
+}
+
+func isCrNotFound() bool {
+	cr := &v1alpha1.BtpOperator{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
+	return errors.IsNotFound(err)
 }
 
 func createSecret() {
@@ -223,7 +253,7 @@ func createBtpOperator() *v1alpha1.BtpOperator {
 	}
 }
 
-func createSecretFromYaml() (*corev1.Secret, error) {
+func createCorrectSecretFromYaml() (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
 	data, err := os.ReadFile(secretYamlPath)
 	if err != nil {
@@ -233,6 +263,28 @@ func createSecretFromYaml() (*corev1.Secret, error) {
 	if err != nil {
 		return nil, fmt.Errorf("while unmarshalling Secret YAML to struct: %w", err)
 	}
+
+	return secret, nil
+}
+
+func createSecretWithoutKeys() (*corev1.Secret, error) {
+	secret, err := createCorrectSecretFromYaml()
+	if err != nil {
+		return nil, fmt.Errorf("while creating Secret from YAML: %w", err)
+	}
+	delete(secret.Data, "cluster_id")
+	delete(secret.Data, "clientsecret")
+
+	return secret, nil
+}
+
+func createSecretWithoutValues() (*corev1.Secret, error) {
+	secret, err := createCorrectSecretFromYaml()
+	if err != nil {
+		return nil, fmt.Errorf("while creating Secret from YAML: %w", err)
+	}
+	secret.Data["cluster_id"] = []byte("")
+	secret.Data["clientsecret"] = []byte("")
 
 	return secret, nil
 }
@@ -282,13 +334,6 @@ func clearWebhooks() error {
 		}
 	}
 	return nil
-}
-
-func triggerDelete() {
-	btpOperator := createBtpOperator()
-	err := k8sClient.Delete(ctx, btpOperator)
-	Expect(err).To(BeNil())
-	time.Sleep(time.Second * 30)
 }
 
 func doChecks() {
