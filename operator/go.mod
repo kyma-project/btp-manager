@@ -3,6 +3,7 @@ module github.com/kyma-project/btp-manager/operator
 go 1.19
 
 require (
+<<<<<<< HEAD
 	github.com/kyma-project/module-manager/operator v0.0.0-20221116115508-1db8d8590612
 	github.com/onsi/ginkgo/v2 v2.5.0
 	github.com/onsi/gomega v1.24.1
@@ -11,6 +12,17 @@ require (
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
 	sigs.k8s.io/controller-runtime v0.13.1
+=======
+	github.com/kyma-project/module-manager/operator v0.0.0-20221012124236-333327b5d7ad
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.20.0
+	github.com/stretchr/testify v1.8.0
+	k8s.io/api v0.25.0
+	k8s.io/apiextensions-apiserver v0.25.0
+	k8s.io/apimachinery v0.25.0
+	k8s.io/client-go v0.25.0
+	sigs.k8s.io/controller-runtime v0.13.0
+>>>>>>> 382788b (Initial draft)
 )
 
 require (
@@ -104,6 +116,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect

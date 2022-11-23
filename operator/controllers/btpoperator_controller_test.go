@@ -15,6 +15,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
+<<<<<<< HEAD
+=======
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+>>>>>>> 382788b (Initial draft)
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -115,6 +119,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
 				Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateError))
+				Expect(len(cr.GetStatus().Conditions)).To(Equal(1))
+				Expect(cr.GetStatus().Conditions[0].Status).To(Equal(metav1.ConditionFalse))
+				Expect(cr.GetStatus().Conditions[0].Type).To(Equal("Ready"))
+				Expect(cr.GetStatus().Conditions[0].Reason).To(Equal("MissingSecret"))
 			})
 		})
 
@@ -135,6 +143,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateError))
+					Expect(len(cr.GetStatus().Conditions)).To(Equal(1))
+					Expect(cr.GetStatus().Conditions[0].Status).To(Equal(metav1.ConditionFalse))
+					Expect(cr.GetStatus().Conditions[0].Type).To(Equal("Ready"))
+					Expect(cr.GetStatus().Conditions[0].Reason).To(Equal("InvalidSecret"))
 				})
 			})
 
@@ -144,6 +156,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateError))
+					Expect(len(cr.GetStatus().Conditions)).To(Equal(1))
+					Expect(cr.GetStatus().Conditions[0].Status).To(Equal(metav1.ConditionFalse))
+					Expect(cr.GetStatus().Conditions[0].Type).To(Equal("Ready"))
+					Expect(cr.GetStatus().Conditions[0].Reason).To(Equal("InvalidSecret"))
 				})
 			})
 
