@@ -25,7 +25,7 @@ The provisioning process is part of a module reconciliation and is carried out a
 
 ![Provisioning diagram](./assets/provisioning.svg)
 
-Create a BtpOperator CR to trigger the reconciliation:
+Create a [BtpOperator CR](../operator/api/v1alpha1/btpoperator_types.go) to trigger the reconciliation:
 
 ```shell
 cat <<EOF | kubectl apply -f -
@@ -36,11 +36,11 @@ metadata:
 EOF
 ```
 
-The BtpOperator reconciler picks up the created CR and determines whether it should be responsible for representing the module status. The BtpOperator CR reflects the status of the operand, that is, the SAP BTP Service Operator, only when it is the oldest CR present in the cluster. In that case a finalizer is added, the CR is set to `Processing` state and the reconciliation proceeds. Otherwise, it is given an `Error` state with the status **Condition** containing details about the CR responsible for reconciling the operand.
+The BtpOperator reconciler picks up the created CR and determines whether it should be responsible for representing the module status. The BtpOperator CR reflects the status of the operand, that is, the SAP BTP Service Operator, only when it is the oldest CR present in the cluster. In that case a finalizer is added, the CR is set to `Processing` state and the reconciliation proceeds. Otherwise, it is given an `Error` state with the status [**Condition**](https://github.com/kubernetes/apimachinery/blob/master/pkg/apis/meta/v1/types.go#L1464) containing details about the CR responsible for reconciling the operand.
 
 Next, the reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace. This Secret contains Service Manager credentials for the SAP BTP Service Operator and should be delivered to the cluster by KEB. If the Secret is missing, an error is thrown, the reconciler sets `Error` state in the CR and stops the reconciliation until the Secret is created. When the Secret is present in the cluster, the reconciler verifies whether it contains required data. The Secret should contain the following keys: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, `cluster_id`. None of the key values should be empty. If some required data is missing, the reconciler throws an error with the message about missing keys/values, sets the CR in `Error` state and stops the reconciliation until there is a change in the required Secret.
 
-After checking the Secret, the reconciler prepares the module's chart for provisioning. It adds `app.kubernetes.io/managed-by: btp-manager` label to all chart resources, sets data from the required Secret as overrides and applies them among overrides from `values.yaml`. When the chart install info is correct, the reconciler starts the provisioning and waits specified time for all chart resources to be in `Ready` state. If timeout is reached, the CR receives `Error` state and the resources are checked again in the next reconciliation. The provisioning is successful when all chart resources are in `Ready` state and this is the condition which allows the reconciler to set the CR in `Ready` state.
+After checking the Secret, the reconciler prepares the module's chart for provisioning. It adds `app.kubernetes.io/managed-by: btp-manager` label to all chart resources, sets data from the required Secret as overrides and applies them among overrides from `values.yaml`. When the chart install info is correct, the reconciler starts the provisioning and waits specified time for all chart resources to be in `Ready` state. If timeout is reached, the CR receives `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed set of [timeouts](../operator/controllers/btpoperator_controller.go) defined as consts which limit the processing time for performed operations. The provisioning is successful when all chart resources are in `Ready` state and this is the condition which allows the reconciler to set the CR in `Ready` state.
 
 ## Deprovisioning
 
