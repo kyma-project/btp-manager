@@ -11,6 +11,7 @@ import (
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	extractor "github.com/kyma-project/btp-manager/operator/internal"
+	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -66,6 +67,116 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 }
 
 var _ = Describe("BTP Operator controller", func() {
+	var cr *v1alpha1.BtpOperator
+
+	BeforeEach(func() {
+		pClass, err := createPriorityClassFromYaml()
+		Expect(err).To(BeNil())
+		Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
+		Expect(k8sClient.Create(ctx, &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: kymaNamespace,
+			},
+		})).To(Succeed())
+	})
+
+	Describe("Provisioning", func() {
+		BeforeEach(func() {
+			ctx = context.Background()
+			cr = createBtpOperator()
+		})
+
+		Context("When the required Secret is missing", func() {
+			It("should return error while getting the required Secret", func() {
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+			})
+		})
+
+		Context("When the required Secret does not have all required keys", func() {
+			It("should return error while verifying keys", func() {
+				secret, err := createSecretFromYaml()
+				Expect(err).To(BeNil())
+				delete(secret.Data, "cluster_id")
+				delete(secret.Data, "clientsecret")
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+			})
+		})
+
+		Context("When the required Secret's keys do not have all values", func() {
+			It("should return error while verifying values", func() {
+				secret, err := createSecretFromYaml()
+				Expect(err).To(BeNil())
+				secret.StringData["cluster_id"] = ""
+				secret.StringData["clientsecret"] = ""
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Expect(cr.GetStatus().State).To(Equal(types.StateError))
+			})
+		})
+
+		Context("When the required Secret is present and all it's data is correct", func() {
+			It("should provision BTP Service Operator successfully", func() {
+				secret, err := createSecretFromYaml()
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+				Eventually(cr.GetStatus().State, time.Second*30, time.Second*1).Should(Equal(types.StateReady))
+			})
+		})
+
+	})
+
+	Describe("Deprovisioning", func() {
+		BeforeEach(func() {
+			createSecret()
+
+			btpOperator := createBtpOperator()
+
+			err := k8sClient.Create(ctx, btpOperator)
+			Expect(err).To(BeNil())
+
+			time.Sleep(time.Second * 30)
+
+			err = clearWebhooks()
+			Expect(err).To(BeNil())
+
+			createResource(instanceGvk, testNamespace, instanceName)
+			ensureResourceExists(instanceGvk)
+
+			createResource(bindingGvk, testNamespace, bindingName)
+			ensureResourceExists(bindingGvk)
+		})
+
+		It("soft delete (after timeout) should succeed", func() {
+			reconciler.SetTimeout(testTimeout)
+			reconciler.Client = newFakeK8s(reconciler.Client)
+
+			triggerDelete()
+			doChecks()
+		})
+
+		It("soft delete (after hard deletion fail) should succeed", func() {
+			reconciler.SetTimeout(time.Minute * 1)
+			reconciler.Client = newFakeK8s(reconciler.Client)
+
+			triggerDelete()
+			doChecks()
+		})
+
+		It("hard delete should succeed", func() {
+			reconciler.SetTimeout(time.Minute * 1)
+
+			doChecks()
+		})
+	})
+
 	Describe("Update", func() {
 		transformCharts := func(sufix string, applySufix bool) error {
 			root := fmt.Sprintf("%s/templates/", reconciler.ChartPath)
@@ -156,104 +267,6 @@ var _ = Describe("BTP Operator controller", func() {
 		})
 	})
 
-	/*
-		Describe("Provisioning", func() {
-			BeforeEach(func() {
-				ctx = context.Background()
-				cr = createBtpOperator()
-			})
-
-			Context("When the required Secret is missing", func() {
-				It("should return error while getting the required Secret", func() {
-					Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-					Expect(cr.GetStatus().State).To(Equal(types.StateError))
-				})
-			})
-
-			Context("When the required Secret does not have all required keys", func() {
-				It("should return error while verifying keys", func() {
-					secret, err := createSecretFromYaml()
-					Expect(err).To(BeNil())
-					delete(secret.Data, "cluster_id")
-					delete(secret.Data, "clientsecret")
-					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-					Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-					Expect(cr.GetStatus().State).To(Equal(types.StateError))
-				})
-			})
-
-			Context("When the required Secret's keys do not have all values", func() {
-				It("should return error while verifying values", func() {
-					secret, err := createSecretFromYaml()
-					Expect(err).To(BeNil())
-					secret.StringData["cluster_id"] = ""
-					secret.StringData["clientsecret"] = ""
-					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-					Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-					Expect(cr.GetStatus().State).To(Equal(types.StateError))
-				})
-			})
-
-			Context("When the required Secret is present and all it's data is correct", func() {
-				It("should provision BTP Service Operator successfully", func() {
-					secret, err := createSecretFromYaml()
-					Expect(err).To(BeNil())
-					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-					Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-					Eventually(cr.GetStatus().State, time.Second*30, time.Second*1).Should(Equal(types.StateReady))
-				})
-			})
-
-		})
-
-		Describe("Deprovisioning", func() {
-			BeforeEach(func() {
-				createSecret()
-
-				btpOperator := createBtpOperator()
-
-				err := k8sClient.Create(ctx, btpOperator)
-				Expect(err).To(BeNil())
-
-				time.Sleep(time.Second * 30)
-
-				err = clearWebhooks()
-				Expect(err).To(BeNil())
-
-				createResource(instanceGvk, testNamespace, instanceName)
-				ensureResourceExists(instanceGvk)
-
-				createResource(bindingGvk, testNamespace, bindingName)
-				ensureResourceExists(bindingGvk)
-			})
-
-			It("soft delete (after timeout) should succeed", func() {
-				reconciler.SetTimeout(testTimeout)
-				reconciler.Client = newFakeK8s(reconciler.Client)
-
-				triggerDelete()
-				doChecks()
-			})
-
-			It("soft delete (after hard deletion fail) should succeed", func() {
-				reconciler.SetTimeout(time.Minute * 1)
-				reconciler.Client = newFakeK8s(reconciler.Client)
-
-				triggerDelete()
-				doChecks()
-			})
-
-			It("hard delete should succeed", func() {
-				reconciler.SetTimeout(time.Minute * 1)
-
-				doChecks()
-			})
-		})
-	*/
 })
 
 func createSecret() {
@@ -421,9 +434,8 @@ func checkIfNoBtpResourceExists() {
 				}
 			}
 		}
-
-		Expect(found).To(BeFalse())
 	}
+	Expect(found).To(BeFalse())
 }
 
 func canIgnoreErr(err error) bool {
