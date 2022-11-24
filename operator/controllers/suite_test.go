@@ -18,7 +18,7 @@ package controllers
 
 import (
 	"context"
-	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -48,6 +48,10 @@ var ctx context.Context
 var cancel context.CancelFunc
 var reconciler BtpOperatorReconciler
 
+const (
+	moduleChartTestData = "./testdata/module-chart"
+)
+
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
@@ -57,13 +61,18 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 	ctx, cancel = context.WithCancel(context.TODO())
-
+	useExistingCluster := true
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
+		UseExistingCluster:    &useExistingCluster,
 	}
-	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
+
+	cmd := exec.Command("/bin/sh", "prerun.sh")
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
 
 	var err error
 	// cfg is defined in this file globally.
@@ -86,8 +95,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	reconciler = BtpOperatorReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
+		Client:    k8sManager.GetClient(),
+		Scheme:    k8sManager.GetScheme(),
+		ChartPath: moduleChartTestData,
 	}
 
 	err = reconciler.SetupWithManager(k8sManager)
