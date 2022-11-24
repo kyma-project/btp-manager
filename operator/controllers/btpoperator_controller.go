@@ -223,7 +223,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
+	ready, err := manifest.InstallChart(logger, installInfo, []types.ObjectTransform{r.labelTransform}, nil)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
@@ -237,11 +237,13 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
+	logger.Info("Handling Deleting state")
+
 	if err := r.handleDeprovisioning(ctx); err != nil {
 		logger.Error(err, "deprovisioning failed")
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
-	logger.Info("deprovisioning success. clearing finalizers for btp manager")
+	logger.Info("Deprovisioning success. Clearing finalizers in CR")
 	cr.SetFinalizers([]string{})
 	if err := r.Update(ctx, cr); err != nil {
 		return err
@@ -284,16 +286,16 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	cr.Labels[labelKeyForChart] = operatorName
 }
 
-func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (manifest.InstallInfo, error) {
+func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (types.InstallInfo, error) {
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
-		return manifest.InstallInfo{}, err
+		return types.InstallInfo{}, err
 	}
 	unstructuredObj.Object = unstructuredBase
 
-	installInfo := manifest.InstallInfo{
-		ChartInfo: &manifest.ChartInfo{
+	installInfo := types.InstallInfo{
+		ChartInfo: &types.ChartInfo{
 			ChartPath:   r.ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
@@ -318,10 +320,10 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 				},
 			},
 		},
-		ResourceInfo: manifest.ResourceInfo{
+		ResourceInfo: types.ResourceInfo{
 			BaseResource: unstructuredObj,
 		},
-		ClusterInfo: custom.ClusterInfo{
+		ClusterInfo: types.ClusterInfo{
 			Config: r.Config,
 			Client: r.Client,
 		},
@@ -476,13 +478,9 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 
 func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Deprovisioning BTP Operator")
 
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
-		return err
-	}
-	if err := r.handlePreDelete(ctx); err != nil {
 		return err
 	}
 
@@ -493,18 +491,19 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 	select {
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
-			logger.Info("hard delete success")
+			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
 			if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
-				logger.Error(err, "failed to remove related installed resources")
+				logger.Error(err, "failed to remove chart resources")
 				return err
 			}
 		} else {
+			logger.Info("Service Instances and Service Bindings hard delete failed.")
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 				return err
 			}
 		}
 	case <-time.After(r.timeout):
-		logger.Info("timeout of hard delete", "duration", r.timeout)
+		logger.Info("hard delete timeout reached", "duration", r.timeout)
 		timeoutChannel <- true
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			return err
@@ -518,14 +517,15 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	defer close(success)
 	defer close(timeout)
 	logger := log.FromContext(ctx)
+	logger.Info("Deprovisioning BTP Operator - hard delete")
 
 	anyErr := false
 	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-		logger.Error(err, "while hard deleting binding")
+		logger.Error(err, "while deleting bindings")
 		anyErr = true
 	}
 	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-		logger.Error(err, "while hard deleting instances")
+		logger.Error(err, "while deleting instances")
 		anyErr = true
 	}
 
@@ -605,28 +605,32 @@ func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, nam
 
 func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
 	logger := log.FromContext(ctx)
-	logger.Info("hard delete failed. trying to perform soft delete")
+	logger.Info("Deprovisioning BTP Operator - soft delete")
+
+	if err := r.preSoftDeleteCleanup(ctx); err != nil {
+		return err
+	}
 
 	if err := r.softDelete(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "soft deletion of bindings failed")
+		logger.Error(err, "while deleting bindings")
 		return err
 	}
 	if err := r.ensureResourcesDontExist(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "bindings still exists")
+		logger.Error(err, "bindings still exist")
 		return err
 	}
 
 	if err := r.softDelete(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "soft deletion of instances failed")
+		logger.Error(err, "while deleting instances")
 		return err
 	}
 	if err := r.ensureResourcesDontExist(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "instances still exists")
+		logger.Error(err, "instances still exist")
 		return err
 	}
 
 	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
-		logger.Error(err, "failed to remove related installed resources")
+		logger.Error(err, "failed to remove chart resources")
 		return err
 	}
 
@@ -682,11 +686,9 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
+func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
 	deployment := &appsv1.Deployment{}
-	deployment.Namespace = chartNamespace
-	deployment.Name = deploymentName
-	if err := r.Delete(ctx, deployment); err != nil {
+	if err := r.DeleteAllOf(ctx, deployment, labelFilter); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
@@ -722,6 +724,93 @@ func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Conte
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, error) {
+	var allGvks []schema.GroupVersionKind
+	appendToSlice := func(gvk schema.GroupVersionKind) {
+		if reflect.DeepEqual(gvk, schema.GroupVersionKind{}) {
+			return
+		}
+		for _, v := range allGvks {
+			if reflect.DeepEqual(gvk, v) {
+				return
+			}
+		}
+		allGvks = append(allGvks, gvk)
+	}
+
+	root := fmt.Sprintf("%s/templates/", chartPath)
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !strings.HasSuffix(info.Name(), ".yml") {
+			return nil
+		}
+
+		bytes, err := os.ReadFile(fmt.Sprintf("%s/%s", root, info.Name()))
+		if err != nil {
+			return err
+		}
+
+		fileGvks, err := r.extractGvkFromYml(string(bytes))
+		if err != nil {
+			return err
+		}
+
+		for _, gvk := range fileGvks {
+			appendToSlice(gvk)
+		}
+
+		return nil
+	}); err != nil {
+		return []schema.GroupVersionKind{}, err
+	}
+
+	return allGvks, nil
+}
+
+func (r *BtpOperatorReconciler) extractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
+	var gvks []schema.GroupVersionKind
+	parts := strings.Split(wholeFile, "---\n")
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		var yamlGvk btpOperatorGvk
+		lines := strings.Split(part, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "apiVersion:") {
+				yamlGvk.APIVersion = strings.TrimSpace(strings.Split(line, ":")[1])
+			}
+
+			if strings.HasPrefix(line, "kind:") {
+				yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
+			}
+		}
+		if yamlGvk.Kind != "" && yamlGvk.APIVersion != "" {
+			apiVersion := strings.Split(yamlGvk.APIVersion, "/")
+			if len(apiVersion) == 1 {
+				gvks = append(gvks, schema.GroupVersionKind{
+					Kind:    yamlGvk.Kind,
+					Version: apiVersion[0],
+					Group:   "",
+				})
+			} else if len(apiVersion) == 2 {
+				gvks = append(gvks, schema.GroupVersionKind{
+					Kind:    yamlGvk.Kind,
+					Version: apiVersion[1],
+					Group:   apiVersion[0],
+				})
+			} else {
+				return nil, fmt.Errorf("incorrect split of apiVersion")
+			}
+		}
+	}
+
+	return gvks, nil
 }
 
 func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
@@ -763,7 +852,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.ConsistencyCheck(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
+	ready, err := manifest.ConsistencyCheck(logger, installInfo, []types.ObjectTransform{r.labelTransform}, nil)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
