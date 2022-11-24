@@ -67,10 +67,6 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 
 var _ = Describe("BTP Operator controller", func() {
 	Describe("Update", func() {
-		canIgnoreErr := func(err error) bool {
-			return errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
-		}
-
 		transformCharts := func(sufix string, applySufix bool) error {
 			root := fmt.Sprintf("%s/templates/", reconciler.ChartPath)
 			if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -391,11 +387,7 @@ func checkIfNoBindingSecretExists() {
 	Expect(errors.IsNotFound(err)).To(BeTrue())
 }
 
-func getBtpResources() ([]*unstructured.UnstructuredList, error) {
-	canIgnoreErr := func(err error) bool {
-		return errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
-	}
-
+func checkIfNoBtpResourceExists() {
 	cs, err := clientset.NewForConfig(cfg)
 	Expect(err).To(BeNil())
 
@@ -406,7 +398,7 @@ func getBtpResources() ([]*unstructured.UnstructuredList, error) {
 	err = k8sClient.List(ctx, namespaces)
 	Expect(err).To(BeNil())
 
-	var btpResources []*unstructured.UnstructuredList
+	found := false
 	for _, resource := range resourceMap {
 		gv, _ := schema.ParseGroupVersion(resource.GroupVersion)
 		for _, apiResource := range resource.APIResources {
@@ -417,29 +409,23 @@ func getBtpResources() ([]*unstructured.UnstructuredList, error) {
 				Kind:    apiResource.Kind,
 			})
 			for _, namespace := range namespaces.Items {
-				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelFilter); err != nil && !canIgnoreErr(err) {
-					return nil, err
-				}
-				if list != nil && len(list.Items) > 0 {
-					btpResources = append(btpResources, list)
+				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelFilter); err != nil {
+					ignore := errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
+					if !ignore {
+						found = true
+						break
+					}
+				} else if len(list.Items) > 0 {
+					found = true
+					break
 				}
 			}
 		}
-	}
 
-	return btpResources, nil
+		Expect(found).To(BeFalse())
+	}
 }
 
-func checkIfNoBtpResourceExists() {
-	resources, err := getBtpResources()
-	Expect(err).To(BeNil())
-
-	found := false
-	for _, list := range resources {
-		if len(list.Items) > 0 {
-			found = true
-			break
-		}
-	}
-	Expect(found).To(BeFalse())
+func canIgnoreErr(err error) bool {
+	return errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
 }
