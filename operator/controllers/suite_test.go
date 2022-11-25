@@ -86,10 +86,12 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	reconciler = &BtpOperatorReconciler{
-		Client:    k8sManager.GetClient(),
-		Scheme:    k8sManager.GetScheme(),
-		ChartPath: "../module-chart",
+		Client:                k8sManager.GetClient(),
+		Scheme:                k8sManager.GetScheme(),
+		ChartPath:             "../module-chart",
+		WaitForChartReadiness: false,
 	}
+	reconciler.SetTimeout(testTimeout)
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
