@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -69,11 +68,6 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 		UseExistingCluster:    &useExistingCluster,
-	}
-
-	cmd := exec.Command("/bin/sh", "prerun.sh")
-	if err := cmd.Run(); err != nil {
-		panic(err)
 	}
 
 	var err error

@@ -14,6 +14,7 @@ import (
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
@@ -367,6 +368,22 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	object.SetName(name)
 	err := k8sClient.Create(ctx, object)
 	Expect(err).To(BeNil())
+}
+
+func clearWebhooks() error {
+	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
+	if err := k8sClient.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+	if err := k8sClient.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 func doChecks() {
