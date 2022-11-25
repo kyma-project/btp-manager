@@ -284,6 +284,34 @@ func getCurrentCrState() types.State {
 	return cr.GetStatus().State
 }
 
+func createSecret() {
+	namespace := &corev1.Namespace{}
+	namespace.Name = kymaNamespace
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
+	if errors.IsNotFound(err) {
+		err = k8sClient.Create(ctx, namespace)
+	}
+	Expect(err).To(BeNil())
+
+	secret := &corev1.Secret{}
+	secret.Type = corev1.SecretTypeOpaque
+	secret.Name = "sap-btp-manager"
+	secret.Namespace = kymaNamespace
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)
+	if errors.IsNotFound(err) {
+		secret.Data = map[string][]byte{
+			"clientid":     []byte("dGVzdF9jbGllbnRpZA=="),
+			"clientsecret": []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
+			"sm_url":       []byte("dGVzdF9zbV91cmw="),
+			"tokenurl":     []byte("dGVzdF90b2tlbnVybA=="),
+			"cluster_id":   []byte("dGVzdF9jbHVzdGVyX2lk"),
+		}
+		err = k8sClient.Create(ctx, secret)
+	}
+
+	Expect(err).To(BeNil())
+}
+
 func isCrNotFound() bool {
 	cr := &v1alpha1.BtpOperator{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
