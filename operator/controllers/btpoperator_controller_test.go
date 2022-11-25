@@ -14,7 +14,6 @@ import (
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
@@ -74,13 +73,13 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 }
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
-	//var cr *v1alpha1.BtpOperator
-
+	var cr *v1alpha1.BtpOperator
 	BeforeEach(func() {
 		ctx = context.Background()
+		cr = createBtpOperator()
 	})
 
-	/*Describe("Provisioning", func() {
+	Describe("Provisioning", func() {
 		BeforeAll(func() {
 			pClass, err := createPriorityClassFromYaml()
 			Expect(err).To(BeNil())
@@ -157,9 +156,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		})
 	})
-	*/
 
-	/*Describe("Deprovisioning", func() {
+	Describe("Deprovisioning", func() {
 		BeforeAll(func() {
 			createSecret()
 		})
@@ -210,7 +208,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 			doChecks()
 		})
-	})*/
+	})
 
 	Describe("Update", func() {
 		BeforeAll(func() {
