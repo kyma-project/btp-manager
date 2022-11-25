@@ -31,6 +31,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,9 +95,10 @@ type btpOperatorGvk struct {
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
-	Scheme    *runtime.Scheme
-	timeout   time.Duration
-	ChartPath string
+	Scheme                *runtime.Scheme
+	timeout               time.Duration
+	ChartPath             string
+	WaitForChartReadiness bool
 }
 
 func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
@@ -307,7 +309,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 				ConfigFlags: types.Flags{
 					"Namespace":       chartNamespace,
 					"CreateNamespace": true,
-					"Wait":            true,
+					"Wait":            r.WaitForChartReadiness,
 					"Timeout":         readyTimeout,
 				},
 				SetFlags: types.Flags{
@@ -465,7 +467,7 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 			if !ok {
 				return false
 			}
-			if newBtpOperator.GetStatus().State == types.StateError {
+			if newBtpOperator.GetStatus().State == types.StateError && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
 				return false
 			}
 			return true
@@ -519,21 +521,38 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	logger := log.FromContext(ctx)
 	logger.Info("Deprovisioning BTP Operator - hard delete")
 
-	anyErr := false
-	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-		logger.Error(err, "while deleting bindings")
-		anyErr = true
+	errs := make([]error, 0)
+
+	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
+		errs = append(errs, err)
 	}
-	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-		logger.Error(err, "while deleting instances")
-		anyErr = true
+	if sbCrdExists {
+		if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
+			logger.Error(err, "while deleting Service Bindings")
+			errs = append(errs, err)
+		}
 	}
 
-	if anyErr {
+	siCrdExists, err := r.crdExists(ctx, instanceGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
+		errs = append(errs, err)
+	}
+	if siCrdExists {
+		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
+			logger.Error(err, "while deleting Service Instances")
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
 		success <- false
 		return
 	}
 
+	var sbResourcesLeft, siResourcesLeft bool
 	for {
 		select {
 		case <-timeout:
@@ -541,16 +560,29 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		default:
 		}
 
-		err, resourcesLeft := r.checkIfAnyResourcesLeft(ctx, namespaces)
-		if err != nil {
-			logger.Error(err, "leftover resources check failed")
-			success <- false
-			return
+		if sbCrdExists {
+			sbResourcesLeft, err = r.resourcesExist(ctx, namespaces, bindingGvk)
+			if err != nil {
+				logger.Error(err, "ServiceBinding leftover resources check failed")
+				success <- false
+				return
+			}
 		}
-		if !resourcesLeft {
+
+		if siCrdExists {
+			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
+			if err != nil {
+				logger.Error(err, "ServiceInstance leftover resources check failed")
+				success <- false
+				return
+			}
+		}
+
+		if !sbResourcesLeft && !siResourcesLeft {
 			success <- true
 			return
 		}
+
 		time.Sleep(retryInterval)
 	}
 }
@@ -570,37 +602,44 @@ func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.Group
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, namespaces *corev1.NamespaceList) (error, bool) {
-	anyLeft := func(namespace string, gvk schema.GroupVersionKind) (error, bool) {
+func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
+	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+
+	if err := r.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *corev1.NamespaceList, gvk schema.GroupVersionKind) (bool, error) {
+	anyLeft := func(namespace string, gvk schema.GroupVersionKind) (bool, error) {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
 		if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
 			if !errors.IsNotFound(err) {
-				return err, true
+				return false, err
 			}
 		}
 
-		return nil, len(list.Items) > 0
+		return len(list.Items) > 0, nil
 	}
 
 	for _, namespace := range namespaces.Items {
-		err, bindingsLeft := anyLeft(namespace.Name, bindingGvk)
+		resourcesExist, err := anyLeft(namespace.Name, gvk)
 		if err != nil {
-			return err, true
+			return false, err
 		}
-		if bindingsLeft {
-			return nil, true
-		}
-		err, instancesLeft := anyLeft(namespace.Name, instanceGvk)
-		if err != nil {
-			return err, true
-		}
-		if instancesLeft {
-			return nil, true
+		if resourcesExist {
+			return true, nil
 		}
 	}
 
-	return nil, false
+	return false, nil
 }
 
 func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
@@ -608,25 +647,42 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	logger.Info("Deprovisioning BTP Operator - soft delete")
 
 	if err := r.preSoftDeleteCleanup(ctx); err != nil {
+		logger.Error(err, "module's deployment and webhooks deletion failed")
 		return err
 	}
 
-	if err := r.softDelete(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "while deleting bindings")
-		return err
-	}
-	if err := r.ensureResourcesDontExist(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "bindings still exist")
+	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
 		return err
 	}
 
-	if err := r.softDelete(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "while deleting instances")
+	siCrdExists, err := r.crdExists(ctx, instanceGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
 		return err
 	}
-	if err := r.ensureResourcesDontExist(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "instances still exist")
-		return err
+
+	if sbCrdExists {
+		if err := r.softDelete(ctx, bindingGvk); err != nil {
+			logger.Error(err, "while deleting Service Bindings")
+			return err
+		}
+		if err := r.ensureResourcesDontExist(ctx, bindingGvk); err != nil {
+			logger.Error(err, "Service Bindings still exist")
+			return err
+		}
+	}
+
+	if siCrdExists {
+		if err := r.softDelete(ctx, instanceGvk); err != nil {
+			logger.Error(err, "while deleting Service Instances")
+			return err
+		}
+		if err := r.ensureResourcesDontExist(ctx, instanceGvk); err != nil {
+			logger.Error(err, "Service Instances still exist")
+			return err
+		}
 	}
 
 	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
@@ -637,15 +693,15 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	return nil
 }
 
-func (r *BtpOperatorReconciler) GvkToList(gvk *schema.GroupVersionKind) *unstructured.UnstructuredList {
-	listGvk := *gvk
+func (r *BtpOperatorReconciler) GvkToList(gvk schema.GroupVersionKind) *unstructured.UnstructuredList {
+	listGvk := gvk
 	listGvk.Kind = gvk.Kind + "List"
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(listGvk)
 	return list
 }
 
-func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk *schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk schema.GroupVersionKind) error {
 	list := r.GvkToList(gvk)
 
 	if err := r.List(ctx, list); err != nil {
@@ -659,7 +715,7 @@ func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gv
 	return nil
 }
 
-func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.GroupVersionKind) error {
 	list := r.GvkToList(gvk)
 
 	if err := r.List(ctx, list); err != nil {
@@ -712,8 +768,6 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 }
 
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	time.Sleep(time.Second * 10)
-
 	gvks, err := r.gatherChartGvks()
 	if err != nil {
 		return err

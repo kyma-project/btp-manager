@@ -96,9 +96,10 @@ func main() {
 	}
 
 	reconciler := &controllers.BtpOperatorReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    scheme,
-		ChartPath: chartPath,
+		Client:                mgr.GetClient(),
+		Scheme:                scheme,
+		ChartPath:             chartPath,
+		WaitForChartReadiness: true,
 	}
 
 	reconciler.SetTimeout(timeout)
