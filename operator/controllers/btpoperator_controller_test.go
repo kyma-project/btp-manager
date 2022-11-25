@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
@@ -16,7 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,8 +32,6 @@ const (
 	instanceName             = "my-service-instance"
 	bindingName              = "my-binding"
 	kymaNamespace            = "kyma-system"
-	mutatingWebhookName      = "sap-btp-operator-mutating-webhook-configuration"
-	validatingWebhookName    = "sap-btp-operator-validating-webhook-configuration"
 	secretYamlPath           = "testdata/test-secret.yaml"
 	priorityClassYamlPath    = "testdata/test-priorityclass.yaml"
 	testTimeout              = time.Second * 10
@@ -53,22 +50,24 @@ func newFakeK8s(c client.Client) *fakeK8s {
 }
 
 func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
-	if err := f.Client.DeleteAllOf(ctx, obj, opts...); err != nil {
+	deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Second*1)
+	defer cancel()
+	if err := f.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...); err != nil {
 		return err
 	}
-
-	gvk := obj.GetObjectKind().GroupVersionKind()
-	if reflect.DeepEqual(gvk, instanceGvk) || reflect.DeepEqual(gvk, bindingGvk) {
-		if reconciler.timeout == testTimeout {
-			time.Sleep(testTimeout * 2)
-			return nil
-		}
-
-		return fmt.Errorf("error")
-	}
-
 	return nil
 }
+
+/*
+func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	if kind == instanceGvk.Kind || kind == bindingGvk.Kind {
+		return errors.New("expected DeleteAllOf error")
+	}
+
+	return f.Client.DeleteAllOf(ctx, obj, opts...)
+}
+*/
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
@@ -177,8 +176,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 
 		It("soft delete (after timeout) should succeed", func() {
-			reconciler.Client = newFakeK8s(reconciler.Client)
-
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
@@ -187,7 +184,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 
 		It("soft delete (after hard deletion fail) should succeed", func() {
-			reconciler.SetTimeout(time.Minute * 1)
 			reconciler.Client = newFakeK8s(reconciler.Client)
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
@@ -198,8 +194,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 
 		It("hard delete should succeed", func() {
-			reconciler.SetTimeout(time.Minute * 1)
-
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
@@ -220,14 +214,14 @@ func getCurrentCrState() types.State {
 func isCrNotFound() bool {
 	cr := &v1alpha1.BtpOperator{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
-	return errors.IsNotFound(err)
+	return k8serrors.IsNotFound(err)
 }
 
 func createSecret() {
 	namespace := &corev1.Namespace{}
 	namespace.Name = kymaNamespace
 	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		err = k8sClient.Create(ctx, namespace)
 	}
 	Expect(err).To(BeNil())
@@ -237,7 +231,7 @@ func createSecret() {
 	secret.Name = "sap-btp-manager"
 	secret.Namespace = kymaNamespace
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		secret.Data = map[string][]byte{
 			"clientid":     []byte("dGVzdF9jbGllbnRpZA=="),
 			"clientsecret": []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
@@ -334,13 +328,13 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 func clearWebhooks() error {
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
 	if err := k8sClient.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
 	if err := k8sClient.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -358,7 +352,7 @@ func checkIfNoServicesExists(kind string) {
 	list := unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: kind})
 	err := k8sClient.List(ctx, &list)
-	Expect(errors.IsNotFound(err)).To(BeTrue())
+	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 	Expect(list.Items).To(HaveLen(0))
 }
 
@@ -366,7 +360,7 @@ func checkIfNoBindingSecretExists() {
 	secret := &corev1.Secret{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: testNamespace}, secret)
 	Expect(*secret).To(BeEquivalentTo(corev1.Secret{}))
-	Expect(errors.IsNotFound(err)).To(BeTrue())
+	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 }
 
 func checkIfNoBtpResourceExists() {
@@ -392,7 +386,7 @@ func checkIfNoBtpResourceExists() {
 			})
 			for _, namespace := range namespaces.Items {
 				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelFilter); err != nil {
-					ignore := errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
+					ignore := k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
 					if !ignore {
 						found = true
 						break
