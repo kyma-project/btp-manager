@@ -14,6 +14,8 @@ import (
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -27,19 +29,22 @@ import (
 )
 
 const (
-	btpOperatorKind       = "BtpOperator"
-	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
-	btpOperatorName       = "btp-operator-test"
-	testNamespace         = "default"
-	instanceName          = "my-service-instance"
-	bindingName           = "my-binding"
-	kymaNamespace         = "kyma-system"
-	secretYamlPath        = "testdata/test-secret.yaml"
-	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
-	testTimeout           = time.Second * 10
-	stateChangeTimeout    = time.Second * 5
-	pollingIntevral       = time.Second * 1
-	deleteTimeout         = time.Second * 30
+	btpOperatorKind          = "BtpOperator"
+	btpOperatorApiVersion    = `operator.kyma-project.io\v1alpha1`
+	btpOperatorName          = "btp-operator-test"
+	testNamespace            = "default"
+	instanceName             = "my-service-instance"
+	bindingName              = "my-binding"
+	kymaNamespace            = "kyma-system"
+	mutatingWebhookName      = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName    = "sap-btp-operator-validating-webhook-configuration"
+	secretYamlPath           = "testdata/test-secret.yaml"
+	priorityClassYamlPath    = "testdata/test-priorityclass.yaml"
+	testTimeout              = time.Second * 10
+	stateChangeTimeout       = time.Second * 1
+	deleteTimeout            = time.Second * 30
+	crStatePollingIntevral   = time.Microsecond * 1
+	operationPollingInterval = time.Second * 1
 )
 
 type fakeK8s struct {
@@ -89,18 +94,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 			cr = createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
 		})
 
 		AfterAll(func() {
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 		})
 
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
-				Eventually(getCurrentCrState).Should(Equal(types.StateError))
+				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 			})
 		})
 
@@ -109,15 +115,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				deleteSecret := &corev1.Secret{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, deleteSecret)).To(Succeed())
 				Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
-				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateError))
+				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 			})
 
 			When("the required Secret does not have all required keys", func() {
 				It("should return error while verifying keys", func() {
 					secret, err := createSecretWithoutKeys()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
-					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateError))
+					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 				})
 			})
 
@@ -125,23 +132,29 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				It("should return error while verifying values", func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
-					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateError))
+					Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 				})
 			})
 
-			/*
-				When("the required Secret is correct", func() {
-					It("should install chart successfully", func() {
-						secret, err := createCorrectSecretFromYaml()
-						Expect(err).To(BeNil())
-						Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
-						// requires real cluster, envtest doesn't start kube-controller-manager
-						// see: https://book.kubebuilder.io/reference/envtest.html#configuring-envtest-for-integration-tests
-						//      https://book.kubebuilder.io/reference/envtest.html#testing-considerations
-						Eventually(getCurrentCrState).WithTimeout(time.Second * 30).WithPolling(time.Second * 1).Should(Equal(types.StateReady))
-					})
+			When("the required Secret is correct", func() {
+				It("should install chart successfully", func() {
+					// requires real cluster, envtest doesn't start kube-controller-manager
+					// see: https://book.kubebuilder.io/reference/envtest.html#configuring-envtest-for-integration-tests
+					//      https://book.kubebuilder.io/reference/envtest.html#testing-considerations
+					secret, err := createCorrectSecretFromYaml()
+					Expect(err).To(BeNil())
+					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
+					btpServiceOperatorDeployment := &appsv1.Deployment{}
+					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
+						WithTimeout(testTimeout).
+						WithPolling(operationPollingInterval).
+						Should(Succeed())
 				})
+			})
+
 		})
 	})
 	*/
@@ -154,8 +167,9 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		BeforeEach(func() {
 			cr := createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateReady))
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 
+			time.Sleep(time.Second * 30)
 			err := clearWebhooks()
 			Expect(err).To(BeNil())
 
@@ -167,13 +181,12 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 
 		It("soft delete (after timeout) should succeed", func() {
-			reconciler.SetTimeout(testTimeout)
 			reconciler.Client = newFakeK8s(reconciler.Client)
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 
@@ -183,8 +196,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 
@@ -193,8 +206,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(pollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 	})*/
