@@ -59,6 +59,8 @@ const (
 	secretName                     = "sap-btp-manager"
 	deletionFinalizer              = "custom-deletion-finalizer"
 	deploymentName                 = "sap-btp-operator-controller-manager"
+	mutatingWebhookName            = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName          = "sap-btp-operator-validating-webhook-configuration"
 	processingStateRequeueInterval = time.Minute * 5
 	readyStateRequeueInterval      = time.Hour * 1
 	readyTimeout                   = time.Minute * 1
@@ -588,13 +590,13 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 }
 
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
-	logger := log.FromContext(ctx)
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
+	deleteCtx, cancel := context.WithTimeout(ctx, r.timeout/4)
+	defer cancel()
 
 	for _, namespace := range namespaces.Items {
-		if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name)); err != nil {
-			logger.Error(err, "while deleting all resources", "kind", object.GetKind())
+		if err := r.DeleteAllOf(deleteCtx, object, client.InNamespace(namespace.Name)); err != nil {
 			return err
 		}
 	}
@@ -647,7 +649,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	logger.Info("Deprovisioning BTP Operator - soft delete")
 
 	if err := r.preSoftDeleteCleanup(ctx); err != nil {
-		logger.Error(err, "module's deployment and webhooks deletion failed")
+		logger.Error(err, "module deployment and webhooks deletion failed")
 		return err
 	}
 
@@ -743,23 +745,40 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.Group
 }
 
 func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
+	/*
+		r.deleteDeployment(ctx)
+		r.deleteMutatingWebhook(ctx)
+		r.deleteValidatingWebhook(ctx)
+	*/
 	deployment := &appsv1.Deployment{}
-	if err := r.DeleteAllOf(ctx, deployment, labelFilter); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: chartNamespace}, deployment); err != nil {
 		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: chartNamespace}, mutatingWebhook); err != nil {
 		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: chartNamespace}, validatingWebhook); err != nil {
 		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
