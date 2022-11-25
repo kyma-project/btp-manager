@@ -284,6 +284,12 @@ func getCurrentCrState() types.State {
 	return cr.GetStatus().State
 }
 
+func isCrNotFound() bool {
+	cr := &v1alpha1.BtpOperator{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
+	return errors.IsNotFound(err)
+}
+
 func createSecret() {
 	namespace := &corev1.Namespace{}
 	namespace.Name = kymaNamespace
@@ -310,12 +316,6 @@ func createSecret() {
 	}
 
 	Expect(err).To(BeNil())
-}
-
-func isCrNotFound() bool {
-	cr := &v1alpha1.BtpOperator{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
-	return errors.IsNotFound(err)
 }
 
 func createBtpOperator() *v1alpha1.BtpOperator {
