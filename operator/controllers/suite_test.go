@@ -96,7 +96,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	reconciler = BtpOperatorReconciler{
+	reconciler = &BtpOperatorReconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
 		ChartPath: moduleChartTestData,

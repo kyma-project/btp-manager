@@ -14,7 +14,6 @@ import (
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -70,13 +69,13 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 }
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
-	var cr *v1alpha1.BtpOperator
+	//var cr *v1alpha1.BtpOperator
 
 	BeforeEach(func() {
 		ctx = context.Background()
 	})
 
-	Describe("Provisioning", func() {
+	/*Describe("Provisioning", func() {
 		BeforeAll(func() {
 			pClass, err := createPriorityClassFromYaml()
 			Expect(err).To(BeNil())
@@ -143,11 +142,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 						Eventually(getCurrentCrState).WithTimeout(time.Second * 30).WithPolling(time.Second * 1).Should(Equal(types.StateReady))
 					})
 				})
-			*/
 		})
 	})
+	*/
 
-	Describe("Deprovisioning", func() {
+	/*Describe("Deprovisioning", func() {
 		BeforeAll(func() {
 			createSecret()
 		})
@@ -198,98 +197,71 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(pollingIntevral).Should(BeTrue())
 			doChecks()
 		})
-	})
+	})*/
 
 	Describe("Update", func() {
-		transformCharts := func(sufix string, applySufix bool) error {
-			root := fmt.Sprintf("%s/templates/", reconciler.ChartPath)
-			if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-				if !strings.HasSuffix(info.Name(), ".yml") {
-					return nil
-				}
+		BeforeAll(func() {
+			pClass, err := createPriorityClassFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
 
-				filename := fmt.Sprintf("%s/%s", root, info.Name())
-				input, err := os.ReadFile(filename)
-				if err != nil {
-					return err
-				}
+			Expect(k8sClient.Create(ctx, &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: kymaNamespace,
+				},
+			})).To(Succeed())
 
-				lines := strings.Split(string(input), "\n")
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
 
-				for i, line := range lines {
-					if strings.HasPrefix(line, "  name:") {
-						if !applySufix {
-							split := strings.Split(line, sufix)
-							lines[i] = split[0]
-						} else {
-							lines[i] = lines[i] + sufix
-						}
-					}
-				}
-				output := strings.Join(lines, "\n")
-				err = os.WriteFile(filename, []byte(output), 0644)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			}); err != nil {
-				return err
-			}
-
-			return nil
-		}
-
-		suffix := "new"
+			cr := createBtpOperator()
+			Eventually(k8sClient.Create(ctx, cr)).Should(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(time.Second * 30).WithPolling(time.Second * 1).Should(Equal(types.StateReady))
+		})
 
 		Context("When renaming all resources", func() {
-			It("renamed resources are created and old ones are removed", func() {
+			When("", func() {
+				It("renamed resources are created and old ones are removed", func() {
 
-				createSecret()
+					suffix := "new"
+					gvks, err := extractor.GatherChartGvks(moduleChartTestData)
+					Expect(err).To(BeNil())
 
-				err := k8sClient.Create(ctx, createBtpOperator())
-				Expect(err).To(BeNil())
+					transformCharts(suffix, true)
 
-				gvks, err := extractor.GatherChartGvks(moduleChartTestData)
-				Expect(err).To(BeNil())
+					withSuffixCount := 0
+					withoutSuffixCount := 0
+					for _, gvk := range gvks {
+						list := &unstructured.UnstructuredList{}
+						list.SetGroupVersionKind(schema.GroupVersionKind{
+							Group:   gvk.Group,
+							Version: gvk.Version,
+							Kind:    gvk.Kind,
+						})
 
-				transformCharts(suffix, true)
+						err = k8sClient.List(ctx, list, labelFilter)
+						if !canIgnoreErr(err) {
+							Expect(err).To(BeNil())
+						}
 
-				withSuffixCount := 0
-				withoutSuffixCount := 0
-				for _, gvk := range gvks {
-					list := &unstructured.UnstructuredList{}
-					list.SetGroupVersionKind(schema.GroupVersionKind{
-						Group:   gvk.Group,
-						Version: gvk.Version,
-						Kind:    gvk.Kind,
-					})
-
-					err = k8sClient.List(ctx, list, labelFilter)
-					if !canIgnoreErr(err) {
-						Expect(err).To(BeNil())
-					}
-
-					for _, item := range list.Items {
-						if strings.HasSuffix(item.GetName(), suffix) {
-							withSuffixCount++
-						} else {
-							withoutSuffixCount++
+						for _, item := range list.Items {
+							if strings.HasSuffix(item.GetName(), suffix) {
+								withSuffixCount++
+							} else {
+								withoutSuffixCount++
+							}
 						}
 					}
-				}
 
-				fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
-				result := withSuffixCount > 0 && withoutSuffixCount == 0
-				Expect(result).To(BeTrue())
+					fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
+					result := withSuffixCount > 0 && withoutSuffixCount == 0
+					transformCharts(suffix, false)
+					Expect(result).To(BeTrue())
+				})
 			})
 		})
-
-		AfterEach(func() {
-			//transformCharts(suffix, false)
-		})
 	})
-
 })
 
 func getCurrentCrState() types.State {
@@ -304,34 +276,6 @@ func isCrNotFound() bool {
 	cr := &v1alpha1.BtpOperator{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
 	return errors.IsNotFound(err)
-}
-
-func createSecret() {
-	namespace := &corev1.Namespace{}
-	namespace.Name = kymaNamespace
-	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
-	if errors.IsNotFound(err) {
-		err = k8sClient.Create(ctx, namespace)
-	}
-	Expect(err).To(BeNil())
-
-	secret := &corev1.Secret{}
-	secret.Type = corev1.SecretTypeOpaque
-	secret.Name = "sap-btp-manager"
-	secret.Namespace = kymaNamespace
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)
-	if errors.IsNotFound(err) {
-		secret.Data = map[string][]byte{
-			"clientid":     []byte("dGVzdF9jbGllbnRpZA=="),
-			"clientsecret": []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
-			"sm_url":       []byte("dGVzdF9zbV91cmw="),
-			"tokenurl":     []byte("dGVzdF90b2tlbnVybA=="),
-			"cluster_id":   []byte("dGVzdF9jbHVzdGVyX2lk"),
-		}
-		err = k8sClient.Create(ctx, secret)
-	}
-
-	Expect(err).To(BeNil())
 }
 
 func createBtpOperator() *v1alpha1.BtpOperator {
@@ -414,22 +358,6 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	Expect(err).To(BeNil())
 }
 
-func clearWebhooks() error {
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-	}
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-	}
-	return nil
-}
-
 func doChecks() {
 	checkIfNoServicesExists(btpOperatorServiceBinding)
 	checkIfNoBindingSecretExists()
@@ -488,6 +416,45 @@ func checkIfNoBtpResourceExists() {
 		}
 	}
 	Expect(found).To(BeFalse())
+}
+
+func transformCharts(sufix string, applySufix bool) error {
+	root := fmt.Sprintf("%s/templates/", reconciler.ChartPath)
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if !strings.HasSuffix(info.Name(), ".yml") {
+			return nil
+		}
+
+		filename := fmt.Sprintf("%s/%s", root, info.Name())
+		input, err := os.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+
+		lines := strings.Split(string(input), "\n")
+
+		for i, line := range lines {
+			if strings.HasPrefix(line, "  name:") {
+				if !applySufix {
+					split := strings.Split(line, sufix)
+					lines[i] = split[0]
+				} else {
+					lines[i] = lines[i] + sufix
+				}
+			}
+		}
+		output := strings.Join(lines, "\n")
+		err = os.WriteFile(filename, []byte(output), 0644)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func canIgnoreErr(err error) bool {
