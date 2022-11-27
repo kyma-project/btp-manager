@@ -164,7 +164,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 
-			time.Sleep(time.Second * 30)
+			// required for correct webhooks deletion
+			time.Sleep(time.Second * 1)
 			err := clearWebhooks()
 			Expect(err).To(BeNil())
 
