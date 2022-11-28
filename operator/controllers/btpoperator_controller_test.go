@@ -215,43 +215,41 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			provisionBtpOperatorWithinNeededResources(cr, false, false)
 		})
 
-		Context("When renaming all resources", func() {
-			When("", func() {
-				It("renamed resources are created and old ones are removed", func() {
-					defer onClose()
+		When("update of all resources names", func() {
+			It("new resources (with new name) should be created and old ones removed", func() {
+				defer onClose()
 
-					gvks, err := ymlutils.GatherChartGvks(updatePath)
-					Expect(err).To(BeNil())
+				gvks, err := ymlutils.GatherChartGvks(updatePath)
+				Expect(err).To(BeNil())
 
-					ymlutils.TransformCharts(updatePath, suffix)
+				ymlutils.TransformCharts(updatePath, suffix)
 
-					withSuffixCount := 0
-					withoutSuffixCount := 0
-					for _, gvk := range gvks {
-						list := &unstructured.UnstructuredList{}
-						list.SetGroupVersionKind(schema.GroupVersionKind{
-							Group:   gvk.Group,
-							Version: gvk.Version,
-							Kind:    gvk.Kind,
-						})
+				withSuffixCount := 0
+				withoutSuffixCount := 0
+				for _, gvk := range gvks {
+					list := &unstructured.UnstructuredList{}
+					list.SetGroupVersionKind(schema.GroupVersionKind{
+						Group:   gvk.Group,
+						Version: gvk.Version,
+						Kind:    gvk.Kind,
+					})
 
-						if err = k8sClient.List(ctx, list, labelFilter); !canIgnoreErr(err) {
-							Expect(err).To(BeNil())
-						}
-
-						for _, item := range list.Items {
-							if strings.HasSuffix(item.GetName(), suffix) {
-								withSuffixCount++
-							} else {
-								withoutSuffixCount++
-							}
-						}
+					if err = k8sClient.List(ctx, list, labelFilter); !canIgnoreErr(err) {
+						Expect(err).To(BeNil())
 					}
 
-					fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
-					result := withSuffixCount > 0 && withoutSuffixCount == 0
-					Expect(result).To(BeTrue())
-				})
+					for _, item := range list.Items {
+						if strings.HasSuffix(item.GetName(), suffix) {
+							withSuffixCount++
+						} else {
+							withoutSuffixCount++
+						}
+					}
+				}
+
+				fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
+				result := withSuffixCount > 0 && withoutSuffixCount == 0
+				Expect(result).To(BeTrue())
 			})
 		})
 	})
