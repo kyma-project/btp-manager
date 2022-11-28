@@ -223,7 +223,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					gvks, err := ymlutils.GatherChartGvks(updatePath)
 					Expect(err).To(BeNil())
 
-					ymlutils.TransformCharts(updatePath, suffix, true)
+					ymlutils.TransformCharts(updatePath, suffix)
 
 					withSuffixCount := 0
 					withoutSuffixCount := 0
@@ -257,8 +257,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 })
 
-func provisionBtpOperatorWithinNeededResources(cr *v1alpha1.BtpOperator, withingPriorityClass bool, withinNamespace bool) {
-	if withingPriorityClass {
+func provisionBtpOperatorWithinNeededResources(cr *v1alpha1.BtpOperator, withinPriorityClass bool, withinNamespace bool) {
+	if withinPriorityClass {
 		pClass, err := createPriorityClassFromYaml()
 		Expect(err).To(BeNil())
 		Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
