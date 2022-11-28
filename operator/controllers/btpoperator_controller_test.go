@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/cri-api/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -300,7 +299,7 @@ func getCurrentCrState() types.State {
 func isCrNotFound() bool {
 	cr := &v1alpha1.BtpOperator{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
-	return errors.IsNotFound(err)
+	return k8serrors.IsNotFound(err)
 }
 
 func createSecret() {
