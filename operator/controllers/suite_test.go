@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -47,6 +48,7 @@ var (
 	ctx        context.Context
 	cancel     context.CancelFunc
 	reconciler *BtpOperatorReconciler
+	chartPath  = "../module-chart"
 )
 
 func TestAPIs(t *testing.T) {
@@ -63,7 +65,7 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
-
+	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
 	var err error
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
@@ -87,7 +89,7 @@ var _ = BeforeSuite(func() {
 	reconciler = &BtpOperatorReconciler{
 		Client:                k8sManager.GetClient(),
 		Scheme:                k8sManager.GetScheme(),
-		ChartPath:             "../module-chart",
+		ChartPath:             chartPath,
 		WaitForChartReadiness: false,
 	}
 	reconciler.SetTimeout(testTimeout)

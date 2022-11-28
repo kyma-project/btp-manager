@@ -83,19 +83,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	Describe("Provisioning", func() {
 		BeforeAll(func() {
-			pClass, err := createPriorityClassFromYaml()
-			Expect(err).To(BeNil())
-			Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
-
-			Expect(k8sClient.Create(ctx, &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: kymaNamespace,
-				},
-			})).To(Succeed())
-
-			cr = createBtpOperator()
-			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+			provisionBtpOperatorWithinNeededResources(cr, true, true)
 		})
 
 		AfterAll(func() {
@@ -165,8 +153,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 
 		BeforeEach(func() {
-			cr := createBtpOperator()
-			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			provisionBtpOperatorWithinNeededResources(cr, false, false)
 			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 
 			// required for correct webhooks deletion
@@ -211,39 +198,21 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	Describe("Update", func() {
 
 		onStart := func() {
-			os.Mkdir(updatePath, 777)
 			err := cp.Copy(reconciler.ChartPath, updatePath)
+			fmt.Println(err)
 			Expect(err).To(BeNil())
 
 			reconciler.ChartPath = updatePath
 		}
 
 		onClose := func() {
-			reconciler.ChartPath = "../module-chart"
-			os.Remove(updatePath)
+			reconciler.ChartPath = chartPath
+			os.RemoveAll(updatePath)
 		}
 
 		BeforeAll(func() {
-
 			onStart()
-			pClass, err := createPriorityClassFromYaml()
-			Expect(err).To(BeNil())
-			Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
-
-			Expect(k8sClient.Create(ctx, &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: kymaNamespace,
-				},
-			})).To(Succeed())
-
-			secret, err := createCorrectSecretFromYaml()
-			Expect(err).To(BeNil())
-			Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
-
-			cr := createBtpOperator()
-			Eventually(k8sClient.Create(ctx, cr)).Should(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(time.Second * 30).WithPolling(time.Second * 1).Should(Equal(types.StateReady))
-
+			provisionBtpOperatorWithinNeededResources(cr, false, false)
 		})
 
 		Context("When renaming all resources", func() {
@@ -287,6 +256,27 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 })
+
+func provisionBtpOperatorWithinNeededResources(cr *v1alpha1.BtpOperator, withingPriorityClass bool, withinNamespace bool) {
+	if withingPriorityClass {
+		pClass, err := createPriorityClassFromYaml()
+		Expect(err).To(BeNil())
+		Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
+
+	}
+
+	if withinNamespace {
+		Expect(k8sClient.Create(ctx, &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: kymaNamespace,
+			},
+		})).To(Succeed())
+	}
+
+	cr = createBtpOperator()
+	Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+	Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+}
 
 func getCurrentCrState() types.State {
 	cr := &v1alpha1.BtpOperator{}
