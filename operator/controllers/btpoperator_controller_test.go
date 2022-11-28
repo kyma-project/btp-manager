@@ -4,15 +4,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	extractor "github.com/kyma-project/btp-manager/operator/internal"
+	ymlutils "github.com/kyma-project/btp-manager/operator/internal"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	cp "github.com/otiai10/copy"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -40,6 +42,8 @@ const (
 	deleteTimeout            = time.Second * 30
 	crStatePollingIntevral   = time.Microsecond * 1
 	operationPollingInterval = time.Second * 1
+	updatePath               = "./testdata/module-chart-update"
+	suffix                   = "updated"
 )
 
 type fakeK8s struct {
@@ -71,12 +75,13 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 */
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
-	var cr *v1alpha1.BtpOperator
+	var _ *v1alpha1.BtpOperator
 	BeforeEach(func() {
 		ctx = context.Background()
+		_ = createBtpOperator()
 	})
 
-	Describe("Provisioning", func() {
+	/*(Describe("Provisioning", func() {
 		BeforeAll(func() {
 			pClass, err := createPriorityClassFromYaml()
 			Expect(err).To(BeNil())
@@ -202,9 +207,26 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			doChecks()
 		})
 	})
+	*/
 
 	Describe("Update", func() {
+
+		onStart := func() {
+			os.Mkdir(updatePath, 777)
+			err := cp.Copy(reconciler.ChartPath, updatePath)
+			Expect(err).To(BeNil())
+
+			reconciler.ChartPath = updatePath
+		}
+
+		onClose := func() {
+			reconciler.ChartPath = "../module-chart"
+			os.Remove(updatePath)
+		}
+
 		BeforeAll(func() {
+
+			onStart()
 			pClass, err := createPriorityClassFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
@@ -222,17 +244,18 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			cr := createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).Should(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(time.Second * 30).WithPolling(time.Second * 1).Should(Equal(types.StateReady))
+
 		})
 
 		Context("When renaming all resources", func() {
 			When("", func() {
 				It("renamed resources are created and old ones are removed", func() {
+					defer onClose()
 
-					suffix := "new"
 					gvks, err := extractor.GatherChartGvks(moduleChartTestData)
 					Expect(err).To(BeNil())
 
-					transformCharts(suffix, true)
+					ymlutils.transformCharts(suffix, true)
 
 					withSuffixCount := 0
 					withoutSuffixCount := 0
@@ -244,8 +267,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 							Kind:    gvk.Kind,
 						})
 
-						err = k8sClient.List(ctx, list, labelFilter)
-						if !canIgnoreErr(err) {
+						if err = k8sClient.List(ctx, list, labelFilter); !canIgnoreErr(err) {
 							Expect(err).To(BeNil())
 						}
 
@@ -260,7 +282,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 					fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
 					result := withSuffixCount > 0 && withoutSuffixCount == 0
-					transformCharts(suffix, false)
 					Expect(result).To(BeTrue())
 				})
 			})
@@ -478,45 +499,6 @@ func checkIfNoBtpResourceExists() {
 		}
 	}
 	Expect(found).To(BeFalse())
-}
-
-func transformCharts(sufix string, applySufix bool) error {
-	root := fmt.Sprintf("%s/templates/", reconciler.ChartPath)
-	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if !strings.HasSuffix(info.Name(), ".yml") {
-			return nil
-		}
-
-		filename := fmt.Sprintf("%s/%s", root, info.Name())
-		input, err := os.ReadFile(filename)
-		if err != nil {
-			return err
-		}
-
-		lines := strings.Split(string(input), "\n")
-
-		for i, line := range lines {
-			if strings.HasPrefix(line, "  name:") {
-				if !applySufix {
-					split := strings.Split(line, sufix)
-					lines[i] = split[0]
-				} else {
-					lines[i] = lines[i] + sufix
-				}
-			}
-		}
-		output := strings.Join(lines, "\n")
-		err = os.WriteFile(filename, []byte(output), 0644)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func canIgnoreErr(err error) bool {

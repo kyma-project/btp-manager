@@ -6,6 +6,7 @@ require (
 	github.com/kyma-project/module-manager/operator v0.0.0-20221116115508-1db8d8590612
 	github.com/onsi/ginkgo/v2 v2.5.0
 	github.com/onsi/gomega v1.24.1
+	github.com/otiai10/copy v1.2.0
 	k8s.io/api v0.25.2
 	k8s.io/apiextensions-apiserver v0.25.2
 	k8s.io/apimachinery v0.25.2

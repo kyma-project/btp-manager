@@ -796,7 +796,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 }
 
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	gvks, err := r.gatherChartGvks()
+	gvks, err := extractor.GatherChartGvks(r.ChartPath)
 	if err != nil {
 		return err
 	}
