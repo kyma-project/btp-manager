@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	extractor "github.com/kyma-project/btp-manager/operator/internal"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -58,6 +57,8 @@ const (
 	secretName                     = "sap-btp-manager"
 	deletionFinalizer              = "custom-deletion-finalizer"
 	deploymentName                 = "sap-btp-operator-controller-manager"
+	mutatingWebhookName            = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName          = "sap-btp-operator-validating-webhook-configuration"
 	processingStateRequeueInterval = time.Minute * 5
 	readyStateRequeueInterval      = time.Hour * 1
 	readyTimeout                   = time.Minute * 1
@@ -587,13 +588,13 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 }
 
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
-	logger := log.FromContext(ctx)
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
+	deleteCtx, cancel := context.WithTimeout(ctx, r.timeout/4)
+	defer cancel()
 
 	for _, namespace := range namespaces.Items {
-		if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name)); err != nil {
-			logger.Error(err, "while deleting all resources", "kind", object.GetKind())
+		if err := r.DeleteAllOf(deleteCtx, object, client.InNamespace(namespace.Name)); err != nil {
 			return err
 		}
 	}
@@ -646,7 +647,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	logger.Info("Deprovisioning BTP Operator - soft delete")
 
 	if err := r.preSoftDeleteCleanup(ctx); err != nil {
-		logger.Error(err, "module's deployment and webhooks deletion failed")
+		logger.Error(err, "module deployment and webhooks deletion failed")
 		return err
 	}
 
@@ -669,6 +670,17 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 		}
 		if err := r.ensureResourcesDontExist(ctx, bindingGvk); err != nil {
 			logger.Error(err, "Service Bindings still exist")
+			return err
+		}
+	}
+
+	if siCrdExists {
+		if err := r.softDelete(ctx, instanceGvk); err != nil {
+			logger.Error(err, "while deleting Service Instances")
+			return err
+		}
+		if err := r.ensureResourcesDontExist(ctx, instanceGvk); err != nil {
+			logger.Error(err, "Service Instances still exist")
 			return err
 		}
 	}
@@ -742,23 +754,40 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.Group
 }
 
 func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
+	/*
+		r.deleteDeployment(ctx)
+		r.deleteMutatingWebhook(ctx)
+		r.deleteValidatingWebhook(ctx)
+	*/
 	deployment := &appsv1.Deployment{}
-	if err := r.DeleteAllOf(ctx, deployment, labelFilter); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: chartNamespace}, deployment); err != nil {
 		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: chartNamespace}, mutatingWebhook); err != nil {
 		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: chartNamespace}, validatingWebhook); err != nil {
 		if !errors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
@@ -767,7 +796,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 }
 
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	gvks, err := extractor.GatherChartGvks()
+	gvks, err := r.gatherChartGvks()
 	if err != nil {
 		return err
 	}
@@ -777,6 +806,93 @@ func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Conte
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, error) {
+	var allGvks []schema.GroupVersionKind
+	appendToSlice := func(gvk schema.GroupVersionKind) {
+		if reflect.DeepEqual(gvk, schema.GroupVersionKind{}) {
+			return
+		}
+		for _, v := range allGvks {
+			if reflect.DeepEqual(gvk, v) {
+				return
+			}
+		}
+		allGvks = append(allGvks, gvk)
+	}
+
+	root := fmt.Sprintf("%s/templates/", r.ChartPath)
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !strings.HasSuffix(info.Name(), ".yml") {
+			return nil
+		}
+
+		bytes, err := os.ReadFile(fmt.Sprintf("%s/%s", root, info.Name()))
+		if err != nil {
+			return err
+		}
+
+		fileGvks, err := r.extractGvkFromYml(string(bytes))
+		if err != nil {
+			return err
+		}
+
+		for _, gvk := range fileGvks {
+			appendToSlice(gvk)
+		}
+
+		return nil
+	}); err != nil {
+		return []schema.GroupVersionKind{}, err
+	}
+
+	return allGvks, nil
+}
+
+func (r *BtpOperatorReconciler) extractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
+	var gvks []schema.GroupVersionKind
+	parts := strings.Split(wholeFile, "---\n")
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		var yamlGvk btpOperatorGvk
+		lines := strings.Split(part, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "apiVersion:") {
+				yamlGvk.APIVersion = strings.TrimSpace(strings.Split(line, ":")[1])
+			}
+
+			if strings.HasPrefix(line, "kind:") {
+				yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
+			}
+		}
+		if yamlGvk.Kind != "" && yamlGvk.APIVersion != "" {
+			apiVersion := strings.Split(yamlGvk.APIVersion, "/")
+			if len(apiVersion) == 1 {
+				gvks = append(gvks, schema.GroupVersionKind{
+					Kind:    yamlGvk.Kind,
+					Version: apiVersion[0],
+					Group:   "",
+				})
+			} else if len(apiVersion) == 2 {
+				gvks = append(gvks, schema.GroupVersionKind{
+					Kind:    yamlGvk.Kind,
+					Version: apiVersion[1],
+					Group:   apiVersion[0],
+				})
+			} else {
+				return nil, fmt.Errorf("incorrect split of apiVersion")
+			}
+		}
+	}
+
+	return gvks, nil
 }
 
 func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
