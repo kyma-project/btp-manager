@@ -17,7 +17,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -148,8 +147,12 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Deprovisioning", func() {
+		var gvks []schema.GroupVersionKind
 		BeforeAll(func() {
 			createSecret()
+			var err error
+			gvks, err = ymlutils.GatherChartGvks(reconciler.ChartPath)
+			Expect(err).To(BeNil())
 		})
 
 		BeforeEach(func() {
@@ -173,7 +176,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
 			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
-			doChecks()
+			doChecks(gvks)
 		})
 
 		It("soft delete (after hard deletion fail) should succeed", func() {
@@ -183,7 +186,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
 			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
-			doChecks()
+			doChecks(gvks)
 		})
 
 		It("hard delete should succeed", func() {
@@ -191,17 +194,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
 			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
-			doChecks()
+			doChecks(gvks)
 		})
 	})
 
 	Describe("Update", func() {
-
 		onStart := func() {
 			err := cp.Copy(reconciler.ChartPath, updatePath)
-			fmt.Println(err)
 			Expect(err).To(BeNil())
-
 			reconciler.ChartPath = updatePath
 		}
 
@@ -209,7 +209,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			reconciler.ChartPath = chartPath
 			os.RemoveAll(updatePath)
 		}
-
 		BeforeAll(func() {
 			onStart()
 			provisionBtpOperatorWithinNeededResources(cr, false, false)
@@ -234,7 +233,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 						Kind:    gvk.Kind,
 					})
 
-					if err = k8sClient.List(ctx, list, labelFilter); !canIgnoreErr(err) {
+					if err = k8sClient.List(ctx, list, labelFilter); err != nil && !canIgnoreErr(err) {
 						Expect(err).To(BeNil())
 					}
 
@@ -260,7 +259,6 @@ func provisionBtpOperatorWithinNeededResources(cr *v1alpha1.BtpOperator, withinP
 		pClass, err := createPriorityClassFromYaml()
 		Expect(err).To(BeNil())
 		Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
-
 	}
 
 	if withinNamespace {
@@ -414,11 +412,11 @@ func clearWebhooks() error {
 	return nil
 }
 
-func doChecks() {
+func doChecks(gvks []schema.GroupVersionKind) {
 	checkIfNoServicesExists(btpOperatorServiceBinding)
 	checkIfNoBindingSecretExists()
 	checkIfNoServicesExists(btpOperatorServiceInstance)
-	checkIfNoBtpResourceExists()
+	checkIfNoBtpResourceExists(gvks)
 }
 
 func checkIfNoServicesExists(kind string) {
@@ -436,38 +434,22 @@ func checkIfNoBindingSecretExists() {
 	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 }
 
-func checkIfNoBtpResourceExists() {
-	cs, err := clientset.NewForConfig(cfg)
-	Expect(err).To(BeNil())
-
-	_, resourceMap, err := cs.ServerGroupsAndResources()
-	Expect(err).To(BeNil())
-
-	namespaces := &corev1.NamespaceList{}
-	err = k8sClient.List(ctx, namespaces)
-	Expect(err).To(BeNil())
-
+func checkIfNoBtpResourceExists(gvks []schema.GroupVersionKind) {
 	found := false
-	for _, resource := range resourceMap {
-		gv, _ := schema.ParseGroupVersion(resource.GroupVersion)
-		for _, apiResource := range resource.APIResources {
-			list := &unstructured.UnstructuredList{}
-			list.SetGroupVersionKind(schema.GroupVersionKind{
-				Version: gv.Version,
-				Group:   gv.Group,
-				Kind:    apiResource.Kind,
-			})
-			for _, namespace := range namespaces.Items {
-				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelFilter); err != nil {
-					ignore := k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
-					if !ignore {
-						found = true
-						break
-					}
-				} else if len(list.Items) > 0 {
-					found = true
-					break
-				}
+	for _, gvk := range gvks {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(schema.GroupVersionKind{
+			Version: gvk.Version,
+			Group:   gvk.Group,
+			Kind:    gvk.Kind,
+		})
+		if err := k8sClient.List(ctx, list, labelFilter); err != nil {
+			if !canIgnoreErr(err) {
+				found = true
+				break
+			} else if len(list.Items) > 0 {
+				found = true
+				break
 			}
 		}
 	}
