@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 	cp "github.com/otiai10/copy"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/cri-api/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -75,13 +76,13 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 */
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
-	var _ *v1alpha1.BtpOperator
+	var cr *v1alpha1.BtpOperator
 	BeforeEach(func() {
 		ctx = context.Background()
-		_ = createBtpOperator()
+		cr = createBtpOperator()
 	})
 
-	/*(Describe("Provisioning", func() {
+	Describe("Provisioning", func() {
 		BeforeAll(func() {
 			pClass, err := createPriorityClassFromYaml()
 			Expect(err).To(BeNil())
@@ -207,7 +208,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			doChecks()
 		})
 	})
-	*/
 
 	Describe("Update", func() {
 
@@ -252,10 +252,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				It("renamed resources are created and old ones are removed", func() {
 					defer onClose()
 
-					gvks, err := extractor.GatherChartGvks(moduleChartTestData)
+					gvks, err := ymlutils.GatherChartGvks(updatePath)
 					Expect(err).To(BeNil())
 
-					ymlutils.transformCharts(suffix, true)
+					ymlutils.TransformCharts(updatePath, suffix, true)
 
 					withSuffixCount := 0
 					withoutSuffixCount := 0
@@ -301,20 +301,6 @@ func isCrNotFound() bool {
 	cr := &v1alpha1.BtpOperator{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
 	return errors.IsNotFound(err)
-}
-
-func getCurrentCrState() types.State {
-	cr := &v1alpha1.BtpOperator{}
-	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr); err != nil {
-		return ""
-	}
-	return cr.GetStatus().State
-}
-
-func isCrNotFound() bool {
-	cr := &v1alpha1.BtpOperator{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
-	return k8serrors.IsNotFound(err)
 }
 
 func createSecret() {
@@ -502,5 +488,5 @@ func checkIfNoBtpResourceExists() {
 }
 
 func canIgnoreErr(err error) bool {
-	return errors.IsNotFound(err) || meta.IsNoMatchError(err) || errors.IsMethodNotSupported(err)
+	return k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
 }
