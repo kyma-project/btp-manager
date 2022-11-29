@@ -102,7 +102,7 @@ module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODU
 
 .PHONY: module-default
 module-default:
-	cp operator/config/samples/* default.yaml
+	cp operator/config/samples/* examples/btp-operator.yaml
 
 ##@ Tools
 
