@@ -10,27 +10,49 @@ BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
 ## Installation
-The following steps describe how to run BTP Manager. All `make` commands are referring to [Makefile](./operator/Makefile) in `operator` directory.
+The following commands describe how to run BTP Manager locally. All `make` commands are referring to [Makefile](./operator/Makefile) in `operator` directory.
 
-1. Install [BtpOperator CRD](./operator/config/crd/bases/operator.kyma-project.io_btpoperators.yaml) by running `make install`.
-2. Run `make run` to start BTP Manager locally.
+```sh
+cd operator
+make install
+make run
+```
 
 ## Usage
 
-Create `BtpOperator` CR to provision SAP BTP Service Operator. You can use [sample CR](./default.yaml):
+#### The following commands describe how to install SAP BTP Service Operator.
 ```sh
-kubectl apply -f $BTPOPERATOR_CR_MANIFEST_PATH
+kubectl apply -f deployments/prerequisites.yaml
+kubectl apply -f examples/btp-manager-secret.yaml
+kubectl apply -f examples/btp-operator.yaml
 ```
-e.g.:
-```sh
-kubectl apply -f default.yaml
+```
+namespace/kyma-system created
+priorityclass.scheduling.k8s.io/kyma-system created
+secret/sap-btp-manager created
+btpoperator.operator.kyma-project.io/btpoperator-sample created
 ```
 
-Delete `BtpOperator` CR to remove SAP BTP Service Operator instance:
+Check `BtpOperator` CR status.
 ```sh
-kubectl delete btpoperators.operator.kyma-project.io $NAME_OF_BTPOPERATOR_CR
+kubectl get btpoperators btpoperator-sample
 ```
-e.g.:
+
+Expected result.
+```
+NAME                 STATE
+btpoperator-sample   Ready
+```
+
+#### The following commands describe how to uninstall SAP BTP Service Operator.
 ```sh
-kubectl delete btpoperators.operator.kyma-project.io btpoperator
+kubectl delete -f examples/btp-operator.yaml
+kubectl delete -f examples/btp-manager-secret.yaml
+kubectl delete -f deployments/prerequisites.yaml
+```
+```
+btpoperator.operator.kyma-project.io "btpoperator-sample" deleted
+secret "sap-btp-manager" deleted
+namespace "kyma-system" deleted
+priorityclass.scheduling.k8s.io "kyma-system" deleted
 ```
