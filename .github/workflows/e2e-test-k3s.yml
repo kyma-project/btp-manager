@@ -68,8 +68,7 @@ jobs:
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           context: operator
-          tags: ghcr.io/${{ github.actor }}/btp-manager:latest
-
+          tags: ghcr.io/kyma-project/btp-manager:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
