@@ -231,7 +231,18 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				gvks, err := ymlutils.GatherChartGvks(updatePath)
 				Expect(err).To(BeNil())
 
-				ymlutils.TransformCharts(updatePath, suffix)
+				err = ymlutils.TransformCharts(updatePath, suffix)
+				Expect(err).To(BeNil())
+
+				deployment := &appsv1.Deployment{}
+				deployment.Name = ""
+				deployment.Namespace = ""
+				deployment.Spec.Template.ObjectMeta.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+				err = k8sClient.Update(ctx, deployment)
+				Expect(err).To(BeNil())
+
+				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 
 				withSuffixCount := 0
 				withoutSuffixCount := 0
@@ -257,10 +268,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				}
 
 				fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
-				result := withSuffixCount > 0 && withoutSuffixCount == 0
-				Expect(result).To(BeTrue())
+				Expect(withSuffixCount).To(BeEquivalentTo(0))
+				Expect(withoutSuffixCount).To(BeZero())
 			})
 		})
+
 	})
 })
 
