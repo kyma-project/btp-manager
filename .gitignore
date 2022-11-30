@@ -1,1 +1,3 @@
 bin/
+/hack/creds.json
+/hack/operator-secret.yaml
