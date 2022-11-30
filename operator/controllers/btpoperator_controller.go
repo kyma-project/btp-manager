@@ -53,9 +53,11 @@ import (
 )
 
 var (
+	// Configuration options that can be overwritten either by CLI parameter or ConfigMap
 	ChartPath                      = "./module-chart"
 	ChartNamespace                 = "kyma-system"
 	SecretName                     = "sap-btp-manager"
+	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Hour * 1
@@ -406,7 +408,51 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
+		Watches(
+			&source.Kind{Type: &corev1.ConfigMap{}},
+			handler.EnqueueRequestsFromMapFunc(reconcileConfig),
+			builder.WithPredicates(r.watchConfigPredicates()),
+		).
 		Complete(r)
+}
+
+func reconcileConfig(object client.Object) []reconcile.Request {
+	logger := log.FromContext(nil, "name", object.GetName(), "namespace", object.GetNamespace())
+	cm, ok := object.(*corev1.ConfigMap)
+	if !ok {
+		return []reconcile.Request{}
+	}
+	logger.Info("reconciling config update", "config", cm.Data)
+	for k, v := range cm.Data {
+		var err error
+		switch k {
+		case "ChartPath":
+			ChartPath = v
+		case "ChartNamespace":
+			ChartNamespace = v
+		case "SecretName":
+			SecretName = v
+		case "ConfigName":
+			ConfigName = v
+		case "DeploymentName":
+			DeploymentName = v
+		case "ProcessingStateRequeueInterval":
+			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
+		case "ReadyStateRequeueInterval":
+			ReadyStateRequeueInterval, err = time.ParseDuration(v)
+		case "ReadyTimeout":
+			ReadyTimeout, err = time.ParseDuration(v)
+		case "RetryInterval":
+			RetryInterval, err = time.ParseDuration(v)
+		default:
+			logger.Info("unknown config update key", k, v)
+		}
+		if err != nil {
+			logger.Info("failed to parse config update", k, err)
+		}
+	}
+
+	return []reconcile.Request{}
 }
 
 func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
@@ -423,6 +469,15 @@ func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret clie
 	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
 
 	return requests
+}
+
+func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
+	nameMatches := func(o client.Object) bool { return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace }
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
+		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
+		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
+	}
 }
 
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
