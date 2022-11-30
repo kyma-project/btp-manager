@@ -52,17 +52,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+var (
+	ChartPath                      = "./module-chart"
+	ChartNamespace                 = "kyma-system"
+	SecretName                     = "sap-btp-manager"
+	DeploymentName                 = "sap-btp-operator-controller-manager"
+	ProcessingStateRequeueInterval = time.Minute * 5
+	ReadyStateRequeueInterval      = time.Hour * 1
+	ReadyTimeout                   = time.Minute * 1
+	RetryInterval                  = time.Second * 10
+)
+
 const (
-	chartPath                      = "./module-chart"
-	chartNamespace                 = "kyma-system"
-	operatorName                   = "btp-manager"
-	labelKeyForChart               = "app.kubernetes.io/managed-by"
-	secretName                     = "sap-btp-manager"
-	deletionFinalizer              = "custom-deletion-finalizer"
-	deploymentName                 = "sap-btp-operator-controller-manager"
-	processingStateRequeueInterval = time.Minute * 5
-	readyStateRequeueInterval      = time.Hour * 1
-	readyTimeout                   = time.Minute * 1
+	operatorName      = "btp-manager"
+	labelKeyForChart  = "app.kubernetes.io/managed-by"
+	deletionFinalizer = "custom-deletion-finalizer"
 )
 
 const (
@@ -70,7 +74,6 @@ const (
 	btpOperatorApiVer          = "v1"
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
-	retryInterval              = time.Second * 10
 )
 
 var (
@@ -149,13 +152,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{RequeueAfter: processingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
 		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	case types.StateReady:
-		return ctrl.Result{RequeueAfter: readyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
@@ -272,10 +275,10 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: chartNamespace, Name: secretName}
+	objKey := client.ObjectKey{Namespace: ChartNamespace, Name: SecretName}
 	if err := r.Get(ctx, objKey, secret); err != nil {
 		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, chartNamespace)
+			return nil, fmt.Errorf("%s Secret in %s namespace not found", SecretName, ChartNamespace)
 		}
 		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
 	}
@@ -300,14 +303,14 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 	installInfo := manifest.InstallInfo{
 		ChartInfo: &manifest.ChartInfo{
-			ChartPath:   chartPath,
+			ChartPath:   ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
-					"Namespace":       chartNamespace,
+					"Namespace":       ChartNamespace,
 					"CreateNamespace": true,
 					"Wait":            true,
-					"Timeout":         readyTimeout,
+					"Timeout":         ReadyTimeout,
 				},
 				SetFlags: types.Flags{
 					"manager": map[string]interface{}{
@@ -429,21 +432,21 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 			if !ok {
 				return false
 			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
+			return secret.Name == SecretName && secret.Namespace == ChartNamespace
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
+			return secret.Name == SecretName && secret.Namespace == ChartNamespace
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			if oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace {
+			if oldSecret.Name == SecretName && oldSecret.Namespace == ChartNamespace {
 				return true
 			}
 			return false
@@ -552,7 +555,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			success <- true
 			return
 		}
-		time.Sleep(retryInterval)
+		time.Sleep(RetryInterval)
 	}
 }
 
@@ -685,8 +688,8 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 
 func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
 	deployment := &appsv1.Deployment{}
-	deployment.Namespace = chartNamespace
-	deployment.Name = deploymentName
+	deployment.Namespace = ChartNamespace
+	deployment.Name = DeploymentName
 	if err := r.Delete(ctx, deployment); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -739,7 +742,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		allGvks = append(allGvks, gvk)
 	}
 
-	root := fmt.Sprintf("%s/templates/", chartPath)
+	root := fmt.Sprintf("%s/templates/", ChartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -816,7 +819,7 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 	for _, gvk := range gvks {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
-		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(chartNamespace), labelFilter); err != nil {
+		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), labelFilter); err != nil {
 			if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
 				return err
 			}
