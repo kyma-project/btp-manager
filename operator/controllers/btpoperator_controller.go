@@ -319,7 +319,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 						},
 					},
 					"cluster": map[string]interface{}{
-						"id": string(secret.Data["clientid"]),
+						"id": string(secret.Data["cluster_id"]),
 					},
 				},
 			},
@@ -443,13 +443,8 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 			if !ok {
 				return false
 			}
-			newSecret, ok := e.ObjectNew.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			if (oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace) &&
-				(newSecret.Name == secretName && newSecret.Namespace == chartNamespace) {
-				return !reflect.DeepEqual(oldSecret.Data, newSecret.Data)
+			if oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace {
+				return true
 			}
 			return false
 		},
