@@ -134,6 +134,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
+					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
 					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
 					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
@@ -209,9 +210,18 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			reconciler.ChartPath = chartPath
 			os.RemoveAll(updatePath)
 		}
+
 		BeforeAll(func() {
 			onStart()
+			createSecret()
 			provisionBtpOperatorWithinNeededResources(cr, false, false)
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
+
+			btpServiceOperatorDeployment := &appsv1.Deployment{}
+			Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
+				WithTimeout(testTimeout).
+				WithPolling(operationPollingInterval).
+				Should(Succeed())
 		})
 
 		When("update of all resources names", func() {
