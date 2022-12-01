@@ -5,7 +5,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type Reason = string
+type Reason string
 
 const (
 	ReconcileSucceeded     Reason = "ReconcileSucceeded"
@@ -62,7 +62,7 @@ func ConditionFromExistingReason(reason Reason, message string) *metav1.Conditio
 	if found {
 		return &metav1.Condition{
 			Status:             typeAndStatus.Status,
-			Reason:             reason,
+			Reason:             string(reason),
 			Message:            message,
 			Type:               typeAndStatus.Type,
 			ObservedGeneration: 0,

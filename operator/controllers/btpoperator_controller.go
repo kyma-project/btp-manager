@@ -186,7 +186,7 @@ func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr 
 		oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
-func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason string, message string) error {
+func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason Reason, message string) error {
 	cr.Status.WithState(newState)
 	newCondition := ConditionFromExistingReason(reason, message)
 	if newCondition != nil {
@@ -195,7 +195,7 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 	return r.Status().Update(ctx, cr)
 }
 
-func (r *BtpOperatorReconciler) UpdateBtpOperatorStatusAndLogStateChange(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason string, message string) error {
+func (r *BtpOperatorReconciler) UpdateBtpOperatorStatusAndLogStateChange(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason Reason, message string) error {
 	cr.Status.WithState(newState)
 	newCondition := ConditionFromExistingReason(reason, message)
 	if newCondition != nil {
