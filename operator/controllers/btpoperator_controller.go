@@ -108,7 +108,6 @@ func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if errors.IsNotFound(err) {
