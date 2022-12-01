@@ -52,7 +52,7 @@ import (
 )
 
 const (
-	chartNamespace                 = "kyma-system"
+	commonNamespace                = "kyma-system"
 	operatorName                   = "btp-manager"
 	labelKeyForChart               = "app.kubernetes.io/managed-by"
 	secretName                     = "sap-btp-manager"
@@ -63,6 +63,7 @@ const (
 	processingStateRequeueInterval = time.Minute * 5
 	readyStateRequeueInterval      = time.Hour * 1
 	readyTimeout                   = time.Minute * 1
+	chartVersionKey                = "app.kubernetes.io/chart-version"
 )
 
 const (
@@ -71,6 +72,10 @@ const (
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
 	retryInterval              = time.Second * 10
+)
+
+const (
+	btpManagerConfigMap = "btpManagerConfigMap"
 )
 
 var (
@@ -93,8 +98,57 @@ type BtpOperatorReconciler struct {
 	*rest.Config
 	Scheme                *runtime.Scheme
 	timeout               time.Duration
-	ChartPath             string
+	chartDetails          *ChartDetails
 	WaitForChartReadiness bool
+}
+
+type ChartDetails struct {
+	chartPath           string
+	oldChartVersion     string
+	currentChartVersion string
+}
+
+func (r *BtpOperatorReconciler) StoreChartDetails(chartPath string) error {
+	chartDetails := ChartDetails{}
+	chartDetails.chartPath = chartPath
+
+	chartVersionFromYml, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", chartDetails.chartPath), "version")
+	if err != nil {
+		return err
+	}
+
+	configMap := &corev1.ConfigMap{}
+	if err := r.Get(context.TODO(), client.ObjectKey{
+		Namespace: commonNamespace,
+		Name:      btpManagerConfigMap,
+	}, configMap); err != nil {
+		return err
+	}
+
+	if configMap == nil {
+		configMap.Data = make(map[string]string)
+		configMap.Data["old"] = chartVersionFromYml
+		chartDetails.oldChartVersion = chartVersionFromYml
+		configMap.Data["current"] = chartVersionFromYml
+		chartDetails.currentChartVersion = chartVersionFromYml
+		if err := r.Create(context.TODO(), configMap); err != nil {
+			return err
+		}
+	} else {
+		current, ok := configMap.Data["current"]
+		if !ok {
+			return fmt.Errorf("'current' should be present in configmap but it is not")
+		}
+		configMap.Data["old"] = current
+		chartDetails.oldChartVersion = current
+		configMap.Data["current"] = chartVersionFromYml
+		chartDetails.currentChartVersion = chartVersionFromYml
+		if err := r.Update(context.TODO(), configMap); err != nil {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
@@ -234,6 +288,38 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateReady)
 	}
 
+	if err := r.DeleteOrphanedResources(ctx); err != nil {
+		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) DeleteOrphanedResources(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+	if r.chartDetails.oldChartVersion != r.chartDetails.currentChartVersion {
+		oldVersionLabel := client.MatchingLabels{chartVersionKey: r.chartDetails.oldChartVersion}
+		oldVersionGvks := []schema.GroupVersionKind{}
+		for _, gvk := range oldVersionGvks {
+			obj := &unstructured.Unstructured{}
+			obj.SetGroupVersionKind(gvk)
+
+			items := &unstructured.UnstructuredList{}
+			items.SetGroupVersionKind(gvk)
+
+			if err := r.List(ctx, obj, oldVersionLabel); err != nil {
+				return err
+			}
+
+			for _, item := range items.Items {
+				if err := r.Delete(ctx, &item); err != nil {
+					return err
+				} else {
+					logger.Info(fmt.Sprintf("deleted resource %s of type %s with version = %s", item.GetName(), gvk.Kind, r.chartDetails.oldChartVersion))
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -270,10 +356,10 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: chartNamespace, Name: secretName}
+	objKey := client.ObjectKey{Namespace: commonNamespace, Name: secretName}
 	if err := r.Get(ctx, objKey, secret); err != nil {
 		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, chartNamespace)
+			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, commonNamespace)
 		}
 		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
 	}
@@ -286,6 +372,7 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 		cr.Labels = make(map[string]string)
 	}
 	cr.Labels[labelKeyForChart] = operatorName
+	cr.Labels[chartVersionKey] = r.chartDetails.currentChartVersion
 }
 
 func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (types.InstallInfo, error) {
@@ -298,11 +385,11 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 	installInfo := types.InstallInfo{
 		ChartInfo: &types.ChartInfo{
-			ChartPath:   r.ChartPath,
+			ChartPath:   r.chartDetails.chartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
-					"Namespace":       chartNamespace,
+					"Namespace":       commonNamespace,
 					"CreateNamespace": true,
 					"Wait":            r.WaitForChartReadiness,
 					"Timeout":         readyTimeout,
@@ -365,17 +452,18 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 	return nil
 }
 
-func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.BaseCustomObject, res *types.ManifestResources) error {
-	baseLabels := base.GetLabels()
+func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, cr types.BaseCustomObject, resourcesFromChart *types.ManifestResources) error {
+	baseLabels := cr.GetLabels()
 	if _, found := baseLabels[labelKeyForChart]; !found {
-		return fmt.Errorf("missing %s label in %s base resource", labelKeyForChart, base.GetName())
+		return fmt.Errorf("missing %s label in %s cr resource", labelKeyForChart, cr.GetName())
 	}
-	for _, item := range res.Items {
+	for _, item := range resourcesFromChart.Items {
 		itemLabels := item.GetLabels()
 		if len(itemLabels) == 0 {
 			itemLabels = make(map[string]string)
 		}
 		itemLabels[labelKeyForChart] = baseLabels[labelKeyForChart]
+		itemLabels[chartVersionKey] = baseLabels[chartVersionKey]
 		item.SetLabels(itemLabels)
 	}
 
@@ -427,14 +515,14 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 			if !ok {
 				return false
 			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
+			return secret.Name == secretName && secret.Namespace == commonNamespace
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
+			return secret.Name == secretName && secret.Namespace == commonNamespace
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
@@ -445,8 +533,8 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 			if !ok {
 				return false
 			}
-			if (oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace) &&
-				(newSecret.Name == secretName && newSecret.Namespace == chartNamespace) {
+			if (oldSecret.Name == secretName && oldSecret.Namespace == commonNamespace) &&
+				(newSecret.Name == secretName && newSecret.Namespace == commonNamespace) {
 				return !reflect.DeepEqual(oldSecret.Data, newSecret.Data)
 			}
 			return false
@@ -749,7 +837,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 		r.deleteValidatingWebhook(ctx)
 	*/
 	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: chartNamespace}, deployment); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: commonNamespace}, deployment); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
@@ -760,7 +848,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	}
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: chartNamespace}, mutatingWebhook); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: commonNamespace}, mutatingWebhook); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
@@ -771,7 +859,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	}
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: chartNamespace}, validatingWebhook); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: commonNamespace}, validatingWebhook); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
@@ -785,7 +873,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 }
 
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	gvks, err := ymlutils.GatherChartGvks(r.ChartPath)
+	gvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
 	if err != nil {
 		return err
 	}
@@ -801,7 +889,7 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 	for _, gvk := range gvks {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
-		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(chartNamespace), labelFilter); err != nil {
+		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(commonNamespace), labelFilter); err != nil {
 			if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
 				return err
 			}

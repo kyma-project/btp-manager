@@ -90,9 +90,9 @@ var _ = BeforeSuite(func() {
 	reconciler = &BtpOperatorReconciler{
 		Client:                k8sManager.GetClient(),
 		Scheme:                k8sManager.GetScheme(),
-		ChartPath:             chartPath,
 		WaitForChartReadiness: false,
 	}
+	reconciler.StoreChartDetails(chartPath)
 	reconciler.SetTimeout(testTimeout)
 
 	err = reconciler.SetupWithManager(k8sManager)

@@ -15,6 +15,10 @@ type btpOperatorGvk struct {
 	Kind       string
 }
 
+const (
+	expectedLenAfterSplit = 2
+)
+
 func GatherChartGvks(chartPath string) ([]schema.GroupVersionKind, error) {
 	var allGvks []schema.GroupVersionKind
 	appendToSlice := func(gvk schema.GroupVersionKind) {
@@ -100,4 +104,24 @@ func ExtractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
 	}
 
 	return gvks, nil
+}
+
+func ExtractValueFromLine(filePath string, key string) (string, error) {
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(string(file), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, key) {
+			result := strings.Split(line, ":")
+			if len(result) != expectedLenAfterSplit {
+				return "", fmt.Errorf("line after split has incorrent number of elements: %d", len(result))
+			}
+			return result[0], nil
+		}
+	}
+
+	return "", nil
 }

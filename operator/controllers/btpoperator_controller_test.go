@@ -152,7 +152,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		BeforeAll(func() {
 			createSecret()
 			var err error
-			gvks, err = ymlutils.GatherChartGvks(reconciler.ChartPath)
+			gvks, err = ymlutils.GatherChartGvks(reconciler.chartDetails.chartPath)
 			Expect(err).To(BeNil())
 		})
 
@@ -201,13 +201,13 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	Describe("Update", func() {
 		onStart := func() {
-			err := cp.Copy(reconciler.ChartPath, updatePath)
+			err := cp.Copy(reconciler.chartDetails.chartPath, updatePath)
 			Expect(err).To(BeNil())
-			reconciler.ChartPath = updatePath
+			reconciler.chartDetails.chartPath = updatePath
 		}
 
 		onClose := func() {
-			reconciler.ChartPath = chartPath
+			reconciler.chartDetails.chartPath = chartPath
 			os.RemoveAll(updatePath)
 		}
 
@@ -224,7 +224,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Should(Succeed())
 		})
 
-		When("update of all resources names", func() {
+		//Consider using labels
+		When("update of all resources names and bump chart version", func() {
 			It("new resources (with new name) should be created and old ones removed", func() {
 				defer onClose()
 
@@ -273,6 +274,15 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(withoutSuffixCount).To(BeZero())
 			})
 		})
+
+		//After first tests works:
+
+		//Negative scenario
+		//update of all resources names and leave same chart version
+		//new resources (with new name) should be created and old ones should stay
+
+		//resources should stay as they are and we bump chart version
+		//existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)
 
 	})
 })
