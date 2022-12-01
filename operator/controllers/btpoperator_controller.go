@@ -29,12 +29,18 @@ import (
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -143,7 +149,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
+		return ctrl.Result{}, r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
 	}
 
 	switch cr.Status.State {
@@ -176,34 +182,33 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-
-	status := cr.GetStatus()
-	redundantCondition := ConditionFromExistingReason(OlderCRExists, fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace reconciles the operand",
+	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace reconciles the operand",
 		oldestCr.GetName(), oldestCr.GetNamespace()))
-	SetStatusCondition(&cr.Status.Conditions, *redundantCondition)
-	cr.SetStatus(status.WithState(types.StateError))
-	return r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason string, message string) error {
 	cr.Status.WithState(newState)
 	newCondition := ConditionFromExistingReason(reason, message)
-	logger := log.FromContext(ctx)
 	if newCondition != nil {
-		logger.Info(fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace changes state to \"%s\" Condition: Type %s Reason %s Message: %s",
-			cr.GetName(), cr.GetNamespace(), newState, newCondition.Type, newCondition.Reason, newCondition.Message))
 		SetStatusCondition(&cr.Status.Conditions, *newCondition)
-	} else {
-		logger.Info(fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace changes state to \"%s\"",
-			cr.GetName(), cr.GetNamespace(), newState))
 	}
+	return r.Status().Update(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) UpdateBtpOperatorStatusAndLogStateChange(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason string, message string) error {
+	cr.Status.WithState(newState)
+	newCondition := ConditionFromExistingReason(reason, message)
+	if newCondition != nil {
+		SetStatusCondition(&cr.Status.Conditions, *newCondition)
+	}
+	logStateChange(newCondition, newState, ctx, cr)
 	return r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
+	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateProcessing, Initialized, "Initialized")
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -398,7 +403,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Recovered, "Recovered from error state")
+	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateProcessing, Recovered, "Recovered from error state")
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -1017,4 +1022,15 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	}
 
 	return nil
+}
+
+func logStateChange(newCondition *metav1.Condition, newState types.State, ctx context.Context, cr *v1alpha1.BtpOperator) {
+	logger := log.FromContext(ctx)
+	if newCondition != nil {
+		logger.Info(fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace changes state to \"%s\" Condition: Type %s Reason %s Message: %s",
+			cr.GetName(), cr.GetNamespace(), newState, newCondition.Type, newCondition.Reason, newCondition.Message))
+	} else {
+		logger.Info(fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace changes state to \"%s\"",
+			cr.GetName(), cr.GetNamespace(), newState))
+	}
 }

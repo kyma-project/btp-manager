@@ -57,7 +57,7 @@ var Reasons = map[Reason]TypeAndStatus{
 	SoftDeleting:           NotReady,
 }
 
-func ConditionFromExistingReason(reason string, message string) *metav1.Condition {
+func ConditionFromExistingReason(reason Reason, message string) *metav1.Condition {
 	typeAndStatus, found := Reasons[reason]
 	if found {
 		return &metav1.Condition{
