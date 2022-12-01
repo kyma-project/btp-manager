@@ -20,6 +20,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,6 +39,8 @@ import (
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
+
+const hardDeleteTimeout = time.Second * 2
 
 var (
 	cfg        *rest.Config
@@ -91,7 +94,7 @@ var _ = BeforeSuite(func() {
 		ChartPath:             "../module-chart",
 		WaitForChartReadiness: false,
 	}
-	reconciler.SetTimeout(testTimeout)
+	reconciler.SetHardDeleteTimeout(hardDeleteTimeout)
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())

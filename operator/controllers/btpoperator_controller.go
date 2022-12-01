@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,7 +33,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -71,7 +72,6 @@ const (
 	btpOperatorApiVer          = "v1"
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
-	retryInterval              = time.Second * 10
 )
 
 var (
@@ -98,13 +98,13 @@ type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
 	Scheme                *runtime.Scheme
-	timeout               time.Duration
+	hardDeleteTimeout     time.Duration
 	ChartPath             string
 	WaitForChartReadiness bool
 }
 
-func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
-	r.timeout = timeout
+func (r *BtpOperatorReconciler) SetHardDeleteTimeout(timeout time.Duration) {
+	r.hardDeleteTimeout = timeout
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
@@ -117,7 +117,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			logger.Info("BtpOperator resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
@@ -279,7 +279,7 @@ func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.
 	secret := &corev1.Secret{}
 	objKey := client.ObjectKey{Namespace: chartNamespace, Name: secretName}
 	if err := r.Get(ctx, objKey, secret); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, chartNamespace)
 		}
 		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
@@ -506,8 +506,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 				return err
 			}
 		}
-	case <-time.After(r.timeout):
-		logger.Info("hard delete timeout reached", "duration", r.timeout)
+	case <-time.After(r.hardDeleteTimeout):
+		logger.Info("hard delete timeout reached", "duration", r.hardDeleteTimeout)
 		timeoutChannel <- true
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			return err
@@ -533,7 +533,9 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	if sbCrdExists {
 		if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
 			logger.Error(err, "while deleting Service Bindings")
-			errs = append(errs, err)
+			if !errors.Is(err, context.DeadlineExceeded) {
+				errs = append(errs, err)
+			}
 		}
 	}
 
@@ -545,7 +547,9 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	if siCrdExists {
 		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
 			logger.Error(err, "while deleting Service Instances")
-			errs = append(errs, err)
+			if !errors.Is(err, context.DeadlineExceeded) {
+				errs = append(errs, err)
+			}
 		}
 	}
 
@@ -585,14 +589,14 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			return
 		}
 
-		time.Sleep(retryInterval)
+		time.Sleep(r.hardDeleteTimeout / 20)
 	}
 }
 
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
-	deleteCtx, cancel := context.WithTimeout(ctx, r.timeout/4)
+	deleteCtx, cancel := context.WithTimeout(ctx, r.hardDeleteTimeout/2)
 	defer cancel()
 
 	for _, namespace := range namespaces.Items {
@@ -609,7 +613,7 @@ func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupV
 	crd := &apiextensionsv1.CustomResourceDefinition{}
 
 	if err := r.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return false, nil
 		} else {
 			return false, err
@@ -623,7 +627,7 @@ func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
 		if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
-			if !errors.IsNotFound(err) {
+			if !k8serrors.IsNotFound(err) {
 				return false, err
 			}
 		}
@@ -707,7 +711,7 @@ func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gv
 	list := r.GvkToList(gvk)
 
 	if err := r.List(ctx, list); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	} else if len(list.Items) > 0 {
@@ -735,7 +739,7 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.Group
 			secret := &corev1.Secret{}
 			secret.Name = item.GetName()
 			secret.Namespace = item.GetNamespace()
-			if err := r.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
+			if err := r.Delete(ctx, secret); err != nil && !k8serrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -752,7 +756,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	*/
 	deployment := &appsv1.Deployment{}
 	if err := r.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: chartNamespace}, deployment); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	} else {
@@ -763,7 +767,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
 	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: chartNamespace}, mutatingWebhook); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	} else {
@@ -774,7 +778,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
 	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: chartNamespace}, validatingWebhook); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	} else {
@@ -891,7 +895,7 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
 		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(chartNamespace), labelFilter); err != nil {
-			if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
 				return err
 			}
 		}

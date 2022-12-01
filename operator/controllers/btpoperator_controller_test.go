@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -19,55 +20,69 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	btpOperatorKind          = "BtpOperator"
-	btpOperatorApiVersion    = `operator.kyma-project.io\v1alpha1`
-	btpOperatorName          = "btp-operator-test"
-	testNamespace            = "default"
-	instanceName             = "my-service-instance"
-	bindingName              = "my-binding"
-	kymaNamespace            = "kyma-system"
-	secretYamlPath           = "testdata/test-secret.yaml"
-	priorityClassYamlPath    = "testdata/test-priorityclass.yaml"
-	testTimeout              = time.Second * 10
-	stateChangeTimeout       = time.Second * 1
-	deleteTimeout            = time.Second * 30
-	crStatePollingIntevral   = time.Microsecond * 1
-	operationPollingInterval = time.Second * 1
+	btpOperatorKind         = "BtpOperator"
+	btpOperatorApiVersion   = `operator.kyma-project.io\v1alpha1`
+	btpOperatorName         = "btp-operator-test"
+	defaultNamespace        = "default"
+	kymaNamespace           = "kyma-system"
+	instanceName            = "my-service-instance"
+	bindingName             = "my-service-binding"
+	secretYamlPath          = "testdata/test-secret.yaml"
+	priorityClassYamlPath   = "testdata/test-priorityclass.yaml"
+	serviceBindingYamlPath  = "testdata/test-servicebinding.yaml"
+	serviceInstanceYamlPath = "testdata/test-serviceinstance.yaml"
+	k8sOpsTimeout           = time.Second * 3
+	k8sOpsPollingInterval   = time.Millisecond * 200
+	crStateChangeTimeout    = time.Second * 2
+	crStatePollingIntevral  = time.Microsecond * 100
+	crDeprovisioningTimeout = time.Second * 10
 )
 
-type fakeK8s struct {
+type timeoutK8sClient struct {
 	client.Client
 }
 
-func newFakeK8s(c client.Client) *fakeK8s {
-	return &fakeK8s{c}
+func newTimeoutK8sClient(c client.Client) *timeoutK8sClient {
+	return &timeoutK8sClient{c}
 }
 
-func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
-	deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Second*1)
-	defer cancel()
-	if err := f.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...); err != nil {
-		return err
-	}
-	return nil
-}
-
-/*
-func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
+func (c *timeoutK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	if kind == instanceGvk.Kind || kind == bindingGvk.Kind {
+		deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Millisecond*1)
+		defer cancel()
+		return c.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...)
+	}
+
+	return c.Client.DeleteAllOf(ctx, obj, opts...)
+}
+
+type errorK8sClient struct {
+	client.Client
+}
+
+func newErrorK8sClient(c client.Client) *errorK8sClient {
+	return &errorK8sClient{c}
+}
+
+func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	if kind == instanceGvk.Kind || kind == bindingGvk.Kind {
+		deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Millisecond*1)
+		defer cancel()
+		_ = c.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...)
 		return errors.New("expected DeleteAllOf error")
 	}
 
-	return f.Client.DeleteAllOf(ctx, obj, opts...)
+	return c.Client.DeleteAllOf(ctx, obj, opts...)
 }
-*/
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
@@ -78,8 +93,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	Describe("Provisioning", func() {
 		BeforeAll(func() {
-			pClass, err := createPriorityClassFromYaml()
-			Expect(err).To(BeNil())
+			pClass := &schedulingv1.PriorityClass{}
+			Expect(createK8sResourceFromYaml(pClass, priorityClassYamlPath)).To(Succeed())
 			Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
 
 			Expect(k8sClient.Create(ctx, &corev1.Namespace{
@@ -90,19 +105,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 			cr = createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
 		})
 
 		AfterAll(func() {
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 		})
 
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
-				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
+				Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 			})
 		})
 
@@ -111,7 +126,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				deleteSecret := &corev1.Secret{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, deleteSecret)).To(Succeed())
 				Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
-				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
+				Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 			})
 
 			When("the required Secret does not have all required keys", func() {
@@ -119,8 +134,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutKeys()
 					Expect(err).To(BeNil())
 					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
-					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
+					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 				})
 			})
 
@@ -129,8 +144,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
 					Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
-					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
-					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
+					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 				})
 			})
 
@@ -142,11 +157,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
-					Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
+					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
 					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
-						WithTimeout(testTimeout).
-						WithPolling(operationPollingInterval).
+						WithTimeout(k8sOpsTimeout).
+						WithPolling(k8sOpsPollingInterval).
 						Should(Succeed())
 				})
 			})
@@ -155,6 +170,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Deprovisioning", func() {
+		var siUnstructured, sbUnstructured *unstructured.Unstructured
+
 		BeforeAll(func() {
 			createSecret()
 		})
@@ -162,51 +179,61 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		BeforeEach(func() {
 			cr := createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 
-			// required for correct webhooks deletion
-			time.Sleep(time.Second * 1)
+			time.Sleep(time.Millisecond * 100)
 			err := clearWebhooks()
 			Expect(err).To(BeNil())
 
-			createResource(instanceGvk, testNamespace, instanceName)
+			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
 			ensureResourceExists(instanceGvk)
 
-			createResource(bindingGvk, testNamespace, bindingName)
+			sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
 			ensureResourceExists(bindingGvk)
 		})
 
 		It("soft delete (after timeout) should succeed", func() {
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
+			setFinalizers(siUnstructured)
+			setFinalizers(sbUnstructured)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 
 		It("soft delete (after hard deletion fail) should succeed", func() {
-			reconciler.Client = newFakeK8s(reconciler.Client)
-
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			reconciler.Client = newErrorK8sClient(reconciler.Client)
+			setFinalizers(siUnstructured)
+			setFinalizers(sbUnstructured)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 
 		It("hard delete should succeed", func() {
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
-			Eventually(isCrNotFound).WithTimeout(deleteTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateDeleting))
+			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crStatePollingIntevral).Should(BeTrue())
 			doChecks()
 		})
 	})
 })
 
+func setFinalizers(resource *unstructured.Unstructured) {
+	finalizers := []string{"test-finalizer"}
+	Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: resource.GetNamespace(), Name: resource.GetName()}, resource)).To(Succeed())
+	Expect(unstructured.SetNestedStringSlice(resource.Object, finalizers, "metadata", "finalizers")).To(Succeed())
+	Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+}
+
 func getCurrentCrState() types.State {
 	cr := &v1alpha1.BtpOperator{}
-	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr); err != nil {
+	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
 		return ""
 	}
 	return cr.GetStatus().State
@@ -214,7 +241,7 @@ func getCurrentCrState() types.State {
 
 func isCrNotFound() bool {
 	cr := &v1alpha1.BtpOperator{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)
 	return k8serrors.IsNotFound(err)
 }
 
@@ -254,7 +281,7 @@ func createBtpOperator() *v1alpha1.BtpOperator {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      btpOperatorName,
-			Namespace: testNamespace,
+			Namespace: defaultNamespace,
 		},
 	}
 }
@@ -295,18 +322,17 @@ func createSecretWithoutValues() (*corev1.Secret, error) {
 	return secret, nil
 }
 
-func createPriorityClassFromYaml() (*schedulingv1.PriorityClass, error) {
-	pClass := &schedulingv1.PriorityClass{}
-	data, err := os.ReadFile(priorityClassYamlPath)
+func createK8sResourceFromYaml[T runtime.Object](resource T, yamlPath string) error {
+	data, err := os.ReadFile(yamlPath)
 	if err != nil {
-		return nil, fmt.Errorf("while reading the required PriorityClass YAML: %w", err)
+		return fmt.Errorf("while reading YAML: %w", err)
 	}
-	err = yaml.Unmarshal(data, pClass)
+	err = yaml.Unmarshal(data, resource)
 	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling PriorityClass YAML to struct: %w", err)
+		return fmt.Errorf("while unmarshalling YAML to struct: %w", err)
 	}
 
-	return pClass, nil
+	return nil
 }
 
 func ensureResourceExists(gvk schema.GroupVersionKind) {
@@ -317,13 +343,33 @@ func ensureResourceExists(gvk schema.GroupVersionKind) {
 	Expect(list.Items).To(HaveLen(1))
 }
 
-func createResource(gvk schema.GroupVersionKind, namespace string, name string) {
+func createResource(gvk schema.GroupVersionKind, namespace string, name string) *unstructured.Unstructured {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
 	object.SetNamespace(namespace)
 	object.SetName(name)
+	kind := object.GetObjectKind().GroupVersionKind().Kind
+	if kind == instanceGvk.Kind {
+		populateServiceInstanceFields(object)
+	} else if kind == bindingGvk.Kind {
+		populateServiceBindingFields(object)
+	}
 	err := k8sClient.Create(ctx, object)
 	Expect(err).To(BeNil())
+
+	return object
+}
+
+func populateServiceInstanceFields(object *unstructured.Unstructured) {
+	Expect(unstructured.SetNestedField(object.Object, "test-service", "spec", "serviceOfferingName")).To(Succeed())
+	Expect(unstructured.SetNestedField(object.Object, "test-plan", "spec", "servicePlanName")).To(Succeed())
+	Expect(unstructured.SetNestedField(object.Object, "test-service-instance-external", "spec", "externalName")).To(Succeed())
+}
+
+func populateServiceBindingFields(object *unstructured.Unstructured) {
+	Expect(unstructured.SetNestedField(object.Object, "test-service-instance", "spec", "serviceInstanceName")).To(Succeed())
+	Expect(unstructured.SetNestedField(object.Object, "test-binding-external", "spec", "externalName")).To(Succeed())
+	Expect(unstructured.SetNestedField(object.Object, "test-service-binding-secret", "spec", "secretName")).To(Succeed())
 }
 
 func clearWebhooks() error {
@@ -343,13 +389,13 @@ func clearWebhooks() error {
 }
 
 func doChecks() {
-	checkIfNoServicesExists(btpOperatorServiceBinding)
+	checkIfNoServiceExists(btpOperatorServiceBinding)
 	checkIfNoBindingSecretExists()
-	checkIfNoServicesExists(btpOperatorServiceInstance)
+	checkIfNoServiceExists(btpOperatorServiceInstance)
 	checkIfNoBtpResourceExists()
 }
 
-func checkIfNoServicesExists(kind string) {
+func checkIfNoServiceExists(kind string) {
 	list := unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: kind})
 	err := k8sClient.List(ctx, &list)
@@ -359,7 +405,7 @@ func checkIfNoServicesExists(kind string) {
 
 func checkIfNoBindingSecretExists() {
 	secret := &corev1.Secret{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: testNamespace}, secret)
+	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: chartNamespace}, secret)
 	Expect(*secret).To(BeEquivalentTo(corev1.Secret{}))
 	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 }

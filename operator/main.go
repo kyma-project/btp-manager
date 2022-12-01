@@ -43,8 +43,8 @@ var (
 )
 
 const (
-	timeout   = time.Minute * 20
-	chartPath = "./module-chart"
+	hardDeleteTimeout = time.Minute * 20
+	chartPath         = "./module-chart"
 )
 
 func init() {
@@ -102,7 +102,7 @@ func main() {
 		WaitForChartReadiness: true,
 	}
 
-	reconciler.SetTimeout(timeout)
+	reconciler.SetHardDeleteTimeout(hardDeleteTimeout)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
