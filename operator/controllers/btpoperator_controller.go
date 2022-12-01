@@ -243,7 +243,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 	}
 	if ready {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
+		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
 	}
 
 	return nil
@@ -277,7 +277,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 			continue
 		}
 		remainingCr := item
-		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, types.StateProcessing, Processing, "Ready to process"); err != nil {
+		if err := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, &remainingCr, types.StateProcessing, Processing, "Ready to process"); err != nil {
 			logger.Error(err, "unable to set \"Processing\" state")
 		}
 	}
@@ -1018,7 +1018,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 	} else if !ready {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Consistency checked")
+		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateProcessing, Initialized, "Consistency checked")
 	}
 
 	return nil
