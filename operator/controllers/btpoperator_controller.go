@@ -203,7 +203,7 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Ready to process")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
