@@ -166,7 +166,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 							HaveField("Conditions",
 								ContainElements(
 									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(InvalidSecret)), "Status": Equal(metav1.ConditionFalse)}),
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(MissingSecret)), "Status": Equal(metav1.ConditionFalse)}),
 									))),
 						))
 			})
@@ -232,7 +232,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Eventually(getCurrentCrState).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
-						Should(SatisfyAll(HaveField("State", types.StateReady), HaveField("Conditions", HaveLen(1))))
+						Should(
+							SatisfyAll(
+								HaveField("State", types.StateReady),
+								HaveField("Conditions", HaveLen(1)),
+								HaveField("Conditions",
+									ContainElements(
+										PointTo(
+											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(ReconcileSucceeded)), "Status": Equal(metav1.ConditionTrue)}),
+										))),
+							))
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
 					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
 						WithTimeout(k8sOpsTimeout).
