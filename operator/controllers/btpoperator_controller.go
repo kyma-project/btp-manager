@@ -411,13 +411,13 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
-			handler.EnqueueRequestsFromMapFunc(reconcileConfig),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
 			builder.WithPredicates(r.watchConfigPredicates()),
 		).
 		Complete(r)
 }
 
-func reconcileConfig(object client.Object) []reconcile.Request {
+func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcile.Request {
 	logger := log.FromContext(nil, "name", object.GetName(), "namespace", object.GetNamespace())
 	cm, ok := object.(*corev1.ConfigMap)
 	if !ok {
@@ -453,10 +453,10 @@ func reconcileConfig(object client.Object) []reconcile.Request {
 		}
 	}
 
-	return []reconcile.Request{}
+	return r.enqueueOldestBtpOperator()
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
+func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
 	btpOperators := &v1alpha1.BtpOperatorList{}
 	err := r.List(context.Background(), btpOperators)
 	if err != nil {
@@ -470,6 +470,10 @@ func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret clie
 	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
 
 	return requests
+}
+
+func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
+	return r.enqueueOldestBtpOperator()
 }
 
 func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
