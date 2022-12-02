@@ -24,4 +24,3 @@ Dockerfile.cross
 *.swp
 *.swo
 *~
-/module-chart/manifest/

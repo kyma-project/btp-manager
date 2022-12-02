@@ -80,7 +80,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		cr = createBtpOperator()
 	})
 
-	Describe("Provisioning", func() {
+	/*Describe("Provisioning", func() {
 		BeforeAll(func() {
 			provisionBtpOperatorWithinNeededResources(cr, true, true)
 		})
@@ -198,6 +198,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			doChecks(gvks)
 		})
 	})
+	*/
 
 	Describe("Update", func() {
 		onStart := func() {
@@ -248,6 +249,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				withSuffixCount := 0
 				withoutSuffixCount := 0
+
 				for _, gvk := range gvks {
 					list := &unstructured.UnstructuredList{}
 					list.SetGroupVersionKind(schema.GroupVersionKind{

@@ -108,12 +108,25 @@ type ChartDetails struct {
 	currentChartVersion string
 }
 
-func (r *BtpOperatorReconciler) StoreChartDetails(chartPath string) error {
-	chartDetails := ChartDetails{}
+func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
+	chartDetails := &ChartDetails{}
 	chartDetails.chartPath = chartPath
+	r.chartDetails = chartDetails
 
 	chartVersionFromYml, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", chartDetails.chartPath), "version")
 	if err != nil {
+		return err
+	}
+
+	namespace := &corev1.Namespace{}
+	namespace.Name = commonNamespace
+	err = r.Get(context.Background(), client.ObjectKeyFromObject(namespace), namespace)
+	if errors.IsNotFound(err) {
+		err = r.Create(context.Background(), namespace)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
 		return err
 	}
 
@@ -121,11 +134,13 @@ func (r *BtpOperatorReconciler) StoreChartDetails(chartPath string) error {
 	if err := r.Get(context.TODO(), client.ObjectKey{
 		Namespace: commonNamespace,
 		Name:      btpManagerConfigMap,
-	}, configMap); err != nil {
+	}, configMap); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
-	if configMap == nil {
+	if reflect.DeepEqual(*configMap, corev1.ConfigMap{}) {
+		configMap.Namespace = commonNamespace
+		configMap.Name = btpManagerConfigMap
 		configMap.Data = make(map[string]string)
 		configMap.Data["old"] = chartVersionFromYml
 		chartDetails.oldChartVersion = chartVersionFromYml

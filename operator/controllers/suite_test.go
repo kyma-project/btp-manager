@@ -92,11 +92,16 @@ var _ = BeforeSuite(func() {
 		Scheme:                k8sManager.GetScheme(),
 		WaitForChartReadiness: false,
 	}
-	reconciler.StoreChartDetails(chartPath)
+
 	reconciler.SetTimeout(testTimeout)
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
+
+	err = k8sManager.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return reconciler.StoreChartDetails(ctx, chartPath)
+	}))
+	Expect(err).To(BeNil())
 
 	go func() {
 		defer GinkgoRecover()
