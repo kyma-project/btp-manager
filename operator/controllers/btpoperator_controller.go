@@ -27,6 +27,7 @@ import (
 	ymlutils "github.com/kyma-project/btp-manager/operator/internal"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
+	"gopkg.in/yaml.v2"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -75,7 +76,7 @@ const (
 )
 
 const (
-	btpManagerConfigMap = "btpManagerConfigMap"
+	btpManagerConfigMap = "btp-manager-config-map"
 )
 
 var (
@@ -103,24 +104,35 @@ type BtpOperatorReconciler struct {
 }
 
 type ChartDetails struct {
-	chartPath           string
-	oldChartVersion     string
-	currentChartVersion string
+	chartPath              string
+	oldChartVersion        string
+	oldGvks                []schema.GroupVersionKind
+	currentChartVersion    string
+	currentGvks            []schema.GroupVersionKind
+	needToCheckConsistency bool
 }
 
-func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
-	chartDetails := &ChartDetails{}
-	chartDetails.chartPath = chartPath
-	r.chartDetails = chartDetails
-
-	chartVersionFromYml, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", chartDetails.chartPath), "version")
+func gvksToStr(gvks []schema.GroupVersionKind) (error, string) {
+	bytes, err := yaml.Marshal(gvks)
 	if err != nil {
-		return err
+		return err, ""
 	}
+	return nil, string(bytes)
+}
 
+func strToGvks(str string) (error, []schema.GroupVersionKind) {
+	var out []schema.GroupVersionKind
+	err := yaml.Unmarshal([]byte(str), &out)
+	if err != nil {
+		return err, nil
+	}
+	return nil, out
+}
+
+func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded(name string) error {
 	namespace := &corev1.Namespace{}
 	namespace.Name = commonNamespace
-	err = r.Get(context.Background(), client.ObjectKeyFromObject(namespace), namespace)
+	err := r.Get(context.Background(), client.ObjectKeyFromObject(namespace), namespace)
 	if errors.IsNotFound(err) {
 		err = r.Create(context.Background(), namespace)
 		if err != nil {
@@ -129,38 +141,97 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 	} else if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
+	chartDetails := &ChartDetails{}
+	r.chartDetails = chartDetails
+
+	chartDetails.chartPath = chartPath
+
+	newChartVersionFromYml, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", chartDetails.chartPath), "version")
+	if err != nil {
+		return err
+	}
+
+	newGvks, err := ymlutils.GatherChartGvks(chartDetails.chartPath)
+	if err != nil {
+		return err
+	}
+
+	err = r.CreateNamespaceIfNeeded(commonNamespace)
+	if err != nil {
+		return err
+	}
 
 	configMap := &corev1.ConfigMap{}
-	if err := r.Get(context.TODO(), client.ObjectKey{
-		Namespace: commonNamespace,
-		Name:      btpManagerConfigMap,
+	configMap.Namespace = commonNamespace
+	configMap.Name = btpManagerConfigMap
+
+	if err := r.Get(ctx, client.ObjectKey{
+		Namespace: configMap.Namespace,
+		Name:      configMap.Name,
 	}, configMap); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
 	if reflect.DeepEqual(*configMap, corev1.ConfigMap{}) {
-		configMap.Namespace = commonNamespace
-		configMap.Name = btpManagerConfigMap
 		configMap.Data = make(map[string]string)
-		configMap.Data["old"] = chartVersionFromYml
-		chartDetails.oldChartVersion = chartVersionFromYml
-		configMap.Data["current"] = chartVersionFromYml
-		chartDetails.currentChartVersion = chartVersionFromYml
-		if err := r.Create(context.TODO(), configMap); err != nil {
+
+		err, newGvksAsStr := gvksToStr(newGvks)
+		if err != nil {
 			return err
 		}
-	} else {
+
+		configMap.Data["old"] = newChartVersionFromYml
+		chartDetails.oldChartVersion = newChartVersionFromYml
+		configMap.Data["oldGvks"] = newGvksAsStr
+		chartDetails.oldGvks = newGvks
+
+		configMap.Data["current"] = newChartVersionFromYml
+		chartDetails.currentChartVersion = newChartVersionFromYml
+		configMap.Data["currentGvks"] = newGvksAsStr
+		chartDetails.currentGvks = newGvks
+
+		if err := r.Create(ctx, configMap); err != nil {
+			return err
+		}
+
+		r.chartDetails.needToCheckConsistency = true
+	} else if newChartVersionFromYml != configMap.Data["current"] {
+		err, newGvksAsStr := gvksToStr(newGvks)
+		if err != nil {
+			return err
+		}
 		current, ok := configMap.Data["current"]
 		if !ok {
 			return fmt.Errorf("'current' should be present in configmap but it is not")
 		}
+		currentGvksStr, ok := configMap.Data["currentGvks"]
+		if !ok {
+			return fmt.Errorf("'current' should be present in configmap but it is not")
+		}
+		err, currentGvks := strToGvks(currentGvksStr)
+		if err != nil {
+			return err
+		}
+
 		configMap.Data["old"] = current
 		chartDetails.oldChartVersion = current
-		configMap.Data["current"] = chartVersionFromYml
-		chartDetails.currentChartVersion = chartVersionFromYml
-		if err := r.Update(context.TODO(), configMap); err != nil {
+		configMap.Data["oldGvks"] = currentGvksStr
+		chartDetails.oldGvks = currentGvks
+
+		configMap.Data["current"] = newChartVersionFromYml
+		chartDetails.currentChartVersion = newChartVersionFromYml
+		chartDetails.currentGvks = newGvks
+		configMap.Data["currentGvks"] = newGvksAsStr
+
+		if err := r.Update(ctx, configMap); err != nil {
 			return nil
 		}
+
+		r.chartDetails.needToCheckConsistency = true
 	}
 
 	return nil
@@ -177,6 +248,12 @@ func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+
+	if r.chartDetails.needToCheckConsistency {
+
+		r.chartDetails.needToCheckConsistency = false
+	}
+
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if errors.IsNotFound(err) {
@@ -300,11 +377,10 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
 	if ready {
+		if err := r.DeleteOrphanedResources(ctx); err != nil {
+			return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+		}
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateReady)
-	}
-
-	if err := r.DeleteOrphanedResources(ctx); err != nil {
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
 
 	return nil
@@ -314,19 +390,15 @@ func (r *BtpOperatorReconciler) DeleteOrphanedResources(ctx context.Context) err
 	logger := log.FromContext(ctx)
 	if r.chartDetails.oldChartVersion != r.chartDetails.currentChartVersion {
 		oldVersionLabel := client.MatchingLabels{chartVersionKey: r.chartDetails.oldChartVersion}
-		oldVersionGvks := []schema.GroupVersionKind{}
-		for _, gvk := range oldVersionGvks {
-			obj := &unstructured.Unstructured{}
-			obj.SetGroupVersionKind(gvk)
+		for _, gvk := range r.chartDetails.oldGvks {
+			list := &unstructured.UnstructuredList{}
+			list.SetGroupVersionKind(gvk)
 
-			items := &unstructured.UnstructuredList{}
-			items.SetGroupVersionKind(gvk)
-
-			if err := r.List(ctx, obj, oldVersionLabel); err != nil {
+			if err := r.List(ctx, list, oldVersionLabel); err != nil {
 				return err
 			}
 
-			for _, item := range items.Items {
+			for _, item := range list.Items {
 				if err := r.Delete(ctx, &item); err != nil {
 					return err
 				} else {

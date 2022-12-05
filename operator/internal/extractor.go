@@ -119,7 +119,7 @@ func ExtractValueFromLine(filePath string, key string) (string, error) {
 			if len(result) != expectedLenAfterSplit {
 				return "", fmt.Errorf("line after split has incorrent number of elements: %d", len(result))
 			}
-			return result[1], nil
+			return strings.TrimSpace(result[1]), nil
 		}
 	}
 
