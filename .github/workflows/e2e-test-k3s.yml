@@ -47,7 +47,10 @@ jobs:
         run: |
             make -C operator deploy IMG="europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-${{ github.event.number }}"
             
-            
+      - name: install prometheus-operator
+        run: |
+            kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/bundle.yaml
+
       - name: kubectl get deployment -A
         run: |
             kubectl get deployment -A
