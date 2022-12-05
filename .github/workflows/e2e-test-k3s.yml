@@ -6,17 +6,10 @@ name: Docker
 # documentation.
 
 on:
-  push:
-    branches: [ main ]
-    # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ main ]
-
-env:
-  REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+    paths:
+        - operator/**
 
 jobs:
   run-e2e-tests:
@@ -37,41 +30,23 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-
+        
       - name: Prepare docker registry and k3s cluster
         run: |
             chmod +x ./testing/k3s-setup.sh
             ./testing/k3s-setup.sh
             while [[ $(kubectl get nodes -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
             do echo "Waiting for cluster nodes to be ready"; sleep 1; done
-
       - name: Generate and install manifests
         run: |
             make -C operator manifests
             make -C operator install 
-
-      # Workaround: https://github.com/docker/build-push-action/issues/461
-      - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@79abd3f86f79a9d68a23c75a09a9a85889262adf
-
-      # Login against a Docker registry
-      - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Build and push Docker image with Buildx
-      - name: Build and push Docker image
-        id: build-and-push
-        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
-        with:
-          context: operator
-          tags: ghcr.io/kyma-project/btp-manager:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
+            
+      - name: Deploy controller
+        run: |
+            echo "deploying PR: ${{ github.event.number }}"
+            make deploy IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:${{ github.event.number }}
+            kubectl get deployment -A
       - uses: actions/setup-go@v3
         with:
           go-version: '>=1.19.0'
@@ -83,7 +58,3 @@ jobs:
            cd ./testing/go
            go mod tidy
            go test
-          
-           
-
-
