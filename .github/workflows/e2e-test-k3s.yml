@@ -41,13 +41,14 @@ jobs:
         run: |
             make -C operator manifests
             make -C operator install 
-            kubectl get crd -A
             
       - name: Deploy controller
+        continue-on-error: true
         run: |
             continue-on-error: true
             make -C operator deploy IMG="europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-${{ github.event.number }}"
             kubectl get deployment -A
+            
       - uses: actions/setup-go@v3
         with:
           go-version: '>=1.19.0'
