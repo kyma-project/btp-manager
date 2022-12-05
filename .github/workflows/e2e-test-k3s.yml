@@ -41,6 +41,7 @@ jobs:
         run: |
             make -C operator manifests
             make -C operator install 
+            kubectl get crd -A
             
       - name: Deploy controller
         run: |
