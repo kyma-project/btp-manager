@@ -45,6 +45,7 @@ jobs:
             
       - name: Deploy controller
         run: |
+            continue-on-error: true
             make -C operator deploy IMG="europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-${{ github.event.number }}"
             kubectl get deployment -A
       - uses: actions/setup-go@v3
