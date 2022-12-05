@@ -44,8 +44,7 @@ jobs:
             
       - name: Deploy controller
         run: |
-            echo "deploying PR: ${{ github.event.number }}"
-            make deploy IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:${{ github.event.number }}
+            make deploy IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator::PR-${{ github.event.number }}
             kubectl get deployment -A
       - uses: actions/setup-go@v3
         with:
