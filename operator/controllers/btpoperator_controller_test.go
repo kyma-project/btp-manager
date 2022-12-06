@@ -314,7 +314,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(getCurrentCrState).
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting)), HaveField("Conditions", HaveLen(1)))
+				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 			doChecks()
 		})
@@ -331,7 +331,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(getCurrentCrState).
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting)), HaveField("Conditions", HaveLen(1)))
+				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 			doChecks()
 		})
@@ -346,7 +346,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(getCurrentCrState).
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting)), HaveField("Conditions", HaveLen(1)))
+				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 			doChecks()
 		})

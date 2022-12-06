@@ -35,7 +35,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -152,7 +151,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
 	}
 
 	switch cr.Status.State {
@@ -185,7 +184,7 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the operand",
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the operand",
 		oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
@@ -198,20 +197,10 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 	return r.Status().Update(ctx, cr)
 }
 
-func (r *BtpOperatorReconciler) UpdateBtpOperatorStatusAndLogStateChange(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason Reason, message string) error {
-	cr.Status.WithState(newState)
-	newCondition := ConditionFromExistingReason(reason, message)
-	if newCondition != nil {
-		SetStatusCondition(&cr.Status.Conditions, *newCondition)
-	}
-	logStateChange(newCondition, newState, ctx, cr)
-	return r.Status().Update(ctx, cr)
-}
-
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
-	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateProcessing, Initialized, "Initialized")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -221,12 +210,12 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -246,7 +235,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 	}
 	if ready {
-		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
 	}
 
 	return nil
@@ -280,7 +269,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 			continue
 		}
 		remainingCr := item
-		if err := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, &remainingCr, types.StateProcessing, Processing, "Ready to process"); err != nil {
+		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, types.StateProcessing, Processing, "After deprovisioning"); err != nil {
 			logger.Error(err, "unable to set \"Processing\" state")
 		}
 	}
@@ -406,7 +395,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateProcessing, Recovered, "Recovered from error state")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Recovered, "Recovered from error state")
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -566,7 +555,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
 			if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
 				logger.Error(err, "failed to remove chart resources")
-				if updateStatusErr := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
+				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
 					logger.Error(updateStatusErr, "failed to update status")
 					return updateStatusErr
 				}
@@ -574,26 +563,26 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			}
 		} else {
 			logger.Info("Service Instances and Service Bindings hard delete failed.")
-			if err := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
+			if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 				logger.Error(err, "failed to update status")
 				return err
 			}
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 				logger.Error(err, "failed to hard delete")
-				return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
+				return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
 			}
 		}
 	case <-time.After(r.hardDeleteTimeout):
 		logger.Info("hard delete timeout reached", "duration", r.hardDeleteTimeout)
 		timeoutChannel <- true
-		err := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted")
+		err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted")
 		if err != nil {
 			logger.Error(err, "failed to update status")
 			return err
 		}
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			logger.Error(err, "failed to soft delete")
-			return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
 		}
 	}
 
@@ -997,12 +986,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -1021,19 +1010,8 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 	} else if !ready {
-		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateProcessing, Initialized, "Consistency checked")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "After consistency check")
 	}
 
 	return nil
-}
-
-func logStateChange(newCondition *metav1.Condition, newState types.State, ctx context.Context, cr *v1alpha1.BtpOperator) {
-	logger := log.FromContext(ctx)
-	if newCondition != nil {
-		logger.Info(fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace changes state to \"%s\" Condition: Type %s Reason %s Message: %s",
-			cr.GetName(), cr.GetNamespace(), newState, newCondition.Type, newCondition.Reason, newCondition.Message))
-	} else {
-		logger.Info(fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace changes state to \"%s\"",
-			cr.GetName(), cr.GetNamespace(), newState))
-	}
 }
