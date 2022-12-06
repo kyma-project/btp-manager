@@ -1,7 +1,11 @@
 name: make-unit-tests
 
 on:
-  pull_request:
+ push:
+   branches: [ "main" ]
+   # Publish semver tags as releases.
+   tags: [ 'v*.*.*' ]
+ pull_request:
     branches: [ main ]
     paths:
         - operator/**
