@@ -569,7 +569,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			}
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 				logger.Error(err, "failed to hard delete")
-				return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
+				return err
 			}
 		}
 	case <-time.After(r.hardDeleteTimeout):
@@ -582,7 +582,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			logger.Error(err, "failed to soft delete")
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
+			return err
 		}
 	}
 

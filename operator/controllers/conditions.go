@@ -18,7 +18,6 @@ const (
 	InvalidSecret          Reason = "InvalidSecret"
 	HardDeleting           Reason = "HardDeleting"
 	ResourceRemovalFailed  Reason = "ResourceRemovalFailed"
-	SoftDeleteFailed       Reason = "SoftDeleteFailed"
 	SoftDeleting           Reason = "SoftDeleting"
 	Recovered              Reason = "Recovered"
 	ReadyType                     = "Ready"
@@ -51,7 +50,6 @@ var Reasons = map[Reason]TypeAndStatus{
 	InvalidSecret:          NotReady,
 	HardDeleting:           NotReady,
 	ResourceRemovalFailed:  NotReady,
-	SoftDeleteFailed:       NotReady,
 	SoftDeleting:           NotReady,
 }
 
