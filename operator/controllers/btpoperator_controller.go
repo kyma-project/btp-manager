@@ -19,9 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -889,7 +886,7 @@ func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
 	time.Sleep(time.Second * 10)
 
-	gvks, err := r.gatherChartGvks()
+	gvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
 	if err != nil {
 		return err
 	}
@@ -899,93 +896,6 @@ func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Conte
 	}
 
 	return nil
-}
-
-func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, error) {
-	var allGvks []schema.GroupVersionKind
-	appendToSlice := func(gvk schema.GroupVersionKind) {
-		if reflect.DeepEqual(gvk, schema.GroupVersionKind{}) {
-			return
-		}
-		for _, v := range allGvks {
-			if reflect.DeepEqual(gvk, v) {
-				return
-			}
-		}
-		allGvks = append(allGvks, gvk)
-	}
-
-	root := fmt.Sprintf("%s/templates/", chartPath)
-	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !strings.HasSuffix(info.Name(), ".yml") {
-			return nil
-		}
-
-		bytes, err := os.ReadFile(fmt.Sprintf("%s/%s", root, info.Name()))
-		if err != nil {
-			return err
-		}
-
-		fileGvks, err := r.extractGvkFromYml(string(bytes))
-		if err != nil {
-			return err
-		}
-
-		for _, gvk := range fileGvks {
-			appendToSlice(gvk)
-		}
-
-		return nil
-	}); err != nil {
-		return []schema.GroupVersionKind{}, err
-	}
-
-	return allGvks, nil
-}
-
-func (r *BtpOperatorReconciler) extractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
-	var gvks []schema.GroupVersionKind
-	parts := strings.Split(wholeFile, "---\n")
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		var yamlGvk btpOperatorGvk
-		lines := strings.Split(part, "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "apiVersion:") {
-				yamlGvk.APIVersion = strings.TrimSpace(strings.Split(line, ":")[1])
-			}
-
-			if strings.HasPrefix(line, "kind:") {
-				yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
-			}
-		}
-		if yamlGvk.Kind != "" && yamlGvk.APIVersion != "" {
-			apiVersion := strings.Split(yamlGvk.APIVersion, "/")
-			if len(apiVersion) == 1 {
-				gvks = append(gvks, schema.GroupVersionKind{
-					Kind:    yamlGvk.Kind,
-					Version: apiVersion[0],
-					Group:   "",
-				})
-			} else if len(apiVersion) == 2 {
-				gvks = append(gvks, schema.GroupVersionKind{
-					Kind:    yamlGvk.Kind,
-					Version: apiVersion[1],
-					Group:   apiVersion[0],
-				})
-			} else {
-				return nil, fmt.Errorf("incorrect split of apiVersion")
-			}
-		}
-	}
-
-	return gvks, nil
 }
 
 func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
