@@ -130,6 +130,16 @@ var _ = Describe("BTP Operator controller", func() {
 
 	})
 
+	Describe("Configurability", func() {
+		Context("When the ConfigMap is present", func() {
+			It("should adjust configuration settings in the operator accordingly", func() {
+				cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
+				reconciler.reconcileConfig(cm)
+				Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
+			})
+		})
+	})
+
 	Describe("Deprovisioning", func() {
 		BeforeEach(func() {
 			createSecret()
@@ -213,6 +223,16 @@ func createBtpOperator() *v1alpha1.BtpOperator {
 			Name:      btpOperatorName,
 			Namespace: testNamespace,
 		},
+	}
+}
+
+func initConfig(data map[string]string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConfigName,
+			Namespace: ChartNamespace,
+		},
+		Data: data,
 	}
 }
 
