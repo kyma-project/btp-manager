@@ -1,4 +1,4 @@
-name: Make-Unit-Tests
+name: make-unit-tests
 
 on:
   pull_request:
