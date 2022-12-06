@@ -18,8 +18,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -63,7 +65,9 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
-	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
+	kubeVersion := "1.25.0"
+	k8sBinPath := fmt.Sprintf("../bin/k8s/%v-%v-%v", kubeVersion, runtime.GOOS, runtime.GOARCH)
+	Expect(os.Setenv("KUBEBUILDER_ASSETS", k8sBinPath)).To(Succeed())
 
 	var err error
 	// cfg is defined in this file globally.
