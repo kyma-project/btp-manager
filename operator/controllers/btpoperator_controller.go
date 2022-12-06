@@ -129,7 +129,7 @@ func strToGvks(str string) (error, []schema.GroupVersionKind) {
 	return nil, out
 }
 
-func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded(name string) error {
+func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded() error {
 	namespace := &corev1.Namespace{}
 	namespace.Name = commonNamespace
 	err := r.Get(context.Background(), client.ObjectKeyFromObject(namespace), namespace)
@@ -144,23 +144,29 @@ func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded(name string) error {
 	return nil
 }
 
+const (
+	currentCharVersionKey = "currentCharVersion"
+	currentGvksKey        = "currentGvks"
+	oldChartVersionKey    = "oldChartVersion"
+	oldGvksKey            = "oldGvks"
+)
+
 func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
-	chartDetails := &ChartDetails{}
-	r.chartDetails = chartDetails
+	r.chartDetails = &ChartDetails{}
 
-	chartDetails.chartPath = chartPath
+	r.chartDetails.chartPath = chartPath
 
-	newChartVersionFromYml, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", chartDetails.chartPath), "version")
+	newChartVersion, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", r.chartDetails.chartPath), "version")
 	if err != nil {
 		return err
 	}
 
-	newGvks, err := ymlutils.GatherChartGvks(chartDetails.chartPath)
+	newGvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
 	if err != nil {
 		return err
 	}
 
-	err = r.CreateNamespaceIfNeeded(commonNamespace)
+	err = r.CreateNamespaceIfNeeded()
 	if err != nil {
 		return err
 	}
@@ -174,9 +180,7 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 		Name:      configMap.Name,
 	}, configMap); err != nil && !errors.IsNotFound(err) {
 		return err
-	}
-
-	if reflect.DeepEqual(*configMap, corev1.ConfigMap{}) {
+	} else if err != nil && errors.IsNotFound(err) {
 		configMap.Data = make(map[string]string)
 
 		err, newGvksAsStr := gvksToStr(newGvks)
@@ -184,54 +188,57 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 			return err
 		}
 
-		configMap.Data["old"] = newChartVersionFromYml
-		chartDetails.oldChartVersion = newChartVersionFromYml
-		configMap.Data["oldGvks"] = newGvksAsStr
-		chartDetails.oldGvks = newGvks
+		configMap.Data[oldChartVersionKey] = newChartVersion
+		r.chartDetails.oldChartVersion = newChartVersion
+		configMap.Data[oldGvksKey] = newGvksAsStr
+		r.chartDetails.oldGvks = newGvks
 
-		configMap.Data["current"] = newChartVersionFromYml
-		chartDetails.currentChartVersion = newChartVersionFromYml
-		configMap.Data["currentGvks"] = newGvksAsStr
-		chartDetails.currentGvks = newGvks
+		configMap.Data[currentCharVersionKey] = newChartVersion
+		r.chartDetails.currentChartVersion = newChartVersion
+		configMap.Data[currentGvksKey] = newGvksAsStr
+		r.chartDetails.currentGvks = newGvks
 
 		if err := r.Create(ctx, configMap); err != nil {
 			return err
 		}
 
 		r.chartDetails.needToCheckConsistency = true
-	} else if newChartVersionFromYml != configMap.Data["current"] {
-		err, newGvksAsStr := gvksToStr(newGvks)
-		if err != nil {
-			return err
-		}
+	} else {
 		current, ok := configMap.Data["current"]
 		if !ok {
 			return fmt.Errorf("'current' should be present in configmap but it is not")
 		}
-		currentGvksStr, ok := configMap.Data["currentGvks"]
-		if !ok {
-			return fmt.Errorf("'current' should be present in configmap but it is not")
+
+		if newChartVersion != current {
+			err, newGvksAsStr := gvksToStr(newGvks)
+			if err != nil {
+				return err
+			}
+			currentGvksStr, ok := configMap.Data["currentGvks"]
+			if !ok {
+				return fmt.Errorf("'current' should be present in configmap but it is not")
+			}
+			err, currentGvks := strToGvks(currentGvksStr)
+			if err != nil {
+				return err
+			}
+
+			configMap.Data[oldChartVersionKey] = current
+			r.chartDetails.oldChartVersion = current
+			configMap.Data[oldGvksKey] = currentGvksStr
+			r.chartDetails.oldGvks = currentGvks
+
+			configMap.Data[currentCharVersionKey] = newChartVersion
+			r.chartDetails.currentChartVersion = newChartVersion
+			r.chartDetails.currentGvks = newGvks
+			configMap.Data[currentGvksKey] = newGvksAsStr
+
+			if err := r.Update(ctx, configMap); err != nil {
+				return nil
+			}
+
+			r.chartDetails.needToCheckConsistency = true
 		}
-		err, currentGvks := strToGvks(currentGvksStr)
-		if err != nil {
-			return err
-		}
-
-		configMap.Data["old"] = current
-		chartDetails.oldChartVersion = current
-		configMap.Data["oldGvks"] = currentGvksStr
-		chartDetails.oldGvks = currentGvks
-
-		configMap.Data["current"] = newChartVersionFromYml
-		chartDetails.currentChartVersion = newChartVersionFromYml
-		chartDetails.currentGvks = newGvks
-		configMap.Data["currentGvks"] = newGvksAsStr
-
-		if err := r.Update(ctx, configMap); err != nil {
-			return nil
-		}
-
-		r.chartDetails.needToCheckConsistency = true
 	}
 
 	return nil
