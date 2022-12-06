@@ -1,4 +1,4 @@
-name: Docker
+name: e2e-test-k3s
 
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
@@ -40,12 +40,26 @@ jobs:
       - name: Generate and install manifests
         run: |
             make -C operator manifests
-            make -C operator install 
+            make -C operator install           
+            
+      - name: install prometheus-operator
+        run: |
+            kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/bundle.yaml --force-conflicts=true --server-side
+            
+      - name: Check if image was build
+        run: |
+            for i in {1..5}; do if [ $(curl -I -s -f -o /dev/null -w "%{http_code}" "europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-${{ github.event.number }}") -eq 200 ]; then echo "Image found, continuing with script..."; break; else echo "Image not found, sleeping for 5 seconds..."; sleep 5; fi; done
             
       - name: Deploy controller
+        continue-on-error: true
         run: |
-            make -C deploy IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator::PR-${{ github.event.number }}
+            make -C operator deploy IMG="europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-${{ github.event.number }}"
+
+      - name: kubectl get deployment -A
+        run: |
             kubectl get deployment -A
+         
+            
       - uses: actions/setup-go@v3
         with:
           go-version: '>=1.19.0'
