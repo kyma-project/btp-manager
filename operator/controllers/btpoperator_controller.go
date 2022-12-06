@@ -185,7 +185,7 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace reconciles the operand",
+	return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the operand",
 		oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
@@ -226,7 +226,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
+		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -566,7 +566,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
 			if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
 				logger.Error(err, "failed to remove chart resources")
-				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
+				if updateStatusErr := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
 					logger.Error(updateStatusErr, "failed to update status")
 					return updateStatusErr
 				}
@@ -574,26 +574,26 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			}
 		} else {
 			logger.Info("Service Instances and Service Bindings hard delete failed.")
-			if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
+			if err := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 				logger.Error(err, "failed to update status")
 				return err
 			}
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 				logger.Error(err, "failed to hard delete")
-				return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, HardDeleteFailed, "Hard deleting failed")
+				return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
 			}
 		}
 	case <-time.After(r.hardDeleteTimeout):
 		logger.Info("hard delete timeout reached", "duration", r.hardDeleteTimeout)
 		timeoutChannel <- true
-		err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted")
+		err := r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted")
 		if err != nil {
 			logger.Error(err, "failed to update status")
 			return err
 		}
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
 			logger.Error(err, "failed to soft delete")
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
+			return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, SoftDeleteFailed, "Soft deleting failed")
 		}
 	}
 
@@ -997,12 +997,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
+		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
+		return r.UpdateBtpOperatorStatusAndLogStateChange(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
