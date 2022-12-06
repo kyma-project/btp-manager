@@ -204,7 +204,7 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 
 		r.chartDetails.needToCheckConsistency = true
 	} else {
-		current, ok := configMap.Data["current"]
+		current, ok := configMap.Data[currentCharVersionKey]
 		if !ok {
 			return fmt.Errorf("'current' should be present in configmap but it is not")
 		}
@@ -256,11 +256,6 @@ func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	if r.chartDetails.needToCheckConsistency {
-
-		r.chartDetails.needToCheckConsistency = false
-	}
-
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if errors.IsNotFound(err) {
@@ -269,6 +264,11 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		logger.Error(err, "unable to fetch BtpOperator resource")
 		return ctrl.Result{}, err
+	}
+
+	if r.chartDetails.needToCheckConsistency {
+		r.HandleReadyState(ctx, cr)
+		r.chartDetails.needToCheckConsistency = false
 	}
 
 	existingBtpOperators := &v1alpha1.BtpOperatorList{}

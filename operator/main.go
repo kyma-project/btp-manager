@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"os"
-	"os/exec"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -58,10 +57,10 @@ func init() {
 
 func main() {
 
-	cmd := exec.Command("/bin/sh", "prerun.sh")
+	/*cmd := exec.Command("/bin/sh", "prerun.sh")
 	if err := cmd.Run(); err != nil {
 		panic(err)
-	}
+	}*/
 
 	var metricsAddr string
 	var enableLeaderElection bool
