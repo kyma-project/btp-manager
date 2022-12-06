@@ -2,7 +2,7 @@
 
 The btp-manager internal settings can be configured using CLI arguments or `ConfigMap`.
 
-CLI arguments example:
+To configure them using CLI arguments, follow this example:
 ```
 $ manager --help
 Usage of ./manager:
