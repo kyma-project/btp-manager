@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sap-btp-manager
+  namespace: kyma-system
+data:
+  ChartPath: ./module-chart
+  ChartNamespace: kyma-system
+  SecretName: sap-btp-manager
+  DeploymentName: sap-btp-operator-controller-manager
+  ProcessingStateRequeueInterval: 5m
+  ReadyStateRequeueInterval: 1h
+  ReadyTimeout: 1m
+  RetryInterval: 10s
