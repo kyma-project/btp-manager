@@ -20,6 +20,7 @@ import (
 	"flag"
 	"os"
 	"time"
+
 	//test
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -63,7 +64,6 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&controllers.ChartPath, "chart-path", controllers.ChartPath, "Module chart path.")
 	flag.StringVar(&controllers.ChartNamespace, "chart-namespace", controllers.ChartNamespace, "Namespace to install chart resources.")
 	flag.StringVar(&controllers.SecretName, "secret-name", controllers.SecretName, "Secret name with input values for sap-btp-operator chart templating.")
 	flag.StringVar(&controllers.ConfigName, "config-name", controllers.ConfigName, "ConfigMap name with configuration knobs for the btp-manager internals.")

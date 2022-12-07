@@ -55,7 +55,6 @@ import (
 
 var (
 	// Configuration options that can be overwritten either by CLI parameter or ConfigMap
-	ChartPath                      = "./module-chart"
 	ChartNamespace                 = "kyma-system"
 	SecretName                     = "sap-btp-manager"
 	ConfigName                     = "sap-btp-manager"
@@ -313,7 +312,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 	installInfo := types.InstallInfo{
 		ChartInfo: &types.ChartInfo{
-			ChartPath:   ChartPath,
+			ChartPath:   r.ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
@@ -434,8 +433,6 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 	for k, v := range cm.Data {
 		var err error
 		switch k {
-		case "ChartPath":
-			ChartPath = v
 		case "ChartNamespace":
 			ChartNamespace = v
 		case "SecretName":
@@ -882,7 +879,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		allGvks = append(allGvks, gvk)
 	}
 
-	root := fmt.Sprintf("%s/templates/", ChartPath)
+	root := fmt.Sprintf("%s/templates/", r.ChartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
