@@ -171,7 +171,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	Describe("Configurability", func() {
 		Context("When the ConfigMap is present", func() {
-			FIt("should adjust configuration settings in the operator accordingly", func() {
+			It("should adjust configuration settings in the operator accordingly", func() {
 				cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
 				reconciler.reconcileConfig(cm)
 				Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
