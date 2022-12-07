@@ -9,24 +9,10 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - events
+  - secrets
   verbs:
-  - create
   - get
   - list
-  - patch
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - operator.kyma-project.io
