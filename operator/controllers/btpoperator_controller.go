@@ -255,11 +255,16 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
 
+	if len(cr.GetFinalizers()) == 0 {
+		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
+		return nil
+	}
+
 	if err := r.handleDeprovisioning(ctx); err != nil {
 		logger.Error(err, "deprovisioning failed")
 		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
 	}
-	logger.Info("Deprovisioning success. Clearing finalizers in CR")
+	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
 	if err := r.Update(ctx, cr); err != nil {
 		return err
@@ -273,8 +278,8 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		if item.GetUID() == cr.GetUID() {
 			continue
 		}
-		cr := item
-		if err := r.UpdateBtpOperatorState(ctx, &cr, types.StateProcessing); err != nil {
+		remainingCr := item
+		if err := r.UpdateBtpOperatorState(ctx, &remainingCr, types.StateProcessing); err != nil {
 			logger.Error(err, "unable to set \"Processing\" state")
 		}
 	}
@@ -714,6 +719,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	logger := log.FromContext(ctx)
 	logger.Info("Deprovisioning BTP Operator - soft delete")
 
+	logger.Info("Deleting module deployment and webhooks")
 	if err := r.preSoftDeleteCleanup(ctx); err != nil {
 		logger.Error(err, "module deployment and webhooks deletion failed")
 		return err
@@ -732,6 +738,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	}
 
 	if sbCrdExists {
+		logger.Info("Removing finalizers in Service Bindings and deleting connected Secrets")
 		if err := r.softDelete(ctx, bindingGvk); err != nil {
 			logger.Error(err, "while deleting Service Bindings")
 			return err
@@ -743,6 +750,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	}
 
 	if siCrdExists {
+		logger.Info("Removing finalizers in Service Instances")
 		if err := r.softDelete(ctx, instanceGvk); err != nil {
 			logger.Error(err, "while deleting Service Instances")
 			return err
@@ -753,6 +761,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 		}
 	}
 
+	logger.Info("Deleting chart resources")
 	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
 		logger.Error(err, "failed to remove chart resources")
 		return err
