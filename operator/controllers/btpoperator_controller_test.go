@@ -124,7 +124,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		Describe("The required Secret exists", func() {
 			AfterEach(func() {
 				deleteSecret := &corev1.Secret{}
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: secretName}, deleteSecret)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
 				Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
 				Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateError))
 			})
@@ -159,13 +159,23 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Eventually(k8sClient.Create(ctx, secret)).Should(Succeed())
 					Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
-					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
+					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
 						WithTimeout(k8sOpsTimeout).
 						WithPolling(k8sOpsPollingInterval).
 						Should(Succeed())
 				})
 			})
 
+		})
+	})
+
+	Describe("Configurability", func() {
+		Context("When the ConfigMap is present", func() {
+			FIt("should adjust configuration settings in the operator accordingly", func() {
+				cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
+				reconciler.reconcileConfig(cm)
+				Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
+			})
 		})
 	})
 
@@ -283,6 +293,16 @@ func createBtpOperator() *v1alpha1.BtpOperator {
 			Name:      btpOperatorName,
 			Namespace: defaultNamespace,
 		},
+	}
+}
+
+func initConfig(data map[string]string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConfigName,
+			Namespace: ChartNamespace,
+		},
+		Data: data,
 	}
 }
 
@@ -405,7 +425,7 @@ func checkIfNoServiceExists(kind string) {
 
 func checkIfNoBindingSecretExists() {
 	secret := &corev1.Secret{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: chartNamespace}, secret)
+	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: ChartNamespace}, secret)
 	Expect(*secret).To(BeEquivalentTo(corev1.Secret{}))
 	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 }

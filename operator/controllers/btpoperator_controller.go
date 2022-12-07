@@ -53,18 +53,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+var (
+	// Configuration options that can be overwritten either by CLI parameter or ConfigMap
+	ChartPath                      = "./module-chart"
+	ChartNamespace                 = "kyma-system"
+	SecretName                     = "sap-btp-manager"
+	ConfigName                     = "sap-btp-manager"
+	DeploymentName                 = "sap-btp-operator-controller-manager"
+	ProcessingStateRequeueInterval = time.Minute * 5
+	ReadyStateRequeueInterval      = time.Hour * 1
+	ReadyTimeout                   = time.Minute * 1
+	RetryInterval                  = time.Second * 10
+)
+
 const (
-	chartNamespace                 = "kyma-system"
-	operatorName                   = "btp-manager"
-	labelKeyForChart               = "app.kubernetes.io/managed-by"
-	secretName                     = "sap-btp-manager"
-	deletionFinalizer              = "custom-deletion-finalizer"
-	deploymentName                 = "sap-btp-operator-controller-manager"
-	mutatingWebhookName            = "sap-btp-operator-mutating-webhook-configuration"
-	validatingWebhookName          = "sap-btp-operator-validating-webhook-configuration"
-	processingStateRequeueInterval = time.Minute * 5
-	readyStateRequeueInterval      = time.Hour * 1
-	readyTimeout                   = time.Minute * 1
+	operatorName          = "btp-manager"
+	labelKeyForChart      = "app.kubernetes.io/managed-by"
+	deletionFinalizer     = "custom-deletion-finalizer"
+	mutatingWebhookName   = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName = "sap-btp-operator-validating-webhook-configuration"
 )
 
 const (
@@ -111,6 +118,7 @@ func (r *BtpOperatorReconciler) SetHardDeleteTimeout(timeout time.Duration) {
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
@@ -152,13 +160,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{RequeueAfter: processingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
 		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	case types.StateReady:
-		return ctrl.Result{RequeueAfter: readyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
@@ -277,10 +285,10 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: chartNamespace, Name: secretName}
+	objKey := client.ObjectKey{Namespace: ChartNamespace, Name: SecretName}
 	if err := r.Get(ctx, objKey, secret); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return nil, fmt.Errorf("%s Secret in %s namespace not found", secretName, chartNamespace)
+			return nil, fmt.Errorf("%s Secret in %s namespace not found", SecretName, ChartNamespace)
 		}
 		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
 	}
@@ -305,14 +313,14 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 	installInfo := types.InstallInfo{
 		ChartInfo: &types.ChartInfo{
-			ChartPath:   r.ChartPath,
+			ChartPath:   ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
-					"Namespace":       chartNamespace,
+					"Namespace":       ChartNamespace,
 					"CreateNamespace": true,
 					"Wait":            r.WaitForChartReadiness,
-					"Timeout":         readyTimeout,
+					"Timeout":         ReadyTimeout,
 				},
 				SetFlags: types.Flags{
 					"manager": map[string]interface{}{
@@ -408,10 +416,54 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
+		Watches(
+			&source.Kind{Type: &corev1.ConfigMap{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
+			builder.WithPredicates(r.watchConfigPredicates()),
+		).
 		Complete(r)
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
+func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcile.Request {
+	logger := log.FromContext(nil, "name", object.GetName(), "namespace", object.GetNamespace())
+	cm, ok := object.(*corev1.ConfigMap)
+	if !ok {
+		return []reconcile.Request{}
+	}
+	logger.Info("reconciling config update", "config", cm.Data)
+	for k, v := range cm.Data {
+		var err error
+		switch k {
+		case "ChartPath":
+			ChartPath = v
+		case "ChartNamespace":
+			ChartNamespace = v
+		case "SecretName":
+			SecretName = v
+		case "ConfigName":
+			ConfigName = v
+		case "DeploymentName":
+			DeploymentName = v
+		case "ProcessingStateRequeueInterval":
+			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
+		case "ReadyStateRequeueInterval":
+			ReadyStateRequeueInterval, err = time.ParseDuration(v)
+		case "ReadyTimeout":
+			ReadyTimeout, err = time.ParseDuration(v)
+		case "RetryInterval":
+			RetryInterval, err = time.ParseDuration(v)
+		default:
+			logger.Info("unknown config update key", k, v)
+		}
+		if err != nil {
+			logger.Info("failed to parse config update", k, err)
+		}
+	}
+
+	return r.enqueueOldestBtpOperator()
+}
+
+func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
 	btpOperators := &v1alpha1.BtpOperatorList{}
 	err := r.List(context.Background(), btpOperators)
 	if err != nil {
@@ -427,6 +479,19 @@ func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret clie
 	return requests
 }
 
+func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
+	return r.enqueueOldestBtpOperator()
+}
+
+func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
+	nameMatches := func(o client.Object) bool { return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace }
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
+		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
+		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
+	}
+}
+
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
@@ -434,21 +499,21 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 			if !ok {
 				return false
 			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
+			return secret.Name == SecretName && secret.Namespace == ChartNamespace
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			return secret.Name == secretName && secret.Namespace == chartNamespace
+			return secret.Name == SecretName && secret.Namespace == ChartNamespace
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			if oldSecret.Name == secretName && oldSecret.Namespace == chartNamespace {
+			if oldSecret.Name == SecretName && oldSecret.Namespace == ChartNamespace {
 				return true
 			}
 			return false
@@ -755,7 +820,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 		r.deleteValidatingWebhook(ctx)
 	*/
 	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: chartNamespace}, deployment); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, deployment); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
@@ -766,7 +831,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	}
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: chartNamespace}, mutatingWebhook); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: ChartNamespace}, mutatingWebhook); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
@@ -777,7 +842,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	}
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: chartNamespace}, validatingWebhook); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: ChartNamespace}, validatingWebhook); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
@@ -817,7 +882,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		allGvks = append(allGvks, gvk)
 	}
 
-	root := fmt.Sprintf("%s/templates/", r.ChartPath)
+	root := fmt.Sprintf("%s/templates/", ChartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -894,7 +959,7 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 	for _, gvk := range gvks {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
-		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(chartNamespace), labelFilter); err != nil {
+		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), labelFilter); err != nil {
 			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
 				return err
 			}
