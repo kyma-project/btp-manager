@@ -1,7 +1,11 @@
 name: e2e-test-k3s
 
 on:
-  pull_request:
+ push:
+   branches: [ "main" ]
+   # Publish semver tags as releases.
+   tags: [ 'v*.*.*' ]
+ pull_request:
     branches: [ main ]
     paths:
         - operator/**
