@@ -43,13 +43,14 @@ import (
 const hardDeleteTimeout = time.Second * 2
 
 var (
-	cfg        *rest.Config
-	k8sClient  client.Client
-	k8sManager manager.Manager
-	testEnv    *envtest.Environment
-	ctx        context.Context
-	cancel     context.CancelFunc
-	reconciler *BtpOperatorReconciler
+	cfg                  *rest.Config
+	k8sClient            client.Client
+	k8sClientFromManager client.Client
+	k8sManager           manager.Manager
+	testEnv              *envtest.Environment
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	reconciler           *BtpOperatorReconciler
 )
 
 func TestAPIs(t *testing.T) {
@@ -94,6 +95,7 @@ var _ = BeforeSuite(func() {
 		ChartPath:             "../module-chart",
 		WaitForChartReadiness: false,
 	}
+	k8sClientFromManager = k8sManager.GetClient()
 	reconciler.SetHardDeleteTimeout(hardDeleteTimeout)
 
 	err = reconciler.SetupWithManager(k8sManager)
