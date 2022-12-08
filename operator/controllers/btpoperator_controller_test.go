@@ -7,14 +7,13 @@ import (
 	"os"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
-
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -87,7 +86,6 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 }
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
-
 	var cr *v1alpha1.BtpOperator
 
 	BeforeAll(func() {

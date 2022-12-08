@@ -562,21 +562,20 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 				return err
 			}
 		} else {
-			logger.Info("Service Instances and Service Bindings hard delete failed.")
+			logger.Info("Service Instances and Service Bindings hard delete failed")
 			if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 				logger.Error(err, "failed to update status")
 				return err
 			}
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
-				logger.Error(err, "failed to hard delete")
+				logger.Error(err, "failed to soft delete")
 				return err
 			}
 		}
 	case <-time.After(r.hardDeleteTimeout):
 		logger.Info("hard delete timeout reached", "duration", r.hardDeleteTimeout)
 		timeoutChannel <- true
-		err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted")
-		if err != nil {
+		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 			logger.Error(err, "failed to update status")
 			return err
 		}
