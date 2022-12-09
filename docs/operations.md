@@ -104,7 +104,7 @@ Only one Condition of type `Ready` is used.
 | 7   | Error      | Ready          | False            | OlderCRExists          | This CR is not the oldest one so does not represent the module status          |
 | 8   | Error      | Ready          | False            | MissingSecret          | `sap-btp-manager` secret was not found - create proper secret                  |
 | 9   | Error      | Ready          | False            | InvalidSecret          | `sap-btp-manager` secret does not contain required data - create proper secret |
-| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources can still be present due to errors while deprovisiong           |
+| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources can still be present due to errors while deprovisioning         |
 | 11  | Error      | Ready          | False            | ChartInstallFailed     | Failure during chart installation                                              |
 | 12  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                               |
 
