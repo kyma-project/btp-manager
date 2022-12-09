@@ -53,7 +53,7 @@ missing, an error is thrown, the reconciler sets `Error` state (with the conditi
 is created. When the Secret is present in the cluster, the reconciler verifies whether it contains required data. The
 Secret should contain the following keys: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, `cluster_id`. None of the
 key values should be empty. If some required data is missing, the reconciler throws an error with the message about
-missing keys/values, sets the CR in `Error` state (reason `InvalidSecret` and stops the reconciliation until there is a change in the required
+missing keys/values, sets the CR in `Error` state (reason `InvalidSecret`), and stops the reconciliation until there is a change in the required
 Secret.
 
 After checking the Secret, the reconciler prepares the module's chart for provisioning. It
@@ -102,9 +102,9 @@ Only one Condition of type `Ready` is used.
 | 5   | Deleting   | Ready          | False            | HardDeleting           | Trying to hard delete                                                          |
 | 6   | Deleting   | Ready          | False            | SoftDeleting           | Trying to soft delete after hard delete failed                                 |
 | 7   | Error      | Ready          | False            | OlderCRExists          | This CR is not the oldest one so does not represent the module status          |
-| 8   | Error      | Ready          | False            | MissingSecret          | 'sap-btp-manager' secret was not found - create proper secret                  |
-| 9   | Error      | Ready          | False            | InvalidSecret          | 'sap-btp-manager' secret does not contain required data - create proper secret |
-| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources could be left due to errors while deprovisiong                  |
+| 8   | Error      | Ready          | False            | MissingSecret          | `sap-btp-manager` secret was not found - create proper secret                  |
+| 9   | Error      | Ready          | False            | InvalidSecret          | `sap-btp-manager` secret does not contain required data - create proper secret |
+| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources can still be present due to errors while deprovisiong           |
 | 11  | Error      | Ready          | False            | ChartInstallFailed     | Failure during chart installation                                              |
 | 12  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                               |
 
