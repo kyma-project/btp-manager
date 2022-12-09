@@ -74,11 +74,11 @@ const (
 
 const (
 	chartVersionKey       = "app.kubernetes.io/chart-version"
-	currentCharVersionKey = "currentCharVersion"
-	currentGvksKey        = "currentGvks"
+	btpManagerConfigMap   = "btp-manager-config-map"
 	oldChartVersionKey    = "oldChartVersion"
 	oldGvksKey            = "oldGvks"
-	btpManagerConfigMap   = "btp-manager-config-map"
+	currentCharVersionKey = "currentCharVersion"
+	currentGvksKey        = "currentGvks"
 )
 
 var (
@@ -135,12 +135,12 @@ func strToGvks(str string) (error, []schema.GroupVersionKind) {
 	return nil, out
 }
 
-func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded() error {
+func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded(ctx context.Context) error {
 	namespace := &corev1.Namespace{}
 	namespace.Name = chartNamespace
-	err := r.Get(context.Background(), client.ObjectKeyFromObject(namespace), namespace)
+	err := r.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
 	if errors.IsNotFound(err) {
-		err = r.Create(context.Background(), namespace)
+		err = r.Create(ctx, namespace)
 		if err != nil {
 			return err
 		}
@@ -151,10 +151,10 @@ func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded() error {
 }
 
 func (r *BtpOperatorReconciler) GetConfigMap() *corev1.ConfigMap {
-	cm := &corev1.ConfigMap{}
-	cm.Namespace = chartNamespace
-	cm.Name = btpManagerConfigMap
-	return cm
+	configMap := &corev1.ConfigMap{}
+	configMap.Namespace = chartNamespace
+	configMap.Name = btpManagerConfigMap
+	return configMap
 }
 
 func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
@@ -171,26 +171,21 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 		return err
 	}
 
-	err = r.CreateNamespaceIfNeeded()
+	err = r.CreateNamespaceIfNeeded(ctx)
 	if err != nil {
 		return err
 	}
 
 	configMap := r.GetConfigMap()
 
-	if err := r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap); err != nil && !errors.IsNotFound(err) {
+	err = r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
+	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if err != nil && errors.IsNotFound(err) {
-		if err := r.HandleExistingConfigMap(ctx, configMap, &newChartVersion, newGvks); err != nil {
-			return err
-		}
+		return r.HandleInitialConfigMap(ctx, configMap, &newChartVersion, newGvks)
 	} else {
-		if err := r.HandleInitialConfigMap(ctx, configMap, &newChartVersion, newGvks); err != nil {
-			return err
-		}
+		return r.HandleExistingConfigMap(ctx, configMap, &newChartVersion, newGvks)
 	}
-
-	return nil
 }
 
 func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
@@ -223,13 +218,11 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 		return fmt.Errorf("'current' should be present in configmap but it is not")
 	}
 
-	currentGvksStr, ok := configMap.Data["currentGvks"]
-	if !ok {
-		return fmt.Errorf("'current' should be present in configmap but it is not")
-	}
-
-	versionChange := *newChartVersion != current
-	if versionChange {
+	if r.DidVersionChange(*newChartVersion, current) {
+		currentGvksStr, ok := configMap.Data["currentGvks"]
+		if !ok {
+			return fmt.Errorf("'current' should be present in configmap but it is not")
+		}
 		err, newGvksAsStr := gvksToStr(newGvks)
 		if err != nil {
 			return err
@@ -253,7 +246,14 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 	return nil
 }
 
+func (r *BtpOperatorReconciler) DidVersionChange(new, current string) bool {
+	return new != current
+}
+
 func (r *BtpOperatorReconciler) SetConfigMaps(configMap *corev1.ConfigMap, current, currentGvksStr, newChartVersion, newGvksAsStr string) {
+	if configMap == nil {
+		return
+	}
 	configMap.Data[oldChartVersionKey] = current
 	configMap.Data[oldGvksKey] = currentGvksStr
 	configMap.Data[currentCharVersionKey] = newChartVersion
@@ -415,7 +415,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) DeleteOrphanedResources(ctx context.Context) error {
 	logger := log.FromContext(ctx)
-	if r.chartDetails.oldChartVersion != r.chartDetails.currentChartVersion {
+	if r.DidVersionChange(r.chartDetails.oldChartVersion, r.chartDetails.currentChartVersion) {
 		oldVersionLabel := client.MatchingLabels{chartVersionKey: r.chartDetails.oldChartVersion}
 		for _, gvk := range r.chartDetails.oldGvks {
 			list := &unstructured.UnstructuredList{}
