@@ -93,19 +93,19 @@ The state of BTP Operator CR is represented by [**Status**](https://github.com/k
 and Conditions.
 Only one Condition of type `Ready` is used.
 
-| No. | CR state   | Condition type | Condition status | Condition reason       | Remark                                                                       |
-|-----|------------|----------------|------------------|------------------------|------------------------------------------------------------------------------|
-| 1   | Ready      | Ready          | True             | ReconcileSucceeded     | Reconciled successfully                                                      |
-| 2   | Processing | Ready          | True             | Recovered              | Recovered from error                                                         |
-| 3   | Processing | Ready          | False            | Initialized            | Initial processing or chart is inconsistent                                  |
-| 4   | Processing | Ready          | False            | Processing             | Final state after deprovisioning                                             |
-| 5   | Deleting   | Ready          | False            | HardDeleting           | Trying to hard delete                                                        |
-| 6   | Deleting   | Ready          | False            | SoftDeleting           | Trying to soft delete after hard delete failed                               |
-| 7   | Error      | Ready          | False            | OlderCRExists          | This CR is not the oldest one so does not represent the module status        |
-| 8   | Error      | Ready          | False            | MissingSecret          | 'sap-btp-manager' secret was not found - create proper secret                |
-| 9   | Error      | Ready          | False            | InvalidSecret          | 'sap-btp-manager' secret do not contain required data - create proper secret |
-| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources could be left due to errors while deprovisiong                |
-| 11  | Error      | Ready          | False            | ChartInstallFailed     | Failure during chart installation                                            |
-| 12  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                             |
+| No. | CR state   | Condition type | Condition status | Condition reason       | Remark                                                                         |
+|-----|------------|----------------|------------------|------------------------|--------------------------------------------------------------------------------|
+| 1   | Ready      | Ready          | True             | ReconcileSucceeded     | Reconciled successfully                                                        |
+| 2   | Processing | Ready          | True             | Recovered              | Recovered from error                                                           |
+| 3   | Processing | Ready          | False            | Initialized            | Initial processing or chart is inconsistent                                    |
+| 4   | Processing | Ready          | False            | Processing             | Final state after deprovisioning                                               |
+| 5   | Deleting   | Ready          | False            | HardDeleting           | Trying to hard delete                                                          |
+| 6   | Deleting   | Ready          | False            | SoftDeleting           | Trying to soft delete after hard delete failed                                 |
+| 7   | Error      | Ready          | False            | OlderCRExists          | This CR is not the oldest one so does not represent the module status          |
+| 8   | Error      | Ready          | False            | MissingSecret          | 'sap-btp-manager' secret was not found - create proper secret                  |
+| 9   | Error      | Ready          | False            | InvalidSecret          | 'sap-btp-manager' secret does not contain required data - create proper secret |
+| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources could be left due to errors while deprovisiong                  |
+| 11  | Error      | Ready          | False            | ChartInstallFailed     | Failure during chart installation                                              |
+| 12  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                               |
 
 
