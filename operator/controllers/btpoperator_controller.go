@@ -150,6 +150,13 @@ func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded() error {
 	return nil
 }
 
+func (r *BtpOperatorReconciler) GetConfigMap() *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{}
+	cm.Namespace = chartNamespace
+	cm.Name = btpManagerConfigMap
+	return cm
+}
+
 func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
 	r.chartDetails = &ChartDetails{}
 
@@ -170,9 +177,7 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 		return err
 	}
 
-	configMap := &corev1.ConfigMap{}
-	configMap.Namespace = chartNamespace
-	configMap.Name = btpManagerConfigMap
+	configMap := GetConfigMap()
 
 	if err := r.Get(ctx, client.ObjectKey{
 		Namespace: configMap.Namespace,

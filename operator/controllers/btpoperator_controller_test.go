@@ -18,7 +18,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -142,18 +141,16 @@ var _ = Describe("BTP Operator controller", func() {
 	})
 
 	Describe("Deprovisioning", func() {
-		BeforeEach(func() {
+		var gvks []schema.GroupVersionKind
+		BeforeAll(func() {
 			createSecret()
-
-			btpOperator := createBtpOperator()
-
-			err := k8sClient.Create(ctx, btpOperator)
+			var err error
+			gvks, err = ymlutils.GatherChartGvks(reconciler.chartDetails.chartPath)
 			Expect(err).To(BeNil())
+		})
 
-			time.Sleep(time.Second * 30)
-
-			err = clearWebhooks()
-			Expect(err).To(BeNil())
+		BeforeEach(func() {
+			provisionBtpOperatorWithinNeededResources(cr, false, false)
 
 			createResource(instanceGvk, testNamespace, instanceName)
 			ensureResourceExists(instanceGvk)
@@ -167,7 +164,7 @@ var _ = Describe("BTP Operator controller", func() {
 			reconciler.Client = newFakeK8s(reconciler.Client)
 
 			triggerDelete()
-			doChecks()
+			doChecks(gvks)
 		})
 
 		It("soft delete (after hard deletion fail) should succeed", func() {
@@ -175,13 +172,13 @@ var _ = Describe("BTP Operator controller", func() {
 			reconciler.Client = newFakeK8s(reconciler.Client)
 
 			triggerDelete()
-			doChecks()
+			doChecks(gvks)
 		})
 
 		It("hard delete should succeed", func() {
 			reconciler.SetTimeout(time.Minute * 1)
 
-			doChecks()
+			doChecks(gvks)
 		})
 	})
 
@@ -411,11 +408,11 @@ func triggerDelete() {
 	time.Sleep(time.Second * 30)
 }
 
-func doChecks() {
+func doChecks(gvks []schema.GroupVersionKind) {
 	checkIfNoServicesExists(btpOperatorServiceBinding)
 	checkIfNoBindingSecretExists()
 	checkIfNoServicesExists(btpOperatorServiceInstance)
-	checkIfNoBtpResourceExists()
+	checkIfNoBtpResourceExists(gvks)
 }
 
 func checkIfNoServicesExists(kind string) {
@@ -433,41 +430,26 @@ func checkIfNoBindingSecretExists() {
 	Expect(errors.IsNotFound(err)).To(BeTrue())
 }
 
-func checkIfNoBtpResourceExists() {
-	cs, err := clientset.NewForConfig(cfg)
-	Expect(err).To(BeNil())
-
-	_, resourceMap, err := cs.ServerGroupsAndResources()
-	Expect(err).To(BeNil())
-
-	namespaces := &corev1.NamespaceList{}
-	err = k8sClient.List(ctx, namespaces)
-	Expect(err).To(BeNil())
-
+func checkIfNoBtpResourceExists(gvks []schema.GroupVersionKind) {
 	found := false
-	for _, resource := range resourceMap {
-		gv, _ := schema.ParseGroupVersion(resource.GroupVersion)
-		for _, apiResource := range resource.APIResources {
-			list := &unstructured.UnstructuredList{}
-			list.SetGroupVersionKind(schema.GroupVersionKind{
-				Version: gv.Version,
-				Group:   gv.Group,
-				Kind:    apiResource.Kind,
-			})
-			for _, namespace := range namespaces.Items {
-				if err := k8sClient.List(ctx, list, client.InNamespace(namespace.Name), labelFilter); err != nil {
-					ignore := k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
-					if !ignore {
-						found = true
-						break
-					}
-				} else if len(list.Items) > 0 {
-					found = true
-					break
-				}
+	for _, gvk := range gvks {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(schema.GroupVersionKind{
+			Version: gvk.Version,
+			Group:   gvk.Group,
+			Kind:    gvk.Kind,
+		})
+		if err := k8sClient.List(ctx, list, labelFilter); err != nil {
+			if !canIgnoreErr(err) {
+				found = true
+				break
+			} else if len(list.Items) > 0 {
+				found = true
+				break
 			}
 		}
 	}
+	Expect(found).To(BeFalse())
 	Expect(found).To(BeFalse())
 }
 
