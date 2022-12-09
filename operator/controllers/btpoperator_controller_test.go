@@ -101,18 +101,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		BeforeAll(func() {
 			cr = createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			/*Eventually(getCurrentCrStatus).
-			WithTimeout(crStateChangeTimeout).
-			WithPolling(crStatePollingInterval).
-			Should(
-				SatisfyAll(
-					HaveField("State", types.StateProcessing),
-					HaveField("Conditions", HaveLen(1)),
-					HaveField("Conditions",
-						ContainElements(
-							PointTo(
-								MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Initialized)), "Status": Equal(metav1.ConditionFalse)}),
-							)))))*/
 		})
 
 		AfterAll(func() {
@@ -174,10 +162,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutKeys()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-					/*Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(SatisfyAll(HaveField("State", types.StateProcessing), HaveField("Conditions", HaveLen(1))))*/
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
@@ -199,10 +183,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-					/*Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(SatisfyAll(HaveField("State", types.StateProcessing), HaveField("Conditions", HaveLen(1))))*/
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
