@@ -36,8 +36,6 @@ const (
 	bindingName                     = "my-service-binding"
 	secretYamlPath                  = "testdata/test-secret.yaml"
 	priorityClassYamlPath           = "testdata/test-priorityclass.yaml"
-	serviceBindingYamlPath          = "testdata/test-servicebinding.yaml"
-	serviceInstanceYamlPath         = "testdata/test-serviceinstance.yaml"
 	k8sOpsTimeout                   = time.Second * 3
 	k8sOpsPollingInterval           = time.Millisecond * 200
 	crStateChangeTimeout            = time.Second * 2
