@@ -177,7 +177,6 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 	}
 
 	configMap := r.GetConfigMap()
-
 	err = r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
 	if err != nil && !errors.IsNotFound(err) {
 		return err

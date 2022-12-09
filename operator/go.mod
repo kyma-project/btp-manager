@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/kyma-project/module-manager/operator v0.0.0-20221012124236-333327b5d7ad
-	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.0
 	github.com/otiai10/copy v1.2.0

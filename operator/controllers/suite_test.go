@@ -20,11 +20,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -59,11 +60,17 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 	ctx, cancel = context.WithCancel(context.TODO())
+	cmd := exec.Command("/bin/sh", "prerun.sh")
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
 
+	t := true
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
+		UseExistingCluster:    &t,
 	}
 	kubeVersion := "1.25.0"
 	k8sBinPath := fmt.Sprintf("../bin/k8s/%v-%v-%v", kubeVersion, runtime.GOOS, runtime.GOARCH)
@@ -96,6 +103,12 @@ var _ = BeforeSuite(func() {
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
+
+	err = k8sManager.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return reconciler.StoreChartDetails(ctx, chartPath)
+	}))
+
+	Expect(err).To(BeNil())
 
 	go func() {
 		defer GinkgoRecover()

@@ -107,6 +107,10 @@ func ExtractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
 }
 
 func ExtractValueFromLine(filePath string, key string) (string, error) {
+	if !strings.HasSuffix(key, ":") {
+		key = key + ":"
+	}
+
 	file, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err

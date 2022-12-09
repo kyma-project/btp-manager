@@ -73,7 +73,7 @@ func (f *fakeK8s) DeleteAllOf(ctx context.Context, obj client.Object, opts ...cl
 	return nil
 }
 
-var _ = Describe("BTP Operator controller", func() {
+var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
 
 	BeforeEach(func() {
@@ -87,7 +87,7 @@ var _ = Describe("BTP Operator controller", func() {
 		})).To(Succeed())
 	})
 
-	Describe("Provisioning", func() {
+	/*Describe("Provisioning", func() {
 		BeforeEach(func() {
 			ctx = context.Background()
 			cr = createBtpOperator()
@@ -181,6 +181,7 @@ var _ = Describe("BTP Operator controller", func() {
 			doChecks(gvks)
 		})
 	})
+	*/
 
 	Describe("Update", func() {
 		onStart := func() {
