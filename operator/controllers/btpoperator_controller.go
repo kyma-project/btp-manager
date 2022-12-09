@@ -159,7 +159,6 @@ func (r *BtpOperatorReconciler) GetConfigMap() *corev1.ConfigMap {
 
 func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
 	r.chartDetails = &ChartDetails{}
-
 	r.chartDetails.chartPath = chartPath
 
 	newChartVersion, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", r.chartDetails.chartPath), "version")
@@ -177,75 +176,95 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath
 		return err
 	}
 
-	configMap := GetConfigMap()
+	configMap := r.GetConfigMap()
 
-	if err := r.Get(ctx, client.ObjectKey{
-		Namespace: configMap.Namespace,
-		Name:      configMap.Name,
-	}, configMap); err != nil && !errors.IsNotFound(err) {
+	if err := r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap); err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if err != nil && errors.IsNotFound(err) {
-		configMap.Data = make(map[string]string)
-
-		err, newGvksAsStr := gvksToStr(newGvks)
-		if err != nil {
+		if err := r.HandleExistingConfigMap(ctx, configMap, &newChartVersion, newGvks); err != nil {
 			return err
 		}
-
-		configMap.Data[oldChartVersionKey] = newChartVersion
-		r.chartDetails.oldChartVersion = newChartVersion
-		configMap.Data[oldGvksKey] = newGvksAsStr
-		r.chartDetails.oldGvks = newGvks
-
-		configMap.Data[currentCharVersionKey] = newChartVersion
-		r.chartDetails.currentChartVersion = newChartVersion
-		configMap.Data[currentGvksKey] = newGvksAsStr
-		r.chartDetails.currentGvks = newGvks
-
-		if err := r.Create(ctx, configMap); err != nil {
-			return err
-		}
-
-		r.chartDetails.needToCheckConsistency = true
 	} else {
-		current, ok := configMap.Data[currentCharVersionKey]
-		if !ok {
-			return fmt.Errorf("'current' should be present in configmap but it is not")
-		}
-
-		if newChartVersion != current {
-			err, newGvksAsStr := gvksToStr(newGvks)
-			if err != nil {
-				return err
-			}
-			currentGvksStr, ok := configMap.Data["currentGvks"]
-			if !ok {
-				return fmt.Errorf("'current' should be present in configmap but it is not")
-			}
-			err, currentGvks := strToGvks(currentGvksStr)
-			if err != nil {
-				return err
-			}
-
-			configMap.Data[oldChartVersionKey] = current
-			r.chartDetails.oldChartVersion = current
-			configMap.Data[oldGvksKey] = currentGvksStr
-			r.chartDetails.oldGvks = currentGvks
-
-			configMap.Data[currentCharVersionKey] = newChartVersion
-			r.chartDetails.currentChartVersion = newChartVersion
-			r.chartDetails.currentGvks = newGvks
-			configMap.Data[currentGvksKey] = newGvksAsStr
-
-			if err := r.Update(ctx, configMap); err != nil {
-				return nil
-			}
-
-			r.chartDetails.needToCheckConsistency = true
+		if err := r.HandleInitialConfigMap(ctx, configMap, &newChartVersion, newGvks); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
+	newChartVersion *string, newGvks []schema.GroupVersionKind) error {
+
+	configMap.Data = make(map[string]string)
+
+	err, newGvksAsStr := gvksToStr(newGvks)
+	if err != nil {
+		return err
+	}
+	r.SetConfigMaps(configMap, *newChartVersion, newGvksAsStr, *newChartVersion, newGvksAsStr)
+
+	r.SetChartDetails(*newChartVersion, *newChartVersion, newGvks, newGvks)
+
+	if err := r.Create(ctx, configMap); err != nil {
+		return err
+	}
+
+	r.chartDetails.needToCheckConsistency = true
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
+	newChartVersion *string, newGvks []schema.GroupVersionKind) error {
+
+	current, ok := configMap.Data[currentCharVersionKey]
+	if !ok {
+		return fmt.Errorf("'current' should be present in configmap but it is not")
+	}
+
+	currentGvksStr, ok := configMap.Data["currentGvks"]
+	if !ok {
+		return fmt.Errorf("'current' should be present in configmap but it is not")
+	}
+
+	versionChange := *newChartVersion != current
+	if versionChange {
+		err, newGvksAsStr := gvksToStr(newGvks)
+		if err != nil {
+			return err
+		}
+		r.SetConfigMaps(configMap, current, currentGvksStr, *newChartVersion, newGvksAsStr)
+
+		err, currentGvks := strToGvks(currentGvksStr)
+		if err != nil {
+			return err
+		}
+
+		r.SetChartDetails(current, *newChartVersion, currentGvks, newGvks)
+
+		if err := r.Update(ctx, configMap); err != nil {
+			return nil
+		}
+
+		r.chartDetails.needToCheckConsistency = true
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) SetConfigMaps(configMap *corev1.ConfigMap, current, currentGvksStr, newChartVersion, newGvksAsStr string) {
+	configMap.Data[oldChartVersionKey] = current
+	configMap.Data[oldGvksKey] = currentGvksStr
+	configMap.Data[currentCharVersionKey] = newChartVersion
+	configMap.Data[currentGvksKey] = newGvksAsStr
+}
+
+func (r *BtpOperatorReconciler) SetChartDetails(current, newChartVersion string, currentGvks, newGvks []schema.GroupVersionKind) {
+	r.chartDetails.oldGvks = currentGvks
+	r.chartDetails.oldChartVersion = current
+	r.chartDetails.currentChartVersion = newChartVersion
+	r.chartDetails.currentGvks = newGvks
 }
 
 func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {

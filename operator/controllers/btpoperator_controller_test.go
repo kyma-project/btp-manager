@@ -450,7 +450,6 @@ func checkIfNoBtpResourceExists(gvks []schema.GroupVersionKind) {
 		}
 	}
 	Expect(found).To(BeFalse())
-	Expect(found).To(BeFalse())
 }
 
 func canIgnoreErr(err error) bool {
