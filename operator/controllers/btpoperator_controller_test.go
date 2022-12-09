@@ -290,7 +290,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(getCurrentCrStatus).
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
+				Should(
+					SatisfyAll(
+						HaveField("State", types.StateDeleting),
+						HaveField("Conditions", HaveLen(1)),
+						HaveField("Conditions",
+							ContainElements(
+								PointTo(
+									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(SoftDeleting)), "Status": Equal(metav1.ConditionFalse)}),
+								))),
+					))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 			doChecks()
 		})
@@ -307,7 +316,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(getCurrentCrStatus).
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
+				Should(
+					SatisfyAll(
+						HaveField("State", types.StateDeleting),
+						HaveField("Conditions", HaveLen(1)),
+						HaveField("Conditions",
+							ContainElements(
+								PointTo(
+									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(SoftDeleting)), "Status": Equal(metav1.ConditionFalse)}),
+								))),
+					))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 			doChecks()
 		})
@@ -322,7 +340,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(getCurrentCrStatus).
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
+				Should(
+					SatisfyAll(
+						HaveField("State", types.StateDeleting),
+						HaveField("Conditions", HaveLen(1)),
+						HaveField("Conditions",
+							ContainElements(
+								PointTo(
+									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(HardDeleting)), "Status": Equal(metav1.ConditionFalse)}),
+								))),
+					))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 			doChecks()
 		})
