@@ -4,16 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	appsv1 "k8s.io/api/apps/v1"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	ymlutils "github.com/kyma-project/btp-manager/operator/internal"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	cp "github.com/otiai10/copy"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
@@ -45,6 +49,8 @@ const (
 	crStateUpdatedPollingInterval   = time.Millisecond
 	crDeprovisioningPollingInterval = time.Second * 1
 	crDeprovisioningTimeout         = time.Second * 30
+	updatePath                      = "./testdata/module-chart-update"
+	suffix                          = "updated"
 )
 
 type timeoutK8sClient struct {
@@ -383,6 +389,89 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			doChecks()
 		})
 	})
+
+	Describe("Update", func() {
+		onStart := func() {
+			err := cp.Copy(reconciler.chartDetails.chartPath, updatePath)
+			Expect(err).To(BeNil())
+			reconciler.chartDetails.chartPath = updatePath
+		}
+
+		onClose := func() {
+			reconciler.chartDetails.chartPath = "./module-chart"
+			os.RemoveAll(updatePath)
+		}
+
+		BeforeAll(func() {
+			onStart()
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateProcessing))
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+		})
+
+		//Consider using labels
+		When("update of all resources names and bump chart version", func() {
+			It("new resources (with new name) should be created and old ones removed", func() {
+				defer onClose()
+
+				gvks, err := ymlutils.GatherChartGvks(updatePath)
+				Expect(err).To(BeNil())
+
+				err = ymlutils.TransformCharts(updatePath, suffix)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)
+				if cr.Annotations == nil {
+					cr.Annotations = make(map[string]string)
+				}
+				cr.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+				err = k8sClient.Update(ctx, cr)
+
+				//This should be uncommented when we implement Update in controller, for now the State is Ready, since there were no change, due to missing update feature
+				//Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(1 * time.Nanosecond).Should(Equal(types.StateProcessing))
+				Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+
+				withSuffixCount := 0
+				withoutSuffixCount := 0
+
+				for _, gvk := range gvks {
+					list := &unstructured.UnstructuredList{}
+					list.SetGroupVersionKind(schema.GroupVersionKind{
+						Group:   gvk.Group,
+						Version: gvk.Version,
+						Kind:    gvk.Kind,
+					})
+
+					if err = k8sClient.List(ctx, list, labelFilter); err != nil && !canIgnoreErr(err) {
+						Expect(err).To(BeNil())
+					}
+
+					for _, item := range list.Items {
+						if strings.HasSuffix(item.GetName(), suffix) {
+							withSuffixCount++
+						} else {
+							withoutSuffixCount++
+						}
+					}
+				}
+
+				fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
+				Expect(withSuffixCount).To(BeEquivalentTo(0))
+				Expect(withoutSuffixCount).To(BeZero())
+			})
+		})
+
+		//After first tests works:
+
+		//Negative scenario
+		//update of all resources names and leave same chart version
+		//new resources (with new name) should be created and old ones should stay
+
+		//resources should stay as they are and we bump chart version
+		//existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)
+
+	})
 })
 
 func createPrereqs() error {
@@ -601,7 +690,7 @@ func checkIfNoBindingSecretExists() {
 }
 
 func checkIfNoBtpResourceExists() {
-	gvks, err := reconciler.gatherChartGvks()
+	gvks, err := ymlutils.GatherChartGvks(reconciler.chartDetails.chartPath)
 	Expect(err).To(BeNil())
 
 	found := false
@@ -613,8 +702,7 @@ func checkIfNoBtpResourceExists() {
 			Kind:    gvk.Kind,
 		})
 		if err := k8sClient.List(ctx, list, labelFilter); err != nil {
-			ignore := k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
-			if !ignore {
+			if !canIgnoreErr(err) {
 				found = true
 				break
 			}
@@ -624,4 +712,8 @@ func checkIfNoBtpResourceExists() {
 		}
 	}
 	Expect(found).To(BeFalse())
+}
+
+func canIgnoreErr(err error) bool {
+	return k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
 }
