@@ -38,7 +38,7 @@ const (
 	priorityClassYamlPath           = "testdata/test-priorityclass.yaml"
 	k8sOpsTimeout                   = time.Second * 3
 	k8sOpsPollingInterval           = time.Millisecond * 200
-	crStateChangeTimeout            = time.Second * 2
+	crStateChangeTimeout            = time.Second * 5
 	crStatePollingInterval          = time.Millisecond * 10
 	crDeprovisioningPollingInterval = time.Second * 1
 	crDeprovisioningTimeout         = time.Second * 30
@@ -287,6 +287,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				WithPolling(k8sOpsPollingInterval).
 				Should(Succeed())
 			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+			Eventually(getCurrentCrStatus).
+				WithTimeout(crStateChangeTimeout).
+				WithPolling(crStatePollingInterval).
+				Should(
+					SatisfyAll(
+						HaveField("State", types.StateDeleting),
+						HaveField("Conditions", HaveLen(1)),
+						HaveField("Conditions",
+							ContainElements(
+								PointTo(
+									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(HardDeleting)), "Status": Equal(metav1.ConditionFalse)}),
+								))),
+					))
 			Eventually(getCurrentCrStatus).
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
