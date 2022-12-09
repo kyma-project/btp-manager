@@ -5,13 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	ymlutils "github.com/kyma-project/btp-manager/operator/internal"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	cp "github.com/otiai10/copy"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/cri-api/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -42,6 +47,22 @@ const (
 	crStatePollingInterval          = time.Millisecond * 10
 	crDeprovisioningPollingInterval = time.Second * 1
 	crDeprovisioningTimeout         = time.Second * 30
+	btpOperatorKind          = "BtpOperator"
+	btpOperatorApiVersion    = `operator.kyma-project.io\v1alpha1`
+	btpOperatorName          = "btp-operator-test"
+	testNamespace            = "default"
+	instanceName             = "my-service-instance"
+	bindingName              = "my-binding"
+	kymaNamespace            = "kyma-system"
+	secretYamlPath           = "testdata/test-secret.yaml"
+	priorityClassYamlPath    = "testdata/test-priorityclass.yaml"
+	testTimeout              = time.Second * 10
+	stateChangeTimeout       = time.Second * 1
+	deleteTimeout            = time.Second * 30
+	crStatePollingIntevral   = time.Microsecond * 1
+	operationPollingInterval = time.Second * 1
+	updatePath               = "./testdata/module-chart-update"
+	suffix                   = "updated"
 )
 
 type timeoutK8sClient struct {
@@ -270,6 +291,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			time.Sleep(time.Second * 1)
 			err := clearWebhooks()
 			Expect(err).To(BeNil())
+		})
+
+		BeforeEach(func() {
+			provisionBtpOperatorWithinNeededResources(cr, false, false)
 
 			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
 			ensureResourceExists(instanceGvk)
@@ -367,7 +392,124 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			doChecks()
 		})
 	})
+	*/
+
+	Describe("Update", func() {
+		onStart := func() {
+			err := cp.Copy(reconciler.chartDetails.chartPath, updatePath)
+			Expect(err).To(BeNil())
+			reconciler.chartDetails.chartPath = updatePath
+		}
+
+		onClose := func() {
+			reconciler.chartDetails.chartPath = chartPath
+			os.RemoveAll(updatePath)
+		}
+
+		BeforeAll(func() {
+			onStart()
+			createSecret()
+			provisionBtpOperatorWithinNeededResources(cr, false, false)
+			Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
+
+			btpServiceOperatorDeployment := &appsv1.Deployment{}
+			Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: deploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
+				WithTimeout(testTimeout).
+				WithPolling(operationPollingInterval).
+				Should(Succeed())
+		})
+
+		//Consider using labels
+		When("update of all resources names and bump chart version", func() {
+			It("new resources (with new name) should be created and old ones removed", func() {
+				defer onClose()
+
+				gvks, err := ymlutils.GatherChartGvks(updatePath)
+				Expect(err).To(BeNil())
+
+				err = ymlutils.TransformCharts(updatePath, suffix)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr)
+				if cr.Annotations == nil {
+					cr.Annotations = make(map[string]string)
+				}
+				cr.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+				err = k8sClient.Update(ctx, cr)
+
+				//This should be uncommented when we implement Update in controller, for now the State is Ready, since there were no change, due to missing update feature
+				//Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(1 * time.Nanosecond).Should(Equal(types.StateProcessing))
+				Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateReady))
+
+				withSuffixCount := 0
+				withoutSuffixCount := 0
+
+				for _, gvk := range gvks {
+					list := &unstructured.UnstructuredList{}
+					list.SetGroupVersionKind(schema.GroupVersionKind{
+						Group:   gvk.Group,
+						Version: gvk.Version,
+						Kind:    gvk.Kind,
+					})
+
+					if err = k8sClient.List(ctx, list, labelFilter); err != nil && !canIgnoreErr(err) {
+						Expect(err).To(BeNil())
+					}
+
+					for _, item := range list.Items {
+						if strings.HasSuffix(item.GetName(), suffix) {
+							withSuffixCount++
+						} else {
+							withoutSuffixCount++
+						}
+					}
+				}
+
+				fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
+				Expect(withSuffixCount).To(BeEquivalentTo(0))
+				Expect(withoutSuffixCount).To(BeZero())
+			})
+		})
+
+		//After first tests works:
+
+		//Negative scenario
+		//update of all resources names and leave same chart version
+		//new resources (with new name) should be created and old ones should stay
+
+		//resources should stay as they are and we bump chart version
+		//existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)
+
+	})
 })
+
+func provisionBtpOperatorWithinNeededResources(cr *v1alpha1.BtpOperator, withinPriorityClass bool, withinNamespace bool) {
+	if withinPriorityClass {
+		pClass, err := createPriorityClassFromYaml()
+		Expect(err).To(BeNil())
+		Expect(k8sClient.Create(ctx, pClass)).To(Succeed())
+	}
+
+	if withinNamespace {
+		Expect(k8sClient.Create(ctx, &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: kymaNamespace,
+			},
+		})).To(Succeed())
+	}
+
+	cr = createBtpOperator()
+	Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+	Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(crStatePollingIntevral).Should(Equal(types.StateProcessing))
+}
+
+func getCurrentCrState() types.State {
+	cr := &v1alpha1.BtpOperator{}
+	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: testNamespace, Name: btpOperatorName}, cr); err != nil {
+		return ""
+	}
+	return cr.GetStatus().State
+}
 
 func createPrereqs() error {
 	pClass := &schedulingv1.PriorityClass{}
@@ -397,6 +539,34 @@ func setFinalizers(resource *unstructured.Unstructured) {
 	Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: resource.GetNamespace(), Name: resource.GetName()}, resource)).To(Succeed())
 	Expect(unstructured.SetNestedStringSlice(resource.Object, finalizers, "metadata", "finalizers")).To(Succeed())
 	Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+}
+
+func createSecret() {
+	namespace := &corev1.Namespace{}
+	namespace.Name = kymaNamespace
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
+	if k8serrors.IsNotFound(err) {
+		err = k8sClient.Create(ctx, namespace)
+	}
+	Expect(err).To(BeNil())
+
+	secret := &corev1.Secret{}
+	secret.Type = corev1.SecretTypeOpaque
+	secret.Name = "sap-btp-manager"
+	secret.Namespace = kymaNamespace
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)
+	if k8serrors.IsNotFound(err) {
+		secret.Data = map[string][]byte{
+			"clientid":     []byte("dGVzdF9jbGllbnRpZA=="),
+			"clientsecret": []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
+			"sm_url":       []byte("dGVzdF9zbV91cmw="),
+			"tokenurl":     []byte("dGVzdF90b2tlbnVybA=="),
+			"cluster_id":   []byte("dGVzdF9jbHVzdGVyX2lk"),
+		}
+		err = k8sClient.Create(ctx, secret)
+	}
+
+	Expect(err).To(BeNil())
 }
 
 func getCurrentCrState() types.State {
@@ -546,11 +716,18 @@ func clearWebhooks() error {
 	return nil
 }
 
-func doChecks() {
-	checkIfNoServiceExists(btpOperatorServiceBinding)
+func triggerDelete() {
+	btpOperator := createBtpOperator()
+	err := k8sClient.Delete(ctx, btpOperator)
+	Expect(err).To(BeNil())
+	time.Sleep(time.Second * 30)
+}
+
+func doChecks(gvks []schema.GroupVersionKind) {
+	checkIfNoServicesExists(btpOperatorServiceBinding)
 	checkIfNoBindingSecretExists()
-	checkIfNoServiceExists(btpOperatorServiceInstance)
-	checkIfNoBtpResourceExists()
+	checkIfNoServicesExists(btpOperatorServiceInstance)
+	checkIfNoBtpResourceExists(gvks)
 }
 
 func checkIfNoServiceExists(kind string) {
@@ -568,10 +745,7 @@ func checkIfNoBindingSecretExists() {
 	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 }
 
-func checkIfNoBtpResourceExists() {
-	gvks, err := reconciler.gatherChartGvks()
-	Expect(err).To(BeNil())
-
+func checkIfNoBtpResourceExists(gvks []schema.GroupVersionKind) {
 	found := false
 	for _, gvk := range gvks {
 		list := &unstructured.UnstructuredList{}
@@ -581,15 +755,18 @@ func checkIfNoBtpResourceExists() {
 			Kind:    gvk.Kind,
 		})
 		if err := k8sClient.List(ctx, list, labelFilter); err != nil {
-			ignore := k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
-			if !ignore {
+			if !canIgnoreErr(err) {
+				found = true
+				break
+			} else if len(list.Items) > 0 {
 				found = true
 				break
 			}
-		} else if len(list.Items) > 0 {
-			found = true
-			break
 		}
 	}
 	Expect(found).To(BeFalse())
+}
+
+func canIgnoreErr(err error) bool {
+	return k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
 }

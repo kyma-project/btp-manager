@@ -12,6 +12,16 @@ require (
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
 	sigs.k8s.io/controller-runtime v0.13.1
+	github.com/kyma-project/module-manager/operator v0.0.0-20221012124236-333327b5d7ad
+	github.com/onsi/ginkgo/v2 v2.1.4
+	github.com/onsi/gomega v1.20.0
+	github.com/otiai10/copy v1.2.0
+	gopkg.in/yaml.v2 v2.4.0
+	k8s.io/api v0.25.0
+	k8s.io/apimachinery v0.25.0
+	k8s.io/client-go v0.25.0
+	k8s.io/cri-api v0.23.1
+	sigs.k8s.io/controller-runtime v0.13.0
 )
 
 require (
@@ -142,11 +152,17 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	helm.sh/helm/v3 v3.10.1 // indirect
 	k8s.io/apiserver v0.25.2 // indirect
 	k8s.io/cli-runtime v0.25.2 // indirect
 	k8s.io/component-base v0.25.2 // indirect
+	helm.sh/helm/v3 v3.9.4 // indirect
+	k8s.io/apiextensions-apiserver v0.25.0 // indirect
+	k8s.io/apiserver v0.25.0 // indirect
+	k8s.io/cli-runtime v0.25.0 // indirect
+	k8s.io/component-base v0.25.0 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect
 	k8s.io/kubectl v0.25.2 // indirect

@@ -18,6 +18,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -62,11 +65,17 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 	ctx, cancel = context.WithCancel(context.TODO())
+	cmd := exec.Command("/bin/sh", "prerun.sh")
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
 
+	t := true
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
+		UseExistingCluster:    &t,
 	}
 
 	var err error
@@ -100,6 +109,12 @@ var _ = BeforeSuite(func() {
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
+
+	err = k8sManager.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return reconciler.StoreChartDetails(ctx, chartPath)
+	}))
+
+	Expect(err).To(BeNil())
 
 	go func() {
 		defer GinkgoRecover()

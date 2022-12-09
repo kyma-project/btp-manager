@@ -20,15 +20,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	ymlutils "github.com/kyma-project/btp-manager/operator/internal"
+	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
+	"gopkg.in/yaml.v2"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -79,6 +79,15 @@ const (
 	btpOperatorServiceBinding  = "ServiceBinding"
 )
 
+const (
+	chartVersionKey       = "app.kubernetes.io/chart-version"
+	btpManagerConfigMap   = "btp-manager-config-map"
+	oldChartVersionKey    = "oldChartVersion"
+	oldGvksKey            = "oldGvks"
+	currentCharVersionKey = "currentCharVersion"
+	currentGvksKey        = "currentGvks"
+)
+
 var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
@@ -104,8 +113,165 @@ type BtpOperatorReconciler struct {
 	*rest.Config
 	Scheme                *runtime.Scheme
 	hardDeleteTimeout     time.Duration
-	ChartPath             string
+	chartDetails *ChartDetails
 	WaitForChartReadiness bool
+}
+
+type ChartDetails struct {
+	chartPath              string
+	oldChartVersion        string
+	oldGvks                []schema.GroupVersionKind
+	currentChartVersion    string
+	currentGvks            []schema.GroupVersionKind
+	needToCheckConsistency bool
+}
+
+func gvksToStr(gvks []schema.GroupVersionKind) (error, string) {
+	bytes, err := yaml.Marshal(gvks)
+	if err != nil {
+		return err, ""
+	}
+	return nil, string(bytes)
+}
+
+func strToGvks(str string) (error, []schema.GroupVersionKind) {
+	var out []schema.GroupVersionKind
+	err := yaml.Unmarshal([]byte(str), &out)
+	if err != nil {
+		return err, nil
+	}
+	return nil, out
+}
+
+func (r *BtpOperatorReconciler) CreateNamespaceIfNeeded(ctx context.Context) error {
+	namespace := &corev1.Namespace{}
+	namespace.Name = chartNamespace
+	err := r.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
+	if errors.IsNotFound(err) {
+		err = r.Create(ctx, namespace)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) GetConfigMap() *corev1.ConfigMap {
+	configMap := &corev1.ConfigMap{}
+	configMap.Namespace = chartNamespace
+	configMap.Name = btpManagerConfigMap
+	return configMap
+}
+
+func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
+	r.chartDetails = &ChartDetails{}
+	r.chartDetails.chartPath = chartPath
+
+	newChartVersion, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", r.chartDetails.chartPath), "version")
+	if err != nil {
+		return err
+	}
+
+	newGvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
+	if err != nil {
+		return err
+	}
+
+	err = r.CreateNamespaceIfNeeded(ctx)
+	if err != nil {
+		return err
+	}
+
+	configMap := r.GetConfigMap()
+	err = r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	} else if err != nil && errors.IsNotFound(err) {
+		return r.HandleInitialConfigMap(ctx, configMap, &newChartVersion, newGvks)
+	} else {
+		return r.HandleExistingConfigMap(ctx, configMap, &newChartVersion, newGvks)
+	}
+}
+
+func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
+	newChartVersion *string, newGvks []schema.GroupVersionKind) error {
+
+	configMap.Data = make(map[string]string)
+
+	err, newGvksAsStr := gvksToStr(newGvks)
+	if err != nil {
+		return err
+	}
+	r.SetConfigMaps(configMap, *newChartVersion, newGvksAsStr, *newChartVersion, newGvksAsStr)
+
+	r.SetChartDetails(*newChartVersion, *newChartVersion, newGvks, newGvks)
+
+	if err := r.Create(ctx, configMap); err != nil {
+		return err
+	}
+
+	r.chartDetails.needToCheckConsistency = true
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
+	newChartVersion *string, newGvks []schema.GroupVersionKind) error {
+
+	current, ok := configMap.Data[currentCharVersionKey]
+	if !ok {
+		return fmt.Errorf("'current' should be present in configmap but it is not")
+	}
+
+	if r.DidVersionChange(*newChartVersion, current) {
+		currentGvksStr, ok := configMap.Data["currentGvks"]
+		if !ok {
+			return fmt.Errorf("'current' should be present in configmap but it is not")
+		}
+		err, newGvksAsStr := gvksToStr(newGvks)
+		if err != nil {
+			return err
+		}
+		r.SetConfigMaps(configMap, current, currentGvksStr, *newChartVersion, newGvksAsStr)
+
+		err, currentGvks := strToGvks(currentGvksStr)
+		if err != nil {
+			return err
+		}
+
+		r.SetChartDetails(current, *newChartVersion, currentGvks, newGvks)
+
+		if err := r.Update(ctx, configMap); err != nil {
+			return nil
+		}
+
+		r.chartDetails.needToCheckConsistency = true
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) DidVersionChange(new, current string) bool {
+	return new != current
+}
+
+func (r *BtpOperatorReconciler) SetConfigMaps(configMap *corev1.ConfigMap, current, currentGvksStr, newChartVersion, newGvksAsStr string) {
+	if configMap == nil {
+		return
+	}
+	configMap.Data[oldChartVersionKey] = current
+	configMap.Data[oldGvksKey] = currentGvksStr
+	configMap.Data[currentCharVersionKey] = newChartVersion
+	configMap.Data[currentGvksKey] = newGvksAsStr
+}
+
+func (r *BtpOperatorReconciler) SetChartDetails(current, newChartVersion string, currentGvks, newGvks []schema.GroupVersionKind) {
+	r.chartDetails.oldGvks = currentGvks
+	r.chartDetails.oldChartVersion = current
+	r.chartDetails.currentChartVersion = newChartVersion
+	r.chartDetails.currentGvks = newGvks
 }
 
 func (r *BtpOperatorReconciler) SetHardDeleteTimeout(timeout time.Duration) {
@@ -144,6 +310,11 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		} else {
 			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, cr)
 		}
+	}
+
+	if r.chartDetails.needToCheckConsistency {
+		r.HandleReadyState(ctx, cr)
+		r.chartDetails.needToCheckConsistency = false
 	}
 
 	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
@@ -241,6 +412,30 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	return nil
 }
 
+func (r *BtpOperatorReconciler) DeleteOrphanedResources(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+	if r.DidVersionChange(r.chartDetails.oldChartVersion, r.chartDetails.currentChartVersion) {
+		oldVersionLabel := client.MatchingLabels{chartVersionKey: r.chartDetails.oldChartVersion}
+		for _, gvk := range r.chartDetails.oldGvks {
+			list := &unstructured.UnstructuredList{}
+			list.SetGroupVersionKind(gvk)
+
+			if err := r.List(ctx, list, oldVersionLabel); err != nil {
+				return err
+			}
+
+			for _, item := range list.Items {
+				if err := r.Delete(ctx, &item); err != nil {
+					return err
+				} else {
+					logger.Info(fmt.Sprintf("deleted resource %s of type %s with version = %s", item.GetName(), gvk.Kind, r.chartDetails.oldChartVersion))
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
@@ -295,6 +490,7 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 		cr.Labels = make(map[string]string)
 	}
 	cr.Labels[labelKeyForChart] = operatorName
+	cr.Labels[chartVersionKey] = r.chartDetails.currentChartVersion
 }
 
 func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (types.InstallInfo, error) {
@@ -866,7 +1062,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 }
 
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	gvks, err := r.gatherChartGvks()
+	gvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
 	if err != nil {
 		return err
 	}
@@ -876,93 +1072,6 @@ func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Conte
 	}
 
 	return nil
-}
-
-func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, error) {
-	var allGvks []schema.GroupVersionKind
-	appendToSlice := func(gvk schema.GroupVersionKind) {
-		if reflect.DeepEqual(gvk, schema.GroupVersionKind{}) {
-			return
-		}
-		for _, v := range allGvks {
-			if reflect.DeepEqual(gvk, v) {
-				return
-			}
-		}
-		allGvks = append(allGvks, gvk)
-	}
-
-	root := fmt.Sprintf("%s/templates/", r.ChartPath)
-	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !strings.HasSuffix(info.Name(), ".yml") {
-			return nil
-		}
-
-		bytes, err := os.ReadFile(fmt.Sprintf("%s/%s", root, info.Name()))
-		if err != nil {
-			return err
-		}
-
-		fileGvks, err := r.extractGvkFromYml(string(bytes))
-		if err != nil {
-			return err
-		}
-
-		for _, gvk := range fileGvks {
-			appendToSlice(gvk)
-		}
-
-		return nil
-	}); err != nil {
-		return []schema.GroupVersionKind{}, err
-	}
-
-	return allGvks, nil
-}
-
-func (r *BtpOperatorReconciler) extractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
-	var gvks []schema.GroupVersionKind
-	parts := strings.Split(wholeFile, "---\n")
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		var yamlGvk btpOperatorGvk
-		lines := strings.Split(part, "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "apiVersion:") {
-				yamlGvk.APIVersion = strings.TrimSpace(strings.Split(line, ":")[1])
-			}
-
-			if strings.HasPrefix(line, "kind:") {
-				yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
-			}
-		}
-		if yamlGvk.Kind != "" && yamlGvk.APIVersion != "" {
-			apiVersion := strings.Split(yamlGvk.APIVersion, "/")
-			if len(apiVersion) == 1 {
-				gvks = append(gvks, schema.GroupVersionKind{
-					Kind:    yamlGvk.Kind,
-					Version: apiVersion[0],
-					Group:   "",
-				})
-			} else if len(apiVersion) == 2 {
-				gvks = append(gvks, schema.GroupVersionKind{
-					Kind:    yamlGvk.Kind,
-					Version: apiVersion[1],
-					Group:   apiVersion[0],
-				})
-			} else {
-				return nil, fmt.Errorf("incorrect split of apiVersion")
-			}
-		}
-	}
-
-	return gvks, nil
 }
 
 func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
