@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -25,6 +26,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -110,6 +112,16 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
 		os.Exit(1)
 	}
+
+	err = mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		return reconciler.StoreChartDetails(ctx, chartPath)
+	}))
+
+	if err != nil {
+		setupLog.Error(err, "unable add a runnable to the manager, which sets versioning")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
