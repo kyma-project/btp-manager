@@ -96,7 +96,7 @@ Only one Condition of type `Ready` is used.
 | No. | CR state   | Condition type | Condition status | Condition reason       | Remark                                                                         |
 |-----|------------|----------------|------------------|------------------------|--------------------------------------------------------------------------------|
 | 1   | Ready      | Ready          | True             | ReconcileSucceeded     | Reconciled successfully                                                        |
-| 2   | Processing | Ready          | True             | Recovered              | Recovered from error                                                           |
+| 2   | Processing | Ready          | False            | Updated                | Resource has been updated                                                           |
 | 3   | Processing | Ready          | False            | Initialized            | Initial processing or chart is inconsistent                                    |
 | 4   | Processing | Ready          | False            | Processing             | Final state after deprovisioning                                               |
 | 5   | Deleting   | Ready          | False            | HardDeleting           | Trying to hard delete                                                          |

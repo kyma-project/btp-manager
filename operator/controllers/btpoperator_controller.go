@@ -391,7 +391,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Recovered, "Recovered from error state")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "Resource has been updated")
 }
 
 // SetupWithManager sets up the controller with the Manager.
