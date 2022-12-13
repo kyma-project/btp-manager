@@ -248,12 +248,11 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 			return err
 		}
 	}
-
 	return nil
 }
 
-func (r *BtpOperatorReconciler) DidVersionChange(new, current string) bool {
-	return new != current
+func (r *BtpOperatorReconciler) DidVersionChange(nw string, current string) bool {
+	return nw != current
 }
 
 func (r *BtpOperatorReconciler) SetConfigMaps(configMap *corev1.ConfigMap, current, currentGvksStr, newChartVersion, newGvksAsStr string) {
@@ -311,8 +310,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if err := r.StoreChartDetails(ctx, ChartPath); err != nil {
 			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 		}
+		if err := r.HandleReadyState(ctx, cr); err != nil {
+			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+		}
+		if err := r.DeleteOrphanedResources(ctx); err != nil {
+			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+		}
 		r.chartDetails.isReady = true
-		return ctrl.Result{}, r.HandleReadyState(ctx, cr)
 	}
 
 	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
@@ -418,7 +422,7 @@ func (r *BtpOperatorReconciler) DeleteOrphanedResources(ctx context.Context) err
 			list := &unstructured.UnstructuredList{}
 			list.SetGroupVersionKind(gvk)
 
-			if err := r.List(ctx, list, oldVersionLabel); err != nil {
+			if err := r.List(ctx, list, client.InNamespace(ChartNamespace), oldVersionLabel); err != nil {
 				return err
 			}
 
@@ -1208,15 +1212,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 	} else if !ready {
-		if err := r.DeleteOrphanedResources(ctx); err != nil {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		}
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Chart is inconsistent. Reconciliation initialized")
-	} else {
-		if err := r.DeleteOrphanedResources(ctx); err != nil {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		}
 	}
-
 	return nil
 }
