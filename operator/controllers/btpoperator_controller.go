@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,15 +27,14 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	"github.com/kyma-project/module-manager/operator/pkg/custom"
 	"github.com/kyma-project/module-manager/operator/pkg/manifest"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -54,7 +54,6 @@ import (
 
 var (
 	// Configuration options that can be overwritten either by CLI parameter or ConfigMap
-	ChartPath                      = "./module-chart"
 	ChartNamespace                 = "kyma-system"
 	SecretName                     = "sap-btp-manager"
 	ConfigName                     = "sap-btp-manager"
@@ -66,9 +65,11 @@ var (
 )
 
 const (
-	operatorName      = "btp-manager"
-	labelKeyForChart  = "app.kubernetes.io/managed-by"
-	deletionFinalizer = "custom-deletion-finalizer"
+	operatorName          = "btp-manager"
+	labelKeyForChart      = "app.kubernetes.io/managed-by"
+	deletionFinalizer     = "custom-deletion-finalizer"
+	mutatingWebhookName   = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName = "sap-btp-operator-validating-webhook-configuration"
 )
 
 const (
@@ -101,12 +102,14 @@ type btpOperatorGvk struct {
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
-	Scheme  *runtime.Scheme
-	timeout time.Duration
+	Scheme                *runtime.Scheme
+	hardDeleteTimeout     time.Duration
+	ChartPath             string
+	WaitForChartReadiness bool
 }
 
-func (r *BtpOperatorReconciler) SetTimeout(timeout time.Duration) {
-	r.timeout = timeout
+func (r *BtpOperatorReconciler) SetHardDeleteTimeout(timeout time.Duration) {
+	r.hardDeleteTimeout = timeout
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
@@ -120,7 +123,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			logger.Info("BtpOperator resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
@@ -148,7 +151,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.UpdateBtpOperatorState(ctx, cr, types.StateDeleting)
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
 	}
 
 	switch cr.Status.State {
@@ -181,32 +184,23 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-
-	status := cr.GetStatus()
-	status.Conditions = make([]*metav1.Condition, 0)
-	errorCondition := &metav1.Condition{
-		Type:               "Ready",
-		Status:             metav1.ConditionFalse,
-		ObservedGeneration: 0,
-		LastTransitionTime: metav1.Time{Time: time.Now()},
-		Reason:             "OlderCRExists",
-		Message: fmt.Sprintf("\"%s\" BtpOperator CR in \"%s\" namespace reconciles the operand",
-			oldestCr.GetName(), oldestCr.GetNamespace()),
-	}
-	status.Conditions = append(status.Conditions, errorCondition)
-	cr.SetStatus(status.WithState(types.StateError))
-	return r.Status().Update(ctx, cr)
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the operand",
+		oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
-func (r *BtpOperatorReconciler) UpdateBtpOperatorState(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State) error {
-	cr.SetStatus(cr.Status.WithState(newState))
+func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason Reason, message string) error {
+	cr.Status.WithState(newState)
+	newCondition := ConditionFromExistingReason(reason, message)
+	if newCondition != nil {
+		SetStatusCondition(&cr.Status.Conditions, *newCondition)
+	}
 	return r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
-	return r.UpdateBtpOperatorState(ctx, cr, types.StateProcessing)
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -216,12 +210,12 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -235,13 +229,13 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.InstallChart(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
+	ready, err := manifest.InstallChart(logger, installInfo, []types.ObjectTransform{r.labelTransform}, nil)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 	}
 	if ready {
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateReady)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
 	}
 
 	return nil
@@ -249,11 +243,18 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
-	if err := r.handleDeprovisioning(ctx); err != nil {
-		logger.Error(err, "deprovisioning failed")
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+	logger.Info("Handling Deleting state")
+
+	if len(cr.GetFinalizers()) == 0 {
+		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
+		return nil
 	}
-	logger.Info("deprovisioning success. clearing finalizers for btp manager")
+
+	if err := r.handleDeprovisioning(ctx, cr); err != nil {
+		logger.Error(err, "deprovisioning failed")
+		return err
+	}
+	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
 	if err := r.Update(ctx, cr); err != nil {
 		return err
@@ -267,8 +268,8 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		if item.GetUID() == cr.GetUID() {
 			continue
 		}
-		cr := item
-		if err := r.UpdateBtpOperatorState(ctx, &cr, types.StateProcessing); err != nil {
+		remainingCr := item
+		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, types.StateProcessing, Processing, "After deprovisioning"); err != nil {
 			logger.Error(err, "unable to set \"Processing\" state")
 		}
 	}
@@ -280,7 +281,7 @@ func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.
 	secret := &corev1.Secret{}
 	objKey := client.ObjectKey{Namespace: ChartNamespace, Name: SecretName}
 	if err := r.Get(ctx, objKey, secret); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return nil, fmt.Errorf("%s Secret in %s namespace not found", SecretName, ChartNamespace)
 		}
 		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
@@ -296,23 +297,23 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	cr.Labels[labelKeyForChart] = operatorName
 }
 
-func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (manifest.InstallInfo, error) {
+func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) (types.InstallInfo, error) {
 	unstructuredObj := &unstructured.Unstructured{}
 	unstructuredBase, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
 	if err != nil {
-		return manifest.InstallInfo{}, err
+		return types.InstallInfo{}, err
 	}
 	unstructuredObj.Object = unstructuredBase
 
-	installInfo := manifest.InstallInfo{
-		ChartInfo: &manifest.ChartInfo{
-			ChartPath:   ChartPath,
+	installInfo := types.InstallInfo{
+		ChartInfo: &types.ChartInfo{
+			ChartPath:   r.ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
 					"Namespace":       ChartNamespace,
 					"CreateNamespace": true,
-					"Wait":            true,
+					"Wait":            r.WaitForChartReadiness,
 					"Timeout":         ReadyTimeout,
 				},
 				SetFlags: types.Flags{
@@ -330,10 +331,10 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 				},
 			},
 		},
-		ResourceInfo: manifest.ResourceInfo{
+		ResourceInfo: types.ResourceInfo{
 			BaseResource: unstructuredObj,
 		},
-		ClusterInfo: custom.ClusterInfo{
+		ClusterInfo: types.ClusterInfo{
 			Config: r.Config,
 			Client: r.Client,
 		},
@@ -394,7 +395,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.UpdateBtpOperatorState(ctx, cr, types.StateProcessing)
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Recovered, "Recovered from error state")
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -427,8 +428,6 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 	for k, v := range cm.Data {
 		var err error
 		switch k {
-		case "ChartPath":
-			ChartPath = v
 		case "ChartNamespace":
 			ChartNamespace = v
 		case "SecretName":
@@ -527,7 +526,7 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 			if !ok {
 				return false
 			}
-			if newBtpOperator.GetStatus().State == types.StateError {
+			if newBtpOperator.GetStatus().State == types.StateError && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
 				return false
 			}
 			return true
@@ -538,15 +537,11 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error {
+func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Deprovisioning BTP Operator")
 
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
-		return err
-	}
-	if err := r.handlePreDelete(ctx); err != nil {
 		return err
 	}
 
@@ -557,20 +552,35 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context) error 
 	select {
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
-			logger.Info("hard delete success")
+			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
 			if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
-				logger.Error(err, "failed to remove related installed resources")
+				logger.Error(err, "failed to remove chart resources")
+				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
+					logger.Error(updateStatusErr, "failed to update status")
+					return updateStatusErr
+				}
 				return err
 			}
 		} else {
+			logger.Info("Service Instances and Service Bindings hard delete failed")
+			if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
+				logger.Error(err, "failed to update status")
+				return err
+			}
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
+				logger.Error(err, "failed to soft delete")
 				return err
 			}
 		}
-	case <-time.After(r.timeout):
-		logger.Info("timeout of hard delete", "duration", r.timeout)
+	case <-time.After(r.hardDeleteTimeout):
+		logger.Info("hard delete timeout reached", "duration", r.hardDeleteTimeout)
 		timeoutChannel <- true
+		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
+			logger.Error(err, "failed to update status")
+			return err
+		}
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
+			logger.Error(err, "failed to soft delete")
 			return err
 		}
 	}
@@ -582,22 +592,44 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	defer close(success)
 	defer close(timeout)
 	logger := log.FromContext(ctx)
+	logger.Info("Deprovisioning BTP Operator - hard delete")
 
-	anyErr := false
-	if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-		logger.Error(err, "while hard deleting binding")
-		anyErr = true
+	errs := make([]error, 0)
+
+	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
+		errs = append(errs, err)
 	}
-	if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-		logger.Error(err, "while hard deleting instances")
-		anyErr = true
+	if sbCrdExists {
+		if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
+			logger.Error(err, "while deleting Service Bindings")
+			if !errors.Is(err, context.DeadlineExceeded) {
+				errs = append(errs, err)
+			}
+		}
 	}
 
-	if anyErr {
+	siCrdExists, err := r.crdExists(ctx, instanceGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
+		errs = append(errs, err)
+	}
+	if siCrdExists {
+		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
+			logger.Error(err, "while deleting Service Instances")
+			if !errors.Is(err, context.DeadlineExceeded) {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	if len(errs) > 0 {
 		success <- false
 		return
 	}
 
+	var sbResourcesLeft, siResourcesLeft bool
 	for {
 		select {
 		case <-timeout:
@@ -605,28 +637,41 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		default:
 		}
 
-		err, resourcesLeft := r.checkIfAnyResourcesLeft(ctx, namespaces)
-		if err != nil {
-			logger.Error(err, "leftover resources check failed")
-			success <- false
-			return
+		if sbCrdExists {
+			sbResourcesLeft, err = r.resourcesExist(ctx, namespaces, bindingGvk)
+			if err != nil {
+				logger.Error(err, "ServiceBinding leftover resources check failed")
+				success <- false
+				return
+			}
 		}
-		if !resourcesLeft {
+
+		if siCrdExists {
+			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
+			if err != nil {
+				logger.Error(err, "ServiceInstance leftover resources check failed")
+				success <- false
+				return
+			}
+		}
+
+		if !sbResourcesLeft && !siResourcesLeft {
 			success <- true
 			return
 		}
-		time.Sleep(RetryInterval)
+
+		time.Sleep(r.hardDeleteTimeout / 20)
 	}
 }
 
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
-	logger := log.FromContext(ctx)
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
+	deleteCtx, cancel := context.WithTimeout(ctx, r.hardDeleteTimeout/2)
+	defer cancel()
 
 	for _, namespace := range namespaces.Items {
-		if err := r.DeleteAllOf(ctx, object, client.InNamespace(namespace.Name)); err != nil {
-			logger.Error(err, "while deleting all resources", "kind", object.GetKind())
+		if err := r.DeleteAllOf(deleteCtx, object, client.InNamespace(namespace.Name)); err != nil {
 			return err
 		}
 	}
@@ -634,82 +679,114 @@ func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.Group
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkIfAnyResourcesLeft(ctx context.Context, namespaces *corev1.NamespaceList) (error, bool) {
-	anyLeft := func(namespace string, gvk schema.GroupVersionKind) (error, bool) {
+func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
+	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+
+	if err := r.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *corev1.NamespaceList, gvk schema.GroupVersionKind) (bool, error) {
+	anyLeft := func(namespace string, gvk schema.GroupVersionKind) (bool, error) {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
 		if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
-			if !errors.IsNotFound(err) {
-				return err, true
+			if !k8serrors.IsNotFound(err) {
+				return false, err
 			}
 		}
 
-		return nil, len(list.Items) > 0
+		return len(list.Items) > 0, nil
 	}
 
 	for _, namespace := range namespaces.Items {
-		err, bindingsLeft := anyLeft(namespace.Name, bindingGvk)
+		resourcesExist, err := anyLeft(namespace.Name, gvk)
 		if err != nil {
-			return err, true
+			return false, err
 		}
-		if bindingsLeft {
-			return nil, true
-		}
-		err, instancesLeft := anyLeft(namespace.Name, instanceGvk)
-		if err != nil {
-			return err, true
-		}
-		if instancesLeft {
-			return nil, true
+		if resourcesExist {
+			return true, nil
 		}
 	}
 
-	return nil, false
+	return false, nil
 }
 
 func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
 	logger := log.FromContext(ctx)
-	logger.Info("hard delete failed. trying to perform soft delete")
+	logger.Info("Deprovisioning BTP Operator - soft delete")
 
-	if err := r.softDelete(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "soft deletion of bindings failed")
-		return err
-	}
-	if err := r.ensureResourcesDontExist(ctx, &bindingGvk); err != nil {
-		logger.Error(err, "bindings still exists")
+	logger.Info("Deleting module deployment and webhooks")
+	if err := r.preSoftDeleteCleanup(ctx); err != nil {
+		logger.Error(err, "module deployment and webhooks deletion failed")
 		return err
 	}
 
-	if err := r.softDelete(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "soft deletion of instances failed")
-		return err
-	}
-	if err := r.ensureResourcesDontExist(ctx, &instanceGvk); err != nil {
-		logger.Error(err, "instances still exists")
+	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
 		return err
 	}
 
+	siCrdExists, err := r.crdExists(ctx, instanceGvk)
+	if err != nil {
+		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
+		return err
+	}
+
+	if sbCrdExists {
+		logger.Info("Removing finalizers in Service Bindings and deleting connected Secrets")
+		if err := r.softDelete(ctx, bindingGvk); err != nil {
+			logger.Error(err, "while deleting Service Bindings")
+			return err
+		}
+		if err := r.ensureResourcesDontExist(ctx, bindingGvk); err != nil {
+			logger.Error(err, "Service Bindings still exist")
+			return err
+		}
+	}
+
+	if siCrdExists {
+		logger.Info("Removing finalizers in Service Instances")
+		if err := r.softDelete(ctx, instanceGvk); err != nil {
+			logger.Error(err, "while deleting Service Instances")
+			return err
+		}
+		if err := r.ensureResourcesDontExist(ctx, instanceGvk); err != nil {
+			logger.Error(err, "Service Instances still exist")
+			return err
+		}
+	}
+
+	logger.Info("Deleting chart resources")
 	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
-		logger.Error(err, "failed to remove related installed resources")
+		logger.Error(err, "failed to remove chart resources")
 		return err
 	}
 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) GvkToList(gvk *schema.GroupVersionKind) *unstructured.UnstructuredList {
-	listGvk := *gvk
+func (r *BtpOperatorReconciler) GvkToList(gvk schema.GroupVersionKind) *unstructured.UnstructuredList {
+	listGvk := gvk
 	listGvk.Kind = gvk.Kind + "List"
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(listGvk)
 	return list
 }
 
-func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk *schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk schema.GroupVersionKind) error {
 	list := r.GvkToList(gvk)
 
 	if err := r.List(ctx, list); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	} else if len(list.Items) > 0 {
@@ -719,7 +796,7 @@ func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gv
 	return nil
 }
 
-func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.GroupVersionKind) error {
 	list := r.GvkToList(gvk)
 
 	if err := r.List(ctx, list); err != nil {
@@ -737,7 +814,7 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 			secret := &corev1.Secret{}
 			secret.Name = item.GetName()
 			secret.Namespace = item.GetNamespace()
-			if err := r.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
+			if err := r.Delete(ctx, secret); err != nil && !k8serrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -746,26 +823,41 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk *schema.Grou
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
+func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
+	/*
+		r.deleteDeployment(ctx)
+		r.deleteMutatingWebhook(ctx)
+		r.deleteValidatingWebhook(ctx)
+	*/
 	deployment := &appsv1.Deployment{}
-	deployment.Namespace = ChartNamespace
-	deployment.Name = DeploymentName
-	if err := r.Delete(ctx, deployment); err != nil {
-		if !errors.IsNotFound(err) {
+	if err := r.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, deployment); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
-		if !errors.IsNotFound(err) {
+	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: ChartNamespace}, mutatingWebhook); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
-		if !errors.IsNotFound(err) {
+	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: ChartNamespace}, validatingWebhook); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
@@ -774,8 +866,6 @@ func (r *BtpOperatorReconciler) handlePreDelete(ctx context.Context) error {
 }
 
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	time.Sleep(time.Second * 10)
-
 	gvks, err := r.gatherChartGvks()
 	if err != nil {
 		return err
@@ -802,7 +892,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		allGvks = append(allGvks, gvk)
 	}
 
-	root := fmt.Sprintf("%s/templates/", ChartPath)
+	root := fmt.Sprintf("%s/templates/", r.ChartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -880,7 +970,7 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
 		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), labelFilter); err != nil {
-			if !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
 				return err
 			}
 		}
@@ -895,12 +985,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -914,12 +1004,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return fmt.Errorf("no chart path available for processing")
 	}
 
-	ready, err := manifest.ConsistencyCheck(&logger, installInfo, []types.ObjectTransform{r.labelTransform})
+	ready, err := manifest.ConsistencyCheck(logger, installInfo, []types.ObjectTransform{r.labelTransform}, nil)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateError)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 	} else if !ready {
-		return r.UpdateBtpOperatorState(ctx, cr, types.StateProcessing)
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Chart is inconsistent. Reconciliation initialized")
 	}
 
 	return nil

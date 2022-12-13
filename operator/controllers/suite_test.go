@@ -18,13 +18,11 @@ package controllers
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
+	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -35,20 +33,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	operatorv1alpha1 "github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
-var k8sClient client.Client
-var k8sManager manager.Manager
-var testEnv *envtest.Environment
-var ctx context.Context
-var cancel context.CancelFunc
-var reconciler BtpOperatorReconciler
+const hardDeleteTimeout = time.Second * 2
+
+var (
+	cfg                  *rest.Config
+	k8sClient            client.Client
+	k8sClientFromManager client.Client
+	k8sManager           manager.Manager
+	testEnv              *envtest.Environment
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	reconciler           *BtpOperatorReconciler
+)
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -65,9 +68,6 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
-	kubeVersion := "1.25.0"
-	k8sBinPath := fmt.Sprintf("../bin/k8s/%v-%v-%v", kubeVersion, runtime.GOOS, runtime.GOARCH)
-	Expect(os.Setenv("KUBEBUILDER_ASSETS", k8sBinPath)).To(Succeed())
 
 	var err error
 	// cfg is defined in this file globally.
@@ -75,7 +75,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = operatorv1alpha1.AddToScheme(scheme.Scheme)
+	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
@@ -89,10 +89,14 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	reconciler = BtpOperatorReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
+	reconciler = &BtpOperatorReconciler{
+		Client:                k8sManager.GetClient(),
+		Scheme:                k8sManager.GetScheme(),
+		ChartPath:             "../module-chart",
+		WaitForChartReadiness: false,
 	}
+	k8sClientFromManager = k8sManager.GetClient()
+	reconciler.SetHardDeleteTimeout(hardDeleteTimeout)
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
