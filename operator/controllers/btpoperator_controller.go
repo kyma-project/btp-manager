@@ -226,21 +226,23 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 		return fmt.Errorf("'current' should be present in configmap but it is not")
 	}
 
-	if r.DidVersionChange(*newChartVersion, current) {
-		currentGvksStr, ok := configMap.Data["currentGvks"]
-		if !ok {
-			return fmt.Errorf("'current' should be present in configmap but it is not")
-		}
-		err, newGvksAsStr := gvksToStr(newGvks)
-		if err != nil {
-			return err
-		}
-		r.SetConfigMaps(configMap, current, currentGvksStr, *newChartVersion, newGvksAsStr)
+	currentGvksStr, ok := configMap.Data["currentGvks"]
+	if !ok {
+		return fmt.Errorf("'current' should be present in configmap but it is not")
+	}
+	err, newGvksAsStr := gvksToStr(newGvks)
+	if err != nil {
+		return err
+	}
 
-		err, currentGvks := strToGvks(currentGvksStr)
-		if err != nil {
-			return err
-		}
+	err, currentGvks := strToGvks(currentGvksStr)
+	if err != nil {
+		return err
+	}
+
+	if r.DidVersionChange(*newChartVersion, current) {
+
+		r.SetConfigMaps(configMap, current, *newChartVersion, currentGvksStr, newGvksAsStr)
 
 		r.SetChartDetails(current, *newChartVersion, currentGvks, newGvks)
 
@@ -248,28 +250,53 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 			return err
 		}
 	}
+
+	if r.AreChartDetialsNotSet() {
+
+		old, ok := configMap.Data[oldChartVersionKey]
+		if !ok {
+			return fmt.Errorf("'current' should be present in configmap but it is not")
+		}
+
+		oldGvksStr, ok := configMap.Data[oldGvksKey]
+		if !ok {
+			return fmt.Errorf("'current' should be present in configmap but it is not")
+		}
+		err, oldGvks := strToGvks(oldGvksStr)
+		if err != nil {
+			return err
+		}
+
+		r.SetChartDetails(old, current, oldGvks, currentGvks)
+	}
+
 	return nil
 }
 
-func (r *BtpOperatorReconciler) DidVersionChange(nw string, current string) bool {
-	return nw != current
+func (r *BtpOperatorReconciler) AreChartDetialsNotSet() bool {
+	return r.chartDetails.oldChartVersion == "" && r.chartDetails.currentChartVersion == "" &&
+		len(r.chartDetails.oldGvks) == 0 && len(r.chartDetails.currentGvks) == 0
 }
 
-func (r *BtpOperatorReconciler) SetConfigMaps(configMap *corev1.ConfigMap, current, currentGvksStr, newChartVersion, newGvksAsStr string) {
+func (r *BtpOperatorReconciler) DidVersionChange(new string, current string) bool {
+	return new != current
+}
+
+func (r *BtpOperatorReconciler) SetConfigMaps(configMap *corev1.ConfigMap, oldChartVersion, currentCharVersion, oldGvksStr, currentGvks string) {
 	if configMap == nil {
 		return
 	}
-	configMap.Data[oldChartVersionKey] = current
-	configMap.Data[oldGvksKey] = currentGvksStr
-	configMap.Data[currentCharVersionKey] = newChartVersion
-	configMap.Data[currentGvksKey] = newGvksAsStr
+	configMap.Data[oldChartVersionKey] = oldChartVersion
+	configMap.Data[oldGvksKey] = oldGvksStr
+	configMap.Data[currentCharVersionKey] = currentCharVersion
+	configMap.Data[currentGvksKey] = currentGvks
 }
 
-func (r *BtpOperatorReconciler) SetChartDetails(current, newChartVersion string, currentGvks, newGvks []schema.GroupVersionKind) {
-	r.chartDetails.oldGvks = currentGvks
-	r.chartDetails.oldChartVersion = current
-	r.chartDetails.currentChartVersion = newChartVersion
-	r.chartDetails.currentGvks = newGvks
+func (r *BtpOperatorReconciler) SetChartDetails(oldChartVersion, currentChartVersion string, oldGvks, currentGvks []schema.GroupVersionKind) {
+	r.chartDetails.oldGvks = oldGvks
+	r.chartDetails.oldChartVersion = oldChartVersion
+	r.chartDetails.currentChartVersion = currentChartVersion
+	r.chartDetails.currentGvks = currentGvks
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete

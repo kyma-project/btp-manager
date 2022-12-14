@@ -6,8 +6,10 @@ require (
 	github.com/kyma-project/module-manager/operator v0.0.0-20221116115508-1db8d8590612
 	github.com/onsi/ginkgo/v2 v2.5.0
 	github.com/onsi/gomega v1.24.1
+	github.com/otiai10/copy v1.2.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.23.0
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.25.2
 	k8s.io/apiextensions-apiserver v0.25.2
 	k8s.io/apimachinery v0.25.2
@@ -141,7 +143,6 @@ require (
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	helm.sh/helm/v3 v3.10.1 // indirect
 	k8s.io/apiserver v0.25.2 // indirect

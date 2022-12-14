@@ -49,7 +49,7 @@ const (
 	crStateUpdatedPollingInterval   = time.Millisecond
 	crDeprovisioningPollingInterval = time.Second * 1
 	crDeprovisioningTimeout         = time.Second * 30
-	updatePath                      = "./testdata/module-chart-update"
+	updatePath                      = "./testdata/module-chartX-update"
 	suffix                          = "updated"
 )
 
@@ -398,7 +398,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		}
 
 		onClose := func() {
-			reconciler.chartDetails.chartPath = "./module-chart"
+			reconciler.chartDetails.chartPath = "./module-chartX"
 			os.RemoveAll(updatePath)
 		}
 

@@ -49,6 +49,12 @@ func init() {
 }
 
 func main() {
+
+	/*var cmd = exec.Command("/bin/sh", "prerun.sh")
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}*/
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
