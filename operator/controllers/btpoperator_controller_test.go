@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -27,7 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	apimachienerytypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -98,6 +99,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	BeforeAll(func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
+		ChartPath = "../module-chart"
 	})
 
 	BeforeEach(func() {
@@ -391,88 +393,141 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Update", func() {
-		onStart := func() {
-			err := cp.Copy(reconciler.chartDetails.chartPath, updatePath)
-			Expect(err).To(BeNil())
-			reconciler.chartDetails.chartPath = updatePath
-		}
+		updateCtx := context.Background()
 
-		onClose := func() {
-			reconciler.chartDetails.chartPath = "./module-chart"
-			os.RemoveAll(updatePath)
-		}
+		newChartVersion := "v9999999"
+		var initChartVersion string
 
 		BeforeAll(func() {
-			onStart()
+			createPrereqs()
+
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Eventually(k8sClient.Create(updateCtx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 			cr = createBtpOperator()
-			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Expect(k8sClient.Create(updateCtx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateProcessing))
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+			initChartVersion, err = ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+			Expect(err).To(BeNil())
 		})
 
-		//Consider using labels
+		BeforeEach(func() {
+			err := cp.Copy(ChartPath, updatePath)
+			Expect(err).To(BeNil())
+			ChartPath = updatePath
+			reconciler.chartDetails.chartPath = ChartPath
+			simulateRestart(updateCtx, cr)
+		})
+
 		When("update of all resources names and bump chart version", func() {
 			It("new resources (with new name) should be created and old ones removed", func() {
-				defer onClose()
-
-				gvks, err := ymlutils.GatherChartGvks(updatePath)
+				err := ymlutils.TransformCharts(updatePath, suffix)
 				Expect(err).To(BeNil())
 
-				err = ymlutils.TransformCharts(updatePath, suffix)
+				err = ymlutils.UpdateVersion(updatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)
-				if cr.Annotations == nil {
-					cr.Annotations = make(map[string]string)
-				}
-				cr.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
-				err = k8sClient.Update(ctx, cr)
+				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
+				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
 
-				//This should be uncommented when we implement Update in controller, for now the State is Ready, since there were no change, due to missing update feature
-				//Eventually(getCurrentCrState).WithTimeout(stateChangeTimeout).WithPolling(1 * time.Nanosecond).Should(Equal(types.StateProcessing))
-				Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+				simulateRestart(updateCtx, cr)
+				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
+				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(newChartVersion))
 
-				withSuffixCount := 0
-				withoutSuffixCount := 0
-
-				for _, gvk := range gvks {
-					list := &unstructured.UnstructuredList{}
-					list.SetGroupVersionKind(schema.GroupVersionKind{
-						Group:   gvk.Group,
-						Version: gvk.Version,
-						Kind:    gvk.Kind,
-					})
-
-					if err = k8sClient.List(ctx, list, labelFilter); err != nil && !canIgnoreErr(err) {
-						Expect(err).To(BeNil())
-					}
-
-					for _, item := range list.Items {
-						if strings.HasSuffix(item.GetName(), suffix) {
-							withSuffixCount++
-						} else {
-							withoutSuffixCount++
-						}
-					}
-				}
-
-				fmt.Printf("withSuffixCount = {%d}, withoutSuffixCount = {%d} \n", withSuffixCount, withoutSuffixCount)
-				Expect(withSuffixCount).To(BeEquivalentTo(0))
-				Expect(withoutSuffixCount).To(BeZero())
+				oldCount, newCount := countResources()
+				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
+				Expect(oldCount).To(BeZero())
+				Expect(newCount).To(BeEquivalentTo(16))
 			})
 		})
 
-		//After first tests works:
+		When("update of all resources names and leave same chart version", func() {
+			It("new resources (with new name) should be created and old ones should stay", func() {
+				err := ymlutils.TransformCharts(updatePath, suffix)
+				Expect(err).To(BeNil())
 
-		//Negative scenario
-		//update of all resources names and leave same chart version
-		//new resources (with new name) should be created and old ones should stay
+				simulateRestart(updateCtx, cr)
+				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
+				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
 
-		//resources should stay as they are and we bump chart version
-		//existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)
+				oldCount, newCount := countResources()
+				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
+				Expect(oldCount).To(BeEquivalentTo(16))
+				Expect(newCount).To(BeEquivalentTo(16))
+			})
+		})
 
+		When("resources should stay as they are and we bump chart version", func() {
+			It("existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)", func() {
+				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
+				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
+
+				err := ymlutils.UpdateVersion(updatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				simulateRestart(updateCtx, cr)
+				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
+				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(newChartVersion))
+
+				oldCount, newCount := countResources()
+				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
+				Expect(oldCount).To(BeEquivalentTo(0))
+				Expect(newCount).To(BeEquivalentTo(16))
+			})
+		})
+
+		AfterEach(func() {
+			ChartPath = "../module-chart"
+			reconciler.chartDetails.chartPath = ChartPath
+			os.RemoveAll(updatePath)
+			reconciler.chartDetails = ChartDetails{}
+			configMap := reconciler.GetConfigMap()
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
+			Expect(err).To(BeNil())
+			err = k8sClient.Delete(ctx, configMap)
+			Expect(err).To(BeNil())
+		})
 	})
 })
+
+func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
+	req := controllerruntime.Request{}
+	req.NamespacedName = apimachienerytypes.NamespacedName{
+		Namespace: cr.Namespace,
+		Name:      cr.Name,
+	}
+	reconciler.chartDetails = ChartDetails{}
+	_, err := reconciler.Reconcile(ctx, req)
+	Expect(err).To(BeNil())
+	Eventually(getCurrentCrState).WithTimeout(time.Second * 15).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+}
+
+func countResources() (int, int) {
+	oldVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.oldChartVersion}
+	oldCount := countWithLabel(oldVersionLabel, reconciler.chartDetails.oldGvks)
+	newVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.currentChartVersion}
+	newCount := countWithLabel(newVersionLabel, reconciler.chartDetails.currentGvks)
+	return oldCount, newCount
+}
+
+func countWithLabel(label client.MatchingLabels, gvks []schema.GroupVersionKind) int {
+	count := 0
+	for _, gvk := range gvks {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   gvk.Group,
+			Version: gvk.Version,
+			Kind:    gvk.Kind,
+		})
+		if err := k8sClient.List(ctx, list, label); err != nil && !canIgnoreErr(err) {
+			Expect(err).To(BeNil())
+		} else {
+			count += len(list.Items)
+		}
+	}
+	return count
+}
 
 func createPrereqs() error {
 	pClass := &schedulingv1.PriorityClass{}

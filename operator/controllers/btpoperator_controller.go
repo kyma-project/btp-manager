@@ -171,21 +171,23 @@ func (r *BtpOperatorReconciler) GetConfigMap() *corev1.ConfigMap {
 
 func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
 	r.chartDetails.chartPath = chartPath
-
+	log := log.FromContext(ctx)
 	newChartVersion, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", r.chartDetails.chartPath), "version")
 	if err != nil {
 		return err
 	}
+	log.Info("{%s} in {%s}", newChartVersion, r.chartDetails.chartPath)
 
 	newGvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
 	if err != nil {
 		return err
 	}
 
-	err = r.CreateNamespaceIfNeeded(ctx)
+	/*err = r.CreateNamespaceIfNeeded(ctx)
 	if err != nil {
 		return err
 	}
+	*/
 
 	configMap := r.GetConfigMap()
 	err = r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
@@ -202,6 +204,9 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 	newChartVersion *string, newGvks []schema.GroupVersionKind) error {
 
 	configMap.Data = make(map[string]string)
+
+	log := log.FromContext(ctx)
+	log.Info("HandleInitialConfigMap")
 
 	err, newGvksAsStr := gvksToStr(newGvks)
 	if err != nil {
@@ -220,6 +225,9 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 
 func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
 	newChartVersion *string, newGvks []schema.GroupVersionKind) error {
+
+	log := log.FromContext(ctx)
+	log.Info("HandleExistingConfigMap")
 
 	current, ok := configMap.Data[currentCharVersionKey]
 	if !ok {
@@ -240,7 +248,9 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 		return err
 	}
 
+	log.Info("nCV {%s}, c {%s}", *newChartVersion, current)
 	if r.DidVersionChange(*newChartVersion, current) {
+		log.Info("DidVersionChange")
 
 		r.SetConfigMaps(configMap, current, *newChartVersion, currentGvksStr, newGvksAsStr)
 
@@ -252,6 +262,7 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 	}
 
 	if r.AreChartDetialsNotSet() {
+		log.Info("AreChartDetialsNotSet")
 
 		old, ok := configMap.Data[oldChartVersionKey]
 		if !ok {
@@ -335,12 +346,15 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if !r.chartDetails.isReady {
 		if err := r.StoreChartDetails(ctx, ChartPath); err != nil {
+			logger.Error(err, "StoreChartDetails")
 			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 		}
 		if err := r.HandleReadyState(ctx, cr); err != nil {
+			logger.Error(err, "HandleReadyState")
 			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 		}
 		if err := r.DeleteOrphanedResources(ctx); err != nil {
+			logger.Error(err, "DeleteOrphanedResources")
 			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 		}
 		r.chartDetails.isReady = true
@@ -450,7 +464,9 @@ func (r *BtpOperatorReconciler) DeleteOrphanedResources(ctx context.Context) err
 			list.SetGroupVersionKind(gvk)
 
 			if err := r.List(ctx, list, client.InNamespace(ChartNamespace), oldVersionLabel); err != nil {
-				return err
+				if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+					return err
+				}
 			}
 
 			for _, item := range list.Items {

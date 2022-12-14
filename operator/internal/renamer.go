@@ -40,3 +40,24 @@ func TransformCharts(chartPath string, suffix string) error {
 
 	return nil
 }
+
+func UpdateVersion(chartPath, newVersion string) error {
+	filename := fmt.Sprintf("%s/%s", chartPath, "Chart.yaml")
+	input, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	const versionKey = "version: "
+	lines := strings.Split(string(input), "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, versionKey) {
+			lines[i] = versionKey + newVersion
+		}
+	}
+	output := strings.Join(lines, "\n")
+	err = os.WriteFile(filename, []byte(output), 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
