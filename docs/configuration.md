@@ -8,12 +8,12 @@ $ manager --help
 Usage of ./manager:
   -chart-namespace string
     	Namespace to install chart resources. (default "kyma-system")
-  -chart-path string
-    	Module chart path. (default "./module-chart")
   -config-name string
     	ConfigMap name with configuration knobs for the btp-manager internals. (default "sap-btp-manager")
   -deployment-name string
     	Name of the deployment of sap-btp-operator for deprovisioning. (default "sap-btp-operator-controller-manager")
+  -hard-delete-timeout duration
+    	Hard delete timeout. (default 20m0s)
   -health-probe-bind-address string
     	The address the probe endpoint binds to. (default ":8081")
   -kubeconfig string

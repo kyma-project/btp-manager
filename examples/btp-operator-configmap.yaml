@@ -12,3 +12,4 @@ data:
   ReadyStateRequeueInterval: 1h
   ReadyTimeout: 1m
   RetryInterval: 10s
+  HardDeleteTimeout: 20m

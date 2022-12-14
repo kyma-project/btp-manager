@@ -96,7 +96,7 @@ var _ = BeforeSuite(func() {
 		WaitForChartReadiness: false,
 	}
 	k8sClientFromManager = k8sManager.GetClient()
-	reconciler.SetHardDeleteTimeout(hardDeleteTimeout)
+	HardDeleteTimeout = hardDeleteTimeout
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
