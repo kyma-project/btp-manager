@@ -207,7 +207,7 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 	if err != nil {
 		return err
 	}
-	r.SetConfigMaps(configMap, *newChartVersion, newGvksAsStr, *newChartVersion, newGvksAsStr)
+	r.SetConfigMaps(configMap, *newChartVersion, *newChartVersion, newGvksAsStr, newGvksAsStr)
 
 	r.SetChartDetails(*newChartVersion, *newChartVersion, newGvks, newGvks)
 
