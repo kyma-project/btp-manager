@@ -11,5 +11,5 @@ data:
   ProcessingStateRequeueInterval: 5m
   ReadyStateRequeueInterval: 1h
   ReadyTimeout: 1m
-  RetryInterval: 10s
+  HardDeleteCheckInterval: 10s
   HardDeleteTimeout: 20m

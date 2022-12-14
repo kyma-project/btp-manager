@@ -61,7 +61,7 @@ var (
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Hour * 1
 	ReadyTimeout                   = time.Minute * 1
-	RetryInterval                  = time.Second * 10
+	HardDeleteCheckInterval        = time.Second * 10
 	HardDeleteTimeout              = time.Minute * 20
 )
 
@@ -438,8 +438,8 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			ReadyStateRequeueInterval, err = time.ParseDuration(v)
 		case "ReadyTimeout":
 			ReadyTimeout, err = time.ParseDuration(v)
-		case "RetryInterval":
-			RetryInterval, err = time.ParseDuration(v)
+		case "HardDeleteCheckInterval":
+			HardDeleteCheckInterval, err = time.ParseDuration(v)
 		case "HardDeleteTimeout":
 			HardDeleteTimeout, err = time.ParseDuration(v)
 		default:
@@ -658,7 +658,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			return
 		}
 
-		time.Sleep(HardDeleteTimeout / 20)
+		time.Sleep(HardDeleteCheckInterval)
 	}
 }
 

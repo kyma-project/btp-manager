@@ -69,7 +69,7 @@ func main() {
 	flag.DurationVar(&controllers.ProcessingStateRequeueInterval, "processing-state-requeue-interval", controllers.ProcessingStateRequeueInterval, `Requeue interval for state "processing".`)
 	flag.DurationVar(&controllers.ReadyStateRequeueInterval, "ready-state-requeue-interval", controllers.ReadyStateRequeueInterval, `Requeue interval for state "ready".`)
 	flag.DurationVar(&controllers.ReadyTimeout, "ready-timeout", controllers.ReadyTimeout, "Helm chart timeout.")
-	flag.DurationVar(&controllers.RetryInterval, "retry-interval", controllers.RetryInterval, "Hard delete retry interval.")
+	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
 	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
 	opts := zap.Options{
 		Development: true,

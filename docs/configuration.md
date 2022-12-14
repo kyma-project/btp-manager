@@ -28,7 +28,7 @@ Usage of ./manager:
     	Requeue interval for state "ready". (default 1h0m0s)
   -ready-timeout duration
     	Helm chart timeout. (default 1m0s)
-  -retry-interval duration
+  -hard-delete-check-interval duration
     	Hard delete retry interval. (default 10s)
   -secret-name string
     	Secret name with input values for sap-btp-operator chart templating. (default "sap-btp-manager")
@@ -59,5 +59,5 @@ data:
   ProcessingStateRequeueInterval: 5m
   ReadyStateRequeueInterval: 1h
   ReadyTimeout: 1m
-  RetryInterval: 10s
+  HardDeleteCheckInterval: 10s
 ```
