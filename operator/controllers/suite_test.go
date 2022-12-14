@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -69,7 +68,6 @@ var _ = BeforeSuite(func() {
 	}))
 
 	ctx, cancel = context.WithCancel(context.TODO())
-	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
