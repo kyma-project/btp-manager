@@ -7,8 +7,14 @@
 aliases:
   documentation-reviewers:
     - IwonaLanger
+    - grego952
+    - NHingerl
+    - mmitoraj
   documentation-approvers:
     - IwonaLanger
+    - grego952
+    - NHingerl
+    - mmitoraj
   code-reviewers:
     - PK85
     - jaroslaw-pieszka
