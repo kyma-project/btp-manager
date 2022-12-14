@@ -52,6 +52,8 @@ const (
 	crDeprovisioningTimeout         = time.Second * 30
 	updatePath                      = "./testdata/module-chart-update"
 	suffix                          = "updated"
+	defaultChartPath                = "../module-chart"
+	newChartVersion                 = "v99"
 )
 
 type timeoutK8sClient struct {
@@ -99,7 +101,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	BeforeAll(func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
-		ChartPath = "../module-chart"
+		ChartPath = defaultChartPath
 	})
 
 	BeforeEach(func() {
@@ -395,8 +397,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	Describe("Update", func() {
 		updateCtx := context.Background()
 
-		newChartVersion := "v9999999"
 		var initChartVersion string
+		var expectedElementsCount int
 
 		BeforeAll(func() {
 			createPrereqs()
@@ -410,6 +412,9 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
 			initChartVersion, err = ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 			Expect(err).To(BeNil())
+			gvks, err := ymlutils.GatherChartGvks(defaultChartPath)
+			Expect(err).To(BeNil())
+			expectedElementsCount = len(gvks)
 		})
 
 		BeforeEach(func() {
@@ -438,7 +443,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				oldCount, newCount := countResources()
 				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 				Expect(oldCount).To(BeZero())
-				Expect(newCount).To(BeEquivalentTo(16))
+				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
 		})
 
@@ -453,8 +458,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				oldCount, newCount := countResources()
 				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
-				Expect(oldCount).To(BeEquivalentTo(16))
-				Expect(newCount).To(BeEquivalentTo(16))
+				Expect(oldCount >= expectedElementsCount).To(BeTrue())
+				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
 		})
 
@@ -473,15 +478,15 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				oldCount, newCount := countResources()
 				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 				Expect(oldCount).To(BeEquivalentTo(0))
-				Expect(newCount).To(BeEquivalentTo(16))
+				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
 		})
 
 		AfterEach(func() {
-			ChartPath = "../module-chart"
+			ChartPath = defaultChartPath
 			reconciler.chartDetails.chartPath = ChartPath
-			os.RemoveAll(updatePath)
 			reconciler.chartDetails = ChartDetails{}
+			os.RemoveAll(updatePath)
 			configMap := reconciler.GetConfigMap()
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
 			Expect(err).To(BeNil())
