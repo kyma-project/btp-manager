@@ -61,7 +61,8 @@ var (
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Hour * 1
 	ReadyTimeout                   = time.Minute * 1
-	RetryInterval                  = time.Second * 10
+	HardDeleteCheckInterval        = time.Second * 10
+	HardDeleteTimeout              = time.Minute * 20
 )
 
 const (
@@ -103,13 +104,8 @@ type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
 	Scheme                *runtime.Scheme
-	hardDeleteTimeout     time.Duration
 	ChartPath             string
 	WaitForChartReadiness bool
-}
-
-func (r *BtpOperatorReconciler) SetHardDeleteTimeout(timeout time.Duration) {
-	r.hardDeleteTimeout = timeout
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
@@ -442,8 +438,10 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			ReadyStateRequeueInterval, err = time.ParseDuration(v)
 		case "ReadyTimeout":
 			ReadyTimeout, err = time.ParseDuration(v)
-		case "RetryInterval":
-			RetryInterval, err = time.ParseDuration(v)
+		case "HardDeleteCheckInterval":
+			HardDeleteCheckInterval, err = time.ParseDuration(v)
+		case "HardDeleteTimeout":
+			HardDeleteTimeout, err = time.ParseDuration(v)
 		default:
 			logger.Info("unknown config update key", k, v)
 		}
@@ -572,8 +570,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 				return err
 			}
 		}
-	case <-time.After(r.hardDeleteTimeout):
-		logger.Info("hard delete timeout reached", "duration", r.hardDeleteTimeout)
+	case <-time.After(HardDeleteTimeout):
+		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
 		timeoutChannel <- true
 		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 			logger.Error(err, "failed to update status")
@@ -660,14 +658,14 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			return
 		}
 
-		time.Sleep(r.hardDeleteTimeout / 20)
+		time.Sleep(HardDeleteCheckInterval)
 	}
 }
 
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
-	deleteCtx, cancel := context.WithTimeout(ctx, r.hardDeleteTimeout/2)
+	deleteCtx, cancel := context.WithTimeout(ctx, HardDeleteTimeout/2)
 	defer cancel()
 
 	for _, namespace := range namespaces.Items {
