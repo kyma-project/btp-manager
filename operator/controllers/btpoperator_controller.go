@@ -120,7 +120,7 @@ type BtpOperatorReconciler struct {
 }
 
 type ChartDetails struct {
-	isReady             bool
+	reconciled          bool
 	oldChartVersion     string
 	oldGvks             []schema.GroupVersionKind
 	currentChartVersion string
@@ -332,7 +332,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	if !r.chartDetails.isReady {
+	if !r.chartDetails.reconciled {
 		err, changed := r.StoreChartDetails(ctx)
 		if err != nil {
 			logger.Error(err, "StoreChartDetails")
@@ -348,7 +348,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 			}
 		}
-		r.chartDetails.isReady = true
+		r.chartDetails.reconciled = true
 	}
 
 	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
