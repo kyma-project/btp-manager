@@ -406,12 +406,15 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Eventually(k8sClient.Create(updateCtx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+
 			cr = createBtpOperator()
 			Expect(k8sClient.Create(updateCtx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateProcessing))
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+
 			initChartVersion, err = ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 			Expect(err).To(BeNil())
+
 			gvks, err := ymlutils.GatherChartGvks(defaultChartPath)
 			Expect(err).To(BeNil())
 			expectedElementsCount = len(gvks)
@@ -441,7 +444,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(newChartVersion))
 
 				oldCount, newCount := countResources()
-				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 				Expect(oldCount).To(BeZero())
 				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
@@ -457,7 +459,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
 
 				oldCount, newCount := countResources()
-				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 				Expect(oldCount >= expectedElementsCount).To(BeTrue())
 				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
@@ -476,7 +477,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(newChartVersion))
 
 				oldCount, newCount := countResources()
-				fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 				Expect(oldCount).To(BeEquivalentTo(0))
 				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
@@ -484,28 +484,25 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		AfterEach(func() {
 			ChartPath = defaultChartPath
-			reconciler.chartDetails.chartPath = ChartPath
 			reconciler.chartDetails = ChartDetails{}
-			os.RemoveAll(updatePath)
+
 			configMap := reconciler.GetConfigMap()
-			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
+			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
-			err = k8sClient.Delete(ctx, configMap)
-			Expect(err).To(BeNil())
+
+			os.RemoveAll(updatePath)
 		})
 	})
 })
 
 func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
-	req := controllerruntime.Request{}
-	req.NamespacedName = apimachienerytypes.NamespacedName{
+	reconciler.chartDetails = ChartDetails{}
+	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 		Namespace: cr.Namespace,
 		Name:      cr.Name,
-	}
-	reconciler.chartDetails = ChartDetails{}
-	_, err := reconciler.Reconcile(ctx, req)
+	}})
 	Expect(err).To(BeNil())
-	Eventually(getCurrentCrState).WithTimeout(time.Second * 15).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+	Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
 }
 
 func countResources() (int, int) {
@@ -513,6 +510,7 @@ func countResources() (int, int) {
 	oldCount := countWithLabel(oldVersionLabel, reconciler.chartDetails.oldGvks)
 	newVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.currentChartVersion}
 	newCount := countWithLabel(newVersionLabel, reconciler.chartDetails.currentGvks)
+	fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 	return oldCount, newCount
 }
 
