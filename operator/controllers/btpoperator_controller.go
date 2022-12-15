@@ -116,7 +116,6 @@ type BtpOperatorReconciler struct {
 	*rest.Config
 	Scheme                *runtime.Scheme
 	ChartPath             string
-	hardDeleteTimeout     time.Duration
 	chartDetails          ChartDetails
 	WaitForChartReadiness bool
 }
