@@ -166,28 +166,32 @@ func (r *BtpOperatorReconciler) GetConfigMap() *corev1.ConfigMap {
 	return configMap
 }
 
-func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context) error {
+func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context) (error, bool) {
 	newChartVersion, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 	if err != nil {
-		return err
+		return err, false
 	}
 
 	newGvks, err := ymlutils.GatherChartGvks(ChartPath)
 	if err != nil {
-		return err
+		return err, false
 	}
 
 	err = r.CreateNamespaceIfNeeded(ctx)
 	if err != nil {
-		return err
+		return err, false
 	}
 
 	configMap := r.GetConfigMap()
 	err = r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
 	if err != nil && !k8serrors.IsNotFound(err) {
-		return err
+		return err, false
 	} else if err != nil && k8serrors.IsNotFound(err) {
-		return r.HandleInitialConfigMap(ctx, configMap, &newChartVersion, newGvks)
+		err = r.HandleInitialConfigMap(ctx, configMap, &newChartVersion, newGvks)
+		if err != nil {
+			return err, false
+		}
+		return nil, true
 	} else {
 		return r.HandleExistingConfigMap(ctx, configMap, &newChartVersion, newGvks)
 	}
@@ -214,58 +218,58 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 }
 
 func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
-	newChartVersion *string, newGvks []schema.GroupVersionKind) error {
+	newChartVersion *string, newGvks []schema.GroupVersionKind) (error, bool) {
 
 	current, ok := configMap.Data[currentCharVersionKey]
 	if !ok {
-		return fmt.Errorf("'current' should be present in configmap but it is not")
+		return fmt.Errorf("'current' should be present in configmap but it is not"), false
 	}
 
 	currentGvksStr, ok := configMap.Data["currentGvks"]
 	if !ok {
-		return fmt.Errorf("'current' should be present in configmap but it is not")
+		return fmt.Errorf("'current' should be present in configmap but it is not"), false
 	}
 	err, newGvksAsStr := gvksToStr(newGvks)
 	if err != nil {
-		return err
+		return err, false
 	}
 
 	err, currentGvks := strToGvks(currentGvksStr)
 	if err != nil {
-		return err
+		return err, false
 	}
 
 	if r.DidVersionChange(*newChartVersion, current) {
 
 		r.SetConfigMaps(configMap, current, *newChartVersion, currentGvksStr, newGvksAsStr)
 
+		if err := r.Update(ctx, configMap); err != nil {
+			return err, false
+		}
+
 		r.SetChartDetails(current, *newChartVersion, currentGvks, newGvks)
 
-		if err := r.Update(ctx, configMap); err != nil {
-			return err
-		}
-	}
-
-	if r.AreChartDetialsNotSet() {
+		return nil, true
+	} else if r.AreChartDetialsNotSet() {
 
 		old, ok := configMap.Data[oldChartVersionKey]
 		if !ok {
-			return fmt.Errorf("'old' should be present in configmap but it is not")
+			return fmt.Errorf("'old' should be present in configmap but it is not"), false
 		}
 
 		oldGvksStr, ok := configMap.Data[oldGvksKey]
 		if !ok {
-			return fmt.Errorf("'oldGvks' should be present in configmap but it is not")
+			return fmt.Errorf("'oldGvks' should be present in configmap but it is not"), false
 		}
 		err, oldGvks := strToGvks(oldGvksStr)
 		if err != nil {
-			return err
+			return err, false
 		}
 
 		r.SetChartDetails(old, current, oldGvks, currentGvks)
 	}
 
-	return nil
+	return nil, false
 }
 
 func (r *BtpOperatorReconciler) AreChartDetialsNotSet() bool {
@@ -329,17 +333,20 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !r.chartDetails.isReady {
-		if err := r.StoreChartDetails(ctx); err != nil {
+		err, changed := r.StoreChartDetails(ctx)
+		if err != nil {
 			logger.Error(err, "StoreChartDetails")
 			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 		}
-		if err := r.HandleReadyState(ctx, cr); err != nil {
-			logger.Error(err, "HandleReadyState")
-			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
-		}
-		if err := r.DeleteOrphanedResources(ctx); err != nil {
-			logger.Error(err, "DeleteOrphanedResources")
-			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+		if changed {
+			if err := r.HandleReadyState(ctx, cr); err != nil {
+				logger.Error(err, "HandleReadyState")
+				return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+			}
+			if err := r.DeleteOrphanedResources(ctx); err != nil {
+				logger.Error(err, "DeleteOrphanedResources")
+				return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+			}
 		}
 		r.chartDetails.isReady = true
 	}
@@ -441,24 +448,22 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) DeleteOrphanedResources(ctx context.Context) error {
 	logger := log.FromContext(ctx)
-	if r.DidVersionChange(r.chartDetails.oldChartVersion, r.chartDetails.currentChartVersion) {
-		oldVersionLabel := client.MatchingLabels{chartVersionKey: r.chartDetails.oldChartVersion}
-		for _, gvk := range r.chartDetails.oldGvks {
-			list := &unstructured.UnstructuredList{}
-			list.SetGroupVersionKind(gvk)
+	oldVersionLabel := client.MatchingLabels{chartVersionKey: r.chartDetails.oldChartVersion}
+	for _, gvk := range r.chartDetails.oldGvks {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(gvk)
 
-			if err := r.List(ctx, list, client.InNamespace(ChartNamespace), oldVersionLabel); err != nil {
-				if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
-					return err
-				}
+		if err := r.List(ctx, list, client.InNamespace(ChartNamespace), oldVersionLabel); err != nil {
+			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+				return err
 			}
+		}
 
-			for _, item := range list.Items {
-				if err := r.Delete(ctx, &item); err != nil {
-					return err
-				} else {
-					logger.Info(fmt.Sprintf("deleted resource %s of type %s with version = %s", item.GetName(), gvk.Kind, r.chartDetails.oldChartVersion))
-				}
+		for _, item := range list.Items {
+			if err := r.Delete(ctx, &item); err != nil {
+				return err
+			} else {
+				logger.Info(fmt.Sprintf("deleted resource %s of type %s with version = %s", item.GetName(), gvk.Kind, r.chartDetails.oldChartVersion))
 			}
 		}
 	}
