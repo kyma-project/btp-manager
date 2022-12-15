@@ -7,7 +7,7 @@ To configure them using CLI arguments, follow this example:
 $ manager --help
 Usage of ./manager:
   -chart-path string
-    	Path to the root directory inside chart. (default "./module-chart")
+    	Path to the root directory inside the chart. (default "./module-chart")
   -chart-namespace string
     	Namespace to install chart resources. (default "kyma-system")
   -config-name string
