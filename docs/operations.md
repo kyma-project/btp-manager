@@ -109,3 +109,23 @@ Only one Condition of type `Ready` is used.
 | 12  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                               |
 
 
+## Updating
+
+![Updating diagram](./assets/updating.svg)
+
+Updating logic is based on chart files placed in "ChartPath"
+
+Config Map (btp-manager-config-map)
+
+Application will create config map (if not exists) and then use it for storing data, including: 
+- current version within current installed gvks
+- old version within old version kinds.
+
+All resources will be labeled with label 'app.kubernetes.io/chart-version'.
+
+Application after restart, during 1st reconcile loop iteration, inspects Chart.yaml file from which extracts new version of chart.
+If version has changed then it updates config map and shifts value, so it move current values to old values, and new values moves to current values.
+Next step is run to ConsistencyCheck which will handle updated - if there is new resources in charts, it will be applied to cluster, and if something is changed, the resources on cluster will be updated.
+The ConsistencyCheck also apply label with current version to all matching resources. 
+If some resources during check are on cluster and in the same time they are not is not in chart resources, it mean they will stay with old version label.
+Resources which are labeled with old version will be deleted by operator.

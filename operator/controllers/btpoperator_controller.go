@@ -225,7 +225,7 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 		return fmt.Errorf("'current' should be present in configmap but it is not"), false
 	}
 
-	currentGvksStr, ok := configMap.Data["currentGvks"]
+	currentGvksStr, ok := configMap.Data[currentGvksKey]
 	if !ok {
 		return fmt.Errorf("'current' should be present in configmap but it is not"), false
 	}
