@@ -63,6 +63,7 @@ var (
 	ReadyTimeout                   = time.Minute * 1
 	HardDeleteCheckInterval        = time.Second * 10
 	HardDeleteTimeout              = time.Minute * 20
+	ChartPath                      = "./module-chart"
 )
 
 const (
@@ -104,7 +105,6 @@ type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
 	Scheme                *runtime.Scheme
-	ChartPath             string
 	WaitForChartReadiness bool
 }
 
@@ -303,7 +303,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 	installInfo := types.InstallInfo{
 		ChartInfo: &types.ChartInfo{
-			ChartPath:   r.ChartPath,
+			ChartPath:   ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
@@ -426,6 +426,8 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 		switch k {
 		case "ChartNamespace":
 			ChartNamespace = v
+		case "ChartPath":
+			ChartPath = v
 		case "SecretName":
 			SecretName = v
 		case "ConfigName":
@@ -890,7 +892,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		allGvks = append(allGvks, gvk)
 	}
 
-	root := fmt.Sprintf("%s/templates/", r.ChartPath)
+	root := fmt.Sprintf("%s/templates/", ChartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

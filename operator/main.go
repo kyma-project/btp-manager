@@ -42,10 +42,6 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-const (
-	chartPath = "./module-chart"
-)
-
 func init() {
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
@@ -66,6 +62,7 @@ func main() {
 	flag.StringVar(&controllers.SecretName, "secret-name", controllers.SecretName, "Secret name with input values for sap-btp-operator chart templating.")
 	flag.StringVar(&controllers.ConfigName, "config-name", controllers.ConfigName, "ConfigMap name with configuration knobs for the btp-manager internals.")
 	flag.StringVar(&controllers.DeploymentName, "deployment-name", controllers.DeploymentName, "Name of the deployment of sap-btp-operator for deprovisioning.")
+	flag.StringVar(&controllers.ChartPath, "chart-path", controllers.ChartPath, "Path to the root directory inside chart.")
 	flag.DurationVar(&controllers.ProcessingStateRequeueInterval, "processing-state-requeue-interval", controllers.ProcessingStateRequeueInterval, `Requeue interval for state "processing".`)
 	flag.DurationVar(&controllers.ReadyStateRequeueInterval, "ready-state-requeue-interval", controllers.ReadyStateRequeueInterval, `Requeue interval for state "ready".`)
 	flag.DurationVar(&controllers.ReadyTimeout, "ready-timeout", controllers.ReadyTimeout, "Helm chart timeout.")
@@ -106,7 +103,6 @@ func main() {
 	reconciler := &controllers.BtpOperatorReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                scheme,
-		ChartPath:             chartPath,
 		WaitForChartReadiness: true,
 	}
 
