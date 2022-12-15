@@ -115,14 +115,12 @@ type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
 	Scheme                *runtime.Scheme
-	ChartPath             string
 	chartDetails          ChartDetails
 	WaitForChartReadiness bool
 }
 
 type ChartDetails struct {
 	isReady             bool
-	chartPath           string
 	oldChartVersion     string
 	oldGvks             []schema.GroupVersionKind
 	currentChartVersion string
@@ -168,14 +166,13 @@ func (r *BtpOperatorReconciler) GetConfigMap() *corev1.ConfigMap {
 	return configMap
 }
 
-func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context, chartPath string) error {
-	r.chartDetails.chartPath = chartPath
-	newChartVersion, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", r.chartDetails.chartPath), "version")
+func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context) error {
+	newChartVersion, err := ymlutils.ExtractValueFromLine(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 	if err != nil {
 		return err
 	}
 
-	newGvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
+	newGvks, err := ymlutils.GatherChartGvks(ChartPath)
 	if err != nil {
 		return err
 	}
@@ -332,7 +329,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !r.chartDetails.isReady {
-		if err := r.StoreChartDetails(ctx, ChartPath); err != nil {
+		if err := r.StoreChartDetails(ctx); err != nil {
 			logger.Error(err, "StoreChartDetails")
 			return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 		}
@@ -1099,7 +1096,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 }
 
 func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	gvks, err := ymlutils.GatherChartGvks(r.chartDetails.chartPath)
+	gvks, err := ymlutils.GatherChartGvks(ChartPath)
 	if err != nil {
 		return err
 	}

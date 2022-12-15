@@ -424,7 +424,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			err := cp.Copy(ChartPath, updatePath)
 			Expect(err).To(BeNil())
 			ChartPath = updatePath
-			reconciler.chartDetails.chartPath = ChartPath
 			simulateRestart(updateCtx, cr)
 		})
 
@@ -748,7 +747,7 @@ func checkIfNoBindingSecretExists() {
 }
 
 func checkIfNoBtpResourceExists() {
-	gvks, err := ymlutils.GatherChartGvks(reconciler.chartDetails.chartPath)
+	gvks, err := ymlutils.GatherChartGvks(ChartPath)
 	Expect(err).To(BeNil())
 
 	found := false
