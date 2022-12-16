@@ -20,7 +20,7 @@ make run
 
 ## Usage
 
-#### Install SAP BTP Service Operator.
+#### Install SAP BTP Service Operator
 
 To install SAP BTP Service Operator, run the following commands:
 ```sh
@@ -46,7 +46,7 @@ NAME                 STATE
 btpoperator-sample   Ready
 ```
 
-#### Uninstall SAP BTP Service Operator.
+#### Uninstall SAP BTP Service Operator
 
 To uninstall SAP BTP Service Operator, run the following commands:
 ```sh
