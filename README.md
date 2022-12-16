@@ -10,7 +10,7 @@ BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
 ## Installation
-The following commands describe how to run BTP Manager locally. All `make` commands are referring to [Makefile](./operator/Makefile) in `operator` directory.
+Use the following commands to run BTP Manager locally. All `make` commands refer to [Makefile](./operator/Makefile) in the `operator` directory.
 
 ```sh
 cd operator
@@ -20,7 +20,9 @@ make run
 
 ## Usage
 
-#### The following commands describe how to install SAP BTP Service Operator.
+#### Install SAP BTP Service Operator.
+
+To install SAP BTP Service Operator, run the following commands:
 ```sh
 kubectl apply -f deployments/prerequisites.yaml
 kubectl apply -f examples/btp-manager-secret.yaml
@@ -33,18 +35,20 @@ secret/sap-btp-manager created
 btpoperator.operator.kyma-project.io/btpoperator-sample created
 ```
 
-Check `BtpOperator` CR status.
+Check `BtpOperator` CR status by running the following command:
 ```sh
 kubectl get btpoperators btpoperator-sample
 ```
 
-Expected result.
+The expected result is:
 ```
 NAME                 STATE
 btpoperator-sample   Ready
 ```
 
-#### The following commands describe how to uninstall SAP BTP Service Operator.
+#### Uninstall SAP BTP Service Operator.
+
+To uninstall SAP BTP Service Operator, run the following commands:
 ```sh
 kubectl delete -f examples/btp-operator.yaml
 kubectl delete -f examples/btp-manager-secret.yaml

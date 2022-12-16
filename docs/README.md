@@ -2,6 +2,7 @@
 
 ## Overview
 
-This folder contains documents that relate to the project.
+This directory contains the following documents describing BTP Manager:
 
-> In this document, provide the list of all documents that this folder contains, together with links to those documents and short information on what they describe.
+- [Configuration](./configuration.md)
+- [Operations](./operations.md)
