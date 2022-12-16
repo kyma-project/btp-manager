@@ -191,7 +191,7 @@ func (r *BtpOperatorReconciler) StoreChartDetails(ctx context.Context) (error, b
 		if err != nil {
 			return err, false
 		}
-		return nil, true
+		return nil, false
 	} else {
 		return r.HandleExistingConfigMap(ctx, configMap, &newChartVersion, newGvks)
 	}
@@ -206,7 +206,7 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 	if err != nil {
 		return err
 	}
-	r.SetConfigMaps(configMap, *newChartVersion, *newChartVersion, newGvksAsStr, newGvksAsStr)
+	r.SetUpdateConfigMap(configMap, *newChartVersion, *newChartVersion, newGvksAsStr, newGvksAsStr)
 
 	r.SetChartDetails(*newChartVersion, *newChartVersion, newGvks, newGvks)
 
@@ -219,6 +219,7 @@ func (r *BtpOperatorReconciler) HandleInitialConfigMap(ctx context.Context, conf
 
 func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
 	newChartVersion *string, newGvks []schema.GroupVersionKind) (error, bool) {
+	logger := log.FromContext(ctx)
 
 	current, ok := configMap.Data[currentCharVersionKey]
 	if !ok {
@@ -239,9 +240,9 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 		return err, false
 	}
 
-	if r.DidVersionChange(*newChartVersion, current) {
-
-		r.SetConfigMaps(configMap, current, *newChartVersion, currentGvksStr, newGvksAsStr)
+	if *newChartVersion != current {
+		logger.Info(fmt.Sprintf("detected version change: {%s} -> {%s}", current, *newChartVersion))
+		r.SetUpdateConfigMap(configMap, current, *newChartVersion, currentGvksStr, newGvksAsStr)
 
 		if err := r.Update(ctx, configMap); err != nil {
 			return err, false
@@ -250,7 +251,8 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 		r.SetChartDetails(current, *newChartVersion, currentGvks, newGvks)
 
 		return nil, true
-	} else if r.AreChartDetialsNotSet() {
+	} else if r.AreChartDetailsNotSet() {
+		logger.Info("detected that in memory details are not set")
 
 		old, ok := configMap.Data[oldChartVersionKey]
 		if !ok {
@@ -272,16 +274,12 @@ func (r *BtpOperatorReconciler) HandleExistingConfigMap(ctx context.Context, con
 	return nil, false
 }
 
-func (r *BtpOperatorReconciler) AreChartDetialsNotSet() bool {
+func (r *BtpOperatorReconciler) AreChartDetailsNotSet() bool {
 	return r.chartDetails.oldChartVersion == "" && r.chartDetails.currentChartVersion == "" &&
 		len(r.chartDetails.oldGvks) == 0 && len(r.chartDetails.currentGvks) == 0
 }
 
-func (r *BtpOperatorReconciler) DidVersionChange(new string, current string) bool {
-	return new != current
-}
-
-func (r *BtpOperatorReconciler) SetConfigMaps(configMap *corev1.ConfigMap, oldChartVersion, currentCharVersion, oldGvksStr, currentGvks string) {
+func (r *BtpOperatorReconciler) SetUpdateConfigMap(configMap *corev1.ConfigMap, oldChartVersion, currentCharVersion, oldGvksStr, currentGvks string) {
 	if configMap == nil {
 		return
 	}
