@@ -425,18 +425,17 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(err).To(BeNil())
 			ChartPath = updatePath
 			simulateRestart(updateCtx, cr)
+			Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
+			Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
 		})
 
-		When("update of all resources names and bump chart version", func() {
+		When("update of all resources names and bump chart version", Label("test-update"), func() {
 			It("new resources (with new name) should be created and old ones removed", func() {
 				err := ymlutils.TransformCharts(updatePath, suffix)
 				Expect(err).To(BeNil())
 
 				err = ymlutils.UpdateVersion(updatePath, newChartVersion)
 				Expect(err).To(BeNil())
-
-				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
-				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
 
 				simulateRestart(updateCtx, cr)
 				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
@@ -448,8 +447,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("update of all resources names and leave same chart version", func() {
-			It("new resources (with new name) should be created and old ones should stay", func() {
+		When("update of all resources names and leave same chart version", Label("test-update"), func() {
+			It("new ones not created because version is not changed, old ones should stay", Label("test-update"), func() {
 				err := ymlutils.TransformCharts(updatePath, suffix)
 				Expect(err).To(BeNil())
 
@@ -458,24 +457,26 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
 
 				oldCount, newCount := countResources()
+				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(reconciler.chartDetails.currentChartVersion))
+				Expect(newCount).To(BeEquivalentTo(-1))
 				Expect(oldCount >= expectedElementsCount).To(BeTrue())
-				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
 		})
 
-		When("resources should stay as they are and we bump chart version", func() {
+		When("resources should stay as they are and we bump chart version", Label("test-update"), func() {
 			It("existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)", func() {
-				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
-				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
-
 				err := ymlutils.UpdateVersion(updatePath, newChartVersion)
 				Expect(err).To(BeNil())
+
+				oldCount, newCount := countResources()
+				Expect(newCount).To(BeEquivalentTo(-1))
+				Expect(oldCount >= expectedElementsCount).To(BeTrue())
 
 				simulateRestart(updateCtx, cr)
 				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
 				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(newChartVersion))
 
-				oldCount, newCount := countResources()
+				oldCount, newCount = countResources()
 				Expect(oldCount).To(BeEquivalentTo(0))
 				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
@@ -507,10 +508,16 @@ func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
 func countResources() (int, int) {
 	oldVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.oldChartVersion}
 	oldCount := countWithLabel(oldVersionLabel, reconciler.chartDetails.oldGvks)
-	newVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.currentChartVersion}
-	newCount := countWithLabel(newVersionLabel, reconciler.chartDetails.currentGvks)
-	fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
-	return oldCount, newCount
+
+	if reconciler.chartDetails.oldChartVersion == reconciler.chartDetails.currentChartVersion {
+		fmt.Printf("oldCount = {%d} \n", oldCount)
+		return oldCount, -1
+	} else {
+		newVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.currentChartVersion}
+		newCount := countWithLabel(newVersionLabel, reconciler.chartDetails.currentGvks)
+		fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
+		return oldCount, newCount
+	}
 }
 
 func countWithLabel(label client.MatchingLabels, gvks []schema.GroupVersionKind) int {
