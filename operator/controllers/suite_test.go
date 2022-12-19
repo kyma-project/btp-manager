@@ -56,7 +56,8 @@ var (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "Controller Suite")
+	_, reporterCfg := GinkgoConfiguration()
+	RunSpecs(t, "Controller Suite", reporterCfg)
 }
 
 var _ = BeforeSuite(func() {
