@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
-	"log"
 	"os"
 	"time"
 
@@ -242,9 +241,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("should return error while verifying keys", func() {
 				secret, err := createSecretWithoutKeys()
 				Expect(err).To(BeNil())
-				log.Printf("just creating secret without keys")
 				Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				log.Printf("created secret without keys")
 				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateChangeTimeout).
 					WithPolling(crStatePollingInterval).
