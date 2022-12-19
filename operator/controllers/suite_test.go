@@ -59,7 +59,7 @@ func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	suiteCfg, reporterCfg := GinkgoConfiguration()
-	//suiteCfg.LabelFilter = "(test-update)"
+	suiteCfg.LabelFilter = "(test-update)"
 	reporterCfg.Verbose = true
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
@@ -73,6 +73,12 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
+	//Expect(os.Setenv("USE_EXISTING_CLUSTER", "true")).To(Succeed())
+	/*cmd := exec.Command("/bin/sh", "prerun.sh")
+	if err := cmd.Run(); err != nil {
+		fmt.Println(err)
+		panic(err)
+	}*/
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},

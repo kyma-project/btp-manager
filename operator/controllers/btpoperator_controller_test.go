@@ -11,7 +11,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	ymlutils "github.com/kyma-project/btp-manager/operator/internal"
+	"github.com/kyma-project/btp-manager/operator/internal/gvksutils"
+	ymlutils "github.com/kyma-project/btp-manager/operator/internal/ymlutils"
 	"github.com/kyma-project/module-manager/operator/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -395,8 +396,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Update", func() {
-		updateCtx := context.Background()
-
 		var initChartVersion string
 		var expectedElementsCount int
 
@@ -405,10 +404,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
-			Eventually(k8sClient.Create(updateCtx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+			Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 
 			cr = createBtpOperator()
-			Expect(k8sClient.Create(updateCtx, cr)).To(Succeed())
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateProcessing))
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
 
@@ -424,9 +423,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			err := cp.Copy(ChartPath, updatePath)
 			Expect(err).To(BeNil())
 			ChartPath = updatePath
-			simulateRestart(updateCtx, cr)
-			Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
-			Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
+			simulateRestart(ctx, cr)
+
+			configMap := reconciler.buildBtpManagerConfigMap()
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
+			Expect(err).To(BeNil())
+
+			Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+			Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
 		})
 
 		When("update of all resources names and bump chart version", Label("test-update"), func() {
@@ -437,11 +441,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateVersion(updatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				simulateRestart(updateCtx, cr)
-				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
-				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(newChartVersion))
+				simulateRestart(ctx, cr)
+				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(newChartVersion))
 
-				oldCount, newCount := countResources()
+				oldCount, newCount := countResources(ctx)
 				Expect(oldCount).To(BeZero())
 				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
@@ -452,12 +456,12 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err := ymlutils.TransformCharts(updatePath, suffix)
 				Expect(err).To(BeNil())
 
-				simulateRestart(updateCtx, cr)
-				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
-				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(initChartVersion))
+				simulateRestart(ctx, cr)
+				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
 
-				oldCount, newCount := countResources()
-				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(reconciler.chartDetails.currentChartVersion))
+				oldCount, newCount := countResources(ctx)
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(pullFromBtpManagerConfigMap(oldChartVersionKey)))
 				Expect(newCount).To(BeEquivalentTo(-1))
 				Expect(oldCount >= expectedElementsCount).To(BeTrue())
 			})
@@ -468,15 +472,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err := ymlutils.UpdateVersion(updatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				oldCount, newCount := countResources()
+				oldCount, newCount := countResources(ctx)
 				Expect(newCount).To(BeEquivalentTo(-1))
 				Expect(oldCount >= expectedElementsCount).To(BeTrue())
 
-				simulateRestart(updateCtx, cr)
-				Expect(reconciler.chartDetails.oldChartVersion).To(Equal(initChartVersion))
-				Expect(reconciler.chartDetails.currentChartVersion).To(Equal(newChartVersion))
+				simulateRestart(ctx, cr)
 
-				oldCount, newCount = countResources()
+				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(newChartVersion))
+
+				oldCount, newCount = countResources(ctx)
 				Expect(oldCount).To(BeEquivalentTo(0))
 				Expect(newCount >= expectedElementsCount).To(BeTrue())
 			})
@@ -484,9 +489,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		AfterEach(func() {
 			ChartPath = defaultChartPath
-			reconciler.chartDetails = ChartDetails{}
+			reconciler.wereUpdateCheckDone = false
+			reconciler.currentVersion = ""
 
-			configMap := reconciler.GetConfigMap()
+			configMap := reconciler.buildBtpManagerConfigMap()
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
 
@@ -495,8 +501,21 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 })
 
+func pullFromBtpManagerConfigMap(key string) string {
+	ctx := context.Background()
+	configMap := reconciler.buildBtpManagerConfigMap()
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
+	Expect(err).To(BeNil())
+	Expect(configMap).ToNot(BeNil())
+	value, ok := configMap.Data[key]
+	Expect(ok).To(BeTrue())
+	fmt.Printf("pulled %s for %s", value, key)
+	return value
+}
+
 func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
-	reconciler.chartDetails = ChartDetails{}
+	reconciler.wereUpdateCheckDone = false
+	reconciler.currentVersion = ""
 	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 		Namespace: cr.Namespace,
 		Name:      cr.Name,
@@ -505,16 +524,25 @@ func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
 	Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
 }
 
-func countResources() (int, int) {
-	oldVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.oldChartVersion}
-	oldCount := countWithLabel(oldVersionLabel, reconciler.chartDetails.oldGvks)
+func countResources(ctx context.Context) (int, int) {
+	oldVersion := pullFromBtpManagerConfigMap(oldChartVersionKey)
+	oldVersionLabel := client.MatchingLabels{chartVersionKey: oldVersion}
+	oldGvksText := pullFromBtpManagerConfigMap(oldGvksKey)
+	oldGvks, err := gvksutils.StrToGvks(oldGvksText)
+	Expect(err).To(BeNil())
+	oldCount := countWithLabel(oldVersionLabel, oldGvks)
+	currentVersion := pullFromBtpManagerConfigMap(currentCharVersionKey)
+	currentVersionLabel := client.MatchingLabels{chartVersionKey: currentVersion}
+	currentGvksText := pullFromBtpManagerConfigMap(currentGvksKey)
+	currentGvks, err := gvksutils.StrToGvks(currentGvksText)
+	Expect(err).To(BeNil())
+	newCount := countWithLabel(currentVersionLabel, currentGvks)
 
-	if reconciler.chartDetails.oldChartVersion == reconciler.chartDetails.currentChartVersion {
+	if oldVersion == currentVersion {
 		fmt.Printf("oldCount = {%d} \n", oldCount)
 		return oldCount, -1
 	} else {
-		newVersionLabel := client.MatchingLabels{chartVersionKey: reconciler.chartDetails.currentChartVersion}
-		newCount := countWithLabel(newVersionLabel, reconciler.chartDetails.currentGvks)
+
 		fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 		return oldCount, newCount
 	}

@@ -17,14 +17,15 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
-
 	//test
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -50,6 +51,7 @@ func init() {
 }
 
 func main() {
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -118,6 +120,18 @@ func main() {
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
+
+	err = mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		if err := reconciler.handleUpdate(ctx); err != nil {
+			return err
+		}
+		return nil
+	}))
+
+	if err != nil {
+		setupLog.Error(err, "unable add a runnable (handleUpdate) to the manager")
 		os.Exit(1)
 	}
 
