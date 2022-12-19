@@ -110,6 +110,7 @@ var _ = BeforeSuite(func() {
 		Scheme:                k8sManager.GetScheme(),
 		WaitForChartReadiness: false,
 	}
+
 	k8sClientFromManager = k8sManager.GetClient()
 	HardDeleteTimeout = hardDeleteTimeout
 	HardDeleteCheckInterval = hardDeleteTimeout / 20

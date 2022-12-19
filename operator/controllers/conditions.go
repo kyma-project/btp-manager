@@ -21,6 +21,8 @@ const (
 	SoftDeleting           Reason = "SoftDeleting"
 	Updated                Reason = "Updated"
 	ReadyType                     = "Ready"
+	Updating               Reason = "Updating"
+	UpdatingSucceeded      Reason = "UpdatingSucceeded"
 )
 
 type TypeAndStatus struct {
