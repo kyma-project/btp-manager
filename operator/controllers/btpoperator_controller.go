@@ -312,11 +312,11 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
-type ReadyStateForTypes int
+type proccessingMode int
 
 const (
-	ReadyStateForProvisioning ReadyStateForTypes = 0
-	ReadyStateForUpdating     ReadyStateForTypes = 1
+	provision proccessingMode = 0
+	update    proccessingMode = 1
 )
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -346,7 +346,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, cr)
 		}
 	}
-	ReadyStateForTypes := ReadyStateForProvisioning
+
+	handleProcessingStateMode := provision
 	if !r.wereUpdateCheckDone {
 		if cr.Status.State != types.StateProcessing {
 			cr.Status.State = types.StateProcessing
@@ -356,7 +357,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if err := r.handleUpdate(ctx, cr); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to perform update check")
 		}
-		ReadyStateForTypes = ReadyStateForUpdating
+		handleProcessingStateMode = update
 	}
 
 	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
@@ -371,7 +372,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
-		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr, ReadyStateForTypes)
+		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr, handleProcessingStateMode)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
@@ -416,10 +417,10 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
 }
 
-func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator, readyStateForTypes ReadyStateForTypes) error {
+func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator, readyStateForTypes proccessingMode) error {
 	logger := log.FromContext(ctx)
 	switch readyStateForTypes {
-	case ReadyStateForProvisioning:
+	case provision:
 		logger.Info("Handling Processing state")
 
 		secret, err := r.getRequiredSecret(ctx)
@@ -457,12 +458,10 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
 		}
 		if ready {
-			logger.Info("setting types.StateReady when doing Provisioning")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
 		}
-	case ReadyStateForUpdating:
+	case update:
 		r.wereUpdateCheckDone = true
-		logger.Info("setting types.StateRead when doing ReadyStateForUpdating")
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdatingSucceeded, "Update done")
 	default:
 		return nil
