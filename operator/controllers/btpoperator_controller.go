@@ -61,7 +61,9 @@ var (
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Hour * 1
 	ReadyTimeout                   = time.Minute * 1
-	RetryInterval                  = time.Second * 10
+	HardDeleteCheckInterval        = time.Second * 10
+	HardDeleteTimeout              = time.Minute * 20
+	ChartPath                      = "./module-chart"
 )
 
 const (
@@ -103,13 +105,7 @@ type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
 	Scheme                *runtime.Scheme
-	hardDeleteTimeout     time.Duration
-	ChartPath             string
 	WaitForChartReadiness bool
-}
-
-func (r *BtpOperatorReconciler) SetHardDeleteTimeout(timeout time.Duration) {
-	r.hardDeleteTimeout = timeout
 }
 
 //+kubebuilder:rbac:groups=operator.kyma-project.io,resources=btpoperators,verbs=get;list;watch;create;update;patch;delete
@@ -307,7 +303,7 @@ func (r *BtpOperatorReconciler) getInstallInfo(ctx context.Context, cr *v1alpha1
 
 	installInfo := types.InstallInfo{
 		ChartInfo: &types.ChartInfo{
-			ChartPath:   r.ChartPath,
+			ChartPath:   ChartPath,
 			ReleaseName: cr.GetName(),
 			Flags: types.ChartFlags{
 				ConfigFlags: types.Flags{
@@ -395,7 +391,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Recovered, "Recovered from error state")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "Resource has been updated")
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -430,6 +426,8 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 		switch k {
 		case "ChartNamespace":
 			ChartNamespace = v
+		case "ChartPath":
+			ChartPath = v
 		case "SecretName":
 			SecretName = v
 		case "ConfigName":
@@ -442,8 +440,10 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			ReadyStateRequeueInterval, err = time.ParseDuration(v)
 		case "ReadyTimeout":
 			ReadyTimeout, err = time.ParseDuration(v)
-		case "RetryInterval":
-			RetryInterval, err = time.ParseDuration(v)
+		case "HardDeleteCheckInterval":
+			HardDeleteCheckInterval, err = time.ParseDuration(v)
+		case "HardDeleteTimeout":
+			HardDeleteTimeout, err = time.ParseDuration(v)
 		default:
 			logger.Info("unknown config update key", k, v)
 		}
@@ -572,8 +572,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 				return err
 			}
 		}
-	case <-time.After(r.hardDeleteTimeout):
-		logger.Info("hard delete timeout reached", "duration", r.hardDeleteTimeout)
+	case <-time.After(HardDeleteTimeout):
+		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
 		timeoutChannel <- true
 		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 			logger.Error(err, "failed to update status")
@@ -660,14 +660,14 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			return
 		}
 
-		time.Sleep(r.hardDeleteTimeout / 20)
+		time.Sleep(HardDeleteCheckInterval)
 	}
 }
 
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
-	deleteCtx, cancel := context.WithTimeout(ctx, r.hardDeleteTimeout/2)
+	deleteCtx, cancel := context.WithTimeout(ctx, HardDeleteTimeout/2)
 	defer cancel()
 
 	for _, namespace := range namespaces.Items {
@@ -892,7 +892,7 @@ func (r *BtpOperatorReconciler) gatherChartGvks() ([]schema.GroupVersionKind, er
 		allGvks = append(allGvks, gvk)
 	}
 
-	root := fmt.Sprintf("%s/templates/", r.ChartPath)
+	root := fmt.Sprintf("%s/templates/", ChartPath)
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

@@ -19,7 +19,7 @@ const (
 	HardDeleting           Reason = "HardDeleting"
 	ResourceRemovalFailed  Reason = "ResourceRemovalFailed"
 	SoftDeleting           Reason = "SoftDeleting"
-	Recovered              Reason = "Recovered"
+	Updated                Reason = "Updated"
 	ReadyType                     = "Ready"
 )
 
@@ -40,7 +40,7 @@ var NotReady = TypeAndStatus{
 
 var Reasons = map[Reason]TypeAndStatus{
 	ReconcileSucceeded:     Ready,
-	Recovered:              Ready,
+	Updated:                NotReady,
 	Initialized:            NotReady,
 	ChartInstallFailed:     NotReady,
 	ConsistencyCheckFailed: NotReady,

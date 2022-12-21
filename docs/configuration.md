@@ -6,14 +6,16 @@ To configure them using CLI arguments, follow this example:
 ```
 $ manager --help
 Usage of ./manager:
+  -chart-path string
+    	Path to the root directory inside the chart. (default "./module-chart")
   -chart-namespace string
     	Namespace to install chart resources. (default "kyma-system")
-  -chart-path string
-    	Module chart path. (default "./module-chart")
   -config-name string
     	ConfigMap name with configuration knobs for the btp-manager internals. (default "sap-btp-manager")
   -deployment-name string
     	Name of the deployment of sap-btp-operator for deprovisioning. (default "sap-btp-operator-controller-manager")
+  -hard-delete-timeout duration
+    	Hard delete timeout. (default 20m0s)
   -health-probe-bind-address string
     	The address the probe endpoint binds to. (default ":8081")
   -kubeconfig string
@@ -28,7 +30,7 @@ Usage of ./manager:
     	Requeue interval for state "ready". (default 1h0m0s)
   -ready-timeout duration
     	Helm chart timeout. (default 1m0s)
-  -retry-interval duration
+  -hard-delete-check-interval duration
     	Hard delete retry interval. (default 10s)
   -secret-name string
     	Secret name with input values for sap-btp-operator chart templating. (default "sap-btp-manager")
@@ -59,5 +61,5 @@ data:
   ProcessingStateRequeueInterval: 5m
   ReadyStateRequeueInterval: 1h
   ReadyTimeout: 1m
-  RetryInterval: 10s
+  HardDeleteCheckInterval: 10s
 ```

@@ -92,11 +92,12 @@ var _ = BeforeSuite(func() {
 	reconciler = &BtpOperatorReconciler{
 		Client:                k8sManager.GetClient(),
 		Scheme:                k8sManager.GetScheme(),
-		ChartPath:             "../module-chart",
 		WaitForChartReadiness: false,
 	}
 	k8sClientFromManager = k8sManager.GetClient()
-	reconciler.SetHardDeleteTimeout(hardDeleteTimeout)
+	HardDeleteTimeout = hardDeleteTimeout
+	HardDeleteCheckInterval = hardDeleteTimeout / 20
+	ChartPath = "../module-chart"
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
