@@ -397,27 +397,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	Describe("Update", func() {
 		var initChartVersion string
-		var expectedElementsCount int
+		var minimalExpectedElementsCount int
 		var gvks []schema.GroupVersionKind
 
-		debug := func(testText string) {
-			fmt.Printf("\n %s test: with btp label: %d \n", testText, countWithLabel(labelFilter, gvks))
-			fmt.Printf("\n %s test: old version: %s : %d \n", testText, initChartVersion, countWithLabel(client.MatchingLabels{chartVersionKey: initChartVersion}, gvks))
-			fmt.Printf("\n %s test: new version %s : %d \n", testText, newChartVersion, countWithLabel(client.MatchingLabels{chartVersionKey: newChartVersion}, gvks))
-		}
-
-		/*debugCmVersions := func() {
-			fmt.Printf("oldVersion => %s \n", pullFromBtpManagerConfigMap(oldChartVersionKey))
-			fmt.Printf("currentVersion => %s \n", pullFromBtpManagerConfigMap(currentCharVersionKey))
-		}*/
-
 		BeforeAll(func() {
-			err := cp.Copy(ChartPath, updatePath)
-			os.RemoveAll(fmt.Sprintf("%s/%s", updatePath, "manifest"))
-			Expect(err).To(BeNil())
-			ChartPath = updatePath
+			copyChartAndSetPath()
 
-			createPrereqs()
+			err := createPrereqs()
+			Expect(err).To(BeNil())
 
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
@@ -433,22 +420,15 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 			gvks, err = ymlutils.GatherChartGvks(defaultChartPath)
 			Expect(err).To(BeNil())
-			expectedElementsCount = len(gvks)
+			minimalExpectedElementsCount = len(gvks)
 
-			os.RemoveAll(updatePath)
-			ChartPath = defaultChartPath
+			revertToOriginalChart()
 		})
 
 		BeforeEach(func() {
-			err := cp.Copy(ChartPath, updatePath)
-			os.RemoveAll(fmt.Sprintf("%s/%s", updatePath, "manifest"))
-			Expect(err).To(BeNil())
-			ChartPath = updatePath
-			simulateRestart(ctx, cr)
+			copyChartAndSetPath()
 
-			configMap := reconciler.buildBtpManagerConfigMap()
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
-			Expect(err).To(BeNil())
+			simulateRestart(ctx, cr)
 
 			Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
 			Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
@@ -463,32 +443,30 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(err).To(BeNil())
 
 				simulateRestart(ctx, cr)
+
 				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
 				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(newChartVersion))
 
 				oldCount, newCount := countResources()
 				Expect(oldCount).To(BeZero())
-				Expect(newCount >= expectedElementsCount).To(BeTrue())
-
-				debug("1")
+				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
 			})
 		})
 
 		When("update of all resources names and leave same chart version", Label("test-update"), func() {
 			It("new ones not created because version is not changed, old ones should stay", Label("test-update"), func() {
-				debug("2a")
-
 				err := ymlutils.TransformCharts(updatePath, suffix)
 				Expect(err).To(BeNil())
+
 				simulateRestart(ctx, cr)
+
 				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
 				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
-				debug("2b")
 
 				oldCount, newCount := countResources()
 				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(pullFromBtpManagerConfigMap(oldChartVersionKey)))
-				Expect(newCount).To(BeEquivalentTo(-1))
-				Expect(oldCount >= expectedElementsCount).To(BeTrue())
+				Expect(newCount).To(BeEquivalentTo(oldCount))
+				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
 			})
 		})
 
@@ -498,8 +476,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(err).To(BeNil())
 
 				oldCount, newCount := countResources()
-				Expect(newCount).To(BeEquivalentTo(-1))
-				Expect(oldCount >= expectedElementsCount).To(BeTrue())
+				Expect(newCount).To(BeEquivalentTo(oldCount))
+				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
 
 				simulateRestart(ctx, cr)
 
@@ -508,12 +486,13 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				oldCount, newCount = countResources()
 				Expect(oldCount).To(BeEquivalentTo(0))
-				Expect(newCount >= expectedElementsCount).To(BeTrue())
+				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
 			})
 		})
 
 		AfterEach(func() {
-			ChartPath = defaultChartPath
+			revertToOriginalChart()
+
 			reconciler.wereUpdateCheckDone = false
 			reconciler.currentVersion = ""
 
@@ -521,10 +500,24 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
 
-			os.RemoveAll(updatePath)
 		})
 	})
 })
+
+func copyChartAndSetPath() {
+	err := cp.Copy(ChartPath, updatePath)
+
+	err = os.RemoveAll(fmt.Sprintf("%s/%s", updatePath, "manifest"))
+	Expect(err).To(BeNil())
+	ChartPath = updatePath
+}
+
+func revertToOriginalChart() {
+	ChartPath = defaultChartPath
+
+	err := os.RemoveAll(updatePath)
+	Expect(err).To(BeNil())
+}
 
 func pullFromBtpManagerConfigMap(key string) string {
 	ctx := context.Background()
@@ -534,7 +527,6 @@ func pullFromBtpManagerConfigMap(key string) string {
 	Expect(configMap).ToNot(BeNil())
 	value, ok := configMap.Data[key]
 	Expect(ok).To(BeTrue())
-	//fmt.Printf("pulled %s for %s", value, key)
 	return value
 }
 
@@ -565,13 +557,12 @@ func countResources() (int, int) {
 	newCount := countWithLabel(currentVersionLabel, currentGvks)
 
 	if oldVersion == currentVersion {
-		fmt.Printf("oldCount = {%d} \n", oldCount)
-		return oldCount, -1
+		fmt.Printf("oldVersion = currentVersion, count = {%d} \n", oldCount)
 	} else {
-
 		fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
-		return oldCount, newCount
 	}
+
+	return oldCount, newCount
 }
 
 func countWithLabel(label client.MatchingLabels, gvks []schema.GroupVersionKind) int {
