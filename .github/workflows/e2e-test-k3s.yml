@@ -46,10 +46,6 @@ jobs:
         run: |
             kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/bundle.yaml --force-conflicts=true --server-side
             
-      - name: Check if image was build
-        run: |
-            for i in {1..5}; do if [ $(curl -I -s -f -o /dev/null -w "%{http_code}" "europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-${{ github.event.number }}") -eq 200 ]; then echo "Image found, continuing with script..."; break; else echo "Image not found, sleeping for 5 seconds..."; sleep 5; fi; done
-            
       - name: Deploy controller
         continue-on-error: true
         run: |
@@ -58,6 +54,7 @@ jobs:
       - name: kubectl get deployment -A
         run: |
             kubectl get deployment -A
+            while [[ $(kubectl get deployment -n kymactl-system btpoperator-sample -o 'jsonpath={..status.availableReplicas}') != 1 ]]; do echo "Waiting for kymactl controller to be available"; sleep 2; done
          
             
       - uses: actions/setup-go@v3
