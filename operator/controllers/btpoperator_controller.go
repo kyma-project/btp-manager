@@ -363,9 +363,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	//ToDO: detect provisioning from Conditions
-	handleProcessingStateMode := provisioning
-
 	if !r.wereUpdateCheckDone {
 		logger.Info("detected 1st reconcilation")
 
@@ -379,8 +376,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if err := r.handleUpdate(ctx, cr); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to perform update check %w", err)
 		}
-
-		handleProcessingStateMode = updating
 
 		logger.Info("update check done")
 	}
@@ -397,6 +392,12 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case types.StateProcessing:
+		var handleProcessingStateMode processingMode
+		if !r.wereUpdateCheckDone {
+			handleProcessingStateMode = updating
+		} else {
+			handleProcessingStateMode = provisioning
+		}
 		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr, handleProcessingStateMode)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
