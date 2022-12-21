@@ -64,7 +64,7 @@ var (
 	ReadyTimeout                   = time.Minute * 1
 	HardDeleteCheckInterval        = time.Second * 10
 	HardDeleteTimeout              = time.Minute * 20
-	ChartPath                      = "./module-chart"
+	ChartPath                      = "/Users/lj/Desktop/btp-manager/operator/module-chart"
 )
 
 const (
@@ -116,6 +116,7 @@ type BtpOperatorReconciler struct {
 }
 
 func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
 	configMap := r.buildBtpManagerConfigMap()
 	err := r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
 	if err != nil && !k8serrors.IsNotFound(err) {
@@ -123,12 +124,19 @@ func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.B
 	} else if err != nil && k8serrors.IsNotFound(err) {
 		configMap = nil
 	}
-	changed, err := r.storeChartDetails(ctx, configMap)
+	versionChanged, err := r.storeChartDetails(ctx, configMap)
 	if err != nil {
 		return err
 	}
-	if changed {
-		if err := r.HandleReadyState(ctx, cr); err != nil {
+
+	logger.Info(fmt.Sprintf("version changed? -> {%t}", versionChanged))
+
+	if versionChanged {
+		ok, err := r.HandleReadyState(ctx, cr)
+		if !ok {
+			return fmt.Errorf("consistency check failed, deletion of orphanes resoures will be skipped")
+		}
+		if err != nil {
 			return err
 		}
 		if err := r.deleteOrphanedResources(ctx, configMap); err != nil {
@@ -138,7 +146,7 @@ func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.B
 	return nil
 }
 
-func (r *BtpOperatorReconciler) createNamespaceIfNeeded(ctx context.Context) error {
+func (r *BtpOperatorReconciler) createDefultNamespaceIfNeeded(ctx context.Context) error {
 	namespace := &corev1.Namespace{}
 	namespace.Name = ChartNamespace
 	err := r.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
@@ -172,7 +180,7 @@ func (r *BtpOperatorReconciler) storeChartDetails(ctx context.Context, configMap
 		return false, err
 	}
 
-	err = r.createNamespaceIfNeeded(ctx)
+	err = r.createDefultNamespaceIfNeeded(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -192,7 +200,7 @@ func (r *BtpOperatorReconciler) storeChartDetails(ctx context.Context, configMap
 func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
 	newChartVersion string, newGvks []schema.GroupVersionKind) error {
 	logger := log.FromContext(ctx)
-	logger.Info("configmap doesent exists")
+	logger.Info("btp manager config dosent exists, new will be created")
 
 	configMap.Data = make(map[string]string)
 
@@ -215,17 +223,17 @@ func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, conf
 func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
 	newVersion string, newGvks []schema.GroupVersionKind) (bool, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("configmap exists")
+	logger.Info("btp manager config exists")
 
 	currentVersion, ok := configMap.Data[currentCharVersionKey]
 
 	if !ok {
-		return false, fmt.Errorf("'currentVersion' should be present in configmap but it is not")
+		return false, fmt.Errorf("'currentCharVersion' should be present in configmap but it is not")
 	}
 
 	currentGvksAsText, ok := configMap.Data[currentGvksKey]
 	if !ok {
-		return false, fmt.Errorf("'currentVersion' should be present in configmap but it is not")
+		return false, fmt.Errorf("'currentGvks' should be present in configmap but it is not")
 	}
 
 	newGvksAsText, err := gvksutils.GvksToStr(newGvks)
@@ -256,10 +264,6 @@ func (r *BtpOperatorReconciler) setBtpManagerConfigMap(ctx context.Context, conf
 		return
 	}
 
-	logger := log.FromContext(ctx)
-	logger.Info(fmt.Sprintf("{%s} -> {%s}\n", oldChartVersionKey, oldChartVersion))
-	logger.Info(fmt.Sprintf("{%s} -> {%s}", currentCharVersionKey, currentCharVersion))
-
 	configMap.Data[oldChartVersionKey] = oldChartVersion
 	configMap.Data[oldGvksKey] = oldGvksStr
 	configMap.Data[currentCharVersionKey] = currentCharVersion
@@ -268,6 +272,8 @@ func (r *BtpOperatorReconciler) setBtpManagerConfigMap(ctx context.Context, conf
 
 func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, configMap *corev1.ConfigMap) error {
 	logger := log.FromContext(ctx)
+	logger.Info("deletion of orphaned resources started")
+
 	oldVersion, ok := configMap.Data[oldChartVersionKey]
 	if !ok {
 		return fmt.Errorf("")
@@ -285,6 +291,7 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 
 	oldVersionLabel := client.MatchingLabels{chartVersionKey: oldVersion}
 
+	numberOfDeletedItems := 0
 	for _, gvk := range oldGvks {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
@@ -301,8 +308,12 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 			} else {
 				logger.Info(fmt.Sprintf("deleted resource %s of type %s with version = %s", item.GetName(), gvk.Kind, oldVersion))
 			}
+			numberOfDeletedItems++
 		}
 	}
+
+	logger.Info(fmt.Sprintf("deletion of orphaned finished with %d deleted items", numberOfDeletedItems))
+
 	return nil
 }
 
@@ -347,17 +358,21 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
+	//ToDO: detect provisioning from Conditions
 	handleProcessingStateMode := provision
+
 	if !r.wereUpdateCheckDone {
+		logger.Info("detected 1st reconcilation")
 		if cr.Status.State != types.StateProcessing {
 			cr.Status.State = types.StateProcessing
 			return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updating, "Updating check in progress")
 		}
-
+		logger.Info("update check processing")
 		if err := r.handleUpdate(ctx, cr); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to perform update check")
+			return ctrl.Result{}, fmt.Errorf("unable to perform update check %w", err)
 		}
 		handleProcessingStateMode = update
+		logger.Info("update check done")
 	}
 
 	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
@@ -378,7 +393,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case types.StateDeleting:
 		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	case types.StateReady:
-		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
+		_, err := r.HandleReadyState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -1213,19 +1229,19 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 	return nil
 }
 
-func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) (bool, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
+		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
+		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -1233,10 +1249,10 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	installInfo, err := r.getInstallInfo(ctx, cr, secret)
 	if err != nil {
 		logger.Error(err, "while preparing InstallInfo")
-		return err
+		return false, err
 	}
 	if installInfo.ChartPath == "" {
-		return fmt.Errorf("no chart path available for processing")
+		return false, fmt.Errorf("no chart path available for processing")
 	}
 
 	ready, err := manifest.ConsistencyCheck(manifest.OperationOptions{
@@ -1248,9 +1264,9 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	})
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
+		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
 	} else if !ready {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Chart is inconsistent. Reconciliation initialized")
+		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Chart is inconsistent. Reconciliation initialized")
 	}
-	return nil
+	return true, nil
 }

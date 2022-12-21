@@ -406,10 +406,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			fmt.Printf("\n %s test: new version %s : %d \n", testText, newChartVersion, countWithLabel(client.MatchingLabels{chartVersionKey: newChartVersion}, gvks))
 		}
 
-		debugCmVersions := func() {
+		/*debugCmVersions := func() {
 			fmt.Printf("oldVersion => %s \n", pullFromBtpManagerConfigMap(oldChartVersionKey))
 			fmt.Printf("currentVersion => %s \n", pullFromBtpManagerConfigMap(currentCharVersionKey))
-		}
+		}*/
 
 		BeforeAll(func() {
 			err := cp.Copy(ChartPath, updatePath)
@@ -476,12 +476,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		When("update of all resources names and leave same chart version", Label("test-update"), func() {
 			It("new ones not created because version is not changed, old ones should stay", Label("test-update"), func() {
+				debug("2a")
 
 				err := ymlutils.TransformCharts(updatePath, suffix)
 				Expect(err).To(BeNil())
 				simulateRestart(ctx, cr)
 				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
 				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
+				debug("2b")
 
 				oldCount, newCount := countResources()
 				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(pullFromBtpManagerConfigMap(oldChartVersionKey)))
