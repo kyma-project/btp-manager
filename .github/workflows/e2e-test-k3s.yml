@@ -53,8 +53,7 @@ jobs:
 
       - name: kubectl get deployment -A
         run: |
-            kubectl get deployment -A
-            while [[ $(kubectl get deployment -n kymactl-system btpoperator-sample -o 'jsonpath={..status.availableReplicas}') != 1 ]]; do echo "Waiting for kymactl controller to be available"; sleep 2; done
+            while [[ $(kubectl get deployment -n btp-manager-system btp-manager-controller-manager -o 'jsonpath={..status.availableReplicas}') != 1 ]]; kubectl get deployment -A ;do echo "Waiting for kymactl controller to be available"; sleep 2; done
          
             
       - uses: actions/setup-go@v3
