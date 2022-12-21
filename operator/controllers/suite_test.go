@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -72,13 +71,7 @@ var _ = BeforeSuite(func() {
 	}))
 
 	ctx, cancel = context.WithCancel(context.TODO())
-	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
-	//Expect(os.Setenv("USE_EXISTING_CLUSTER", "true")).To(Succeed())
-	/*cmd := exec.Command("/bin/sh", "prerun.sh")
-	if err := cmd.Run(); err != nil {
-		fmt.Println(err)
-		panic(err)
-	}*/
+
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
@@ -110,7 +103,6 @@ var _ = BeforeSuite(func() {
 		Scheme:                k8sManager.GetScheme(),
 		WaitForChartReadiness: false,
 	}
-
 	k8sClientFromManager = k8sManager.GetClient()
 	HardDeleteTimeout = hardDeleteTimeout
 	HardDeleteCheckInterval = hardDeleteTimeout / 20
