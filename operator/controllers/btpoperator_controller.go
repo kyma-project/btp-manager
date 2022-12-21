@@ -150,7 +150,7 @@ func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.B
 	return nil
 }
 
-func (r *BtpOperatorReconciler) createDefultNamespaceIfNeeded(ctx context.Context) error {
+func (r *BtpOperatorReconciler) createDefaultNamespaceIfNeeded(ctx context.Context) error {
 	namespace := &corev1.Namespace{}
 	namespace.Name = ChartNamespace
 	err := r.Get(ctx, client.ObjectKeyFromObject(namespace), namespace)
@@ -184,7 +184,7 @@ func (r *BtpOperatorReconciler) storeChartDetails(ctx context.Context, configMap
 		return false, err
 	}
 
-	err = r.createDefultNamespaceIfNeeded(ctx)
+	err = r.createDefaultNamespaceIfNeeded(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -230,12 +230,12 @@ func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, con
 	currentVersion, ok := configMap.Data[currentCharVersionKey]
 
 	if !ok {
-		return false, fmt.Errorf("'currentCharVersion' should be present in configmap but it is not")
+		return false, fmt.Errorf("%s should be present in configmap but it is not", currentCharVersionKey)
 	}
 
 	currentGvksAsText, ok := configMap.Data[currentGvksKey]
 	if !ok {
-		return false, fmt.Errorf("'currentGvks' should be present in configmap but it is not")
+		return false, fmt.Errorf("%s should be present in configmap but it is not", currentGvksAsText)
 	}
 
 	newGvksAsText, err := gvksutils.GvksToStr(newGvks)
@@ -251,7 +251,9 @@ func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, con
 		if err := r.Update(ctx, configMap); err != nil {
 			return false, err
 		}
-		logger.Info("update of config map successed")
+
+		logger.Info("update of config map succeed")
+
 		r.currentVersion = newVersion
 
 		return true, nil
@@ -279,12 +281,12 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 
 	oldVersion, ok := configMap.Data[oldChartVersionKey]
 	if !ok {
-		return fmt.Errorf("")
+		return fmt.Errorf("%s should be present in configmap but it is not", oldChartVersionKey)
 	}
 
 	oldGvksText, ok := configMap.Data[oldGvksKey]
 	if !ok {
-		return fmt.Errorf("")
+		return fmt.Errorf("%s should be present in configmap but it is not", oldGvksKey)
 	}
 
 	oldGvks, err := gvksutils.StrToGvks(oldGvksText)
@@ -326,11 +328,11 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
-type proccessingMode int
+type processingMode int
 
 const (
-	provision proccessingMode = 0
-	update    proccessingMode = 1
+	provisioning processingMode = 0
+	updating     processingMode = 1
 )
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -362,19 +364,24 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	//ToDO: detect provisioning from Conditions
-	handleProcessingStateMode := provision
+	handleProcessingStateMode := provisioning
 
 	if !r.wereUpdateCheckDone {
 		logger.Info("detected 1st reconcilation")
+
 		if cr.Status.State != types.StateProcessing {
 			cr.Status.State = types.StateProcessing
 			return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updating, "Updating check in progress")
 		}
+
 		logger.Info("update check processing")
+
 		if err := r.handleUpdate(ctx, cr); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to perform update check %w", err)
 		}
-		handleProcessingStateMode = update
+
+		handleProcessingStateMode = updating
+
 		logger.Info("update check done")
 	}
 
@@ -436,10 +443,10 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
 }
 
-func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator, readyStateForTypes proccessingMode) error {
+func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator, readyStateForTypes processingMode) error {
 	logger := log.FromContext(ctx)
 	switch readyStateForTypes {
-	case provision:
+	case provisioning:
 		logger.Info("Handling Processing state")
 
 		secret, err := r.getRequiredSecret(ctx)
@@ -479,7 +486,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		if ready {
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
 		}
-	case update:
+	case updating:
 		r.wereUpdateCheckDone = true
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdatingSucceeded, "Update done")
 	default:
