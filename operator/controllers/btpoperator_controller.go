@@ -83,7 +83,7 @@ const (
 )
 
 const (
-	chartVersionKey       = "app.kubernetes.io/chart-version"
+	chartVersionKey       = "chart-version"
 	btpManagerConfigMap   = "btp-manager-config-map"
 	oldChartVersionKey    = "oldChartVersion"
 	oldGvksKey            = "oldGvks"
@@ -117,6 +117,7 @@ type BtpOperatorReconciler struct {
 
 func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
+
 	configMap := r.buildBtpManagerConfigMap()
 	err := r.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
 	if err != nil && !k8serrors.IsNotFound(err) {
@@ -124,12 +125,13 @@ func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.B
 	} else if err != nil && k8serrors.IsNotFound(err) {
 		configMap = nil
 	}
+
 	versionChanged, err := r.storeChartDetails(ctx, configMap)
 	if err != nil {
 		return err
 	}
 
-	logger.Info(fmt.Sprintf("version changed? -> {%t}", versionChanged))
+	logger.Info(fmt.Sprintf("version changed? -> %t", versionChanged))
 
 	if versionChanged {
 		ok, err := r.HandleReadyState(ctx, cr)
@@ -139,10 +141,12 @@ func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.B
 		if err != nil {
 			return err
 		}
+
 		if err := r.deleteOrphanedResources(ctx, configMap); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -158,6 +162,7 @@ func (r *BtpOperatorReconciler) createDefultNamespaceIfNeeded(ctx context.Contex
 	} else if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -169,7 +174,6 @@ func (r *BtpOperatorReconciler) buildBtpManagerConfigMap() *corev1.ConfigMap {
 }
 
 func (r *BtpOperatorReconciler) storeChartDetails(ctx context.Context, configMap *corev1.ConfigMap) (bool, error) {
-
 	newChartVersion, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 	if err != nil {
 		return false, err
@@ -197,8 +201,7 @@ func (r *BtpOperatorReconciler) storeChartDetails(ctx context.Context, configMap
 	}
 }
 
-func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
-	newChartVersion string, newGvks []schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, configMap *corev1.ConfigMap, newChartVersion string, newGvks []schema.GroupVersionKind) error {
 	logger := log.FromContext(ctx)
 	logger.Info("btp manager config dosent exists, new will be created")
 
@@ -220,8 +223,7 @@ func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, conf
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap,
-	newVersion string, newGvks []schema.GroupVersionKind) (bool, error) {
+func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap, newVersion string, newGvks []schema.GroupVersionKind) (bool, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("btp manager config exists")
 
@@ -256,6 +258,7 @@ func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, con
 	}
 
 	r.currentVersion = currentVersion
+
 	return false, nil
 }
 
