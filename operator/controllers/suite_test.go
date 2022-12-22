@@ -60,7 +60,8 @@ func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	suiteCfg, reporterCfg := GinkgoConfiguration()
-	suiteCfg.LabelFilter = "(test-update)"
+	//Example of usage label:
+	//suiteCfg.LabelFilter = "(test-update)"
 	reporterCfg.Verbose = true
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
