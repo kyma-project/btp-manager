@@ -1,4 +1,4 @@
-name: make-test
+name: make-unit-tests
 
 on:
  push:
@@ -19,17 +19,15 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-          ~/go/pkg/mod
+          ~/btp-manager/operator/bin
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.18
+        go-version: 1.19
 
     - name: Unit tests
       run: |
         make -C operator test
-        pwd
-      
