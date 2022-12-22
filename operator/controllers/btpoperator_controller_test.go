@@ -119,6 +119,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
 				Eventually(getCurrentCrStatus).
+					WithTimeout(crStateUpdatedTimeout).
+					WithPolling(crStateUpdatedPollingInterval).
+					Should(
+						SatisfyAll(
+							HaveField("State", types.StateProcessing),
+							HaveField("Conditions", HaveLen(1)),
+							HaveField("Conditions",
+								ContainElements(
+									PointTo(
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Initialized)), "Status": Equal(metav1.ConditionFalse)}),
+									))),
+						))
+				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateChangeTimeout).
 					WithPolling(crStatePollingInterval).
 					Should(
@@ -163,6 +176,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 					Eventually(getCurrentCrStatus).
+						WithTimeout(crStateUpdatedTimeout).
+						WithPolling(crStateUpdatedPollingInterval).
+						Should(
+							SatisfyAll(
+								HaveField("State", types.StateProcessing),
+								HaveField("Conditions", HaveLen(1)),
+								HaveField("Conditions",
+									ContainElements(
+										PointTo(
+											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
+										))),
+							))
+					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
 						Should(
@@ -183,6 +209,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					Eventually(getCurrentCrStatus).
+						WithTimeout(crStateUpdatedTimeout).
+						WithPolling(crStateUpdatedPollingInterval).
+						Should(
+							SatisfyAll(
+								HaveField("State", types.StateProcessing),
+								HaveField("Conditions", HaveLen(1)),
+								HaveField("Conditions",
+									ContainElements(
+										PointTo(
+											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
+										))),
+							))
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
@@ -208,6 +247,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 					Eventually(getCurrentCrStatus).
+						WithTimeout(crStateUpdatedTimeout).
+						WithPolling(crStateUpdatedPollingInterval).
+						Should(
+							SatisfyAll(
+								HaveField("State", types.StateProcessing),
+								HaveField("Conditions", HaveLen(1)),
+								HaveField("Conditions",
+									ContainElements(
+										PointTo(
+											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
+										))),
+							))
+					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
 						Should(
@@ -228,137 +280,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				})
 			})
 
-		})
-	})
-
-	Describe("State transitions", func() {
-		BeforeAll(func() {
-			cr = createBtpOperator()
-			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
-		When("the required Secret does not have all required keys", func() {
-			It("should return error while verifying keys", func() {
-				secret, err := createSecretWithoutKeys()
-				Expect(err).To(BeNil())
-				Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateError),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(InvalidSecret)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateError),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(InvalidSecret)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
-			})
-		})
-
-		When("the invalid Secret is removed", func() {
-			It("should reach MissingSecret state", func() {
-				deleteSecret := &corev1.Secret{}
-				Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
-					WithTimeout(k8sOpsTimeout).
-					WithPolling(k8sOpsPollingInterval).
-					Should(Succeed())
-				Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateUpdatedTimeout).
-					WithPolling(crStateUpdatedPollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateProcessing),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateError),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(MissingSecret)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
-			})
-		})
-
-		When("the correct secret is created", func() {
-			It("should reach ReconcileSucceeded state", func() {
-				secret, err := createCorrectSecretFromYaml()
-				Expect(err).To(BeNil())
-				Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateUpdatedTimeout).
-					WithPolling(crStateUpdatedPollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateProcessing),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateReady),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(ReconcileSucceeded)), "Status": Equal(metav1.ConditionTrue)}),
-									))),
-						))
-			})
-		})
-
-		AfterAll(func() {
-			deleteSecret := &corev1.Secret{}
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
-			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 		})
 	})
 
