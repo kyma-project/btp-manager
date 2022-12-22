@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"go.uber.org/zap/zapcore"
 	"path/filepath"
 	"testing"
 	"time"
@@ -56,11 +57,17 @@ var (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "Controller Suite")
+	_, reporterCfg := GinkgoConfiguration()
+	RunSpecs(t, "Controller Suite", reporterCfg)
 }
 
 var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+
+	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
+		o.Development = true
+		o.TimeEncoder = zapcore.ISO8601TimeEncoder
+	}))
+
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	By("bootstrapping test environment")

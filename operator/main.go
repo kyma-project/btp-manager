@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	v1alpha1 "github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
