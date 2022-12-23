@@ -34,12 +34,11 @@ func GatherChartGvks(chartPath string) ([]schema.GroupVersionKind, error) {
 			return err
 		}
 
-		isNotYamlFileExtension := !strings.HasSuffix(info.Name(), ".yml") && !strings.HasSuffix(info.Name(), ".yaml")
-		if isNotYamlFileExtension {
+		if !strings.HasSuffix(info.Name(), ".yml") && !strings.HasSuffix(info.Name(), ".yaml") {
 			return nil
 		}
 
-		bytes, err := os.ReadFile(fmt.Sprintf("%s/%s", root, info.Name()))
+		bytes, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -68,22 +67,22 @@ func ExtractGvkFromYml(wholeFile string) ([]schema.GroupVersionKind, error) {
 		if part == "" {
 			continue
 		}
-		var yamlGvk schema.GroupVersionKind
+		var apiVersion, kind string
 		lines := strings.Split(part, "\n")
 		for _, line := range lines {
 			if strings.HasPrefix(line, "apiVersion:") {
-				yamlGvk.Version = strings.TrimSpace(strings.Split(line, ":")[1])
+				apiVersion = strings.TrimSpace(strings.Split(line, ":")[1])
 			}
 			if strings.HasPrefix(line, "kind:") {
-				yamlGvk.Kind = strings.TrimSpace(strings.Split(line, ":")[1])
+				kind = strings.TrimSpace(strings.Split(line, ":")[1])
 			}
 		}
-		if yamlGvk.Kind != "" && yamlGvk.Version != "" {
-			apiVersion, err := schema.ParseGroupVersion(yamlGvk.Version)
+		if apiVersion != "" && kind != "" {
+			apiVersion, err := schema.ParseGroupVersion(apiVersion)
 			if err != nil {
 				return nil, err
 			}
-			gvks = append(gvks, apiVersion.WithKind(yamlGvk.Kind))
+			gvks = append(gvks, apiVersion.WithKind(kind))
 		}
 	}
 

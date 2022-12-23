@@ -493,7 +493,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		AfterEach(func() {
 			revertToOriginalChart()
 
-			reconciler.wereUpdateCheckDone = false
+			reconciler.updateCheckDone = false
 			reconciler.currentVersion = ""
 
 			configMap := reconciler.buildBtpManagerConfigMap()
@@ -506,9 +506,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 func copyChartAndSetPath() {
 	err := cp.Copy(ChartPath, updatePath)
+	Expect(err).To(BeNil())
 
 	err = os.RemoveAll(fmt.Sprintf("%s/%s", updatePath, "manifest"))
 	Expect(err).To(BeNil())
+
 	ChartPath = updatePath
 }
 
@@ -531,7 +533,7 @@ func pullFromBtpManagerConfigMap(key string) string {
 }
 
 func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
-	reconciler.wereUpdateCheckDone = false
+	reconciler.updateCheckDone = false
 	reconciler.currentVersion = ""
 	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 		Namespace: cr.Namespace,

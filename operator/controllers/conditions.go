@@ -21,8 +21,11 @@ const (
 	SoftDeleting           Reason = "SoftDeleting"
 	Updated                Reason = "Updated"
 	ReadyType                     = "Ready"
-	Updating               Reason = "Updating"
-	UpdatingSucceeded      Reason = "UpdatingSucceeded"
+	UpdateCheck            Reason = "UpdateCheck"
+	UpdateCheckSucceded    Reason = "UpdateCheckSucceded"
+	InconsistentChart      Reason = "InconsistentChart"
+	UpdateFlowFailed       Reason = "UpdateFlowFailed"
+	UpdateDone             Reason = "UpdateDone"
 )
 
 type TypeAndStatus struct {
