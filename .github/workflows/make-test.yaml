@@ -1,4 +1,4 @@
-name: make-unit-tests
+name: make-test
 
 on:
  push:
