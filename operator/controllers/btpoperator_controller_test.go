@@ -6,6 +6,7 @@ import (
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
@@ -601,10 +602,26 @@ func clearWebhooks() error {
 }
 
 func doChecks() {
-	checkIfNoServiceExists(btpOperatorServiceBinding)
-	checkIfNoBindingSecretExists()
-	checkIfNoServiceExists(btpOperatorServiceInstance)
-	checkIfNoBtpResourceExists()
+	var wg sync.WaitGroup
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+		checkIfNoServiceExists(btpOperatorServiceBinding)
+	}()
+	go func() {
+		defer wg.Done()
+		checkIfNoBindingSecretExists()
+	}()
+	go func() {
+		defer wg.Done()
+		checkIfNoServiceExists(btpOperatorServiceInstance)
+	}()
+	go func() {
+		defer wg.Done()
+		checkIfNoBtpResourceExists()
+	}()
+	wg.Wait()
 }
 
 func checkIfNoServiceExists(kind string) {
