@@ -9,6 +9,8 @@ on:
     branches: [ main ]
     paths:
         - operator/**
+    paths-ignore:
+        - 'operator/README.md'
 jobs:
   build:
     runs-on: ubuntu-latest
