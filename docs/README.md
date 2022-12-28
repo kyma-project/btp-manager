@@ -2,7 +2,7 @@
 
 ## Overview
 
-This folder contains documentation on BTP Manager.  
+This directory contains documentation on BTP Manager.  
 
 For general information on BTP Manager, see the overarching [documentation](../README.md), and for more details, read the following documents:
 
