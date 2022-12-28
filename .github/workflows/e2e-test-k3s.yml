@@ -10,7 +10,8 @@ on:
     branches: [ main ]
     paths:
         - operator/**
-
+    paths-ignore:
+      - 'operator/README.md'
 jobs:
   run-e2e-tests:
     runs-on: ubuntu-latest
