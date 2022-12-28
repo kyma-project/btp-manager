@@ -1,10 +1,5 @@
 name: e2e-test-k3s
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 on:
   pull_request:
     branches: [ main ]
