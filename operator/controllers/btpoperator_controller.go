@@ -115,11 +115,8 @@ type BtpOperatorReconciler struct {
 }
 
 func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator, configMap *corev1.ConfigMap) error {
-	ok, err := r.HandleReadyState(ctx, cr)
+	ok, _, err := r.doConsistencyCheck(ctx, cr)
 	if !ok {
-		return fmt.Errorf("consistency check failed, deletion of orphanes resoures will be skipped")
-	}
-	if err != nil {
 		return err
 	}
 
@@ -360,11 +357,8 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
 	}
 
-	if !r.updateCheckDone && cr.Status.State != types.StateDeleting {
-		if cr.Status.State != types.StateProcessing {
-			cr.Status.State = types.StateProcessing
-			return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, UpdateCheck, "UpdateCheck check in progress")
-		}
+	if !r.updateCheckDone && (cr.Status.State == types.StateReady || cr.Status.State == types.StateError) {
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, UpdateCheck, "UpdateCheck check in progress")
 	}
 
 	switch cr.Status.State {
@@ -377,8 +371,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case types.StateDeleting:
 		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
 	case types.StateReady:
-		_, err := r.HandleReadyState(ctx, cr)
-		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
+		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
 	}
 
 	return ctrl.Result{}, nil
@@ -445,6 +438,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			if err := r.handleUpdate(ctx, cr, configMap); err != nil {
 				return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, UpdateFlowFailed, err.Error())
 			}
+			r.updateCheckDone = true
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateDone, "Update dome")
 		} else {
 			r.updateCheckDone = true
@@ -453,26 +447,9 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	default:
 		logger.Info("Handling Processing state")
 
-		secret, err := r.getRequiredSecret(ctx)
+		installInfo, reason, err := r.prepareInstallInfo(ctx, cr)
 		if err != nil {
-			logger.Error(err, "while getting the required Secret")
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
-		}
-
-		if err = r.verifySecret(secret); err != nil {
-			logger.Error(err, "while verifying the required Secret")
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
-		}
-
-		r.addTempLabelsToCr(cr)
-
-		installInfo, err := r.getInstallInfo(ctx, cr, secret)
-		if err != nil {
-			logger.Error(err, "while preparing InstallInfo")
-			return err
-		}
-		if installInfo.ChartPath == "" {
-			return fmt.Errorf("no chart path available for processing")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, reason, err.Error())
 		}
 
 		logger.Info(fmt.Sprintf("calling InstallChart, with path = %s", installInfo.ChartPath))
@@ -1151,19 +1128,18 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 	return nil
 }
 
-func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) (bool, error) {
+func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (types.InstallInfo, Reason, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("Handling Ready state")
 
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, MissingSecret, "Secret resource not found")
+		return types.InstallInfo{}, MissingSecret, fmt.Errorf("Secret resource not found")
 	}
 
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, InvalidSecret, "Secret validation failed")
+		return types.InstallInfo{}, InvalidSecret, fmt.Errorf("Secret validation failed")
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -1171,10 +1147,20 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	installInfo, err := r.getInstallInfo(ctx, cr, secret)
 	if err != nil {
 		logger.Error(err, "while preparing InstallInfo")
-		return false, err
+		return types.InstallInfo{}, PreparingInstallInfoFailed, err
 	}
 	if installInfo.ChartPath == "" {
-		return false, fmt.Errorf("no chart path available for processing")
+		return types.InstallInfo{}, ChartPathEmpty, fmt.Errorf("no chart path available for processing")
+	}
+
+	return installInfo, "", nil
+}
+
+func (r *BtpOperatorReconciler) doConsistencyCheck(ctx context.Context, cr *v1alpha1.BtpOperator) (bool, Reason, error) {
+	logger := log.FromContext(ctx)
+	installInfo, reason, err := r.prepareInstallInfo(ctx, cr)
+	if err != nil {
+		return false, reason, err
 	}
 
 	ready, err := manifest.ConsistencyCheck(manifest.OperationOptions{
@@ -1185,10 +1171,26 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		Cache:              nil,
 	})
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
-		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, fmt.Sprintf("error while checking consistency of resource %s", client.ObjectKeyFromObject(cr)))
+		logger.Error(err, "while doing ConsistencyCheck")
+		return false, ConsistencyCheckFailed, fmt.Errorf("Checking consistency of resource %s failed", client.ObjectKeyFromObject(cr))
 	} else if !ready {
-		return false, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, InconsistentChart, "Chart is inconsistent. Reconciliation initialized")
+		return false, InconsistentChart, fmt.Errorf("Chart is inconsistent. Reconciliation initialized %s", client.ObjectKeyFromObject(cr))
 	}
-	return true, nil
+
+	return true, "", nil
+}
+
+func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling Ready state")
+
+	ok, reason, err := r.doConsistencyCheck(ctx, cr)
+	if !ok {
+		logger.Error(err, "update to StateError -> %w")
+		logger.Info(fmt.Sprintf("reason: %s", reason))
+
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, reason, err.Error())
+	}
+
+	return nil
 }

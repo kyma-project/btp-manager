@@ -103,6 +103,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
 		ChartPath = defaultChartPath
+		reconciler.updateCheckDone = true
 	})
 
 	BeforeEach(func() {
