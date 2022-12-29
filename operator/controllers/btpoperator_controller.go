@@ -114,16 +114,16 @@ type BtpOperatorReconciler struct {
 	WaitForChartReadiness bool
 }
 
-func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator, configMap *corev1.ConfigMap) error {
-	ok, _, err := r.doConsistencyCheck(ctx, cr)
+func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator, configMap *corev1.ConfigMap) (Reason, error) {
+	ok, reason, err := r.doConsistencyCheck(ctx, cr)
 	if !ok {
-		return err
+		return reason, err
 	}
 
 	if err := r.deleteOrphanedResources(ctx, configMap); err != nil {
-		return err
+		return DeletionOfOrphanedResourcesFailed, err
 	}
-	return nil
+	return "", nil
 }
 
 func (r *BtpOperatorReconciler) createChartNamespaceIfNeeded(ctx context.Context) error {
@@ -314,13 +314,6 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
-type processingMode int
-
-const (
-	provisioning processingMode = 0
-	updating     processingMode = 1
-)
-
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
@@ -354,6 +347,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
+		logger.Info("DeletionTimestamp != 0")
 		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
 	}
 
@@ -426,17 +420,17 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 		configMap, err := r.getBtpManagerConfigMap(ctx)
 		if err != nil {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, UpdateFlowFailed, err.Error())
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, GettingConfigMapFailed, err.Error())
 		}
 
 		versionChanged, err := r.storeChartDetails(ctx, configMap)
 		if err != nil {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, UpdateFlowFailed, err.Error())
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, StoringChartDetailsFailed, err.Error())
 		}
 
 		if versionChanged {
-			if err := r.handleUpdate(ctx, cr, configMap); err != nil {
-				return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, UpdateFlowFailed, err.Error())
+			if reason, err := r.handleUpdate(ctx, cr, configMap); err != nil {
+				return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, reason, err.Error())
 			}
 			r.updateCheckDone = true
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateDone, "Update dome")
@@ -1158,6 +1152,8 @@ func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1al
 
 func (r *BtpOperatorReconciler) doConsistencyCheck(ctx context.Context, cr *v1alpha1.BtpOperator) (bool, Reason, error) {
 	logger := log.FromContext(ctx)
+	logger.Info("doing consistency check")
+
 	installInfo, reason, err := r.prepareInstallInfo(ctx, cr)
 	if err != nil {
 		return false, reason, err
@@ -1186,9 +1182,6 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	ok, reason, err := r.doConsistencyCheck(ctx, cr)
 	if !ok {
-		logger.Error(err, "update to StateError -> %w")
-		logger.Info(fmt.Sprintf("reason: %s", reason))
-
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, reason, err.Error())
 	}
 
