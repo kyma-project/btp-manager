@@ -156,6 +156,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					WithPolling(k8sOpsPollingInterval).
 					Should(Succeed())
 				Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+				log.Printf("secret deleted")
 				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateChangeTimeout).
 					WithPolling(crStatePollingInterval).
@@ -169,6 +170,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(MissingSecret)), "Status": Equal(metav1.ConditionFalse)}),
 									))),
 						))
+				log.Printf("eventually missing secret reached")
 			})
 
 			When("the required Secret does not have all required keys", func() {
@@ -176,6 +178,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutKeys()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					log.Printf("invalid secret created")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
 						WithPolling(crStateUpdatedPollingInterval).
@@ -210,6 +213,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					log.Printf("invalid secret created")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
 						WithPolling(crStateUpdatedPollingInterval).
