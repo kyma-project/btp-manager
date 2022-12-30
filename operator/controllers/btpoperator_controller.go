@@ -190,6 +190,8 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 	if newCondition != nil {
 		SetStatusCondition(&cr.Status.Conditions, *newCondition)
 	}
+	logger := log.FromContext(ctx)
+	logger.Info("Status updated", "state", newState, "condition", newCondition)
 	return r.Status().Update(ctx, cr)
 }
 
