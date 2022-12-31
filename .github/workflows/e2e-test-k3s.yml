@@ -11,7 +11,7 @@
 #  Overall, this action ensures that the code changes made in the pull request do not break any end-to-end tests on a k3s cluster.
 
 
-  name: e2e-test-k3s
+name: e2e-test-k3s
 
 on:
   pull_request:
