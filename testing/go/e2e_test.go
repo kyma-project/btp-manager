@@ -79,7 +79,6 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	out, err = exec.Command("kubectl", "get", "btpoperator", "btpoperator-sample").Output()
-	fmt.Println(string(out))
 	if err != nil {
 		t.Errorf("Expected btpoperator btpoperator-sample to exist, but got error: %v", err)
 	}
@@ -96,5 +95,7 @@ func TestEndToEnd(t *testing.T) {
 		}
 	} else if !strings.Contains(string(out), "Error") {
 		t.Errorf("Expected output to contain 'Error', but got: %s", string(out))
+	} else {
+		fmt.Println(string(out))
 	}
 }
