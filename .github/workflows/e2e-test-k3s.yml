@@ -1,4 +1,17 @@
-name: e2e-test-k3s
+#  This GitHub action is designed to run end-to-end (e2e) tests on a Kubernetes cluster using the k3s distribution.
+#  The action is triggered on pull requests to the main branch of the repository that modify files within the "operator" directory.
+#  The action consists of a single job that runs on an Ubuntu-latest virtual machine and has the necessary permissions to read and write various resources.
+#  The job has several steps:
+#    - Checkout the repository code.
+#    - Cache the ~/.cache/go-build and ~/go/pkg/mod directories to improve performance.
+#    - Set up a docker registry and k3s cluster using a script called k3s-setup.sh.
+#    - Set the pull request number as an environment variable.
+#    - Run Go tests located in the testing/go directory, ensuring that the correct version of Go is used and the Go modules are tidied up before the tests are run.
+#
+#  Overall, this action ensures that the code changes made in the pull request do not break any end-to-end tests on a k3s cluster.
+
+
+  name: e2e-test-k3s
 
 on:
   pull_request:
