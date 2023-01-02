@@ -1,0 +1,3 @@
+image:
+  # this value is managed by hack/bump.sh script
+  tag: PR-00
