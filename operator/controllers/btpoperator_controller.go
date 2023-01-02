@@ -34,7 +34,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -115,8 +114,8 @@ type BtpOperatorReconciler struct {
 }
 
 func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator, configMap *corev1.ConfigMap) (Reason, error) {
-	ok, reason, err := r.doConsistencyCheck(ctx, cr)
-	if !ok {
+	reason, err := r.doConsistencyCheck(ctx, cr)
+	if reason != "" && err != nil {
 		return reason, err
 	}
 
@@ -404,19 +403,13 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
 }
 
-func (r *BtpOperatorReconciler) CheckIfReasonIsSet(cr *v1alpha1.BtpOperator, reason Reason) bool {
-	var condition *v1.Condition
-	if len(cr.Status.Conditions) > 0 {
-		condition = cr.Status.Conditions[0]
-	}
-	return condition != nil && condition.Reason == string(reason)
-}
-
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
+	logger.Info("Handling Processing state")
+
 	switch {
-	case r.CheckIfReasonIsSet(cr, UpdateCheck):
-		logger.Info("update check processing")
+	case cr.IsReasonEqual(UpdateCheck):
+		logger.Info("performing update check")
 
 		configMap, err := r.getBtpManagerConfigMap(ctx)
 		if err != nil {
@@ -439,7 +432,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateCheckSucceded, "UpdateCheck done without need to update")
 		}
 	default:
-		logger.Info("Handling Processing state")
+		logger.Info("performing provisioning")
 
 		installInfo, reason, err := r.prepareInstallInfo(ctx, cr)
 		if err != nil {
@@ -1150,13 +1143,13 @@ func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1al
 	return installInfo, "", nil
 }
 
-func (r *BtpOperatorReconciler) doConsistencyCheck(ctx context.Context, cr *v1alpha1.BtpOperator) (bool, Reason, error) {
+func (r *BtpOperatorReconciler) doConsistencyCheck(ctx context.Context, cr *v1alpha1.BtpOperator) (Reason, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("doing consistency check")
+	logger.Info("chart consistency check")
 
 	installInfo, reason, err := r.prepareInstallInfo(ctx, cr)
 	if err != nil {
-		return false, reason, err
+		return reason, err
 	}
 
 	ready, err := manifest.ConsistencyCheck(manifest.OperationOptions{
@@ -1168,20 +1161,20 @@ func (r *BtpOperatorReconciler) doConsistencyCheck(ctx context.Context, cr *v1al
 	})
 	if err != nil {
 		logger.Error(err, "while doing ConsistencyCheck")
-		return false, ConsistencyCheckFailed, fmt.Errorf("Checking consistency of resource %s failed", client.ObjectKeyFromObject(cr))
+		return ConsistencyCheckFailed, fmt.Errorf("Checking consistency of resource %s failed", client.ObjectKeyFromObject(cr))
 	} else if !ready {
-		return false, InconsistentChart, fmt.Errorf("Chart is inconsistent. Reconciliation initialized %s", client.ObjectKeyFromObject(cr))
+		return InconsistentChart, fmt.Errorf("Chart is inconsistent. Reconciliation initialized %s", client.ObjectKeyFromObject(cr))
 	}
 
-	return true, "", nil
+	return "", nil
 }
 
 func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	ok, reason, err := r.doConsistencyCheck(ctx, cr)
-	if !ok {
+	reason, err := r.doConsistencyCheck(ctx, cr)
+	if reason != "" && err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, reason, err.Error())
 	}
 
