@@ -83,10 +83,10 @@ const (
 
 const (
 	chartVersionKey       = "chart-version"
-	btpManagerConfigMap   = "btp-manager-versioning-config-map"
+	btpManagerConfigMap   = "btp-manager-versions"
 	oldChartVersionKey    = "oldChartVersion"
 	oldGvksKey            = "oldGvks"
-	currentCharVersionKey = "currentCharVersion"
+	currentCharVersionKey = "currentChartVersion"
 	currentGvksKey        = "currentGvks"
 )
 
