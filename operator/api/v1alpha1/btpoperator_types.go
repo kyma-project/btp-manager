@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/kyma-project/btp-manager/operator/controllers"
 	"github.com/kyma-project/module-manager/pkg/types"
 	apiv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,12 +57,12 @@ func (o *BtpOperator) SetStatus(status types.Status) {
 	o.Status = status
 }
 
-func (o *BtpOperator) IsReasonEqual(reason controllers.Reason) bool {
+func (o *BtpOperator) IsReasonStringEqual(reason string) bool {
 	var condition *apiv1.Condition
 	if len(o.Status.Conditions) > 0 {
 		condition = o.Status.Conditions[0]
 	}
-	return condition != nil && condition.Reason == string(reason)
+	return condition != nil && condition.Reason == reason
 }
 
 //+kubebuilder:object:root=true

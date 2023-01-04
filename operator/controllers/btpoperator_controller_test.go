@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -12,12 +13,11 @@ import (
 
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/operator/internal/gvksutils"
-	ymlutils "github.com/kyma-project/btp-manager/operator/internal/ymlutils"
+	"github.com/kyma-project/btp-manager/operator/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	cp "github.com/otiai10/copy"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
@@ -451,6 +451,20 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				oldCount, newCount := countResources()
 				Expect(oldCount).To(BeZero())
 				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
+
+				Eventually(getCurrentCrStatus).
+					WithTimeout(crStateChangeTimeout).
+					WithPolling(crStatePollingInterval).
+					Should(
+						SatisfyAll(
+							HaveField("State", types.StateReady),
+							HaveField("Conditions", HaveLen(1)),
+							HaveField("Conditions",
+								ContainElements(
+									PointTo(
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateDone)), "Status": Equal(metav1.ConditionTrue)}),
+									))),
+						))
 			})
 		})
 
@@ -468,6 +482,20 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(pullFromBtpManagerConfigMap(oldChartVersionKey)))
 				Expect(newCount).To(BeEquivalentTo(oldCount))
 				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
+
+				Eventually(getCurrentCrStatus).
+					WithTimeout(crStateChangeTimeout).
+					WithPolling(crStatePollingInterval).
+					Should(
+						SatisfyAll(
+							HaveField("State", types.StateReady),
+							HaveField("Conditions", HaveLen(1)),
+							HaveField("Conditions",
+								ContainElements(
+									PointTo(
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateCheckSucceded)), "Status": Equal(metav1.ConditionTrue)}),
+									))),
+						))
 			})
 		})
 
@@ -488,10 +516,25 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				oldCount, newCount = countResources()
 				Expect(oldCount).To(BeEquivalentTo(0))
 				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
+
+				Eventually(getCurrentCrStatus).
+					WithTimeout(crStateChangeTimeout).
+					WithPolling(crStatePollingInterval).
+					Should(
+						SatisfyAll(
+							HaveField("State", types.StateReady),
+							HaveField("Conditions", HaveLen(1)),
+							HaveField("Conditions",
+								ContainElements(
+									PointTo(
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateDone)), "Status": Equal(metav1.ConditionTrue)}),
+									))),
+						))
 			})
 		})
 
 		AfterEach(func() {
+
 			revertToOriginalChart()
 
 			reconciler.updateCheckDone = false
@@ -500,13 +543,18 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			configMap := reconciler.buildBtpManagerConfigMap()
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
+		})
 
+		AfterAll(func() {
+			//graceful shutdown
+			time.Sleep(time.Second * 1)
 		})
 	})
 })
 
 func copyChartAndSetPath() {
-	err := cp.Copy(ChartPath, updatePath)
+	cmd := exec.Command("cp", "-r", ChartPath, updatePath)
+	err := cmd.Run()
 	Expect(err).To(BeNil())
 
 	err = os.RemoveAll(fmt.Sprintf("%s/%s", updatePath, "manifest"))
@@ -560,7 +608,7 @@ func countResources() (int, int) {
 	newCount := countWithLabel(currentVersionLabel, currentGvks)
 
 	if oldVersion == currentVersion {
-		fmt.Printf("oldVersion = currentVersion, count = {%d} \n", oldCount)
+		fmt.Printf("versions are equal (%s), with count = {%d} \n", oldVersion, oldCount)
 	} else {
 		fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
 	}

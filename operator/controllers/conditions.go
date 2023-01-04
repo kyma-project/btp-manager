@@ -23,7 +23,6 @@ const (
 	UpdateCheck                       Reason = "UpdateCheck"
 	UpdateCheckSucceded               Reason = "UpdateCheckSucceded"
 	InconsistentChart                 Reason = "InconsistentChart"
-	UpdateFlowFailed                  Reason = "UpdateFlowFailed"
 	UpdateDone                        Reason = "UpdateDone"
 	PreparingInstallInfoFailed        Reason = "PreparingInstallInfoFailed"
 	ChartPathEmpty                    Reason = "ChartPathEmpty"
@@ -62,10 +61,9 @@ var Reasons = map[Reason]TypeAndStatus{
 	ResourceRemovalFailed:             NotReady,
 	SoftDeleting:                      NotReady,
 	UpdateCheck:                       NotReady,
-	UpdateCheckSucceded:               NotReady,
+	UpdateCheckSucceded:               Ready,
 	InconsistentChart:                 NotReady,
-	UpdateFlowFailed:                  NotReady,
-	UpdateDone:                        NotReady,
+	UpdateDone:                        Ready,
 	PreparingInstallInfoFailed:        NotReady,
 	ChartPathEmpty:                    NotReady,
 	DeletionOfOrphanedResourcesFailed: NotReady,
