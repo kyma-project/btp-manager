@@ -130,7 +130,7 @@ type BtpOperatorReconciler struct {
 }
 
 func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator, configMap *corev1.ConfigMap) *ErrorWithReason {
-	errorWithReason := r.doConsistencyCheck(ctx, cr)
+	errorWithReason := r.chartConsistencyCheck(ctx, cr)
 	if errorWithReason != nil {
 		return errorWithReason
 	}
@@ -1158,7 +1158,7 @@ func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1al
 	return &installInfo, nil
 }
 
-func (r *BtpOperatorReconciler) doConsistencyCheck(ctx context.Context, cr *v1alpha1.BtpOperator) *ErrorWithReason {
+func (r *BtpOperatorReconciler) chartConsistencyCheck(ctx context.Context, cr *v1alpha1.BtpOperator) *ErrorWithReason {
 	logger := log.FromContext(ctx)
 	logger.Info("chart consistency check")
 
@@ -1188,7 +1188,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	errorWithReason := r.doConsistencyCheck(ctx, cr)
+	errorWithReason := r.chartConsistencyCheck(ctx, cr)
 	if errorWithReason != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 	}
