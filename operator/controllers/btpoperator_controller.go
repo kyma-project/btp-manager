@@ -444,7 +444,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateDone, "Updated")
 		} else {
 			r.updateCheckDone = true
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateCheckSucceded, "Update not required")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateCheckSucceeded, "Update not required")
 		}
 	default:
 		logger.Info("performing provisioning")

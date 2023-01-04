@@ -21,7 +21,7 @@ const (
 	SoftDeleting                      Reason = "SoftDeleting"
 	Updated                           Reason = "Updated"
 	UpdateCheck                       Reason = "UpdateCheck"
-	UpdateCheckSucceded               Reason = "UpdateCheckSucceded"
+	UpdateCheckSucceeded              Reason = "UpdateCheckSucceeded"
 	InconsistentChart                 Reason = "InconsistentChart"
 	UpdateDone                        Reason = "UpdateDone"
 	PreparingInstallInfoFailed        Reason = "PreparingInstallInfoFailed"
@@ -61,7 +61,7 @@ var Reasons = map[Reason]TypeAndStatus{
 	ResourceRemovalFailed:             NotReady,
 	SoftDeleting:                      NotReady,
 	UpdateCheck:                       NotReady,
-	UpdateCheckSucceded:               Ready,
+	UpdateCheckSucceeded:              Ready,
 	InconsistentChart:                 NotReady,
 	UpdateDone:                        Ready,
 	PreparingInstallInfoFailed:        NotReady,

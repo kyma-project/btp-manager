@@ -493,7 +493,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 							HaveField("Conditions",
 								ContainElements(
 									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateCheckSucceded)), "Status": Equal(metav1.ConditionTrue)}),
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateCheckSucceeded)), "Status": Equal(metav1.ConditionTrue)}),
 									))),
 						))
 			})
