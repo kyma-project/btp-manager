@@ -433,7 +433,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 		versionChanged, err := r.storeChartDetails(ctx, configMap)
 		if err != nil {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, StoringChartDetailsFailed, "Failure of storing dhart details")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, StoringChartDetailsFailed, "Failure of storing chart details")
 		}
 
 		if versionChanged {
