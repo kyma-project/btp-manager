@@ -6,7 +6,6 @@ require (
 	github.com/kyma-project/module-manager v0.0.0-20221214222100-348f6d59ed0b
 	github.com/onsi/ginkgo/v2 v2.6.0
 	github.com/onsi/gomega v1.24.1
-	github.com/otiai10/copy v1.2.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
