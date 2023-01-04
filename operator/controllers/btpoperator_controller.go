@@ -136,7 +136,7 @@ func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.B
 	}
 
 	if err := r.deleteOrphanedResources(ctx, configMap); err != nil {
-		return NewErrorWithReason(DeletionOfOrphanedResourcesFailed, err.Error())
+		return NewErrorWithReason(DeletionOfOrphanedResourcesFailed, "Deletion of orphaned resources failed")
 	}
 	return nil
 }
@@ -366,7 +366,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !r.updateCheckDone && (cr.Status.State == types.StateReady || cr.Status.State == types.StateError) {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, UpdateCheck, "checking for updates")
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, UpdateCheck, "Checking for updates")
 	}
 
 	switch cr.Status.State {
@@ -428,12 +428,12 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 		configMap, err := r.getBtpManagerConfigMap(ctx)
 		if err != nil {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, GettingConfigMapFailed, err.Error())
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, GettingConfigMapFailed, "Getting config map failed")
 		}
 
 		versionChanged, err := r.storeChartDetails(ctx, configMap)
 		if err != nil {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, StoringChartDetailsFailed, err.Error())
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, StoringChartDetailsFailed, "Failure of storing dhart details")
 		}
 
 		if versionChanged {
@@ -1148,11 +1148,11 @@ func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1al
 
 	installInfo, err := r.getInstallInfo(ctx, cr, secret)
 	if err != nil {
-		logger.Error(err, "while preparing InstallInfo")
-		return nil, NewErrorWithReason(PreparingInstallInfoFailed, err.Error())
+		logger.Error(err, "Error while preparing InstallInfo")
+		return nil, NewErrorWithReason(PreparingInstallInfoFailed, "Error while preparing InstallInfo")
 	}
 	if installInfo.ChartPath == "" {
-		return nil, NewErrorWithReason(ChartPathEmpty, "no chart path available for processing")
+		return nil, NewErrorWithReason(ChartPathEmpty, "No chart path available for processing")
 	}
 
 	return &installInfo, nil

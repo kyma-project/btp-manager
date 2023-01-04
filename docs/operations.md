@@ -96,18 +96,26 @@ Only one Condition of type `Ready` is used.
 | No. | CR state   | Condition type | Condition status | Condition reason       | Remark                                                                         |
 |-----|------------|----------------|------------------|------------------------|--------------------------------------------------------------------------------|
 | 1   | Ready      | Ready          | True             | ReconcileSucceeded     | Reconciled successfully                                                        |
-| 2   | Processing | Ready          | False            | Updated                | Resource has been updated                                                      |
-| 3   | Processing | Ready          | False            | Initialized            | Initial processing or chart is inconsistent                                    |
-| 4   | Processing | Ready          | False            | Processing             | Final state after deprovisioning                                               |
-| 5   | Deleting   | Ready          | False            | HardDeleting           | Trying to hard delete                                                          |
-| 6   | Deleting   | Ready          | False            | SoftDeleting           | Trying to soft delete after hard delete failed                                 |
-| 7   | Error      | Ready          | False            | OlderCRExists          | This CR is not the oldest one so does not represent the module status          |
-| 8   | Error      | Ready          | False            | MissingSecret          | `sap-btp-manager` secret was not found - create proper secret                  |
-| 9   | Error      | Ready          | False            | InvalidSecret          | `sap-btp-manager` secret does not contain required data - create proper secret |
-| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources can still be present due to errors while deprovisioning         |
-| 11  | Error      | Ready          | False            | ChartInstallFailed     | Failure during chart installation                                              |
-| 12  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                               |
-
+| 2   | Ready      | Ready          | False            | UpdateCheckSucceded     | Update not required                                                        |
+| 3   | Ready      | Ready          | False            | UpdateDone     | Updated                                                        |
+| 4   | Processing | Ready          | False            | Updated                | Resource has been updated                                                      |
+| 5   | Processing | Ready          | False            | Initialized            | Initial processing or chart is inconsistent                                    |
+| 6   | Processing | Ready          | False            | Processing             | Final state after deprovisioning                                               |
+| 7   | Processing | Ready          | False            | UpdateCheck             | Checking for updates                                           |
+| 8   | Deleting   | Ready          | False            | HardDeleting           | Trying to hard delete                                                          |
+| 9   | Deleting   | Ready          | False            | SoftDeleting           | Trying to soft delete after hard delete failed                                 |
+| 10  | Error      | Ready          | False            | OlderCRExists          | This CR is not the oldest one so does not represent the module status          |
+| 11  | Error      | Ready          | False            | MissingSecret          | `sap-btp-manager` secret was not found - create proper secret                  |
+| 12  | Error      | Ready          | False            | InvalidSecret          | `sap-btp-manager` secret does not contain required data - create proper secret |
+| 13  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources can still be present due to errors while deprovisioning         |
+| 14  | Error      | Ready          | False            | ChartInstallFailed     | Failure during chart installation                                              |
+| 15  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                               |
+| 16  | Error      | Ready          | False            | InconsistentChart | Chart is inconsistent. Reconciliation initialized                                               |
+| 17  | Error      | Ready          | False            | PreparingInstallInfoFailed | Error while preparing InstallInfo
+| 18  | Error      | Ready          | False            | ChartPathEmpty | No chart path available for processing
+| 19  | Error      | Ready          | False            | DeletionOfOrphanedResourcesFailed | Deletion of orphaned resources failed
+| 20  | Error      | Ready          | False            | StoringChartDetailsFailed | Failure of storing dhart details
+| 21  | Error      | Ready          | False            | GettingConfigMapFailed | Getting config map failed
 
 ## Updating
 
