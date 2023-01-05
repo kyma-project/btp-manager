@@ -93,19 +93,45 @@ The state of BTP Operator CR is represented by [**Status**](https://github.com/k
 and Conditions.
 Only one Condition of type `Ready` is used.
 
-| No. | CR state   | Condition type | Condition status | Condition reason       | Remark                                                                         |
-|-----|------------|----------------|------------------|------------------------|--------------------------------------------------------------------------------|
-| 1   | Ready      | Ready          | True             | ReconcileSucceeded     | Reconciled successfully                                                        |
-| 2   | Processing | Ready          | False            | Updated                | Resource has been updated                                                      |
-| 3   | Processing | Ready          | False            | Initialized            | Initial processing or chart is inconsistent                                    |
-| 4   | Processing | Ready          | False            | Processing             | Final state after deprovisioning                                               |
-| 5   | Deleting   | Ready          | False            | HardDeleting           | Trying to hard delete                                                          |
-| 6   | Deleting   | Ready          | False            | SoftDeleting           | Trying to soft delete after hard delete failed                                 |
-| 7   | Error      | Ready          | False            | OlderCRExists          | This CR is not the oldest one so does not represent the module status          |
-| 8   | Error      | Ready          | False            | MissingSecret          | `sap-btp-manager` secret was not found - create proper secret                  |
-| 9   | Error      | Ready          | False            | InvalidSecret          | `sap-btp-manager` secret does not contain required data - create proper secret |
-| 10  | Error      | Ready          | False            | ResourceRemovalFailed  | Some resources can still be present due to errors while deprovisioning         |
-| 11  | Error      | Ready          | False            | ChartInstallFailed     | Failure during chart installation                                              |
-| 12  | Error      | Ready          | False            | ConsistencyCheckFailed | Failure during consistency check                                               |
+| No. | CR state   | Condition type | Condition status  | Condition reason                  | Remark                                                                         |
+|-----|------------|----------------|-------------------|-----------------------------------|--------------------------------------------------------------------------------|
+| 1   | Ready      | Ready          | True              | ReconcileSucceeded                | Reconciled successfully                                                        |
+| 2   | Ready      | Ready          | True              | UpdateCheckSucceeded              | Update not required                                                            |
+| 3   | Ready      | Ready          | True              | UpdateDone                        | Updated                                                                        |
+| 4   | Processing | Ready          | False             | Updated                           | Resource has been updated                                                      |
+| 5   | Processing | Ready          | False             | Initialized                       | Initial processing or chart is inconsistent                                    |
+| 6   | Processing | Ready          | False             | Processing                        | Final state after deprovisioning                                               |
+| 7   | Processing | Ready          | False             | UpdateCheck                       | Checking for updates                                                           |
+| 8   | Deleting   | Ready          | False             | HardDeleting                      | Trying to hard delete                                                          |
+| 9   | Deleting   | Ready          | False             | SoftDeleting                      | Trying to soft delete after hard delete failed                                 |
+| 10  | Error      | Ready          | False             | OlderCRExists                     | This CR is not the oldest one so does not represent the module status          |
+| 11  | Error      | Ready          | False             | MissingSecret                     | `sap-btp-manager` secret was not found - create proper secret                  |
+| 12  | Error      | Ready          | False             | InvalidSecret                     | `sap-btp-manager` secret does not contain required data - create proper secret |
+| 13  | Error      | Ready          | False             | ResourceRemovalFailed             | Some resources can still be present due to errors while deprovisioning         |
+| 14  | Error      | Ready          | False             | ChartInstallFailed                | Failure during chart installation                                              |
+| 15  | Error      | Ready          | False             | ConsistencyCheckFailed            | Failure during consistency check                                               |
+| 16  | Error      | Ready          | False             | InconsistentChart                 | Chart is inconsistent. Reconciliation initialized                              |
+| 17  | Error      | Ready          | False             | PreparingInstallInfoFailed        | Error while preparing InstallInfo                                              |
+| 18  | Error      | Ready          | False             | ChartPathEmpty                    | No chart path available for processing                                         |
+| 19  | Error      | Ready          | False             | DeletionOfOrphanedResourcesFailed | Deletion of orphaned resources failed                                          |
+| 20  | Error      | Ready          | False             | StoringChartDetailsFailed         | Failure of storing chart details                                               |
+| 21  | Error      | Ready          | False             | GettingConfigMapFailed            | Getting Config Map failed                                                      |    
 
+## Updating
 
+![Updating diagram](./assets/updating.svg)
+
+The updating logic is based on the chart files placed in the `ChartPath`.
+
+The application creates a ConfigMap, `btp-manager-versions`, if one does not exist,  and then uses it for storing the following data: 
+- the current version within currently installed gvks
+- the old version within old gvks
+
+The label `app.kubernetes.io/chart-version` is assigned to all resources.
+
+After a restart, during the first reconcile loop iteration, the application inspects `Chart.yaml` file from which it extracts a new version of the chart.
+If the version has changed, the application updates the `btp-manager-versions` and shifts values; that is, it moves current values to old values, and new values to current values.
+In the next step, call the ConsistencyCheck which handles the update. If there are new resources in the charts, it is applied to the cluster. If some of the chart resources are changed, the resources on the cluster are updated.
+The ConsistencyCheck also applies a label with the current version to all matching resources. 
+If some resources during the check are on the cluster and at the same time they are not in the chart resources, they stay with the old version label.
+The resources labeled with the old version are deleted by the application.

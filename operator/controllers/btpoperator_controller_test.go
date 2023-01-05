@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	appsv1 "k8s.io/api/apps/v1"
 	"os"
+	"os/exec"
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	"github.com/kyma-project/module-manager/operator/pkg/types"
+	"github.com/kyma-project/btp-manager/operator/internal/gvksutils"
+	"github.com/kyma-project/btp-manager/operator/internal/ymlutils"
+	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -23,7 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	apimachienerytypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -45,6 +51,10 @@ const (
 	crStateUpdatedPollingInterval   = time.Millisecond
 	crDeprovisioningPollingInterval = time.Second * 1
 	crDeprovisioningTimeout         = time.Second * 30
+	updatePath                      = "./testdata/module-chart-update"
+	suffix                          = "updated"
+	defaultChartPath                = "../module-chart"
+	newChartVersion                 = "v99"
 )
 
 type timeoutK8sClient struct {
@@ -92,6 +102,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	BeforeAll(func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
+		ChartPath = defaultChartPath
+		reconciler.updateCheckDone = true
 	})
 
 	BeforeEach(func() {
@@ -383,7 +395,244 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			doChecks()
 		})
 	})
+
+	Describe("Update", func() {
+		var initChartVersion string
+		var minimalExpectedElementsCount int
+		var gvks []schema.GroupVersionKind
+
+		BeforeAll(func() {
+			copyChartAndSetPath()
+
+			err := createPrereqs()
+			Expect(err).To(BeNil())
+
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateProcessing))
+			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+
+			initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+			Expect(err).To(BeNil())
+
+			gvks, err = ymlutils.GatherChartGvks(defaultChartPath)
+			Expect(err).To(BeNil())
+			minimalExpectedElementsCount = len(gvks)
+
+			revertToOriginalChart()
+		})
+
+		BeforeEach(func() {
+			copyChartAndSetPath()
+
+			simulateRestart(ctx, cr)
+
+			Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+			Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
+		})
+
+		When("update of all resources names and bump chart version", Label("test-update"), func() {
+			It("new resources (with new name) should be created and old ones removed", func() {
+				err := ymlutils.TransformCharts(updatePath, suffix)
+				Expect(err).To(BeNil())
+
+				err = ymlutils.UpdateVersion(updatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				simulateRestart(ctx, cr)
+
+				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(newChartVersion))
+
+				oldCount, newCount := countResources()
+				Expect(oldCount).To(BeZero())
+				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
+
+				Eventually(getCurrentCrStatus).
+					WithTimeout(crStateChangeTimeout).
+					WithPolling(crStatePollingInterval).
+					Should(
+						SatisfyAll(
+							HaveField("State", types.StateReady),
+							HaveField("Conditions", HaveLen(1)),
+							HaveField("Conditions",
+								ContainElements(
+									PointTo(
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateDone)), "Status": Equal(metav1.ConditionTrue)}),
+									))),
+						))
+			})
+		})
+
+		When("update of all resources names and leave same chart version", Label("test-update"), func() {
+			It("new ones not created because version is not changed, old ones should stay", Label("test-update"), func() {
+				err := ymlutils.TransformCharts(updatePath, suffix)
+				Expect(err).To(BeNil())
+
+				simulateRestart(ctx, cr)
+
+				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
+
+				oldCount, newCount := countResources()
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(pullFromBtpManagerConfigMap(oldChartVersionKey)))
+				Expect(newCount).To(BeEquivalentTo(oldCount))
+				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
+
+				Eventually(getCurrentCrStatus).
+					WithTimeout(crStateChangeTimeout).
+					WithPolling(crStatePollingInterval).
+					Should(
+						SatisfyAll(
+							HaveField("State", types.StateReady),
+							HaveField("Conditions", HaveLen(1)),
+							HaveField("Conditions",
+								ContainElements(
+									PointTo(
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateCheckSucceeded)), "Status": Equal(metav1.ConditionTrue)}),
+									))),
+						))
+			})
+		})
+
+		When("resources should stay as they are and we bump chart version", Label("test-update"), func() {
+			It("existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)", func() {
+				err := ymlutils.UpdateVersion(updatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				oldCount, newCount := countResources()
+				Expect(newCount).To(BeEquivalentTo(oldCount))
+				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
+
+				simulateRestart(ctx, cr)
+
+				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
+				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(newChartVersion))
+
+				oldCount, newCount = countResources()
+				Expect(oldCount).To(BeEquivalentTo(0))
+				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
+
+				Eventually(getCurrentCrStatus).
+					WithTimeout(crStateChangeTimeout).
+					WithPolling(crStatePollingInterval).
+					Should(
+						SatisfyAll(
+							HaveField("State", types.StateReady),
+							HaveField("Conditions", HaveLen(1)),
+							HaveField("Conditions",
+								ContainElements(
+									PointTo(
+										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateDone)), "Status": Equal(metav1.ConditionTrue)}),
+									))),
+						))
+			})
+		})
+
+		AfterEach(func() {
+
+			revertToOriginalChart()
+
+			reconciler.updateCheckDone = false
+			reconciler.currentVersion = ""
+
+			configMap := reconciler.buildBtpManagerConfigMap()
+			err := k8sClient.Delete(ctx, configMap)
+			Expect(err).To(BeNil())
+		})
+
+		AfterAll(func() {
+			//graceful shutdown
+			time.Sleep(time.Second * 1)
+		})
+	})
 })
+
+func copyChartAndSetPath() {
+	cmd := exec.Command("cp", "-r", ChartPath, updatePath)
+	err := cmd.Run()
+	Expect(err).To(BeNil())
+
+	err = os.RemoveAll(fmt.Sprintf("%s/%s", updatePath, "manifest"))
+	Expect(err).To(BeNil())
+
+	ChartPath = updatePath
+}
+
+func revertToOriginalChart() {
+	ChartPath = defaultChartPath
+
+	err := os.RemoveAll(updatePath)
+	Expect(err).To(BeNil())
+}
+
+func pullFromBtpManagerConfigMap(key string) string {
+	ctx := context.Background()
+	configMap := reconciler.buildBtpManagerConfigMap()
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
+	Expect(err).To(BeNil())
+	Expect(configMap).ToNot(BeNil())
+	value, ok := configMap.Data[key]
+	Expect(ok).To(BeTrue())
+	return value
+}
+
+func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
+	reconciler.updateCheckDone = false
+	reconciler.currentVersion = ""
+	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+		Namespace: cr.Namespace,
+		Name:      cr.Name,
+	}})
+	Expect(err).To(BeNil())
+	Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+}
+
+func countResources() (int, int) {
+	oldVersion := pullFromBtpManagerConfigMap(oldChartVersionKey)
+	oldVersionLabel := client.MatchingLabels{chartVersionKey: oldVersion}
+	oldGvksText := pullFromBtpManagerConfigMap(oldGvksKey)
+	oldGvks, err := gvksutils.StrToGvks(oldGvksText)
+	Expect(err).To(BeNil())
+	oldCount := countWithLabel(oldVersionLabel, oldGvks)
+
+	currentVersion := pullFromBtpManagerConfigMap(currentCharVersionKey)
+	currentVersionLabel := client.MatchingLabels{chartVersionKey: currentVersion}
+	currentGvksText := pullFromBtpManagerConfigMap(currentGvksKey)
+	currentGvks, err := gvksutils.StrToGvks(currentGvksText)
+	Expect(err).To(BeNil())
+	newCount := countWithLabel(currentVersionLabel, currentGvks)
+
+	if oldVersion == currentVersion {
+		fmt.Printf("versions are equal (%s), with count = {%d} \n", oldVersion, oldCount)
+	} else {
+		fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
+	}
+
+	return oldCount, newCount
+}
+
+func countWithLabel(label client.MatchingLabels, gvks []schema.GroupVersionKind) int {
+	count := 0
+	for _, gvk := range gvks {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   gvk.Group,
+			Version: gvk.Version,
+			Kind:    gvk.Kind,
+		})
+		if err := k8sClient.List(ctx, list, label); err != nil && !canIgnoreErr(err) {
+			Expect(err).To(BeNil())
+		} else {
+			count += len(list.Items)
+		}
+	}
+	return count
+}
 
 func createPrereqs() error {
 	pClass := &schedulingv1.PriorityClass{}
@@ -601,7 +850,7 @@ func checkIfNoBindingSecretExists() {
 }
 
 func checkIfNoBtpResourceExists() {
-	gvks, err := reconciler.gatherChartGvks()
+	gvks, err := ymlutils.GatherChartGvks(ChartPath)
 	Expect(err).To(BeNil())
 
 	found := false
@@ -613,8 +862,7 @@ func checkIfNoBtpResourceExists() {
 			Kind:    gvk.Kind,
 		})
 		if err := k8sClient.List(ctx, list, labelFilter); err != nil {
-			ignore := k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
-			if !ignore {
+			if !canIgnoreErr(err) {
 				found = true
 				break
 			}
@@ -624,4 +872,8 @@ func checkIfNoBtpResourceExists() {
 		}
 	}
 	Expect(found).To(BeFalse())
+}
+
+func canIgnoreErr(err error) bool {
+	return k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
 }

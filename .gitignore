@@ -2,3 +2,4 @@ bin/
 /hack/creds.json
 /hack/operator-secret.yaml
 /charts/btp-manager/
+.DS_Store

@@ -18,10 +18,11 @@ package controllers
 
 import (
 	"context"
-	"go.uber.org/zap/zapcore"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"go.uber.org/zap/zapcore"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -55,10 +56,14 @@ var (
 )
 
 func TestAPIs(t *testing.T) {
+
 	RegisterFailHandler(Fail)
 
-	_, reporterCfg := GinkgoConfiguration()
-	RunSpecs(t, "Controller Suite", reporterCfg)
+	suiteCfg, reporterCfg := GinkgoConfiguration()
+	//Example of usage label:
+	//suiteCfg.LabelFilter = "(test-update)"
+	reporterCfg.Verbose = true
+	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
 
 var _ = BeforeSuite(func() {
