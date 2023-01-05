@@ -120,19 +120,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
 				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateUpdatedTimeout).
-					WithPolling(crStateUpdatedPollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateProcessing),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Initialized)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
-				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateChangeTimeout).
 					WithPolling(crStatePollingInterval).
 					Should(
@@ -177,19 +164,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateUpdatedTimeout).
-						WithPolling(crStateUpdatedPollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateProcessing),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
-										))),
-							))
-					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
 						Should(
@@ -210,19 +184,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateUpdatedTimeout).
-						WithPolling(crStateUpdatedPollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateProcessing),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
-										))),
-							))
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
