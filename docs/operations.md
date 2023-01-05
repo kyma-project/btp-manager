@@ -131,9 +131,9 @@ The application creates a ConfigMap, `btp-manager-versions`, if one does not exi
 
 The label `app.kubernetes.io/chart-version` is assigned to all resources.
 
-Application after restart, during 1st reconcile loop iteration, inspects Chart.yaml file from which extracts new version of chart.
+After a restart, during the first reconcile loop iteration, the application inspects `Chart.yaml` file from which it extracts a new version of the chart.
 If the version has changed, the application updates the `btp-manager-versions` and shifts values; that is, it moves current values to old values, and new values to current values.
 In the next step, call the ConsistencyCheck which handles the update. If there are new resources in the charts, it is applied to the cluster. If some of the chart resources are changed, the resources on the cluster are updated.
-The ConsistencyCheck also apply label with current version to all matching resources. 
+The ConsistencyCheck also applies a label with the current version to all matching resources. 
 If some resources during the check are on the cluster and at the same time they are not in the chart resources, they stay with the old version label.
 The resources labeled with the old version are deleted by the application.
