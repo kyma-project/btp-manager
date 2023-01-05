@@ -115,7 +115,7 @@ Only one Condition of type `Ready` is used.
 | 18  | Error      | Ready          | False             | ChartPathEmpty                    | No chart path available for processing                                         |
 | 19  | Error      | Ready          | False             | DeletionOfOrphanedResourcesFailed | Deletion of orphaned resources failed                                          |
 | 20  | Error      | Ready          | False             | StoringChartDetailsFailed         | Failure of storing chart details                                               |
-| 21  | Error      | Ready          | False             | GettingConfigMapFailed            | Getting config map failed                                                      |    
+| 21  | Error      | Ready          | False             | GettingConfigMapFailed            | Getting Config Map failed                                                      |    
 
 ## Updating
 
