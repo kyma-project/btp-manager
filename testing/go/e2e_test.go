@@ -43,7 +43,7 @@ func TestEndToEnd(t *testing.T) {
 
 	// expected to return exit status 2 as Prometheus is not installed, hence error suppressed
 	exec.Command("make", "-C", "../../", "deploy",
-		"IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-"+prNumber).Run()
+		"IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-"+prNumber).Run()
 
 	out, err := exec.Command("kubectl", "rollout", "status", "--namespace=btp-manager-system",
 		"deployment/btp-manager-controller-manager", "--timeout=300s").Output()
