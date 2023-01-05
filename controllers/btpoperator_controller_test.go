@@ -11,9 +11,9 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
-	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
-	"github.com/kyma-project/btp-manager/operator/internal/gvksutils"
-	"github.com/kyma-project/btp-manager/operator/internal/ymlutils"
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/internal/gvksutils"
+	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

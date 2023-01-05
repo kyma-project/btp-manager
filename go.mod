@@ -1,4 +1,4 @@
-module github.com/kyma-project/btp-manager/operator
+module github.com/kyma-project/btp-manager
 
 go 1.19
 

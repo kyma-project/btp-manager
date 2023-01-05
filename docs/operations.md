@@ -29,7 +29,7 @@ The provisioning process is part of a module reconciliation and is carried out a
 
 ![Provisioning diagram](./assets/provisioning.svg)
 
-Create a [BtpOperator CR](../operator/api/v1alpha1/btpoperator_types.go) to trigger the reconciliation:
+Create a [BtpOperator CR](../api/v1alpha1/btpoperator_types.go) to trigger the reconciliation:
 
 ```shell
 cat <<EOF | kubectl apply -f -
@@ -61,7 +61,7 @@ adds `app.kubernetes.io/managed-by: btp-manager` label to all chart resources, s
 overrides and applies them among overrides from `values.yaml`. When the chart install info is correct, the reconciler
 starts the provisioning and waits specified time for all chart resources to be in `Ready` state. If timeout is reached,
 the CR receives `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed
-set of [timeouts](../operator/controllers/btpoperator_controller.go) defined as `consts` which limit the processing time
+set of [timeouts](../controllers/btpoperator_controller.go) defined as `consts` which limit the processing time
 for performed operations. The provisioning is successful when all chart resources are in `Ready` state and this is the
 condition which allows the reconciler to set the CR in `Ready` state.
 
