@@ -1,8 +1,8 @@
 domain: kyma-project.io
 layout:
-- go.kubebuilder.io/v4-alpha
+- go.kubebuilder.io/v3
 projectName: btp-manager
-repo: github.com/kyma-project/btp-manager/operator
+repo: github.com/kyma-project/btp-manager
 resources:
 - api:
     crdVersion: v1
@@ -11,6 +11,6 @@ resources:
   domain: kyma-project.io
   group: operator
   kind: BtpOperator
-  path: github.com/kyma-project/btp-manager/operator/api/v1alpha1
+  path: github.com/kyma-project/btp-manager/api/v1alpha1
   version: v1alpha1
 version: "3"
