@@ -8,7 +8,7 @@ MODULE_VERSION ?= 0.0.1
 MODULE_REGISTRY_PORT ?= 60770
 MODULE_REGISTRY ?= op-kcp-registry.localhost:$(MODULE_REGISTRY_PORT)/unsigned
 # Desired Channel of the Generated Module Template
-MODULE_TEMPLATE_CHANNEL ?= stable
+MODULE_CHANNEL ?= alpha
 
 # Credentials used for authenticating into the module registry
 # see `kyma alpha mod create --help for more info`
@@ -93,7 +93,7 @@ module-image: operator/docker-build operator/docker-push ## Build the Module Ima
 
 .PHONY: module-build
 module-build: kyma module-operator-chart module-default ## Build the Module and push it to a registry defined in MODULE_REGISTRY
-	$(KYMA) alpha create module kyma.project.io/module/$(MODULE_NAME) $(MODULE_VERSION) . $(MODULE_CREATION_FLAGS)
+	$(KYMA) alpha create module --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path operator/config/manager $(MODULE_CREATION_FLAGS)
 
 .PHONY: module-template-push
 module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODULE_REGISTRY
@@ -118,7 +118,7 @@ KYMA ?= $(LOCALBIN)/kyma-$(KYMA_STABILITY)
 kyma: $(KYMA) ## Download kyma locally if necessary.
 $(KYMA): $(LOCALBIN)
 	test -f $@ || curl -# -Lo $(KYMA) https://storage.googleapis.com/kyma-cli-$(KYMA_STABILITY)/kyma-darwin
-	chmod 0100 $(KYMA)
+	chmod 0500 $(KYMA)
 
 ########## Kustomize ###########
 KUSTOMIZE_VERSION ?= v4.5.6
