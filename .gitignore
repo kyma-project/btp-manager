@@ -3,3 +3,4 @@ bin/
 /hack/operator-secret.yaml
 /charts/btp-manager/
 .DS_Store
+.idea/

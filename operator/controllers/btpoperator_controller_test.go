@@ -557,9 +557,6 @@ func copyChartAndSetPath() {
 	err := cmd.Run()
 	Expect(err).To(BeNil())
 
-	err = os.RemoveAll(fmt.Sprintf("%s/%s", updatePath, "manifest"))
-	Expect(err).To(BeNil())
-
 	ChartPath = updatePath
 }
 
