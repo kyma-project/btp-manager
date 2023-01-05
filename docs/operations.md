@@ -121,9 +121,7 @@ Only one Condition of type `Ready` is used.
 
 ![Updating diagram](./assets/updating.svg)
 
-The updating logic is based on the chart files placed in the ChartPath.
-
-Config Map (btp-manager-config-map)
+The updating logic is based on the chart files placed in the `ChartPath`.
 
 The application creates a ConfigMap, `btp-manager-versions`, if one does not exist,  and then uses it for storing the following data: 
 - the current version within currently installed gvks
