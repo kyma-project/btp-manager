@@ -121,19 +121,19 @@ Only one Condition of type `Ready` is used.
 
 ![Updating diagram](./assets/updating.svg)
 
-Updating logic is based on chart files placed in "ChartPath"
+The updating logic is based on the chart files placed in the ChartPath.
 
 Config Map (btp-manager-config-map)
 
-Application will create config map (if not exists) and then use it for storing data, including: 
-- current version within current installed gvks
-- old version within old version kinds.
+The application creates a ConfigMap, `btp-manager-versions`, if one does not exist,  and then uses it for storing the following data: 
+- the current version within currently installed gvks
+- the old version within old gvks
 
-All resources will be labeled with label 'app.kubernetes.io/chart-version'.
+The label `app.kubernetes.io/chart-version` is assigned to all resources.
 
 Application after restart, during 1st reconcile loop iteration, inspects Chart.yaml file from which extracts new version of chart.
-If version has changed then it updates config map and shifts value, so it move current values to old values, and new values moves to current values.
-Next step is run to ConsistencyCheck which will handle updated - if there is new resources in charts, it will be applied to cluster, and if something is changed, the resources on cluster will be updated.
+If the version has changed, the application updates the `btp-manager-versions` and shifts values; that is, it moves current values to old values, and new values to current values.
+In the next step, call the ConsistencyCheck which handles the update. If there are new resources in the charts, it is applied to the cluster. If some of the chart resources are changed, the resources on the cluster are updated.
 The ConsistencyCheck also apply label with current version to all matching resources. 
-If some resources during check are on cluster and in the same time they are not is not in chart resources, it mean they will stay with old version label.
-Resources which are labeled with old version will be deleted by operator.
+If some resources during the check are on the cluster and at the same time they are not in the chart resources, they stay with the old version label.
+The resources labeled with the old version are deleted by the application.
