@@ -42,7 +42,7 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-const hardDeleteTimeout = time.Second * 2
+const hardDeleteTimeout = time.Second * 1
 
 var (
 	cfg                  *rest.Config
