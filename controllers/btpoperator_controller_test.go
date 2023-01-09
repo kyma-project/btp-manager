@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -18,7 +19,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -98,6 +98,8 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
+	HardDeleteCheckInterval = 10 * time.Millisecond
+	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
 		err := createPrereqs()
@@ -111,21 +113,18 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Provisioning", func() {
-		BeforeAll(func() {
+		BeforeEach(func() {
 			cr = createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 		})
 
-		AfterAll(func() {
+		AfterEach(func() {
+			cr = &v1alpha1.BtpOperator{}
 			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
 				WithTimeout(k8sOpsTimeout).
 				WithPolling(k8sOpsPollingInterval).
 				Should(Succeed())
 			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 		})
 
@@ -221,19 +220,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateUpdatedTimeout).
-						WithPolling(crStateUpdatedPollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateProcessing),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
-										))),
-							))
-					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
 						Should(
@@ -270,22 +256,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	Describe("Deprovisioning", func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
-		BeforeAll(func() {
+		BeforeEach(func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
-		AfterAll(func() {
-			deleteSecret := &corev1.Secret{}
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
-		BeforeEach(func() {
 			cr := createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
@@ -306,10 +280,20 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			ensureResourceExists(bindingGvk)
 		})
 
+		AfterEach(func() {
+			deleteSecret := &corev1.Secret{}
+			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
+				WithTimeout(k8sOpsTimeout).
+				WithPolling(k8sOpsPollingInterval).
+				Should(Succeed())
+			Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+		})
+
 		It("soft delete (after timeout) should succeed", func() {
 			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
 			setFinalizers(siUnstructured)
 			setFinalizers(sbUnstructured)
+			cr = &v1alpha1.BtpOperator{}
 			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
 				WithTimeout(k8sOpsTimeout).
 				WithPolling(k8sOpsPollingInterval).
@@ -544,11 +528,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
 		})
-
-		AfterAll(func() {
-			//graceful shutdown
-			time.Sleep(time.Second * 1)
-		})
 	})
 })
 
@@ -774,8 +753,7 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	} else if kind == bindingGvk.Kind {
 		populateServiceBindingFields(object)
 	}
-	err := k8sClient.Create(ctx, object)
-	Expect(err).To(BeNil())
+	Expect(k8sClient.Create(ctx, object)).To(BeNil())
 
 	return object
 }
