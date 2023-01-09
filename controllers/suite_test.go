@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/kyma-project/btp-manager/operator/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 

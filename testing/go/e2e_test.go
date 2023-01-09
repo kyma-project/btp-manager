@@ -26,7 +26,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal("kubectl is not installed")
 	}
 
-	err = exec.Command("make", "-C", "../../operator", "install").Run()
+	err = exec.Command("make", "-C", "../../", "install").Run()
 	if err != nil {
 		t.Errorf("Error running command 'make install': %v", err)
 	}
@@ -42,8 +42,8 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// expected to return exit status 2 as Prometheus is not installed, hence error suppressed
-	exec.Command("make", "-C", "../../operator", "deploy",
-		"IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager/operator:PR-"+prNumber).Run()
+	exec.Command("make", "-C", "../../", "deploy",
+		"IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-"+prNumber).Run()
 
 	out, err := exec.Command("kubectl", "rollout", "status", "--namespace=btp-manager-system",
 		"deployment/btp-manager-controller-manager", "--timeout=300s").Output()
