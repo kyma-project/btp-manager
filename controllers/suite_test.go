@@ -18,6 +18,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"github.com/onsi/ginkgo/v2/types"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -60,10 +63,24 @@ func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	suiteCfg, reporterCfg := GinkgoConfiguration()
-	//Example of usage label:
-	//suiteCfg.LabelFilter = "(test-update)"
-	reporterCfg.Verbose = true
+	ReconfigureGinkgo(&reporterCfg, &suiteCfg)
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
+}
+
+func ReconfigureGinkgo(reporterCfg *types.ReporterConfig, suiteCfg *types.SuiteConfig) {
+	verbosity := os.Getenv("GINKGO_VERBOSE_FLAG")
+	switch {
+	case verbosity == "ginkgo.v":
+		reporterCfg.Verbose = true
+	case verbosity == "ginkgo.vv":
+		reporterCfg.VeryVerbose = true
+	case verbosity == "ginkgo.succinct":
+		reporterCfg.Succinct = true
+	default:
+		reporterCfg.Verbose = true
+	}
+	suiteCfg.LabelFilter = os.Getenv("GINKGO_LABEL_FILTER")
+	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
 }
 
 var _ = BeforeSuite(func() {
