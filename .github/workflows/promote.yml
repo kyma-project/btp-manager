@@ -67,7 +67,7 @@ jobs:
       run: |
           gh api \
             -H "Accept: application/vnd.github+json" \
-            https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/${{ env.TEMPLATE_NAME }} >> ${{ env.TEMPLATE_NAME }}
+            https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME >> $TEMPLATE_NAME
       env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -86,13 +86,13 @@ jobs:
         git checkout -B $BRANCH_NAME
 
     - name: Add module template
-      run: yes | cp -rf ${{ env.TEMPLATE_NAME }} $KYMA_REPO/modules/${{ inputs.channel }}
+      run: yes | cp -rf $TEMPLATE_NAME $KYMA_REPO/modules/${{ inputs.channel }}
 
     - name: Commit Changes
       working-directory: kyma
       run: |
         git add .
-        git commit -m "Update ${{ env.TEMPLATE_NAME }}"
+        git commit -m "Update $TEMPLATE_NAME"
 
     - name: Push Changes
       working-directory: kyma
