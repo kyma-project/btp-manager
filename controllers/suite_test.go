@@ -62,7 +62,7 @@ func TestAPIs(t *testing.T) {
 	suiteCfg, reporterCfg := GinkgoConfiguration()
 	//Example of usage label:
 	//suiteCfg.LabelFilter = "(test-update)"
-	reporterCfg.Verbose = true
+	reporterCfg.VeryVerbose = true
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
 
