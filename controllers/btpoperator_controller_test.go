@@ -110,7 +110,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		ctx = context.Background()
 	})
 
-	Describe("Provisioning", func() {
+	Describe("Provisioning", Label("fundamental", "provisioning"), func() {
 		BeforeAll(func() {
 			cr = createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
@@ -267,7 +267,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 
-	Describe("Deprovisioning", func() {
+	Describe("Deprovisioning", Label("fundamental", "deprovisioning"), func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
 		BeforeAll(func() {
@@ -396,7 +396,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 
-	Describe("Update", func() {
+	Describe("Update", Label("update"), func() {
 		var initChartVersion string
 		var minimalExpectedElementsCount int
 		var gvks []schema.GroupVersionKind
