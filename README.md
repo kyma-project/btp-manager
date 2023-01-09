@@ -10,10 +10,9 @@ BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
 ## Installation
-Use the following commands to run BTP Manager locally. All `make` commands refer to [Makefile](./operator/Makefile) in the `operator` directory.
+Use the following commands to run BTP Manager locally. All `make` commands refer to [Makefile](./Makefile) in the `operator` directory.
 
 ```sh
-cd operator
 make install
 make run
 ```
