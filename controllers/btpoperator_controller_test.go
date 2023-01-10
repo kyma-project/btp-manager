@@ -780,7 +780,18 @@ func filterWebhooks(file []byte) (filtered []byte, hasWebhook bool) {
 	for _, l := range lines {
 		buffer = append(buffer, []byte(l+"\n")...)
 		if l == "---" && len(buffer) != 0 {
-			if !isWebhook {
+			if isWebhook {
+				split := strings.Split(string(buffer), "\n")
+				// hack for one case where helm templating block spans across two adjacent documents
+				for _, spl := range split {
+					splTrunc := strings.ReplaceAll(spl, " ", "")
+					splTrunc = strings.ReplaceAll(splTrunc, "-", "")
+					if splTrunc != "{{end}}" {
+						break
+					}
+					filtered = append(filtered, []byte(spl+"\n")...)
+				}
+			} else {
 				filtered = append(filtered, buffer...)
 			}
 			buffer = []byte{}
