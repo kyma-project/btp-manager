@@ -188,7 +188,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				It("should return error while verifying keys", func() {
 					secret, err := createSecretWithoutKeys()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					Expect(k8sClient.Create(ctx, secret)).To(BeNil())
 					GinkgoLogr.Info("Invalid Secret eventually created")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
@@ -223,7 +223,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				It("should return error while verifying values", func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					Expect(k8sClient.Create(ctx, secret)).To(BeNil())
 					GinkgoLogr.Info("Invalid Secret eventually created")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
@@ -261,7 +261,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					//      https://book.kubebuilder.io/reference/envtest.html#testing-considerations
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					Expect(k8sClient.Create(ctx, secret)).To(BeNil())
 					GinkgoLogr.Info("Proper secret eventually created")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
