@@ -110,7 +110,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		ctx = context.Background()
 	})
 
-	Describe("Provisioning", Label("fundamental", "provisioning"), func() {
+	Describe("Provisioning", Label("fundamental"), func() {
 		BeforeAll(func() {
 			cr = createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
@@ -168,6 +168,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					WithPolling(k8sOpsPollingInterval).
 					Should(Succeed())
 				Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+				GinkgoLogr.Info("Secret eventually deleted in after each")
 				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateChangeTimeout).
 					WithPolling(crStatePollingInterval).
@@ -188,6 +189,20 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutKeys()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					GinkgoLogr.Info("Invalid Secret eventually created")
+					Eventually(getCurrentCrStatus).
+						WithTimeout(crStateUpdatedTimeout).
+						WithPolling(crStateUpdatedPollingInterval).
+						Should(
+							SatisfyAll(
+								HaveField("State", types.StateProcessing),
+								HaveField("Conditions", HaveLen(1)),
+								HaveField("Conditions",
+									ContainElements(
+										PointTo(
+											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
+										))),
+							))
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
@@ -209,6 +224,20 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					GinkgoLogr.Info("Invalid Secret eventually created")
+					Eventually(getCurrentCrStatus).
+						WithTimeout(crStateUpdatedTimeout).
+						WithPolling(crStateUpdatedPollingInterval).
+						Should(
+							SatisfyAll(
+								HaveField("State", types.StateProcessing),
+								HaveField("Conditions", HaveLen(1)),
+								HaveField("Conditions",
+									ContainElements(
+										PointTo(
+											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
+										))),
+							))
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
@@ -233,6 +262,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+					GinkgoLogr.Info("Proper secret eventually created")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
 						WithPolling(crStateUpdatedPollingInterval).
