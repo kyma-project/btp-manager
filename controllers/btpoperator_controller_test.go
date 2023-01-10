@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -53,7 +55,7 @@ const (
 	crDeprovisioningTimeout         = time.Second * 30
 	updatePath                      = "./testdata/module-chart-update"
 	suffix                          = "updated"
-	defaultChartPath                = "../module-chart"
+	defaultChartPath                = "./testdata/test-module-chart"
 	newChartVersion                 = "v99"
 )
 
@@ -104,8 +106,13 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	BeforeAll(func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
+		Expect(testChartPreparation()).To(Succeed())
 		ChartPath = defaultChartPath
 		reconciler.updateCheckDone = true
+	})
+
+	AfterAll(func() {
+		Expect(testChartCleanup()).To(Succeed())
 	})
 
 	BeforeEach(func() {
@@ -268,10 +275,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				WithTimeout(k8sOpsTimeout).
 				WithPolling(k8sOpsPollingInterval).
 				Should(Succeed())
-
-			time.Sleep(time.Second * 1)
-			err := clearWebhooks()
-			Expect(err).To(BeNil())
 
 			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
 			ensureResourceExists(instanceGvk)
@@ -770,20 +773,72 @@ func populateServiceBindingFields(object *unstructured.Unstructured) {
 	Expect(unstructured.SetNestedField(object.Object, "test-service-binding-secret", "spec", "secretName")).To(Succeed())
 }
 
-func clearWebhooks() error {
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
+func filterWebhooks(file []byte) (filtered []byte, hasWebhook bool) {
+	lines := strings.Split(string(file), "\n")
+	var buffer []byte
+	isWebhook := false
+	for _, l := range lines {
+		buffer = append(buffer, []byte(l+"\n")...)
+		if l == "---" && len(buffer) != 0 {
+			if !isWebhook {
+				filtered = append(filtered, buffer...)
+			}
+			buffer = []byte{}
+			isWebhook = false
+		}
+		if strings.HasPrefix(l, "kind: ") {
+			split := strings.Split(l, ":")
+			if len(split) != 2 {
+				continue
+			}
+			kind := strings.TrimLeft(split[1], " ")
+			if kind == "MutatingWebhookConfiguration" || kind == "ValidatingWebhookConfiguration" {
+				isWebhook, hasWebhook = true, true
+			}
 		}
 	}
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
-		if !k8serrors.IsNotFound(err) {
+	if !isWebhook {
+		filtered = append(filtered, buffer...)
+	}
+	return
+}
+
+func testChartPreparation() error {
+	Expect(os.MkdirAll(defaultChartPath, 0700)).To(Succeed())
+	src := fmt.Sprintf("%v/.", ChartPath)
+	cmd := exec.Command("cp", "-r", src, defaultChartPath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("copying: %v -> %v\n\nout: %v\nerr: %v", src, defaultChartPath, string(out), err)
+	}
+
+	return filepath.WalkDir(defaultChartPath, func(path string, de fs.DirEntry, err error) error {
+		if de.IsDir() {
+			return nil
+		}
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+		dat, err := os.ReadFile(path)
+		Expect(err).To(BeNil())
+
+		documents, filtered := filterWebhooks(dat)
+		if len(documents) == 0 {
+			Expect(os.Remove(path)).To(Succeed())
+		}
+		if filtered {
+			Expect(os.WriteFile(path, documents, 0700)).To(Succeed())
+		}
+		return nil
+	})
+}
+
+func testChartCleanup() error {
+	return os.RemoveAll(defaultChartPath)
 }
 
 func doChecks() {
