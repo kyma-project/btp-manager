@@ -332,7 +332,7 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	logger.Info(fmt.Sprintf("Reconcile source %s", req.Name))
+	logger.Info("Entering Reconcile()")
 
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {

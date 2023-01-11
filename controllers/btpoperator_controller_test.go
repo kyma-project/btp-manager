@@ -717,6 +717,7 @@ func getCurrentCrStatus() types.Status {
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
 		return types.Status{}
 	}
+	GinkgoLogr.Info("Got CR status", "status", cr.Status.State)
 	return cr.GetStatus()
 }
 
