@@ -32,4 +32,4 @@ get_current_release_version() {
 
     echo "Preparing release ${NEW_RELEASE_VERSION}"
 
-    MODULE_VERSION=${NEW_RELEASE_VERSION} make build docker-build docker-push module-build
+    MODULE_VERSION=${NEW_RELEASE_VERSION} make docker-build docker-push module-build
