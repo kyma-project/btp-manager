@@ -8,6 +8,7 @@ env:
   TEMPLATE_NAME: moduletemplate-btp.yaml
   GIT_EMAIL: <>
   GIT_NAME: BTP Manager
+  USERNAME: ukff
 
 on:
   workflow_dispatch:
@@ -31,7 +32,7 @@ jobs:
 
     steps:
 
-    - name: Use default Release Tag
+    - name: Use default (latest) Release Tag
       if: inputs.releaseTag == 'use latest available release' 
       shell: bash
       run: |
@@ -53,23 +54,18 @@ jobs:
           
           if  echo $tags | tr " " '\n' | grep -F -q -x ${{ inputs.releaseTag }}; then
               echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
-              echo "found tag"
+              echo "tag found"
               exit 0
           fi
 
-          echo "no found: ${{ inputs.releaseTag }}"
+          echo "tag not found: ${{ inputs.releaseTag }}"
           exit 1
 
     - name: Set branch name
       run: echo "BRANCH_NAME=$BTP_MANAGER_REPO-$TAG" >> $GITHUB_ENV
 
     - name: Download module template 
-      run: |
-          gh api \
-            -H "Accept: application/vnd.github+json" \
-            https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME >> $TEMPLATE_NAME
-      env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: curl -O -J https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME
 
     - name: Setup GitHub config
       run: |
@@ -104,10 +100,10 @@ jobs:
       working-directory: kyma
       shell: bash
       run: |
-        prs=$(gh pr list -R https://github.com/$ORG/$KYMA_REPO/ -A ukff --state open --json headRefName | jq -r '.[] | .headRefName')
+        prs=$(gh pr list -R https://github.com/$ORG/$KYMA_REPO/ -A $USERNAME --state open --json headRefName | jq -r '.[] | .headRefName')
        
         if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
-            echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
+            echo "opened pr already exists, no need to create new one, pr will be updated by push from previous step"
             exit 0
         fi
        
