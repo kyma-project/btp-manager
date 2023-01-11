@@ -126,11 +126,13 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				WithTimeout(crStateChangeTimeout).
 				WithPolling(crStatePollingInterval).
 				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
+			GinkgoLogr.Info("Eventually StateDeleting")
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 		})
 
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
+				GinkgoLogr.Info("Eventually Pre-StateProcessing")
 				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateUpdatedTimeout).
 					WithPolling(crStateUpdatedPollingInterval).
@@ -144,6 +146,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Initialized)), "Status": Equal(metav1.ConditionFalse)}),
 									))),
 						))
+				GinkgoLogr.Info("Eventually StateProcessing")
+				GinkgoLogr.Info("Eventually Pre-StateError")
 				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateChangeTimeout).
 					WithPolling(crStatePollingInterval).
@@ -157,6 +161,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(MissingSecret)), "Status": Equal(metav1.ConditionFalse)}),
 									))),
 						))
+				GinkgoLogr.Info("Eventually StateError")
 			})
 		})
 
@@ -169,6 +174,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Should(Succeed())
 				Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 				GinkgoLogr.Info("Secret eventually deleted in after each")
+				GinkgoLogr.Info("Eventually Pre-StateError")
 				Eventually(getCurrentCrStatus).
 					WithTimeout(crStateChangeTimeout).
 					WithPolling(crStatePollingInterval).
@@ -182,6 +188,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(MissingSecret)), "Status": Equal(metav1.ConditionFalse)}),
 									))),
 						))
+				GinkgoLogr.Info("Eventually StateError")
 			})
 
 			When("the required Secret does not have all required keys", func() {
@@ -190,6 +197,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Expect(k8sClient.Create(ctx, secret)).To(BeNil())
 					GinkgoLogr.Info("Invalid Secret eventually created")
+					GinkgoLogr.Info("Eventually Pre-StateProcessing")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
 						WithPolling(crStateUpdatedPollingInterval).
@@ -203,6 +211,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
 										))),
 							))
+					GinkgoLogr.Info("Eventually StateProcessing")
+					GinkgoLogr.Info("Eventually Pre-StateError")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
@@ -216,6 +226,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(InvalidSecret)), "Status": Equal(metav1.ConditionFalse)}),
 										))),
 							))
+					GinkgoLogr.Info("Eventually StateError")
 				})
 			})
 
@@ -225,6 +236,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Expect(k8sClient.Create(ctx, secret)).To(BeNil())
 					GinkgoLogr.Info("Invalid Secret eventually created")
+					GinkgoLogr.Info("Eventually Pre-StateProcessing")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
 						WithPolling(crStateUpdatedPollingInterval).
@@ -238,6 +250,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
 										))),
 							))
+					GinkgoLogr.Info("Eventually StateProcessing")
+					GinkgoLogr.Info("Eventually Pre-StateError")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
@@ -251,6 +265,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(InvalidSecret)), "Status": Equal(metav1.ConditionFalse)}),
 										))),
 							))
+					GinkgoLogr.Info("Eventually StateError")
 				})
 			})
 
@@ -263,6 +278,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Expect(k8sClient.Create(ctx, secret)).To(BeNil())
 					GinkgoLogr.Info("Proper secret eventually created")
+					GinkgoLogr.Info("Eventually Pre-StateProcessing")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateUpdatedTimeout).
 						WithPolling(crStateUpdatedPollingInterval).
@@ -276,6 +292,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
 										))),
 							))
+					GinkgoLogr.Info("Eventually StateProcessing")
+					GinkgoLogr.Info("Eventually Pre-StateReady")
 					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
@@ -289,6 +307,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(ReconcileSucceeded)), "Status": Equal(metav1.ConditionTrue)}),
 										))),
 							))
+					GinkgoLogr.Info("Eventually StateReady")
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
 					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
 						WithTimeout(k8sOpsTimeout).
@@ -717,7 +736,7 @@ func getCurrentCrStatus() types.Status {
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
 		return types.Status{}
 	}
-	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
+	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s", cr.Status.State))
 	return cr.GetStatus()
 }
 
