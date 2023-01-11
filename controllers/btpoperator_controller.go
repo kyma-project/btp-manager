@@ -332,8 +332,6 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	logger.Info("Entering Reconcile()")
-
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -406,12 +404,10 @@ func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr 
 }
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason Reason, message string) error {
-	logger := log.FromContext(ctx)
 	cr.Status.WithState(newState)
 	newCondition := ConditionFromExistingReason(reason, message)
 	if newCondition != nil {
 		SetStatusCondition(&cr.Status.Conditions, *newCondition)
-		logger.Info(fmt.Sprintf("Condition for BtpOperator updated: state: %s, reason: %s, message: %s", newState, newCondition.Reason, newCondition.Message))
 	}
 	return r.Status().Update(ctx, cr)
 }
