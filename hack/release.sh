@@ -23,13 +23,12 @@ get_current_release_version() {
 }
 
 
-    if [[ "${1-}" == "ci" ]]; then
+if [[ "${1-}" == "ci" ]]; then
       git remote add origin git@github.com:kyma-project/cli.git
-    fi
+fi
 
-    get_new_release_version
-    get_current_release_version
+get_new_release_version
 
-    echo "Preparing release ${NEW_RELEASE_VERSION}"
+echo "Preparing release ${NEW_RELEASE_VERSION}"
 
-    MODULE_VERSION=${NEW_RELEASE_VERSION} make docker-build docker-push module-build
+MODULE_VERSION=${NEW_RELEASE_VERSION} make docker-build docker-push module-build
