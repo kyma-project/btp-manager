@@ -1,9 +1,9 @@
+## Promote BTP Manager to a release channel
+
 ### Overview
 
-## Promote to channel
+The goal of the workflow is to register a module using the BTP Manager template file. The workflow takes a tag and downloads the module template file from the release on GitHub, and places it in the relevant subfolder in the module folder in the Kyma repository by creating a pull request. The pull request needs to be approved manually.
 
-Goal of workflow is to register module by using btp manger template file. Workflow takes tag and downloads module template file from realase on github, and place it to according folder in module folder inside kyma repository, by creating pull request. The pull request need to by approved manually.
-
-Inputs:
-- Release tag: if not specified workflow will take tag from latest avaiablie realase on github and use it. Tag can also be specified directly, the workflow will validate if given tag exists on any relase and if yes, then use it, otherwise the workflow will break execution.
-- Channel: there are three options as value: alpha, fast, regular. This options corresponds to folders in modules folder at Kyma repo. 
+If you want to control the workflow, you can set the following inputs in the GitHub UI:
+- Release tag - If not specified, the workflow takes a tag from the latest available release on GitHub and uses it. The tag can also be specified directly. The workflow validates if a given tag exists on any release and if it does, then uses it. Otherwise, the workflow breaks the execution.
+- Channel - There are three release channels to choose from: alpha, fast, and regular. The options correspond to the subfolders in the module folder at the Kyma repository. 
