@@ -822,8 +822,12 @@ func testChartPreparation() error {
 	if err != nil {
 		return fmt.Errorf("copying: %v -> %v\n\nout: %v\nerr: %v", src, defaultChartPath, string(out), err)
 	}
+	filterWebhooksDisabled := os.Getenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS")
 
 	return filepath.WalkDir(defaultChartPath, func(path string, de fs.DirEntry, err error) error {
+		if filterWebhooksDisabled == "true" {
+			return nil
+		}
 		if de.IsDir() {
 			return nil
 		}
