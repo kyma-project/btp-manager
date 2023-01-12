@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +21,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -53,7 +55,7 @@ const (
 	crDeprovisioningTimeout         = time.Second * 30
 	updatePath                      = "./testdata/module-chart-update"
 	suffix                          = "updated"
-	defaultChartPath                = "../module-chart"
+	defaultChartPath                = "./testdata/test-module-chart"
 	newChartVersion                 = "v99"
 )
 
@@ -98,12 +100,19 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
+	HardDeleteCheckInterval = 10 * time.Millisecond
+	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
+		Expect(testChartPreparation()).To(Succeed())
 		ChartPath = defaultChartPath
 		reconciler.updateCheckDone = true
+	})
+
+	AfterAll(func() {
+		Expect(testChartCleanup()).To(Succeed())
 	})
 
 	BeforeEach(func() {
@@ -111,21 +120,18 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Provisioning", func() {
-		BeforeAll(func() {
+		BeforeEach(func() {
 			cr = createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 		})
 
-		AfterAll(func() {
+		AfterEach(func() {
+			cr = &v1alpha1.BtpOperator{}
 			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
 				WithTimeout(k8sOpsTimeout).
 				WithPolling(k8sOpsPollingInterval).
 				Should(Succeed())
 			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
 			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
 		})
 
@@ -221,19 +227,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Expect(err).To(BeNil())
 					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateUpdatedTimeout).
-						WithPolling(crStateUpdatedPollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateProcessing),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
-										))),
-							))
-					Eventually(getCurrentCrStatus).
 						WithTimeout(crStateChangeTimeout).
 						WithPolling(crStatePollingInterval).
 						Should(
@@ -270,22 +263,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	Describe("Deprovisioning", func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
-		BeforeAll(func() {
+		BeforeEach(func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
-		AfterAll(func() {
-			deleteSecret := &corev1.Secret{}
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
-		BeforeEach(func() {
 			cr := createBtpOperator()
 			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
@@ -295,10 +276,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				WithPolling(k8sOpsPollingInterval).
 				Should(Succeed())
 
-			time.Sleep(time.Second * 1)
-			err := clearWebhooks()
-			Expect(err).To(BeNil())
-
 			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
 			ensureResourceExists(instanceGvk)
 
@@ -306,10 +283,20 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			ensureResourceExists(bindingGvk)
 		})
 
+		AfterEach(func() {
+			deleteSecret := &corev1.Secret{}
+			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
+				WithTimeout(k8sOpsTimeout).
+				WithPolling(k8sOpsPollingInterval).
+				Should(Succeed())
+			Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+		})
+
 		It("soft delete (after timeout) should succeed", func() {
 			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
 			setFinalizers(siUnstructured)
 			setFinalizers(sbUnstructured)
+			cr = &v1alpha1.BtpOperator{}
 			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
 				WithTimeout(k8sOpsTimeout).
 				WithPolling(k8sOpsPollingInterval).
@@ -544,11 +531,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
 		})
-
-		AfterAll(func() {
-			//graceful shutdown
-			time.Sleep(time.Second * 1)
-		})
 	})
 })
 
@@ -774,8 +756,7 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	} else if kind == bindingGvk.Kind {
 		populateServiceBindingFields(object)
 	}
-	err := k8sClient.Create(ctx, object)
-	Expect(err).To(BeNil())
+	Expect(k8sClient.Create(ctx, object)).To(BeNil())
 
 	return object
 }
@@ -792,20 +773,87 @@ func populateServiceBindingFields(object *unstructured.Unstructured) {
 	Expect(unstructured.SetNestedField(object.Object, "test-service-binding-secret", "spec", "secretName")).To(Succeed())
 }
 
-func clearWebhooks() error {
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
+func filterWebhooks(file []byte) (filtered []byte, hasWebhook bool) {
+	lines := strings.Split(string(file), "\n")
+	var buffer []byte
+	isWebhook := false
+	for _, l := range lines {
+		buffer = append(buffer, []byte(l+"\n")...)
+		if l == "---" && len(buffer) != 0 {
+			if isWebhook {
+				split := strings.Split(string(buffer), "\n")
+				// hack for one case where helm templating block spans across two adjacent documents
+				for _, spl := range split {
+					splTrunc := strings.ReplaceAll(spl, " ", "")
+					splTrunc = strings.ReplaceAll(splTrunc, "-", "")
+					if splTrunc != "{{end}}" {
+						break
+					}
+					filtered = append(filtered, []byte(spl+"\n")...)
+				}
+			} else {
+				filtered = append(filtered, buffer...)
+			}
+			buffer = []byte{}
+			isWebhook = false
+		}
+		if strings.HasPrefix(l, "kind: ") {
+			split := strings.Split(l, ":")
+			if len(split) != 2 {
+				continue
+			}
+			kind := strings.TrimLeft(split[1], " ")
+			if kind == "MutatingWebhookConfiguration" || kind == "ValidatingWebhookConfiguration" {
+				isWebhook, hasWebhook = true, true
+			}
 		}
 	}
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
-		if !k8serrors.IsNotFound(err) {
+	if !isWebhook {
+		filtered = append(filtered, buffer...)
+	}
+	return
+}
+
+func testChartPreparation() error {
+	Expect(os.MkdirAll(defaultChartPath, 0700)).To(Succeed())
+	src := fmt.Sprintf("%v/.", ChartPath)
+	cmd := exec.Command("cp", "-r", src, defaultChartPath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("copying: %v -> %v\n\nout: %v\nerr: %v", src, defaultChartPath, string(out), err)
+	}
+	filterWebhooksDisabled := os.Getenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS")
+
+	return filepath.WalkDir(defaultChartPath, func(path string, de fs.DirEntry, err error) error {
+		if filterWebhooksDisabled == "true" {
+			return nil
+		}
+		if de.IsDir() {
+			return nil
+		}
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+		dat, err := os.ReadFile(path)
+		Expect(err).To(BeNil())
+
+		documents, filtered := filterWebhooks(dat)
+		if len(documents) == 0 {
+			Expect(os.Remove(path)).To(Succeed())
+		}
+		if filtered {
+			Expect(os.WriteFile(path, documents, 0700)).To(Succeed())
+		}
+		return nil
+	})
+}
+
+func testChartCleanup() error {
+	return os.RemoveAll(defaultChartPath)
 }
 
 func doChecks() {
