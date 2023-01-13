@@ -27,7 +27,7 @@ get_current_release_version() {
 if [[ "${1-}" == "ci" ]]; then
       git remote add origin git@github.com:kyma-project/cli.git
 fi
-``
+
 get_new_release_version
 echo "PULL_BASE_REF ${PULL_BASE_REF}"
 echo "Preparing release ${NEW_RELEASE_VERSION}"
