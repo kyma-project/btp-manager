@@ -1,0 +1,112 @@
+name: Auto bump chart
+
+env:
+  ORG: ukff
+  BTP_MANAGER_REPO: btp-manager
+  GIT_EMAIL: <>
+  GIT_NAME: BTP Manager
+  USERNAME: ukff
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auto-bump-chart:
+    runs-on: ubuntu-latest
+   
+    steps:
+
+    - name: Get tag for latest version
+      shell: bash
+      run: |
+        latest=$(curl \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  https://api.github.com/repos/SAP/sap-btp-service-operator/releases/latest | jq -r '.tag_name') 
+        echo "TAG=${latest}" >> $GITHUB_ENV
+
+    - name: Download Chart
+      run: |
+        curl -L https://github.com/SAP/sap-btp-service-operator/releases/download/$TAG/sap-btp-operator-$TAG.tgz > charts.tgz
+        tar zxvf charts.tgz 
+        mv sap-btp-operator module-chart
+
+    - name: Clone Kyma Repo 
+      run: |
+        git clone https://github.com/$ORG/$BTP_MANAGER_REPO.git
+
+    - name: Check if charts changed
+      shell: bash
+      run: |
+        latest_sha=$(find ./module-chart -type f -exec md5sum {} + | LC_ALL=C sort | md5sum)
+        current_sha=$(find $BTP_MANAGER_REPO/module-chart -type f -exec md5sum {} + | LC_ALL=C sort | md5sum)
+
+        if [[ "$latest_sha" == "$current_sha" ]]; then
+          echo Files are the same. No need to make bump of charts.
+          exit 0
+        fi
+
+    - name: Install Helm
+      run: | 
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+
+    - name: Make templates
+      working-directory: module-chart
+      run: |
+        helm template $TAG . --output-dir rendered
+
+    - name: Clean directories
+      run: |
+        mv module-chart/rendered/sap-btp-operator/templates/ ./module-resources
+        rm -r module-chart/rendered/
+
+    - name: Apply overrides
+      run: |
+        wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+        yq '.manager' module-chart/values.yaml
+
+    - name: Set Git info
+      run: |
+        git config --global user.email $GIT_EMAIL
+        git config --global user.name $GIT_NAME
+        echo "BRANCH_NAME=chart-$TAG" >> $GITHUB_ENV
+        echo "GIT_MSG=Auto-update charts to $TAG" >> $GITHUB_ENV
+        
+    - name: Create Branch
+      working-directory: btp-manager
+      run: |
+        git checkout -B $BRANCH_NAME
+
+    - name: Copy new files 
+      run: |
+        yes | cp -rf ./module-resources $BTP_MANAGER_REPO
+        yes | cp -rf ./module-chart $BTP_MANAGER_REPO
+
+    - name: Commit Changes
+      working-directory: btp-manager
+      run: |
+        git add .
+        git commit -m "$GIT_MSG"
+
+    - name: Push Changes
+      working-directory: btp-manager
+      run: |
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
+        git push --set-upstream origin $BRANCH_NAME -f
+
+    - name: Create PR if needed
+      working-directory: btp-manager
+      shell: bash
+      run: |
+        prs=$(gh pr list -R https://github.com/$ORG/$BTP_MANAGER_REPO/ -A $USERNAME --state open --json headRefName | jq -r '.[] | .headRefName')
+       
+        if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+            echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
+            exit 0
+        fi
+       
+        gh pr create -B main -R https://github.com/$ORG/$BTP_MANAGER_REPO/ --title "$GIT_MSG" --fill
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
