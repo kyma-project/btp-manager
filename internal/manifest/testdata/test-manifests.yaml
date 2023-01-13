@@ -1,5 +1,4 @@
 ---
-# Source: sap-btp-operator/templates/configmap.yml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -39,7 +38,6 @@ spec:
     shortNames:
       - t
 ---
-# Source: sap-btp-operator/templates/deployment.yml
 apiVersion: apps/v1
 kind: Deployment
 metadata:

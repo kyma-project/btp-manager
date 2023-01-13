@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
@@ -101,4 +102,17 @@ func (h *Handler) getManifestDeserializer() runtime.Decoder {
 		h.manifestDeserializer = serializer.NewCodecFactory(h.Scheme).UniversalDeserializer()
 	}
 	return h.manifestDeserializer
+}
+
+func (h *Handler) ObjectsToUnstructured(objects []runtime.Object) ([]*unstructured.Unstructured, error) {
+	us := make([]*unstructured.Unstructured, 0, len(objects))
+	for _, obj := range objects {
+		u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		if err != nil {
+			return nil, fmt.Errorf("while creating Unstructured from Object: %w", err)
+		}
+		us = append(us, &unstructured.Unstructured{Object: u})
+	}
+
+	return us, nil
 }
