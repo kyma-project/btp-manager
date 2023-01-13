@@ -122,6 +122,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	Eventually(func() int { return reconciler.workqueueSize }).Should(Equal(0))
 	cancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()
