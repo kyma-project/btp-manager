@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,8 +20,6 @@ import (
 	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,27 +35,21 @@ import (
 )
 
 const (
-	btpOperatorKind                 = "BtpOperator"
-	btpOperatorApiVersion           = `operator.kyma-project.io\v1alpha1`
-	btpOperatorName                 = "btp-operator-test"
-	defaultNamespace                = "default"
-	kymaNamespace                   = "kyma-system"
-	instanceName                    = "my-service-instance"
-	bindingName                     = "my-service-binding"
-	secretYamlPath                  = "testdata/test-secret.yaml"
-	priorityClassYamlPath           = "testdata/test-priorityclass.yaml"
-	k8sOpsTimeout                   = time.Second * 3
-	k8sOpsPollingInterval           = time.Millisecond * 200
-	crStateChangeTimeout            = time.Second * 5
-	crStateUpdatedTimeout           = time.Second
-	crStatePollingInterval          = time.Millisecond * 10
-	crStateUpdatedPollingInterval   = time.Millisecond
-	crDeprovisioningPollingInterval = time.Second * 1
-	crDeprovisioningTimeout         = time.Second * 30
-	updatePath                      = "./testdata/module-chart-update"
-	suffix                          = "updated"
-	defaultChartPath                = "../module-chart"
-	newChartVersion                 = "v99"
+	btpOperatorKind       = "BtpOperator"
+	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
+	btpOperatorName       = "btp-operator-test"
+	defaultNamespace      = "default"
+	kymaNamespace         = "kyma-system"
+	instanceName          = "my-service-instance"
+	bindingName           = "my-service-binding"
+	secretYamlPath        = "testdata/test-secret.yaml"
+	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
+	k8sOpsTimeout         = time.Second * 3
+	k8sOpsPollingInterval = time.Millisecond * 200
+	updatePath            = "./testdata/module-chart-update"
+	suffix                = "updated"
+	defaultChartPath      = "./testdata/test-module-chart"
+	newChartVersion       = "v99"
 )
 
 type timeoutK8sClient struct {
@@ -98,12 +93,19 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
+	HardDeleteCheckInterval = 10 * time.Millisecond
+	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
+		Expect(testChartPreparation()).To(Succeed())
 		ChartPath = defaultChartPath
 		reconciler.updateCheckDone = true
+	})
+
+	AfterAll(func() {
+		Expect(testChartCleanup()).To(Succeed())
 	})
 
 	BeforeEach(func() {
@@ -111,83 +113,39 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Provisioning", func() {
-		BeforeAll(func() {
+		BeforeEach(func() {
 			cr = createBtpOperator()
-			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 		})
 
-		AfterAll(func() {
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(SatisfyAll(HaveField("State", types.StateDeleting), HaveField("Conditions", HaveLen(1))))
-			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
+		AfterEach(func() {
+			cr = &v1alpha1.BtpOperator{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			Expect(isCrNotFound()).To(BeTrue())
 		})
 
 		When("The required Secret is missing", func() {
 			It("should return error while getting the required Secret", func() {
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateError),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(MissingSecret)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateError, metav1.ConditionFalse, MissingSecret)))
 			})
 		})
 
 		Describe("The required Secret exists", func() {
 			AfterEach(func() {
 				deleteSecret := &corev1.Secret{}
-				Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
-					WithTimeout(k8sOpsTimeout).
-					WithPolling(k8sOpsPollingInterval).
-					Should(Succeed())
-				Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateError),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(MissingSecret)), "Status": Equal(metav1.ConditionFalse)}),
-									))),
-						))
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+				Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateError, metav1.ConditionFalse, MissingSecret)))
 			})
 
 			When("the required Secret does not have all required keys", func() {
 				It("should return error while verifying keys", func() {
 					secret, err := createSecretWithoutKeys()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateChangeTimeout).
-						WithPolling(crStatePollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateError),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(InvalidSecret)), "Status": Equal(metav1.ConditionFalse)}),
-										))),
-							))
+					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+					Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateError, metav1.ConditionFalse, InvalidSecret)))
 				})
 			})
 
@@ -195,20 +153,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				It("should return error while verifying values", func() {
 					secret, err := createSecretWithoutValues()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateChangeTimeout).
-						WithPolling(crStatePollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateError),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(InvalidSecret)), "Status": Equal(metav1.ConditionFalse)}),
-										))),
-							))
+					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+					Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateError, metav1.ConditionFalse, InvalidSecret)))
 				})
 			})
 
@@ -219,38 +165,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					//      https://book.kubebuilder.io/reference/envtest.html#testing-considerations
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
-					Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateUpdatedTimeout).
-						WithPolling(crStateUpdatedPollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateProcessing),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(Updated)), "Status": Equal(metav1.ConditionFalse)}),
-										))),
-							))
-					Eventually(getCurrentCrStatus).
-						WithTimeout(crStateChangeTimeout).
-						WithPolling(crStatePollingInterval).
-						Should(
-							SatisfyAll(
-								HaveField("State", types.StateReady),
-								HaveField("Conditions", HaveLen(1)),
-								HaveField("Conditions",
-									ContainElements(
-										PointTo(
-											MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(ReconcileSucceeded)), "Status": Equal(metav1.ConditionTrue)}),
-										))),
-							))
+					Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+					Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
-					Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
-						WithTimeout(k8sOpsTimeout).
-						WithPolling(k8sOpsPollingInterval).
-						Should(Succeed())
+					Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 				})
 			})
 
@@ -270,34 +188,15 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	Describe("Deprovisioning", func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
-		BeforeAll(func() {
+		BeforeEach(func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
-			Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
-		AfterAll(func() {
-			deleteSecret := &corev1.Secret{}
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, deleteSecret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
-		BeforeEach(func() {
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 			cr := createBtpOperator()
-			Eventually(k8sClient.Create(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-
-			time.Sleep(time.Second * 1)
-			err := clearWebhooks()
-			Expect(err).To(BeNil())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
 
 			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
 			ensureResourceExists(instanceGvk)
@@ -306,42 +205,22 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			ensureResourceExists(bindingGvk)
 		})
 
+		AfterEach(func() {
+			deleteSecret := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+		})
+
 		It("soft delete (after timeout) should succeed", func() {
 			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
 			setFinalizers(siUnstructured)
 			setFinalizers(sbUnstructured)
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(
-					SatisfyAll(
-						HaveField("State", types.StateDeleting),
-						HaveField("Conditions", HaveLen(1)),
-						HaveField("Conditions",
-							ContainElements(
-								PointTo(
-									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(HardDeleting)), "Status": Equal(metav1.ConditionFalse)}),
-								))),
-					))
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(
-					SatisfyAll(
-						HaveField("State", types.StateDeleting),
-						HaveField("Conditions", HaveLen(1)),
-						HaveField("Conditions",
-							ContainElements(
-								PointTo(
-									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(SoftDeleting)), "Status": Equal(metav1.ConditionFalse)}),
-								))),
-					))
-			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
+			cr = &v1alpha1.BtpOperator{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
 			doChecks()
 		})
 
@@ -349,49 +228,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			reconciler.Client = newErrorK8sClient(reconciler.Client)
 			setFinalizers(siUnstructured)
 			setFinalizers(sbUnstructured)
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(
-					SatisfyAll(
-						HaveField("State", types.StateDeleting),
-						HaveField("Conditions", HaveLen(1)),
-						HaveField("Conditions",
-							ContainElements(
-								PointTo(
-									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(SoftDeleting)), "Status": Equal(metav1.ConditionFalse)}),
-								))),
-					))
-			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
 			doChecks()
 		})
 
 		It("hard delete should succeed", func() {
 			reconciler.Client = k8sClientFromManager
-			Eventually(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).
-				WithTimeout(k8sOpsTimeout).
-				WithPolling(k8sOpsPollingInterval).
-				Should(Succeed())
-			Eventually(k8sClient.Delete(ctx, cr)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-			Eventually(getCurrentCrStatus).
-				WithTimeout(crStateChangeTimeout).
-				WithPolling(crStatePollingInterval).
-				Should(
-					SatisfyAll(
-						HaveField("State", types.StateDeleting),
-						HaveField("Conditions", HaveLen(1)),
-						HaveField("Conditions",
-							ContainElements(
-								PointTo(
-									MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(HardDeleting)), "Status": Equal(metav1.ConditionFalse)}),
-								))),
-					))
-			Eventually(isCrNotFound).WithTimeout(crDeprovisioningTimeout).WithPolling(crDeprovisioningPollingInterval).Should(BeTrue())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
 			doChecks()
 		})
 	})
@@ -409,12 +258,12 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
-			Eventually(k8sClient.Create(ctx, secret)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 
 			cr = createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateProcessing))
-			Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 
 			initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 			Expect(err).To(BeNil())
@@ -452,19 +301,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(oldCount).To(BeZero())
 				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
 
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateReady),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateDone)), "Status": Equal(metav1.ConditionTrue)}),
-									))),
-						))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateDone)))
 			})
 		})
 
@@ -483,19 +320,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(newCount).To(BeEquivalentTo(oldCount))
 				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
 
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateReady),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateCheckSucceeded)), "Status": Equal(metav1.ConditionTrue)}),
-									))),
-						))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateCheckSucceeded)))
 			})
 		})
 
@@ -517,19 +342,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(oldCount).To(BeEquivalentTo(0))
 				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
 
-				Eventually(getCurrentCrStatus).
-					WithTimeout(crStateChangeTimeout).
-					WithPolling(crStatePollingInterval).
-					Should(
-						SatisfyAll(
-							HaveField("State", types.StateReady),
-							HaveField("Conditions", HaveLen(1)),
-							HaveField("Conditions",
-								ContainElements(
-									PointTo(
-										MatchFields(IgnoreExtras, Fields{"Type": Equal(ReadyType), "Reason": Equal(string(UpdateDone)), "Status": Equal(metav1.ConditionTrue)}),
-									))),
-						))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateDone)))
 			})
 		})
 
@@ -543,11 +356,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			configMap := reconciler.buildBtpManagerConfigMap()
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
-		})
-
-		AfterAll(func() {
-			//graceful shutdown
-			time.Sleep(time.Second * 1)
 		})
 	})
 })
@@ -586,7 +394,7 @@ func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
 		Name:      cr.Name,
 	}})
 	Expect(err).To(BeNil())
-	Eventually(getCurrentCrState).WithTimeout(crStateChangeTimeout).WithPolling(crStatePollingInterval).Should(Equal(types.StateReady))
+	Eventually(getCurrentCrState).Should(Equal(types.StateReady))
 }
 
 func countResources() (int, int) {
@@ -636,7 +444,7 @@ func createPrereqs() error {
 	Expect(createK8sResourceFromYaml(pClass, priorityClassYamlPath)).To(Succeed())
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pClass), pClass); err != nil {
 		if k8serrors.IsNotFound(err) {
-			Eventually(k8sClient.Create(ctx, pClass)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+			Eventually(func() error { return k8sClient.Create(ctx, pClass) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 		} else {
 			return err
 		}
@@ -645,7 +453,7 @@ func createPrereqs() error {
 	kymaNs := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: kymaNamespace}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(kymaNs), kymaNs); err != nil {
 		if k8serrors.IsNotFound(err) {
-			Eventually(k8sClient.Create(ctx, kymaNs)).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+			Eventually(func() error { return k8sClient.Create(ctx, kymaNs) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 		} else {
 			return err
 		}
@@ -774,8 +582,7 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	} else if kind == bindingGvk.Kind {
 		populateServiceBindingFields(object)
 	}
-	err := k8sClient.Create(ctx, object)
-	Expect(err).To(BeNil())
+	Expect(k8sClient.Create(ctx, object)).To(BeNil())
 
 	return object
 }
@@ -792,20 +599,83 @@ func populateServiceBindingFields(object *unstructured.Unstructured) {
 	Expect(unstructured.SetNestedField(object.Object, "test-service-binding-secret", "spec", "secretName")).To(Succeed())
 }
 
-func clearWebhooks() error {
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, mutatingWebhook, labelFilter); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
+func filterWebhooks(file []byte) (filtered []byte, hasWebhook bool) {
+	lines := strings.Split(string(file), "\n")
+	var buffer []byte
+	isWebhook := false
+	for _, l := range lines {
+		buffer = append(buffer, []byte(l+"\n")...)
+		if l == "---" && len(buffer) != 0 {
+			if isWebhook {
+				split := strings.Split(string(buffer), "\n")
+				// hack for one case where helm templating block spans across two adjacent documents
+				for _, spl := range split {
+					splTrunc := strings.ReplaceAll(spl, " ", "")
+					splTrunc = strings.ReplaceAll(splTrunc, "-", "")
+					if splTrunc != "{{end}}" {
+						break
+					}
+					filtered = append(filtered, []byte(spl+"\n")...)
+				}
+			} else {
+				filtered = append(filtered, buffer...)
+			}
+			buffer = []byte{}
+			isWebhook = false
+		}
+		if strings.HasPrefix(l, "kind: ") {
+			split := strings.Split(l, ":")
+			if len(split) != 2 {
+				continue
+			}
+			kind := strings.TrimLeft(split[1], " ")
+			if kind == "MutatingWebhookConfiguration" || kind == "ValidatingWebhookConfiguration" {
+				isWebhook, hasWebhook = true, true
+			}
 		}
 	}
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := k8sClient.DeleteAllOf(ctx, validatingWebhook, labelFilter); err != nil {
-		if !k8serrors.IsNotFound(err) {
+	if !isWebhook {
+		filtered = append(filtered, buffer...)
+	}
+	return
+}
+
+func testChartPreparation() error {
+	Expect(os.MkdirAll(defaultChartPath, 0700)).To(Succeed())
+	src := fmt.Sprintf("%v/.", ChartPath)
+	cmd := exec.Command("cp", "-r", src, defaultChartPath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("copying: %v -> %v\n\nout: %v\nerr: %v", src, defaultChartPath, string(out), err)
+	}
+
+	return filepath.WalkDir(defaultChartPath, func(path string, de fs.DirEntry, err error) error {
+		if de.IsDir() {
+			return nil
+		}
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+		dat, err := os.ReadFile(path)
+		Expect(err).To(BeNil())
+
+		documents, filtered := filterWebhooks(dat)
+		if len(documents) == 0 {
+			Expect(os.Remove(path)).To(Succeed())
+		}
+		if filtered {
+			Expect(os.WriteFile(path, documents, 0700)).To(Succeed())
+		}
+		return nil
+	})
+}
+
+func testChartCleanup() error {
+	return os.RemoveAll(defaultChartPath)
 }
 
 func doChecks() {
