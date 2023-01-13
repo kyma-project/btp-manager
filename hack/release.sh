@@ -27,9 +27,9 @@ get_current_release_version() {
 if [[ "${1-}" == "ci" ]]; then
       git remote add origin git@github.com:kyma-project/cli.git
 fi
-
+``
 get_new_release_version
 echo "PULL_BASE_REF ${PULL_BASE_REF}"
 echo "Preparing release ${NEW_RELEASE_VERSION}"
 
-MODULE_VERSION=${PULL_BASE_REF} make docker-build docker-push module-build
+IMG_REGISTRY=MODULE_REGISTRY MODULE_VERSION=${PULL_BASE_REF} make docker-build docker-push module-build
