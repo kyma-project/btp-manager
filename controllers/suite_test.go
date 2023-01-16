@@ -42,7 +42,7 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-const hardDeleteTimeout = time.Second * 2
+const hardDeleteTimeout = time.Second * 1
 
 var (
 	cfg                  *rest.Config
@@ -122,6 +122,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	Eventually(func() int { return reconciler.workqueueSize }).Should(Equal(0))
 	cancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()

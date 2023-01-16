@@ -127,6 +127,7 @@ type BtpOperatorReconciler struct {
 	currentVersion        string
 	updateCheckDone       bool
 	WaitForChartReadiness bool
+	workqueueSize         int
 }
 
 func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator, configMap *corev1.ConfigMap) *ErrorWithReason {
@@ -330,6 +331,8 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	r.workqueueSize += 1
+	defer func() { r.workqueueSize -= 1 }()
 	logger := log.FromContext(ctx)
 
 	cr := &v1alpha1.BtpOperator{}
