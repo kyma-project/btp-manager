@@ -27,6 +27,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/gvksutils"
+	internalmanifest "github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/manifest"
 	"github.com/kyma-project/module-manager/pkg/types"
@@ -65,6 +66,7 @@ var (
 	HardDeleteCheckInterval        = time.Second * 10
 	HardDeleteTimeout              = time.Minute * 20
 	ChartPath                      = "./module-chart/chart"
+	ResourcesPath                  = "./module-resources"
 )
 
 const (
@@ -448,31 +450,30 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateCheckSucceeded, "Update not required")
 		}
 	default:
-		logger.Info("performing provisioning")
+		logger.Info("provisioning")
 
-		installInfo, errorWithReason := r.prepareInstallInfo(ctx, cr)
-		if errorWithReason != nil {
+		manifestHandler := internalmanifest.Handler{Scheme: r.Scheme}
+		objs, err := manifestHandler.CollectObjectsFromDir(ResourcesPath)
+		if err != nil {
+			logger.Error(err, "while collecting objects from manifests")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, "Unable to collect objects from manifests")
+		}
+		us, err := manifestHandler.ObjectsToUnstructured(objs)
+		if err != nil {
+			logger.Error(err, "while converting objects to Unstructured")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, "Unable to convert objects to Unstructured")
+		}
+		if errorWithReason := r.prepareModuleResources(ctx, us); errorWithReason != nil {
+			logger.Error(errorWithReason, "while preparing resources for installation")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 		}
-
-		logger.Info(fmt.Sprintf("calling InstallChart, with path = %s", installInfo.ChartPath))
-		ready, err := manifest.InstallChart(manifest.OperationOptions{
-			Logger:             logger,
-			InstallInfo:        installInfo,
-			ResourceTransforms: []types.ObjectTransform{r.labelTransform},
-			PostRuns:           nil,
-			Cache:              nil,
-		})
-		if err != nil {
-			logger.Error(err, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, fmt.Sprintf("error while installing resource %s", client.ObjectKeyFromObject(cr)))
-		}
-		if ready {
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
+		if errorWithReason := r.installResources(ctx, us); errorWithReason != nil {
+			logger.Error(errorWithReason, "while installing resources")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 		}
 	}
 
-	return nil
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module provisioning succeeded")
 }
 
 func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
@@ -498,11 +499,11 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 	r.setNamespace(us...)
 	if err := r.setConfigMapValues(secret, us[configMapIndex]); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
-		return NewErrorWithReason(PreparingInstallInfoFailed, "unable to set ConfigMap values")
+		return NewErrorWithReason(PreparingInstallInfoFailed, "Failed to set ConfigMap values")
 	}
 	if err := r.setSecretValues(secret, us[secretIndex]); err != nil {
 		logger.Error(err, "while setting Secret values")
-		return NewErrorWithReason(PreparingInstallInfoFailed, "unable to set Secret values")
+		return NewErrorWithReason(PreparingInstallInfoFailed, "Failed to set Secret values")
 	}
 
 	return nil
@@ -510,12 +511,12 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 
 func (r *BtpOperatorReconciler) installResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
 	logger := log.FromContext(ctx)
+	logger.Info("installing module resources...")
 
 	for _, u := range us {
-		logger.Info("installing resource", u.GetName(), u.GetKind())
 		if err := r.Create(ctx, u); err != nil {
-			logger.Error(err, "while creating resource in the cluster")
-			return NewErrorWithReason(ChartInstallFailed, fmt.Sprintf("unable to create %s %s: %s", u.GetName(), u.GetKind(), err))
+			logger.Error(err, fmt.Sprintf("while creating %s %s in the cluster", u.GetName(), u.GetKind()))
+			return NewErrorWithReason(ChartInstallFailed, fmt.Sprintf("Failed to create %s %s", u.GetName(), u.GetKind()))
 		}
 	}
 
