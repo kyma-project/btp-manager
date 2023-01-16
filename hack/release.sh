@@ -23,6 +23,7 @@ get_current_release_version() {
     fi
 }
 
+
 if [[ "${1-}" == "ci" ]]; then
       git remote add origin git@github.com:kyma-project/cli.git
 fi
