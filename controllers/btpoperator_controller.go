@@ -1047,6 +1047,11 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.Group
 
 	isBinding := gvk.Kind == btpOperatorServiceBinding
 	for _, item := range list.Items {
+		if item.GetDeletionTimestamp().IsZero() {
+			if err := r.Delete(ctx, &item); err != nil {
+				return err
+			}
+		}
 		item.SetFinalizers([]string{})
 		if err := r.Update(ctx, &item); err != nil {
 			return err
