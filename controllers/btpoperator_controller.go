@@ -508,6 +508,20 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 	return nil
 }
 
+func (r *BtpOperatorReconciler) installResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
+	logger := log.FromContext(ctx)
+
+	for _, u := range us {
+		logger.Info("installing resource", u.GetName(), u.GetKind())
+		if err := r.Create(ctx, u); err != nil {
+			logger.Error(err, "while creating resource in the cluster")
+			return NewErrorWithReason(ChartInstallFailed, fmt.Sprintf("unable to create %s %s: %s", u.GetName(), u.GetKind(), err))
+		}
+	}
+
+	return nil
+}
+
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
