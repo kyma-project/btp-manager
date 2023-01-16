@@ -18,11 +18,13 @@ package controllers
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/gvksutils"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
@@ -468,6 +470,39 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		if ready {
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Reconcile succeeded")
 		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
+	logger := log.FromContext(ctx)
+	logger.Info("preparing module resources")
+
+	var configMapIndex, secretIndex int
+	for i, u := range us {
+		if u.GetName() == "sap-btp-operator-config" && u.GetKind() == "ConfigMap" {
+			configMapIndex = i
+		}
+		if u.GetName() == "sap-btp-service-operator" && u.GetKind() == "Secret" {
+			secretIndex = i
+		}
+	}
+
+	secret, errorWithReason := r.getAndVerifyRequiredSecret(ctx, &logger)
+	if errorWithReason != nil {
+		return errorWithReason
+	}
+
+	r.addLabels(us...)
+	r.setNamespace(us...)
+	if err := r.setConfigMapValues(secret, us[configMapIndex]); err != nil {
+		logger.Error(err, "while setting ConfigMap values")
+		return NewErrorWithReason(PreparingInstallInfoFailed, "unable to set ConfigMap values")
+	}
+	if err := r.setSecretValues(secret, us[secretIndex]); err != nil {
+		logger.Error(err, "while setting Secret values")
+		return NewErrorWithReason(PreparingInstallInfoFailed, "unable to set Secret values")
 	}
 
 	return nil
@@ -1137,15 +1172,9 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (*types.InstallInfo, *ErrorWithReason) {
 	logger := log.FromContext(ctx)
 
-	secret, err := r.getRequiredSecret(ctx)
-	if err != nil {
-		logger.Error(err, "while getting the required Secret")
-		return nil, NewErrorWithReason(MissingSecret, "Secret resource not found")
-	}
-
-	if err = r.verifySecret(secret); err != nil {
-		logger.Error(err, "while verifying the required Secret")
-		return nil, NewErrorWithReason(InvalidSecret, "Secret validation failed")
+	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx, &logger)
+	if errWithReason != nil {
+		return nil, errWithReason
 	}
 
 	r.addTempLabelsToCr(cr)
@@ -1160,6 +1189,20 @@ func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1al
 	}
 
 	return &installInfo, nil
+}
+
+func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context, logger *logr.Logger) (*corev1.Secret, *ErrorWithReason) {
+	secret, err := r.getRequiredSecret(ctx)
+	if err != nil {
+		logger.Error(err, "while getting the required Secret")
+		return nil, NewErrorWithReason(MissingSecret, "Secret resource not found")
+	}
+
+	if err = r.verifySecret(secret); err != nil {
+		logger.Error(err, "while verifying the required Secret")
+		return nil, NewErrorWithReason(InvalidSecret, "Secret validation failed")
+	}
+	return secret, nil
 }
 
 func (r *BtpOperatorReconciler) chartConsistencyCheck(ctx context.Context, cr *v1alpha1.BtpOperator) *ErrorWithReason {
@@ -1197,5 +1240,36 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 	}
 
+	return nil
+}
+
+func (r *BtpOperatorReconciler) addLabels(us ...*unstructured.Unstructured) {
+	for _, u := range us {
+		labels := u.GetLabels()
+		if len(labels) == 0 {
+			labels = make(map[string]string)
+		}
+		labels[labelKeyForChart] = operatorName
+		labels[chartVersionKey] = r.currentVersion
+		u.SetLabels(labels)
+	}
+}
+
+func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
+	for _, u := range us {
+		u.SetNamespace(ChartNamespace)
+	}
+}
+
+func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
+}
+
+func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+	for k := range secret.Data {
+		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
+			return err
+		}
+	}
 	return nil
 }
