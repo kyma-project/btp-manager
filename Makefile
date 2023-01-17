@@ -11,6 +11,12 @@ MODULE_REGISTRY ?= op-kcp-registry.localhost:$(MODULE_REGISTRY_PORT)/unsigned
 # Desired Channel of the Generated Module Template
 MODULE_CHANNEL ?= alpha
 
+# Operating system architecture
+OS_ARCH ?= $(shell uname -m)
+
+# Operating system type
+OS_TYPE ?= $(shell uname)
+
 # Credentials used for authenticating into the module registry
 # see `kyma alpha mod create --help for more info`
 # MODULE_CREDENTIALS ?= testuser:testpw
