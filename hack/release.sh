@@ -32,4 +32,7 @@ echo "PULL_BASE_REF ${PULL_BASE_REF}"
 echo "Preparing release ${NEW_RELEASE_VERSION}"
 
 
-IMG_REGISTRY=${MODULE_REGISTRY} MODULE_VERSION=${PULL_BASE_REF} make module-build
+MODULE_VERSION=${PULL_BASE_REF} make module-build
+
+echo "Generated template.yaml:"
+cat template.yaml
