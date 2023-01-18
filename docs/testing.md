@@ -26,7 +26,7 @@ You can run the tests on an existing cluster (not the envtest) setting the value
 USE_EXISTING_CLUSTER=true make test
 ```
 
-> **NOTE:** Test suite assumes the proper state of the cluster before running. If problems with left-over resources occur, you can recreate the cluster or remove resources manually.
+> **NOTE:** The test suite assumes the proper state of the cluster before running. If problems with left-over resources occur, you can recreate the cluster or remove resources manually.
 
 ### Test output verbosity
 
