@@ -39,9 +39,9 @@ GINKGO_VERBOSE_FLAG="ginkgo.vv" make test
 ```
 
 ### Filtering labels
-You can use `gingko` library labeling features to filter which tests specs are to be executed 
-(for details see [Spec Labels](https://onsi.github.io/ginkgo/#spec-labels) in ginkgo documentation). In order to use labels for filtering 
-you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in `./controllers/btpoperator_controller_test.go` with labels e.g.:
+You can use the Ginkgo library labeling features to filter which tests specs are to be executed. 
+For more details, see [Spec Labels](https://onsi.github.io/ginkgo/#spec-labels) in ginkgo documentation. To use labels for filtering, 
+you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in `./controllers/btpoperator_controller_test.go` with labels, for example:
 ```go
 	Describe("Provisioning", Label("test-provisioning", "smoke-test"), func() {
 ```
