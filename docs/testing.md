@@ -66,7 +66,7 @@ All the above-mentioned environment variables can also be set in `testing/set-en
 Changing the script contents is recommended if a more complex filtering expression is required, or if you frequently reuse the setting. However, you should not push the changes without considering 
 how this affects Github Actions workflows.
 
-## Running test suite with IDE
+## Run test suite with IDE
 
 You can define environment variables in Run Configuration, run tests, change logs verbosity and use filtering features on an existing cluster.
 
