@@ -20,7 +20,7 @@ STEP: bootstrapping test environment @ 01/13/23 08:24:45.981
 
 ### Run unit tests on existing cluster
 
-You can run tests on an existing cluster (not the `env-test`) setting the value of the environment variable `USE_EXISTING_CLUSTER` to true.
+You can run the tests on an existing cluster (not the envtest) setting the value of the environment variable **USE_EXISTING_CLUSTER** to `true`.
 
 ```shell
 USE_EXISTING_CLUSTER=true make test
