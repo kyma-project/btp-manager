@@ -63,7 +63,7 @@ GINKGO_VERBOSE_FLAG="test-provisioning,test-deprovisioning" make test
 ### Environment variables
 
 All the above-mentioned environment variables can also be set in `testing/set-env-vars.sh`. The script sets the default values for all the environment variables used in the `go test` invocation. 
-Changing script contents is recommended when more complex filtering expression is required, or you frequently reuse the setting. However, you should not push the changes without considering 
+Changing the script contents is recommended if a more complex filtering expression is required, or if you frequently reuse the setting. However, you should not push the changes without considering 
 how this affects Github Actions workflows.
 
 ## Running test suite with IDE
