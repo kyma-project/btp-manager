@@ -68,7 +68,7 @@ how this affects Github Actions workflows.
 
 ## Running test suite with IDE
 
-You can define environment variables in the Run Configuration and in effect run tests on existing cluster changing logs verbosity and using filtering features.
+You can define environment variables in Run Configuration, run tests, change logs verbosity and use filtering features on an existing cluster.
 
 <img src="./assets/test-run-configuration.png" width="50%" height="50%">
 
