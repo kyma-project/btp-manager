@@ -215,3 +215,4 @@ GOLANG_CI_LINT_VERSION ?= v1.50.1
 lint: ## Download & Build & Run golangci-lint against code.
 	GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANG_CI_LINT_VERSION)
 	$(LOCALBIN)/golangci-lint run
+
