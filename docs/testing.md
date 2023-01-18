@@ -1,4 +1,6 @@
-## Run unit tests using CLI
+---
+title: Run unit tests
+---
 
 To run unit tests from the command line, use the following command from the BTP Manager main directory: 
 
