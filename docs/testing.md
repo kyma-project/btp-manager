@@ -55,7 +55,7 @@ You can use labels by setting the **GINKGO_LABEL_FILTER** variable. For example,
 GINKGO_VERBOSE_FLAG="smoke-test" make test
 ```
 
-Another example of simple expression:
+Here is another example of a simple expression:
 ```shell
 GINKGO_VERBOSE_FLAG="test-provisioning,test-deprovisioning" make test
 ```
