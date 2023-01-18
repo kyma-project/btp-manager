@@ -12,7 +12,7 @@ The details concerning the `test` rule (prerequisites and recipe) are defined in
 
 By default, the unit tests are run using the envtest cluster. 
 Some of the unit tests are implemented using the [Gingko](https://onsi.github.io/ginkgo/#top) library, but all the unit tests are invoked using the `go test ./... <some options>`.
-You can find exact invocation reflected in the console output along with messages confirming whether `env-test` is used.
+You can find the exact invocation reflected in the console output along with messages confirming whether the envtest is used.
 ```
 STEP: bootstrapping test environment @ 01/13/23 08:24:45.981
 2023-01-13T08:24:45.981+0100  DEBUG   controller-runtime.test-env     starting control plane
