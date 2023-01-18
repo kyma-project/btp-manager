@@ -31,7 +31,7 @@ USE_EXISTING_CLUSTER=true make test
 ### Test output verbosity
 
 The setting for the `go test` verbosity is `-v` (verbose, print the full output event for passing tests). This can be changed in the `make` recipe. 
-For `ginkgo` tests execution default setting is `-ginkgo.v` (verbose) and can be changed e.g. for `very verbose` by setting environment variable `GINKGO_VERBOSE_FLAG`.
+For the `Ginkgo` tests execution, the default setting is `-ginkgo.v` (verbose). It can be changed, for example, for `very verbose` by setting the environment variable **GINKGO_VERBOSE_FLAG**.
 Allowed values are: `ginkgo.succinct`, `ginkgo.v`, `ginkgo.vv`. Accordingly, the output level will be: succinct, verbose, very verbose.
 
 ```shell
