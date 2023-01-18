@@ -8,7 +8,7 @@ To run the unit tests from the command line, use the following command from the 
 ```shell
 make test
 ```
-Details concerning `test` rule (prerequisites and recipe) are defined in `./Makefile`.
+The details concerning the `test` rule (prerequisites and recipe) are defined in `./Makefile`.
 
 By default, unit tests are run using `env-test` cluster. 
 Part of unit tests is implemented using [gingko](https://onsi.github.io/ginkgo/#top) library, but all unit tests are invoked using `go test ./... <some options>`
