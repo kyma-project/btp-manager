@@ -49,7 +49,7 @@ you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in `./co
 	Describe("Deprovisioning", Label("test-deprovisioning"), func() {
 ```
 
-You can use labels either by setting `GINKGO_LABEL_FILTER` variable. For example to run only specs labeled as `smoke-test`:
+You can use labels by setting the **GINKGO_LABEL_FILTER** variable. For example, to run only the specs labeled as `smoke-test`:
 ```shell
 GINKGO_VERBOSE_FLAG="smoke-test" make test
 ```
