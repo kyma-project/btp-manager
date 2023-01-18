@@ -8,3 +8,4 @@ For general information on BTP Manager, see the overarching [documentation](../R
 
 - [Configuration](./configuration.md)
 - [Operations](./operations.md)
+- [Run unit tests](testing.md)
