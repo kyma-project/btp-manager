@@ -11,7 +11,7 @@ make test
 The details concerning the `test` rule (prerequisites and recipe) are defined in `./Makefile`.
 
 By default, the unit tests are run using the envtest cluster. 
-Part of unit tests is implemented using [gingko](https://onsi.github.io/ginkgo/#top) library, but all unit tests are invoked using `go test ./... <some options>`
+Some of the unit tests are implemented using the [Gingko](https://onsi.github.io/ginkgo/#top) library, but all the unit tests are invoked using the `go test ./... <some options>`.
 You can find exact invocation reflected in the console output along with messages confirming whether `env-test` is used.
 ```
 STEP: bootstrapping test environment @ 01/13/23 08:24:45.981
