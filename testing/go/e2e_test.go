@@ -91,7 +91,7 @@ func TestEndToEnd(t *testing.T) {
 			t.Errorf("Expected btpoperator btpoperator-sample to exist, but got error: %v", err)
 		}
 		if strings.Contains(string(out), "Error") {
-			t.Errorf("Expected output to contain 'Error', but got: %s", string(out))
+			t.Errorf("Expected output not to contain 'Error', but got: %s", string(out))
 		}
 		fmt.Println(string(out))
 	} else if !strings.Contains(string(out), "Error") {
