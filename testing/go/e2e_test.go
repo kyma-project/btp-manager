@@ -93,6 +93,7 @@ func TestEndToEnd(t *testing.T) {
 		if strings.Contains(string(out), "Error") {
 			t.Errorf("Expected output not to contain 'Error', but got: %s", string(out))
 		}
+
 		fmt.Println(string(out))
 	} else if !strings.Contains(string(out), "Error") {
 		t.Errorf("Expected output to contain 'Error', but got: %s", string(out))
