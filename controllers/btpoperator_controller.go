@@ -127,11 +127,21 @@ func (e *ErrorWithReason) Error() string {
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
+	manifestHandler       *internalmanifest.Handler
 	Scheme                *runtime.Scheme
 	currentVersion        string
 	updateCheckDone       bool
 	WaitForChartReadiness bool
 	workqueueSize         int
+}
+
+func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme) *BtpOperatorReconciler {
+	return &BtpOperatorReconciler{
+		Client:                client,
+		manifestHandler:       &internalmanifest.Handler{Scheme: scheme},
+		Scheme:                scheme,
+		WaitForChartReadiness: true,
+	}
 }
 
 func (r *BtpOperatorReconciler) handleUpdate(ctx context.Context, cr *v1alpha1.BtpOperator, configMap *corev1.ConfigMap) *ErrorWithReason {
@@ -452,13 +462,12 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	default:
 		logger.Info("provisioning")
 
-		manifestHandler := internalmanifest.Handler{Scheme: r.Scheme}
-		objs, err := manifestHandler.CollectObjectsFromDir(ResourcesPath)
+		objs, err := r.manifestHandler.CollectObjectsFromDir(ResourcesPath)
 		if err != nil {
 			logger.Error(err, "while collecting objects from manifests")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, "Unable to collect objects from manifests")
 		}
-		us, err := manifestHandler.ObjectsToUnstructured(objs)
+		us, err := r.manifestHandler.ObjectsToUnstructured(objs)
 		if err != nil {
 			logger.Error(err, "while converting objects to Unstructured")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, "Unable to convert objects to Unstructured")

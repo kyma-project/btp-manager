@@ -100,11 +100,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	reconciler := &controllers.BtpOperatorReconciler{
-		Client:                mgr.GetClient(),
-		Scheme:                scheme,
-		WaitForChartReadiness: true,
-	}
+	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
