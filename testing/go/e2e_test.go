@@ -84,7 +84,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// TODO: Refactor to use e.g. kubectl wait --for=jsonpath='{.status.state}'=Error btpoperator/btpoperator-sample --timeout=30s
-	for ready := false; ready; ready = strings.Contains(string(out), "Ready") {
+	for ready := false; !ready; ready = strings.Contains(string(out), "Ready") {
 		time.Sleep(5 * time.Second)
 		out, err = exec.Command("kubectl", "get", "btpoperator", "btpoperator-sample").Output()
 		if err != nil {
