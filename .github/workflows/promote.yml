@@ -8,7 +8,7 @@ env:
   TEMPLATE_NAME: moduletemplate-btp.yaml
   GIT_EMAIL: <>
   GIT_NAME: BTP Manager
-  USERNAME: ukff
+  USERNAME: kyma-btp-manager-bot
 
 on:
   workflow_dispatch:
@@ -65,7 +65,7 @@ jobs:
       run: echo "BRANCH_NAME=$BTP_MANAGER_REPO-$TAG" >> $GITHUB_ENV
 
     - name: Download module template 
-      run: curl -O -J https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME
+      run: curl -O -J -L https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME
 
     - name: Setup GitHub config
       run: |
@@ -93,7 +93,7 @@ jobs:
     - name: Push Changes
       working-directory: kyma
       run: |
-        git remote set-url origin https://${{ secrets.ACCESS_TOKEN }}@github.com/$ORG/$KYMA_REPO.git
+        git remote set-url origin https://${{ secrets.BOT_TOKEN }}@github.com/$ORG/$KYMA_REPO.git
         git push --set-upstream origin $BRANCH_NAME -f
 
     - name: Create PR if needed
@@ -109,4 +109,4 @@ jobs:
        
         gh pr create -B main -R https://github.com/$ORG/$KYMA_REPO/ --title "Promote BTP Manager to ( $TAG )" --fill
       env:
-        GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
