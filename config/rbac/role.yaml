@@ -6,44 +6,8 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - ""
+  - '*'
   resources:
-  - configmaps
+  - '*'
   verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - operator.kyma-project.io
-  resources:
-  - btpoperators
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - operator.kyma-project.io
-  resources:
-  - btpoperators/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - operator.kyma-project.io
-  resources:
-  - btpoperators/status
-  verbs:
-  - get
-  - patch
-  - update
+  - '*'
