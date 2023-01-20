@@ -7,8 +7,7 @@ env:
   KYMA_REPO: kyma
   TEMPLATE_NAME: moduletemplate-btp.yaml
   GIT_EMAIL: <>
-  GIT_NAME: BTP Manager
-  USERNAME: ukff
+  GIT_NAME: kyma-btp-manager-bot
 
 on:
   workflow_dispatch:
@@ -65,7 +64,7 @@ jobs:
       run: echo "BRANCH_NAME=$BTP_MANAGER_REPO-$TAG" >> $GITHUB_ENV
 
     - name: Download module template 
-      run: curl -O -J https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME
+      run: curl -O -J -L https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME
 
     - name: Setup GitHub config
       run: |
@@ -93,14 +92,14 @@ jobs:
     - name: Push Changes
       working-directory: kyma
       run: |
-        git remote set-url origin https://${{ secrets.ACCESS_TOKEN }}@github.com/$ORG/$KYMA_REPO.git
+        git remote set-url origin https://${{ secrets.BOT_TOKEN }}@github.com/$ORG/$KYMA_REPO.git
         git push --set-upstream origin $BRANCH_NAME -f
 
     - name: Create PR if needed
       working-directory: kyma
       shell: bash
       run: |
-        prs=$(gh pr list -R https://github.com/$ORG/$KYMA_REPO/ -A $USERNAME --state open --json headRefName | jq -r '.[] | .headRefName')
+        prs=$(gh pr list -R https://github.com/$ORG/$KYMA_REPO/ -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
        
         if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "opened pr already exists, no need to create new one, pr will be updated by push from previous step"
@@ -109,4 +108,4 @@ jobs:
        
         gh pr create -B main -R https://github.com/$ORG/$KYMA_REPO/ --title "Promote BTP Manager to ( $TAG )" --fill
       env:
-        GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
