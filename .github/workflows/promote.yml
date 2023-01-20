@@ -7,8 +7,7 @@ env:
   KYMA_REPO: kyma
   TEMPLATE_NAME: moduletemplate-btp.yaml
   GIT_EMAIL: <>
-  GIT_NAME: BTP Manager
-  USERNAME: kyma-btp-manager-bot
+  GIT_NAME: kyma-btp-manager-bot
 
 on:
   workflow_dispatch:
@@ -100,7 +99,7 @@ jobs:
       working-directory: kyma
       shell: bash
       run: |
-        prs=$(gh pr list -R https://github.com/$ORG/$KYMA_REPO/ -A $USERNAME --state open --json headRefName | jq -r '.[] | .headRefName')
+        prs=$(gh pr list -R https://github.com/$ORG/$KYMA_REPO/ -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
        
         if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "opened pr already exists, no need to create new one, pr will be updated by push from previous step"
