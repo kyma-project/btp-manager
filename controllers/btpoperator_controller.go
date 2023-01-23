@@ -61,7 +61,7 @@ var (
 	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Hour * 1
+	ReadyStateRequeueInterval      = time.Second * 10
 	ReadyTimeout                   = time.Minute * 1
 	HardDeleteCheckInterval        = time.Second * 10
 	HardDeleteTimeout              = time.Minute * 20
@@ -520,7 +520,7 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 
 func (r *BtpOperatorReconciler) installResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
 	logger := log.FromContext(ctx)
-	logger.Info("installing module resources...")
+	logger.Info("installing module resources")
 
 	for _, u := range us {
 		if err := r.Create(ctx, u); err != nil {
@@ -530,6 +530,44 @@ func (r *BtpOperatorReconciler) installResources(ctx context.Context, us []*unst
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
+	logger := log.FromContext(ctx)
+	logger.Info("reconciling resources")
+
+	opt := &patchOption{}
+	for _, u := range us {
+		gvk := u.GroupVersionKind()
+		fetchedObj := &unstructured.Unstructured{}
+		fetchedObj.SetGroupVersionKind(gvk)
+		if err := r.Get(ctx, client.ObjectKeyFromObject(u), fetchedObj); err != nil {
+			if k8serrors.IsNotFound(err) {
+				if err = r.Create(ctx, u); err != nil {
+					logger.Error(err, fmt.Sprintf("while creating %s %s in the cluster", u.GetName(), u.GetKind()))
+					return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to create %s %s", u.GetName(), u.GetKind()))
+				}
+				continue
+			} else {
+				logger.Error(err, fmt.Sprintf("while getting %s %s from the cluster", u.GetName(), u.GetKind()))
+				return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to get %s %s", u.GetName(), u.GetKind()))
+			}
+		}
+		if err := r.Patch(ctx, u, client.Apply, opt); err != nil {
+			logger.Error(err, fmt.Sprintf("while patching %s %s in the cluster", u.GetName(), u.GetKind()))
+			return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to patch %s %s", u.GetName(), u.GetKind()))
+		}
+	}
+
+	return nil
+}
+
+type patchOption struct{}
+
+func (o *patchOption) ApplyToPatch(opts *client.PatchOptions) {
+	opts.FieldManager = operatorName
+	forceApplyTrue := true
+	opts.Force = &forceApplyTrue
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -1259,9 +1297,23 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	errorWithReason := r.chartConsistencyCheck(ctx, cr)
-	if errorWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
+	objs, err := r.manifestHandler.CollectObjectsFromDir(ResourcesPath)
+	if err != nil {
+		logger.Error(err, "while collecting objects from manifests")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, "Unable to collect objects from manifests")
+	}
+	us, err := r.manifestHandler.ObjectsToUnstructured(objs)
+	if err != nil {
+		logger.Error(err, "while converting objects to Unstructured")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, "Unable to convert objects to Unstructured")
+	}
+	if errorWithReason := r.prepareModuleResources(ctx, us); errorWithReason != nil {
+		logger.Error(errorWithReason, "while preparing resources for reconciliation")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, errorWithReason.message)
+	}
+	if errorWithReason := r.reconcileResources(ctx, us); errorWithReason != nil {
+		logger.Error(errorWithReason, "while reconciling resources")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, errorWithReason.message)
 	}
 
 	return nil
