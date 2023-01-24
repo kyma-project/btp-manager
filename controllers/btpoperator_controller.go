@@ -524,7 +524,8 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*un
 	logger := log.FromContext(ctx)
 	logger.Info("reconciling resources")
 
-	opt := &patchOption{}
+	forceApplyTrue := true
+	opt := &client.PatchOptions{Force: &forceApplyTrue, FieldManager: operatorName}
 	for _, u := range us {
 		gvk := u.GroupVersionKind()
 		fetchedObj := &unstructured.Unstructured{}
@@ -548,14 +549,6 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*un
 	}
 
 	return nil
-}
-
-type patchOption struct{}
-
-func (o *patchOption) ApplyToPatch(opts *client.PatchOptions) {
-	opts.FieldManager = operatorName
-	forceApplyTrue := true
-	opts.Force = &forceApplyTrue
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
