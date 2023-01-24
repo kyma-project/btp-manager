@@ -54,8 +54,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+// Configuration options that can be overwritten either by CLI parameter or ConfigMap
 var (
-	// Configuration options that can be overwritten either by CLI parameter or ConfigMap
 	ChartNamespace                 = "kyma-system"
 	SecretName                     = "sap-btp-manager"
 	ConfigName                     = "sap-btp-manager"
@@ -70,11 +70,15 @@ var (
 )
 
 const (
-	operatorName          = "btp-manager"
-	labelKeyForChart      = "app.kubernetes.io/managed-by"
-	deletionFinalizer     = "custom-deletion-finalizer"
-	mutatingWebhookName   = "sap-btp-operator-mutating-webhook-configuration"
-	validatingWebhookName = "sap-btp-operator-validating-webhook-configuration"
+	secretKind                  = "Secret"
+	configMapKind               = "ConfigMap"
+	operatorName                = "btp-manager"
+	deletionFinalizer           = "custom-deletion-finalizer"
+	labelKeyForChart            = "app.kubernetes.io/managed-by"
+	btpServiceOperatorConfigMap = "sap-btp-operator-config"
+	btpServiceOperatorSecret    = "sap-btp-service-operator"
+	mutatingWebhookName         = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName       = "sap-btp-operator-validating-webhook-configuration"
 )
 
 const (
@@ -106,22 +110,6 @@ var (
 	}
 	labelFilter = client.MatchingLabels{labelKeyForChart: operatorName}
 )
-
-type ErrorWithReason struct {
-	message string
-	reason  Reason
-}
-
-func NewErrorWithReason(reason Reason, message string) *ErrorWithReason {
-	return &ErrorWithReason{
-		message: message,
-		reason:  reason,
-	}
-}
-
-func (e *ErrorWithReason) Error() string {
-	return e.message
-}
 
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
@@ -491,10 +479,10 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 
 	var configMapIndex, secretIndex int
 	for i, u := range us {
-		if u.GetName() == "sap-btp-operator-config" && u.GetKind() == "ConfigMap" {
+		if u.GetName() == btpServiceOperatorConfigMap && u.GetKind() == configMapKind {
 			configMapIndex = i
 		}
-		if u.GetName() == "sap-btp-service-operator" && u.GetKind() == "Secret" {
+		if u.GetName() == btpServiceOperatorSecret && u.GetKind() == secretKind {
 			secretIndex = i
 		}
 	}
