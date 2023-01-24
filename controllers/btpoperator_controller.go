@@ -464,7 +464,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			logger.Error(errorWithReason, "while preparing resources for installation")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 		}
-		if errorWithReason := r.installResources(ctx, us); errorWithReason != nil {
+		if errorWithReason := r.reconcileResources(ctx, us); errorWithReason != nil {
 			logger.Error(errorWithReason, "while installing resources")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 		}
@@ -506,45 +506,16 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 	return nil
 }
 
-func (r *BtpOperatorReconciler) installResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
-	logger := log.FromContext(ctx)
-	logger.Info("installing module resources")
-
-	for _, u := range us {
-		if err := r.Create(ctx, u); err != nil {
-			logger.Error(err, fmt.Sprintf("while creating %s %s in the cluster", u.GetName(), u.GetKind()))
-			return NewErrorWithReason(ChartInstallFailed, fmt.Sprintf("Failed to create %s %s", u.GetName(), u.GetKind()))
-		}
-	}
-
-	return nil
-}
-
 func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
 	logger := log.FromContext(ctx)
-	logger.Info("reconciling resources")
+	logger.Info("reconciling module resources")
 
 	forceApplyTrue := true
 	opt := &client.PatchOptions{Force: &forceApplyTrue, FieldManager: operatorName}
 	for _, u := range us {
-		gvk := u.GroupVersionKind()
-		fetchedObj := &unstructured.Unstructured{}
-		fetchedObj.SetGroupVersionKind(gvk)
-		if err := r.Get(ctx, client.ObjectKeyFromObject(u), fetchedObj); err != nil {
-			if k8serrors.IsNotFound(err) {
-				if err = r.Create(ctx, u); err != nil {
-					logger.Error(err, fmt.Sprintf("while creating %s %s in the cluster", u.GetName(), u.GetKind()))
-					return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to create %s %s", u.GetName(), u.GetKind()))
-				}
-				continue
-			} else {
-				logger.Error(err, fmt.Sprintf("while getting %s %s from the cluster", u.GetName(), u.GetKind()))
-				return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to get %s %s", u.GetName(), u.GetKind()))
-			}
-		}
 		if err := r.Patch(ctx, u, client.Apply, opt); err != nil {
-			logger.Error(err, fmt.Sprintf("while patching %s %s in the cluster", u.GetName(), u.GetKind()))
-			return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to patch %s %s", u.GetName(), u.GetKind()))
+			logger.Error(err, fmt.Sprintf("while reconciling %s %s", u.GetName(), u.GetKind()))
+			return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to reconcile %s %s", u.GetName(), u.GetKind()))
 		}
 	}
 
