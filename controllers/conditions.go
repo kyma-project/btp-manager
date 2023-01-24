@@ -9,6 +9,7 @@ type Reason string
 
 const (
 	ReconcileSucceeded                Reason = "ReconcileSucceeded"
+	ReconcileFailed                   Reason = "ReconcileFailed"
 	Initialized                       Reason = "Initialized"
 	Processing                        Reason = "Processing"
 	OlderCRExists                     Reason = "OlderCRExists"
@@ -49,6 +50,9 @@ var NotReady = TypeAndStatus{
 
 var Reasons = map[Reason]TypeAndStatus{
 	ReconcileSucceeded:                Ready,
+	UpdateDone:                        Ready,
+	UpdateCheckSucceeded:              Ready,
+	ReconcileFailed:                   NotReady,
 	Updated:                           NotReady,
 	Initialized:                       NotReady,
 	ChartInstallFailed:                NotReady,
@@ -61,9 +65,7 @@ var Reasons = map[Reason]TypeAndStatus{
 	ResourceRemovalFailed:             NotReady,
 	SoftDeleting:                      NotReady,
 	UpdateCheck:                       NotReady,
-	UpdateCheckSucceeded:              Ready,
 	InconsistentChart:                 NotReady,
-	UpdateDone:                        Ready,
 	PreparingInstallInfoFailed:        NotReady,
 	ChartPathEmpty:                    NotReady,
 	DeletionOfOrphanedResourcesFailed: NotReady,

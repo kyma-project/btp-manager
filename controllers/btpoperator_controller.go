@@ -515,7 +515,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*un
 	for _, u := range us {
 		if err := r.Patch(ctx, u, client.Apply, opt); err != nil {
 			logger.Error(err, fmt.Sprintf("while reconciling %s %s", u.GetName(), u.GetKind()))
-			return NewErrorWithReason(ConsistencyCheckFailed, fmt.Sprintf("Failed to reconcile %s %s", u.GetName(), u.GetKind()))
+			return NewErrorWithReason(ReconcileFailed, fmt.Sprintf("Failed to reconcile %s %s", u.GetName(), u.GetKind()))
 		}
 	}
 
