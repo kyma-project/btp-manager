@@ -1,0 +1,41 @@
+
+name: "Manual release trigger"
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Release version'
+        default: ""
+        required: true
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.name }}
+          release_name: Release ${{ github.event.inputs.name }}
+          body: |
+            Changes in this Release
+              - TBD
+          draft: false
+          prerelease: false
+  wait-for-template:
+    # this step waits until proper Prow job uploads the template.yaml file
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait
+        run: |
+          until $(curl --output /dev/null --silent --head --fail https://github.com/kyma-project/btp-manager/releases/download/${{ github.event.inputs.name }}/template.yaml); do
+            echo 'waiting...'
+            sleep 15
+          done
