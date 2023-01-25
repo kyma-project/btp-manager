@@ -494,6 +494,7 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 
 	r.addLabels(us...)
 	r.setNamespace(us...)
+	r.deleteCreationTimestamp(us...)
 	if err := r.setConfigMapValues(secret, us[configMapIndex]); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return NewErrorWithReason(PreparingInstallInfoFailed, "Failed to set ConfigMap values")
@@ -510,10 +511,8 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*un
 	logger := log.FromContext(ctx)
 	logger.Info("reconciling module resources")
 
-	forceApplyTrue := true
-	opt := &client.PatchOptions{Force: &forceApplyTrue, FieldManager: operatorName}
 	for _, u := range us {
-		if err := r.Patch(ctx, u, client.Apply, opt); err != nil {
+		if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
 			logger.Error(err, fmt.Sprintf("while reconciling %s %s", u.GetName(), u.GetKind()))
 			return NewErrorWithReason(ReconcileFailed, fmt.Sprintf("Failed to reconcile %s %s", u.GetName(), u.GetKind()))
 		}
@@ -1286,6 +1285,12 @@ func (r *BtpOperatorReconciler) addLabels(us ...*unstructured.Unstructured) {
 func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
 	for _, u := range us {
 		u.SetNamespace(ChartNamespace)
+	}
+}
+
+func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unstructured) {
+	for _, u := range us {
+		unstructured.RemoveNestedField(u.Object, "metadata", "creationTimestamp")
 	}
 }
 
