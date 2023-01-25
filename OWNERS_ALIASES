@@ -5,8 +5,28 @@
 # https://github.com/kubernetes/community/blob/master/contributors/guide/owners.md#owners_aliases
 
 aliases:
-  gophers:
+  documentation-reviewers:
     - IwonaLanger
+    - grego952
+    - NHingerl
+    - mmitoraj
+    - nataliasitko
+  documentation-approvers:
+    - IwonaLanger
+    - grego952
+    - NHingerl
+    - mmitoraj
+    - nataliasitko
+  code-reviewers:
+    - PK85
+    - jaroslaw-pieszka
+    - piotrmiskiewicz
+    - ralikio
+    - szwedm
+    - tillknuesting
+    - ukff
+    - wozniakjan
+  code-approvers:
     - PK85
     - jaroslaw-pieszka
     - piotrmiskiewicz

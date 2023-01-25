@@ -1,0 +1,11 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  name: test-service-instance
+spec:
+  serviceOfferingName: test-service
+  servicePlanName: test-plan
+  externalName: test-service-instance-external
+  parameters:
+    key1: val1
+    key2: val2
