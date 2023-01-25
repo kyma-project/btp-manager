@@ -17,9 +17,9 @@ MODULE_VERSION=${PULL_BASE_REF} make module-build
 echo "Generated template.yaml:"
 cat template.yaml
 
-echo "\nUpdating github release with template.yaml"
+echo "Updating github release with template.yaml"
 
-echo "\nFinding release: ${PULL_BASE_REF}"
+echo "Finding release: ${PULL_BASE_REF}"
 releases=$(curl -sL \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
