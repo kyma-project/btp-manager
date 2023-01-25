@@ -30,7 +30,7 @@ jobs:
           draft: false
           prerelease: false
   wait-for-template:
-    # this step waits until proper Prow job uyploads the template.yaml file
+    # this step waits until proper Prow job uploads the template.yaml file
     runs-on: ubuntu-latest
     steps:
       - name: Wait
