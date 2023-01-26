@@ -34,7 +34,7 @@ GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${r
 echo "Release asset url: ${GH_ASSET}"
 
 response=$(curl -s -o output.txt -w "%{http_code}" \
-                --request POST --data-binary @"$filename" \
+                --request POST --data-binary @"template.yaml" \
                 -H "Authorization: token $BOT_GITHUB_TOKEN" \
                 -H "Content-Type: text/yaml" \
                  $GH_ASSET)
