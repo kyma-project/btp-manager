@@ -24,7 +24,7 @@ OS_TYPE ?= $(shell uname)
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY_PORT ?= 60765
 IMG_REGISTRY ?= op-skr-registry.localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
-IMG ?= $(IMG_REGISTRY)/$(MODULE_NAME):$(MODULE_VERSION)
+IMG ?= $(IMG_REGISTRY)/btp-manager:$(MODULE_VERSION)
 
 COMPONENT_CLI_VERSION ?= latest
 
