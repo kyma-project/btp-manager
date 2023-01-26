@@ -48,22 +48,19 @@ jobs:
         git add module-chart 
         git add module-resources
 
-        commit_result=$(git commit -m "$GIT_MSG")
-        if [[ $commit_result == "nothing to commit*" ]]; 
-        then
-          echo "no new changes, exiting"
-          exit 0
+        if [ -n "$(git status --porcelain)" ]; then
+          git commit -m "$GIT_MSG"
+        
+          git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
+          git push --set-upstream origin $BRANCH_NAME -f
+  
+          prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+          if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+              echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
+              exit 0
+          fi
+  
+          gh pr create -B main --title "$GIT_MSG" --body ""
         fi
-
-        git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
-        git push --set-upstream origin $BRANCH_NAME -f
-
-        prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-        if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
-            echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
-            exit 0
-        fi
-
-        gh pr create -B main --title "$GIT_MSG" --body ""
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
