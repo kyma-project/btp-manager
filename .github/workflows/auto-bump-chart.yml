@@ -1,10 +1,10 @@
 name: Auto bump chart
 
 env:
-  ORG: ukff
+  ORG: kyma-project
   BTP_MANAGER_REPO: btp-manager
   GIT_EMAIL: team-gopher+1@sap.com
-  GIT_NAME: ukff
+  GIT_NAME: kyma-btp-manager-bot
 on:
   workflow_dispatch:
 
@@ -55,7 +55,7 @@ jobs:
           exit 0
         fi
 
-        git remote set-url origin https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
+        git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
         git push --set-upstream origin $BRANCH_NAME -f
 
         prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
@@ -66,4 +66,4 @@ jobs:
 
         gh pr create -B main --title "$GIT_MSG" --body ""
       env:
-        GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
