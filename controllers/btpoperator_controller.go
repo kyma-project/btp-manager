@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/gvksutils"
 	internalmanifest "github.com/kyma-project/btp-manager/internal/manifest"
@@ -208,7 +207,7 @@ func (r *BtpOperatorReconciler) storeChartDetails(ctx context.Context, configMap
 
 func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, configMap *corev1.ConfigMap, newChartVersion string, newGvks []schema.GroupVersionKind) error {
 	logger := log.FromContext(ctx)
-	logger.Info(fmt.Sprintf("%s dosent exists, new will be created", btpManagerConfigMap))
+	logger.Info(fmt.Sprintf("%s configmap doesn't exist, creating", btpManagerConfigMap))
 
 	configMap.Data = make(map[string]string)
 
@@ -217,7 +216,7 @@ func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, conf
 		return err
 	}
 
-	r.setBtpManagerConfigMap(ctx, configMap, newChartVersion, newChartVersion, newGvksAsStr, newGvksAsStr)
+	r.setBtpManagerConfigMap(configMap, newChartVersion, newChartVersion, newGvksAsStr, newGvksAsStr)
 
 	if err := r.Create(ctx, configMap); err != nil {
 		return err
@@ -230,7 +229,7 @@ func (r *BtpOperatorReconciler) handleInitialConfigMap(ctx context.Context, conf
 
 func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, configMap *corev1.ConfigMap, newVersion string, newGvks []schema.GroupVersionKind) (bool, error) {
 	logger := log.FromContext(ctx)
-	logger.Info(fmt.Sprintf("%s exists", btpManagerConfigMap))
+	logger.Info(fmt.Sprintf("%s configmap exists, updating", btpManagerConfigMap))
 
 	currentVersion, ok := configMap.Data[currentCharVersionKey]
 	if !ok {
@@ -250,13 +249,13 @@ func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, con
 			return false, err
 		}
 
-		r.setBtpManagerConfigMap(ctx, configMap, currentVersion, newVersion, currentGvksAsText, newGvksAsText)
+		r.setBtpManagerConfigMap(configMap, currentVersion, newVersion, currentGvksAsText, newGvksAsText)
 
 		if err := r.Update(ctx, configMap); err != nil {
 			return false, err
 		}
 
-		logger.Info(fmt.Sprintf("%s has been updated", btpManagerConfigMap))
+		logger.Info(fmt.Sprintf("%s configmap has been updated", btpManagerConfigMap))
 
 		r.currentVersion = newVersion
 
@@ -268,7 +267,7 @@ func (r *BtpOperatorReconciler) handleExistingConfigMap(ctx context.Context, con
 	return false, nil
 }
 
-func (r *BtpOperatorReconciler) setBtpManagerConfigMap(ctx context.Context, configMap *corev1.ConfigMap, oldChartVersion, currentCharVersion, oldGvksStr, currentGvks string) {
+func (r *BtpOperatorReconciler) setBtpManagerConfigMap(configMap *corev1.ConfigMap, oldChartVersion, currentCharVersion, oldGvksStr, currentGvks string) {
 	if configMap == nil {
 		return
 	}
@@ -281,16 +280,16 @@ func (r *BtpOperatorReconciler) setBtpManagerConfigMap(ctx context.Context, conf
 
 func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, configMap *corev1.ConfigMap) error {
 	logger := log.FromContext(ctx)
-	logger.Info("deletion of orphaned resources started")
+	logger.Info("deleting orphaned resources after update")
 
 	oldVersion, ok := configMap.Data[oldChartVersionKey]
 	if !ok {
-		return fmt.Errorf("%s should be present in configmap but it is not", oldChartVersionKey)
+		return fmt.Errorf("missing required value for %s key in the configmap", oldChartVersionKey)
 	}
 
 	oldGvksText, ok := configMap.Data[oldGvksKey]
 	if !ok {
-		return fmt.Errorf("%s should be present in configmap but it is not", oldGvksKey)
+		return fmt.Errorf("missing required value for %s key in the configmap", oldGvksKey)
 	}
 
 	oldGvks, err := gvksutils.StrToGvks(oldGvksText)
@@ -315,7 +314,7 @@ func (r *BtpOperatorReconciler) deleteOrphanedResources(ctx context.Context, con
 			if err := r.Delete(ctx, &item); err != nil {
 				return err
 			} else {
-				logger.Info(fmt.Sprintf("deleted resource %s of type %s with version = %s", item.GetName(), gvk.Kind, oldVersion))
+				logger.Info(fmt.Sprintf("deleted %s %s in version %s", item.GetName(), gvk.Kind, oldVersion))
 			}
 			numberOfDeletedItems++
 		}
@@ -450,27 +449,38 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	default:
 		logger.Info("provisioning")
 
-		objs, err := r.manifestHandler.CollectObjectsFromDir(ResourcesPath)
+		us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesPath)
 		if err != nil {
-			logger.Error(err, "while collecting objects from manifests")
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, "Unable to collect objects from manifests")
-		}
-		us, err := r.manifestHandler.ObjectsToUnstructured(objs)
-		if err != nil {
-			logger.Error(err, "while converting objects to Unstructured")
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ChartInstallFailed, "Unable to convert objects to Unstructured")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 		}
 		if errorWithReason := r.prepareModuleResources(ctx, us); errorWithReason != nil {
-			logger.Error(errorWithReason, "while preparing resources for installation")
+			logger.Error(errorWithReason, "while preparing resources for provisioning")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 		}
-		if errorWithReason := r.reconcileResources(ctx, us); errorWithReason != nil {
-			logger.Error(errorWithReason, "while installing resources")
-			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
+		if err = r.reconcileResources(ctx, us); err != nil {
+			logger.Error(err, "while provisioning resources")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, "Failed to provision module resources")
 		}
 	}
 
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module provisioning succeeded")
+}
+
+func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(ctx context.Context, manifestsDir string) ([]*unstructured.Unstructured, error) {
+	logger := log.FromContext(ctx)
+
+	objs, err := r.manifestHandler.CollectObjectsFromDir(manifestsDir)
+	if err != nil {
+		logger.Error(err, "while collecting objects from manifests")
+		return nil, err
+	}
+	us, err := r.manifestHandler.ObjectsToUnstructured(objs)
+	if err != nil {
+		logger.Error(err, "while converting objects to Unstructured")
+		return nil, err
+	}
+
+	return us, nil
 }
 
 func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
@@ -487,7 +497,7 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 		}
 	}
 
-	secret, errorWithReason := r.getAndVerifyRequiredSecret(ctx, &logger)
+	secret, errorWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errorWithReason != nil {
 		return errorWithReason
 	}
@@ -497,24 +507,23 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 	r.deleteCreationTimestamp(us...)
 	if err := r.setConfigMapValues(secret, us[configMapIndex]); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
-		return NewErrorWithReason(PreparingInstallInfoFailed, "Failed to set ConfigMap values")
+		return NewErrorWithReason(PreparingModuleResourcesFailed, "Failed to set ConfigMap values")
 	}
 	if err := r.setSecretValues(secret, us[secretIndex]); err != nil {
 		logger.Error(err, "while setting Secret values")
-		return NewErrorWithReason(PreparingInstallInfoFailed, "Failed to set Secret values")
+		return NewErrorWithReason(PreparingModuleResourcesFailed, "Failed to set Secret values")
 	}
 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
+func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("reconciling module resources")
 
 	for _, u := range us {
 		if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-			logger.Error(err, fmt.Sprintf("while reconciling %s %s", u.GetName(), u.GetKind()))
-			return NewErrorWithReason(ReconcileFailed, fmt.Sprintf("Failed to reconcile %s %s", u.GetName(), u.GetKind()))
+			return fmt.Errorf("while reconciling %s %s: %w", u.GetName(), u.GetKind(), err)
 		}
 	}
 
@@ -1185,7 +1194,7 @@ func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Contex
 func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1alpha1.BtpOperator) (*types.InstallInfo, *ErrorWithReason) {
 	logger := log.FromContext(ctx)
 
-	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx, &logger)
+	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		return nil, errWithReason
 	}
@@ -1204,7 +1213,9 @@ func (r *BtpOperatorReconciler) prepareInstallInfo(ctx context.Context, cr *v1al
 	return &installInfo, nil
 }
 
-func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context, logger *logr.Logger) (*corev1.Secret, *ErrorWithReason) {
+func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
+	logger := log.FromContext(ctx)
+
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
@@ -1248,23 +1259,17 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	objs, err := r.manifestHandler.CollectObjectsFromDir(ResourcesPath)
+	us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesPath)
 	if err != nil {
-		logger.Error(err, "while collecting objects from manifests")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, "Unable to collect objects from manifests")
-	}
-	us, err := r.manifestHandler.ObjectsToUnstructured(objs)
-	if err != nil {
-		logger.Error(err, "while converting objects to Unstructured")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, "Unable to convert objects to Unstructured")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 	}
 	if errorWithReason := r.prepareModuleResources(ctx, us); errorWithReason != nil {
-		logger.Error(errorWithReason, "while preparing resources for reconciliation")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, errorWithReason.message)
+		logger.Error(errorWithReason, "while preparing resources for provisioning")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 	}
-	if errorWithReason := r.reconcileResources(ctx, us); errorWithReason != nil {
-		logger.Error(errorWithReason, "while reconciling resources")
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ConsistencyCheckFailed, errorWithReason.message)
+	if err = r.reconcileResources(ctx, us); err != nil {
+		logger.Error(err, "while reconciling resources")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ReconcileFailed, "Failed to reconcile resources")
 	}
 
 	return nil
