@@ -48,7 +48,7 @@ Usage of ./manager:
     	Zap time encoding (one of 'epoch', 'millis', 'nano', 'iso8601', 'rfc3339' or 'rfc3339nano'). Defaults to 'epoch'.
 ```
 
-Here is an [example](../examples/btp-operator-configmap.yaml) of cnfiguration with `ConfigMap`.
+Here is an [example](../examples/btp-operator-configmap.yaml) of configuration with `ConfigMap`.
 ```yaml
 apiVersion: v1
 kind: ConfigMap
