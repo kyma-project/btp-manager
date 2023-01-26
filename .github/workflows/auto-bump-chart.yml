@@ -1,0 +1,69 @@
+name: Auto bump chart
+
+env:
+  ORG: ukff
+  BTP_MANAGER_REPO: btp-manager
+  GIT_EMAIL: team-gopher+1@sap.com
+  GIT_NAME: ukff
+on:
+  workflow_dispatch:
+
+jobs:
+  auto-bump-chart:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Update chart 
+      run: |
+        chmod +x module-bump/get-latest-chart.sh
+        latest=$(sh module-bump/get-latest-chart.sh ../../module-chart)
+        echo "TAG=${latest}" >> $GITHUB_ENV
+
+    - name: Make templates
+      run: |
+        chmod +x module-bump/apply-overrides.sh
+        module-bump/apply-overrides.sh ../../module-resources $TAG 
+
+    - uses: actions/checkout@v3
+      with:
+        ref: main
+        clean: false
+    - name: Create PR
+      run: |
+
+        git config --global user.email $GIT_EMAIL
+        git config --global user.name $GIT_NAME
+ 
+        BRANCH_NAME="Chart-$TAG"
+        GIT_MSG="Auto-update charts to $TAG" 
+
+        git checkout -B $BRANCH_NAME
+
+        yes | cp -rf ../module-chart .
+        yes | cp -rf ../module-resources .
+
+        git add module-chart 
+        git add module-resources
+
+        commit_result=$(git commit -m "$GIT_MSG")
+        if [[ $commit_result == "nothing to commit*" ]]; 
+        then
+          echo "no new changes, exiting"
+          exit 0
+        fi
+
+        git remote set-url origin https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
+        git push --set-upstream origin $BRANCH_NAME -f
+
+        prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+        if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+            echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
+            exit 0
+        fi
+
+        gh pr create -B main --title "$GIT_MSG" --body ""
+      env:
+        GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}

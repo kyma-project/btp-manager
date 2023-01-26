@@ -30,7 +30,7 @@ jobs:
           draft: false
           prerelease: false
       - name: Create release branch
-          run: |
+        run: |
             git checkout -b ${{ github.event.inputs.name }}
             git push --set-upstream origin ${{ github.event.inputs.name }}
   wait-for-template:
