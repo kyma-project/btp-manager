@@ -1,5 +1,5 @@
 
-name: "Manual release trigger"
+name: "Create a release"
 
 on:
   workflow_dispatch:
@@ -29,10 +29,6 @@ jobs:
               - TBD
           draft: false
           prerelease: false
-      - name: Create release branch
-        run: |
-            git checkout -b ${{ github.event.inputs.name }}
-            git push --set-upstream origin ${{ github.event.inputs.name }}
   wait-for-template:
     # this step waits until proper Prow job uploads the template.yaml file
     runs-on: ubuntu-latest
