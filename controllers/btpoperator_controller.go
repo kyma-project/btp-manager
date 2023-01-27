@@ -66,6 +66,8 @@ var (
 	HardDeleteTimeout              = time.Minute * 20
 	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
+	ResourcesToApplyPath           = ResourcesPath + "/apply"
+	ResourcesToDeletePath          = ResourcesPath + "/delete"
 )
 
 const (
@@ -449,7 +451,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	default:
 		logger.Info("provisioning")
 
-		us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesPath)
+		us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesToApplyPath)
 		if err != nil {
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 		}
@@ -1259,7 +1261,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesPath)
+	us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesToApplyPath)
 	if err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 	}
