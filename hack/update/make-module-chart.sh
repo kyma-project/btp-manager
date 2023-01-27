@@ -10,4 +10,4 @@ tar zxf charts.tgz
 rsync -a sap-btp-operator/ $ARG1
 rm -r sap-btp-operator
 rm charts.tgz
-echo $latestq-
+echo $latest
