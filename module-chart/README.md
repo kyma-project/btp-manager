@@ -119,14 +119,14 @@ data:
 ---
 {{- end}}
 ```
-Add the `caBundle` definition in both webhooks:
+3. Add the `caBundle` definition in both webhooks:
 ```
 {{- if not .Values.manager.certificates }}
 caBundle: {{ b64enc $ca.Cert }}
 {{- end }}
 ```
 
-3. Add sap-btp-operator labels
+4. Add sap-btp-operator labels
 
 The deployment and service must contain btp-operator specific labels, such as deployment spec, deployment template, and the service labels selector:
 ```yaml
@@ -136,24 +136,26 @@ app.kubernetes.io/name: sap-btp-operator
 
 ## Publish a new version of the chart
 1.  Download the original chart from the Helm repository.  
-   i. Configure the Helm repository:
-```
-helm repo add sap-btp-operator https://sap.github.io/sap-btp-service-operator
-```  
-   ii. Pull the chart
-```
-helm pull sap-btp-operator/sap-btp-operator
-```
-> **NOTE:** You can specify the version if needed:
->```
->helm pull sap-btp-operator/sap-btp-operator --version v0.2.0
->```
+   
+     i. Configure the Helm repository:
+    ```
+     helm repo add sap-btp-operator https://sap.github.io/sap-btp-service-operator
+    ```  
+    ii. Pull the chart
 
-   iii.  Unpack the downloaded tar and apply necessary changes.
+    ```
+    helm pull sap-btp-operator/sap-btp-operator
+    ```
+    > **NOTE:** You can specify the version if needed:
+    >```
+    >helm pull sap-btp-operator/sap-btp-operator --version v0.2.0
+    >```
 
-2. Create a package
-```
-helm package chart 
-```
-3. Release on GitHub
+    iii. Unpack the downloaded tar and apply necessary changes.
+
+1. Create a package
+   ```
+   helm package chart 
+   ```
+1. Release on GitHub
 Create a GitHub release and upload the generated Helm chart (tgz).
