@@ -1,5 +1,5 @@
 
-name: "Manual release trigger"
+name: "Create a release"
 
 env:
   BTP_MANAGER_REPO: docker://europe-docker.pkg.dev/kyma-project/prod/btp-manager
