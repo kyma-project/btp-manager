@@ -18,27 +18,19 @@ jobs:
 
     - name: Update chart 
       run: |
-        chmod +x module-bump/get-latest-chart.sh
-        latest=$(sh module-bump/get-latest-chart.sh ../../module-chart)
+        chmod +x hack/update/make-module-chart.sh
+        latest=$(sh hack/update/make-module-chart.sh)
         echo "TAG=${latest}" >> $GITHUB_ENV
 
     - name: Make templates
       run: |
-        chmod +x module-bump/apply-overrides.sh
-        module-bump/apply-overrides.sh ../../module-resources $TAG 
+        chmod +x hack/update/make-module-resources.sh
+        hack/update/make-module-resources.sh $TAG 
 
     - uses: actions/checkout@v3
       with:
         ref: main
         clean: false
-
-    - name: Prepare for deletion
-      run: |
-
-        for f in $FILES
-        do
-          echo "Processing $f"
-        done
 
     - name: Create PR
       run: |
