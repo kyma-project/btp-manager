@@ -73,7 +73,7 @@ const (
 	configMapKind               = "ConfigMap"
 	operatorName                = "btp-manager"
 	deletionFinalizer           = "custom-deletion-finalizer"
-	labelKeyForChart            = "app.kubernetes.io/managed-by"
+	managedByLabelKey           = "app.kubernetes.io/managed-by"
 	btpServiceOperatorConfigMap = "sap-btp-operator-config"
 	btpServiceOperatorSecret    = "sap-btp-service-operator"
 	mutatingWebhookName         = "sap-btp-operator-mutating-webhook-configuration"
@@ -107,7 +107,7 @@ var (
 		Version: btpOperatorApiVer,
 		Kind:    btpOperatorServiceInstance,
 	}
-	labelFilter = client.MatchingLabels{labelKeyForChart: operatorName}
+	managedByLabelFilter = client.MatchingLabels{managedByLabelKey: operatorName}
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
@@ -583,7 +583,7 @@ func (r *BtpOperatorReconciler) addTempLabelsToCr(cr *v1alpha1.BtpOperator) {
 	if len(cr.Labels) == 0 {
 		cr.Labels = make(map[string]string)
 	}
-	cr.Labels[labelKeyForChart] = operatorName
+	cr.Labels[managedByLabelKey] = operatorName
 	cr.Labels[chartVersionKey] = r.currentVersion
 }
 
@@ -666,15 +666,15 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 
 func (r *BtpOperatorReconciler) labelTransform(ctx context.Context, base types.BaseCustomObject, res *types.ManifestResources) error {
 	baseLabels := base.GetLabels()
-	if _, found := baseLabels[labelKeyForChart]; !found {
-		return fmt.Errorf("missing %s label in %s base resource", labelKeyForChart, base.GetName())
+	if _, found := baseLabels[managedByLabelKey]; !found {
+		return fmt.Errorf("missing %s label in %s base resource", managedByLabelKey, base.GetName())
 	}
 	for _, item := range res.Items {
 		itemLabels := item.GetLabels()
 		if len(itemLabels) == 0 {
 			itemLabels = make(map[string]string)
 		}
-		itemLabels[labelKeyForChart] = baseLabels[labelKeyForChart]
+		itemLabels[managedByLabelKey] = baseLabels[managedByLabelKey]
 		itemLabels[chartVersionKey] = baseLabels[chartVersionKey]
 		item.SetLabels(itemLabels)
 	}
@@ -848,7 +848,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
-			if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
+			if err := r.cleanUpAllBtpOperatorResources(ctx); err != nil {
 				logger.Error(err, "failed to remove chart resources")
 				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
 					logger.Error(updateStatusErr, "failed to update status")
@@ -1061,7 +1061,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	}
 
 	logger.Info("Deleting chart resources")
-	if err := r.cleanUpAllBtpOperatorResources(ctx, namespaces); err != nil {
+	if err := r.cleanUpAllBtpOperatorResources(ctx); err != nil {
 		logger.Error(err, "failed to remove chart resources")
 		return err
 	}
@@ -1165,24 +1165,24 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context, namespaces *corev1.NamespaceList) error {
+func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context) error {
 	gvks, err := ymlutils.GatherChartGvks(ChartPath)
 	if err != nil {
 		return err
 	}
 
-	if err := r.deleteAllOfinstalledResources(ctx, namespaces, gvks); err != nil {
+	if err := r.deleteAllInstalledResources(ctx, gvks); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) deleteAllOfinstalledResources(ctx context.Context, namespaces *corev1.NamespaceList, gvks []schema.GroupVersionKind) error {
+func (r *BtpOperatorReconciler) deleteAllInstalledResources(ctx context.Context, gvks []schema.GroupVersionKind) error {
 	for _, gvk := range gvks {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
-		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), labelFilter); err != nil {
+		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
 			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
 				return err
 			}
@@ -1281,7 +1281,7 @@ func (r *BtpOperatorReconciler) addLabels(us ...*unstructured.Unstructured) {
 		if len(labels) == 0 {
 			labels = make(map[string]string)
 		}
-		labels[labelKeyForChart] = operatorName
+		labels[managedByLabelKey] = operatorName
 		labels[chartVersionKey] = r.currentVersion
 		u.SetLabels(labels)
 	}

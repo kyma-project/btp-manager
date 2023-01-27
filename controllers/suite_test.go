@@ -171,20 +171,17 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
+	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	reconciler = &BtpOperatorReconciler{
-		Client:                k8sManager.GetClient(),
-		Scheme:                k8sManager.GetScheme(),
-		WaitForChartReadiness: false,
-	}
+	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
 	k8sClientFromManager = k8sManager.GetClient()
 	HardDeleteTimeout = hardDeleteTimeout
 	HardDeleteCheckInterval = hardDeleteTimeout / 20
 	ChartPath = "../module-chart/chart"
+	ResourcesPath = "../module-resources"
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())

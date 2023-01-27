@@ -13,6 +13,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/gvksutils"
@@ -23,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -733,7 +733,7 @@ func checkIfNoBtpResourceExists() {
 			Group:   gvk.Group,
 			Kind:    gvk.Kind,
 		})
-		if err := k8sClient.List(ctx, list, labelFilter); err != nil {
+		if err := k8sClient.List(ctx, list, managedByLabelFilter); err != nil {
 			if !canIgnoreErr(err) {
 				found = true
 				break
