@@ -43,9 +43,6 @@ jobs:
 
         git checkout -B $BRANCH_NAME
 
-        yes | cp -rf ../module-chart .
-        yes | cp -rf ../module-resources .
-
         git add module-chart 
         git add module-resources
 
