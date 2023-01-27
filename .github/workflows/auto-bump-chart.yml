@@ -31,6 +31,15 @@ jobs:
       with:
         ref: main
         clean: false
+
+    - name: Prepare for deletion
+      run: |
+
+        for f in $FILES
+        do
+          echo "Processing $f"
+        done
+
     - name: Create PR
       run: |
 

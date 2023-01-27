@@ -1,6 +1,6 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-ARG1=${1:-../module-chart}
+ARG1=${1:-../../module-chart/chart}
 latest=$(curl \
         -H "Accept: application/vnd.github+json" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -10,4 +10,4 @@ tar zxf charts.tgz
 rsync -a sap-btp-operator/ $ARG1
 rm -r sap-btp-operator
 rm charts.tgz
-echo $latest
+echo $latestq-
