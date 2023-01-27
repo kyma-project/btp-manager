@@ -1,17 +1,19 @@
-# sap-btp-operator Helm Chart
+# sap-btp-operator Helm chart
 
-This is a custom version of the sap-btp-operator helm chart.
+This is a custom version of the sap-btp-operator Helm chart.
 
-The upstream version of the sap-btp-operator helm chart has a dependency on the jetstack cert-manager. This custom version makes [jetstack/cert-manager](https://github.com/jetstack/cert-manager) optional and adds the possibility to use a custom caBundle or [gardener/cert-management](https://github.com/gardener/cert-management).
+The upstream version of the sap-btp-operator Helm chart has a dependency on the jetstack cert-manager. This custom version makes [jetstack/cert-manager](https://github.com/jetstack/cert-manager) optional and adds the possibility to use a custom caBundle or [gardener/cert-management](https://github.com/gardener/cert-management).
 
-## Prerequeisites
+## Prerequisites
 
 * Kubernetes 1.16+
 * Helm 3+
 
-## Install Chart
+## Install chart
 
-### With fixed caBundle:
+<details>
+<summary>With fixed caBundle</summary>
+
 helm install sap-btp-operator . \
     --atomic \
     --create-namespace \
@@ -22,7 +24,11 @@ helm install sap-btp-operator . \
     --set manager.secret.tokenurl="<fill in>" \
     --set cluster.id="<fill in>"
 
-### With custom caBundle:
+</details>
+
+<details>
+<summary>With custom caBundle</summary>
+
 helm install sap-btp-operator . \
     --atomic \
     --create-namespace \
@@ -36,7 +42,11 @@ helm install sap-btp-operator . \
     --set manager.certificates.selfSigned.key="${SERVERKEY}" \
     --set cluster.id="<fill in>"
 
-### With jetstack/cert-manager
+</details>
+
+<details>
+<summary>With jetstack/cert-manager</summary>
+
 helm install sap-btp-operator . \
     --atomic \
     --create-namespace \
@@ -47,8 +57,12 @@ helm install sap-btp-operator . \
     --set manager.secret.tokenurl="<fill in>" \
     --set manager.certificates.certManager=true \
     --set cluster.id="<fill in>"
+  
+  </details>
 
-### With gardener/cert-management
+<details>
+<summary>With gardener/cert-management</summary>
+
 helm template sap-btp-operator . \
     --atomic \
     --create-namespace \
@@ -62,14 +76,18 @@ helm template sap-btp-operator . \
     --set manager.certificates.certManagement.key=${CAKEY} \
     --set cluster.id="<fill in>"
 
-# Changes between the chart and the original one
+</details>
+
+
+## Changes between the chart and the original one
 ### Istio disabled
-Add annotation to the deployment:
+
+Add the annotation to the deployment:
 ```
 sidecar.istio.io/inject: "false"
 ```
 
-### Move secrets into webhook.yml and define certificates:
+### Move Secrets into `webhook.yml` and define certificates:
 ```yaml
 {{- $cn := printf "sap-btp-operator-webhook-service"  }}
 {{- $ca := genCA (printf "%s-%s" $cn "ca") 3650 }}
@@ -99,7 +117,7 @@ data:
 ---
 {{- end}}
 ```
-Add `caBundle` definition in both webhooks:
+Add the `caBundle` definition in both webhooks:
 ```
 {{- if not .Values.manager.certificates }}
 caBundle: {{ b64enc $ca.Cert }}
@@ -108,15 +126,15 @@ caBundle: {{ b64enc $ca.Cert }}
 
 ### Add sap-btp-operator labels
 
-The deployment and service must contain btp-operator specific labels (deployment spec, deployment template and the service labels selector):
+The deployment and service must contain btp-operator specific labels, such as deployment spec, deployment template, and the service labels selector:
 ```yaml
 app.kubernetes.io/instance: sap-btp-operator
 app.kubernetes.io/name: sap-btp-operator
 ```
 
-# How to publish a new version of a chart
-## Download the original chart from helm repository
-Configure helm repository:
+## Publish a new version of the chart
+### Download the original chart from the Helm repository
+Configure the Helm repository:
 ```
 helm repo add sap-btp-operator https://sap.github.io/sap-btp-service-operator
 ```
@@ -124,16 +142,16 @@ Pull the chart
 ```
 helm pull sap-btp-operator/sap-btp-operator
 ```
-Yopu can specify the version if needed:
+You can specify the version if needed:
 ```
 helm pull sap-btp-operator/sap-btp-operator --version v0.2.0
 ```
 
 Unpack the downloaded tar and apply necessary changes.
 
-## Create a package
+### Create a package
 ```
 helm package chart 
 ```
-## Github release
-Creawte a github release and upload the generated helm chart (tgz).
+### GitHub release
+Create a GitHub release and upload the generated Helm chart (tgz).
