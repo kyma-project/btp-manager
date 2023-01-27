@@ -1,5 +1,9 @@
 
-name: "Create a release"
+name: "Manual release trigger"
+
+env:
+  BTP_MANAGER_REPO: docker://europe-docker.pkg.dev/kyma-project/prod/btp-manager
+  BTP_OPERATOR_REPO: docker://europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
 on:
   workflow_dispatch:
@@ -29,13 +33,39 @@ jobs:
               - TBD
           draft: false
           prerelease: false
-  wait-for-template:
-    # this step waits until proper Prow job uploads the template.yaml file
+      - name: Create release branch
+        run: |
+            git checkout -b ${{ github.event.inputs.name }}
+            git push --set-upstream origin ${{ github.event.inputs.name }}
+  wait-for-prow-jobs:
+    # this step waits until proper Prow job uploads the template.yaml file, docker image and module OCI image
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Wait
+      - name: Wait for template.yaml
         run: |
           until $(curl --output /dev/null --silent --head --fail https://github.com/kyma-project/btp-manager/releases/download/${{ github.event.inputs.name }}/template.yaml); do
             echo 'waiting...'
             sleep 15
           done
+      - name: Wait for btp-operator module
+        # Prow job which uploads the template.yaml also pushes the OCI module image to the registry, so there is no need to make retries for tbp-operator module image. It must exists.
+        run: |
+          found=$(skopeo list-tags $BTP_OPERATOR_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
+          if [ $found == "false" ]; then
+            echo "Image $BTP_OPERATOR_REPO:${{ github.event.inputs.name }} not found"
+            exit 1
+          else
+            echo "Image found"
+          fi
+      - name: check btp manager
+        run: |
+          found=false
+          while [ $found == "false" ]
+          do
+            found=$(skopeo list-tags $BTP_MANAGER_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
+            echo "Waiting for btp-operator image: $BTP_MANAGER_REPO:${{ github.event.inputs.name }}"
+            sleep 10
+          done
+          echo "BTP-manager image found
+      
