@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -60,14 +61,13 @@ var (
 	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Second * 10
+	ReadyStateRequeueInterval      = time.Minute * 15
 	ReadyTimeout                   = time.Minute * 1
-	HardDeleteCheckInterval        = time.Second * 10
+	ReadyCheckInterval             = time.Second * 2
 	HardDeleteTimeout              = time.Minute * 20
 	ChartPath                      = "./module-chart/chart"
+	HardDeleteCheckInterval        = time.Second * 10
 	ResourcesPath                  = "./module-resources"
-	ResourcesToApplyPath           = ResourcesPath + "/apply"
-	ResourcesToDeletePath          = ResourcesPath + "/delete"
 )
 
 const (
@@ -451,7 +451,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	default:
 		logger.Info("provisioning")
 
-		us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesToApplyPath)
+		us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
 		if err != nil {
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 		}
@@ -463,8 +463,13 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			logger.Error(err, "while provisioning resources")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, "Failed to provision module resources")
 		}
+		if err = r.waitForResourcesReadiness(ctx, us); err != nil {
+			logger.Error(err, "while waiting for resources readiness")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, "Timed out while waiting for resources readiness")
+		}
 	}
 
+	logger.Info("provisioning succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module provisioning succeeded")
 }
 
@@ -530,6 +535,34 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*un
 	}
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
+	numOfResources := len(us)
+	resourcesReadinessInformer := make(chan<- bool, numOfResources)
+	allReadyInformer := make(chan bool)
+	for _, u := range us {
+		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
+	}
+	go func(c chan<- bool) {
+		now := time.Now()
+		for {
+			if time.Since(now) >= ReadyTimeout {
+				return
+			}
+			if len(resourcesReadinessInformer) == numOfResources {
+				allReadyInformer <- true
+				return
+			}
+			time.Sleep(ReadyCheckInterval)
+		}
+	}(resourcesReadinessInformer)
+	select {
+	case <-allReadyInformer:
+		return nil
+	case <-time.After(ReadyTimeout):
+		return errors.New("resources readiness timeout reached")
+	}
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -1261,7 +1294,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, ResourcesToApplyPath)
+	us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
 	if err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 	}
@@ -1312,4 +1345,34 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 		}
 	}
 	return nil
+}
+
+func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
+	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
+}
+
+func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
+	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
+}
+
+func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+	logger := log.FromContext(ctx)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval/2)
+	defer cancel()
+
+	var err error
+	now := time.Now()
+	got := &unstructured.Unstructured{}
+	got.SetGroupVersionKind(u.GroupVersionKind())
+	for {
+		if time.Since(now) >= ReadyTimeout {
+			logger.Error(err, fmt.Sprintf("failed to get %s %s from the cluster", u.GetName(), u.GetKind()))
+			return
+		}
+		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
+			c <- true
+			return
+		}
+		time.Sleep(ReadyCheckInterval)
+	}
 }
