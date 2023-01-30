@@ -1,0 +1,78 @@
+name: Auto update chart/resources
+
+env:
+  ORG: kyma-project
+  BTP_MANAGER_REPO: btp-manager
+  GIT_EMAIL: team-gopher+1@sap.com
+  GIT_NAME: kyma-btp-manager-bot
+on:
+  workflow_dispatch:
+
+jobs:
+  auto-bump-chart:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Update chart 
+      run: |
+        chmod +x hack/update/make-module-chart.sh
+        latest=$(sh hack/update/make-module-chart.sh)
+        echo "TAG=${latest}" >> $GITHUB_ENV
+
+    - name: Make templates
+      run: |
+        chmod +x hack/update/make-module-resources.sh
+        hack/update/make-module-resources.sh $TAG 
+
+    - name: Configure Git 
+      run: |
+        git config --global user.email $GIT_EMAIL
+        git config --global user.name $GIT_NAME
+ 
+        echo "BRANCH_NAME=chart-$TAG" >> $GITHUB_ENV
+        echo "MSG=Auto-update charts to $TAG" >> $GITHUB_ENV
+
+    - name: Check if there are changes
+      shell: bash
+      run: |
+        prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+        if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+          echo "open pr already exists, no need to create new one"
+          echo "CREATE_PR=false" >> $GITHUB_ENV
+        elif [ -z "$(git status --porcelain)" ]; then
+          echo "nothing changed, exiting"
+          echo "CREATE_PR=false" >> $GITHUB_ENV
+        else
+          echo "CREATE_PR=true" >> $GITHUB_ENV
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+
+    - name: Pass changes
+      if: env.CREATE_PR == 'true'
+      run: |
+        git add module-chart/* 
+        git add module-resources/* 
+        git stash push --staged
+
+    - uses: actions/checkout@v3
+      if: env.CREATE_PR == 'true'
+      with:
+        ref: main
+
+    - name: Create PR
+      if: env.CREATE_PR == 'true'
+      run: |
+        git checkout -B $BRANCH_NAME
+        git stash apply
+        git add module-chart/* 
+        git add module-resources/*
+        git commit -m "$MSG"
+        git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
+        git push --set-upstream origin $BRANCH_NAME -f
+        gh pr create -B main --title "$MSG" --body ""
+      env:
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
