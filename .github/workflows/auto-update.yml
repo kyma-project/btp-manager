@@ -42,7 +42,7 @@ jobs:
         if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
           echo "open pr already exists, no need to create new one"
           echo "CREATE_PR=true" >> $GITHUB_ENV
-        elif if [ -z "$(git status --porcelain)" ]; then
+        elif [ -z "$(git status --porcelain)" ]; then
           echo "nothing changed, exiting"
           echo "CREATE_PR=true" >> $GITHUB_ENV
         else
