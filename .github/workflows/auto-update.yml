@@ -27,11 +27,16 @@ jobs:
         chmod +x hack/update/make-module-resources.sh
         hack/update/make-module-resources.sh $TAG 
 
-    - name: Stash changes
+    - name: Pass changes
       run: |
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "nothing changed, exiting"
+          exit 0
+        fi
+
         git add module-chart 
-        git add module-resources
-        git stash
+        git add module-resources 
+        git stash push --staged
 
     - uses: actions/checkout@v3
       with:
@@ -42,7 +47,7 @@ jobs:
         git config --global user.email $GIT_EMAIL
         git config --global user.name $GIT_NAME
  
-        branch_name="Chart-$TAG"
+        branch_name="chart-$TAG"
         git_msg="Auto-update charts to $TAG" 
 
         git checkout -B $branch_name
@@ -52,19 +57,16 @@ jobs:
         git add module-chart 
         git add module-resources
 
-        if [ -n "$(git status --porcelain)" ]; then
-          git commit -m "$git_msg"
-        
-          git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
-          git push --set-upstream origin $branch_name -f
+        git commit -m "$git_msg"
+        git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
+        git push --set-upstream origin $branch_name -f
   
-          prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-          if  echo $prs | tr " " '\n' | grep -F -q -x $branch_name; then
-              echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
-              exit 0
-          fi
-  
-          gh pr create -B main --title "$git_msg" --body ""
+        prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+        if  echo $prs | tr " " '\n' | grep -F -q -x $branch_name; then
+          echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
+          exit 0
         fi
+  
+        gh pr create -B main --title "$git_msg" --body ""
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
