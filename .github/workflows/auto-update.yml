@@ -33,7 +33,7 @@ jobs:
         git config --global user.name $GIT_NAME
  
         echo "BRANCH_NAME=chart-$TAG" >> $GITHUB_ENV
-        echo "MSG=Auto-update charts to $TAG" >> $GITHUB_ENV
+        echo "MSG=Auto-update chart/resources to $TAG" >> $GITHUB_ENV
 
     - name: Check if there are changes
       shell: bash
