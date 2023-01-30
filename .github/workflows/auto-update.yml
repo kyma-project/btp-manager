@@ -59,7 +59,7 @@ jobs:
 
         git commit -m "$git_msg"
         git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
-        git push --set-upstream origin $branch_name -f
+        git push --set-upstream origin $branch_name
   
         prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
         if  echo $prs | tr " " '\n' | grep -F -q -x $branch_name; then
