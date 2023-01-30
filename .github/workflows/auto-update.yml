@@ -47,7 +47,9 @@ jobs:
           echo "nothing changed, exiting"
           exit 0
         fi
-
+      env:
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+        
     - name: Pass changes
       run: |
         git add module-chart/* 
