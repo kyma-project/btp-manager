@@ -1,0 +1,12 @@
+---
+# Source: sap-btp-operator/templates/configmap.yml
+apiVersion: v1
+data:
+  CLUSTER_ID: 2ece141b-db31-4b83-89c5-e31a7fe1f252
+  MANAGEMENT_NAMESPACE: kube-public
+  RELEASE_NAMESPACE: kube-public
+  ALLOW_CLUSTER_ACCESS: "true"
+kind: ConfigMap
+metadata:
+  name: sap-btp-operator-config
+  namespace: kube-public

@@ -1,7 +1,7 @@
 name: Auto bump chart
 
 env:
-  ORG: ukff
+  ORG: kyma-project
   BTP_MANAGER_REPO: btp-manager
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
