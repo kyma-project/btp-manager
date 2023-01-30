@@ -34,8 +34,8 @@ jobs:
           exit 0
         fi
 
-        git add module-chart 
-        git add module-resources 
+        git add module-chart/* 
+        git add module-resources/* 
         git stash push --staged
 
     - uses: actions/checkout@v3
@@ -54,8 +54,8 @@ jobs:
 
         git stash apply
 
-        git add module-chart 
-        git add module-resources
+        git add module-chart/* 
+        git add module-resources/*
 
         git commit -m "$git_msg"
         git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
