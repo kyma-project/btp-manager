@@ -3,9 +3,9 @@ cd "$(dirname "$0")"
 
 readonly CHART_PATH="../../module-chart/chart"
 readonly CHART_OVERRIDES_PATH="../../module-chart/overrides.yaml"
-readonly EXSITING_RESOURCES_PATH="../../module-resources"
-readonly EXSITING_RESOURCES_DELETE_PATH="../../module-resources/delete"
-readonly EXSITING_RESOURCES_APPLY_PATH="../../module-resources/apply"
+readonly EXISTING_RESOURCES_PATH="../../module-resources"
+readonly EXISTING_RESOURCES_DELETE_PATH="../../module-resources/delete"
+readonly EXISTING_RESOURCES_APPLY_PATH="../../module-resources/apply"
 readonly HELM_OUTPUT_PATH="rendered"
 readonly NEW_RESOURCES_PATH="rendered/sap-btp-operator/templates"
 
@@ -49,12 +49,12 @@ incoming_resources=()
 runActionForEachYaml $NEW_RESOURCES_PATH actionForNewResource
 
 touch to-delete.yml
-runActionForEachYaml $EXSITING_RESOURCES_APPLY_PATH actionForExistingResource
+runActionForEachYaml $EXISTING_RESOURCES_APPLY_PATH actionForExistingResource
 
-rm -r $EXSITING_RESOURCES_PATH
-mkdir $EXSITING_RESOURCES_PATH
+rm -r $EXISTING_RESOURCES_PATH
+mkdir $EXISTING_RESOURCES_PATH
 mkdir $EXSITING_RESOURCES_APPLY_PATH
 mkdir $EXSITING_RESOURCES_DELETE_PATH
-mv $NEW_RESOURCES_PATH/* $EXSITING_RESOURCES_APPLY_PATH
-mv to-delete.yml $EXSITING_RESOURCES_DELETE_PATH
+mv $NEW_RESOURCES_PATH/* $EXISTING_RESOURCES_APPLY_PATH
+mv to-delete.yml $EXISTING_RESOURCES_DELETE_PATH
 rm -r $HELM_OUTPUT_PATH
