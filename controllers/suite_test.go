@@ -184,7 +184,7 @@ var _ = BeforeSuite(func() {
 	k8sClientFromManager = k8sManager.GetClient()
 	HardDeleteTimeout = hardDeleteTimeout
 	HardDeleteCheckInterval = hardDeleteTimeout / 20
-	ChartPath = "../module-chart"
+	ChartPath = "../module-chart/chart"
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())

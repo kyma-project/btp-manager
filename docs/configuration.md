@@ -9,7 +9,7 @@ To configure them using CLI arguments, follow this example:
 $ manager --help
 Usage of ./manager:
   -chart-path string
-    	Path to the root directory inside the chart. (default "./module-chart")
+    	Path to the root directory inside the chart. (default "./module-chart/chart")
   -chart-namespace string
     	Namespace to install chart resources. (default "kyma-system")
   -config-name string
@@ -56,7 +56,7 @@ metadata:
   name: sap-btp-manager
   namespace: kyma-system
 data:
-  ChartPath: ./module-chart
+  ChartPath: ./module-chart/chart
   ChartNamespace: kyma-system
   SecretName: sap-btp-manager
   DeploymentName: sap-btp-operator-controller-manager

@@ -62,7 +62,7 @@ var (
 	ReadyTimeout                   = time.Minute * 1
 	HardDeleteCheckInterval        = time.Second * 10
 	HardDeleteTimeout              = time.Minute * 20
-	ChartPath                      = "./module-chart"
+	ChartPath                      = "./module-chart/chart"
 )
 
 const (
