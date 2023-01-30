@@ -1,7 +1,7 @@
 name: Auto update chart/resources
 
 env:
-  ORG: kyma-project
+  ORG: ukff
   BTP_MANAGER_REPO: btp-manager
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
