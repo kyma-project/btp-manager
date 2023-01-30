@@ -82,7 +82,7 @@ helm template sap-btp-operator . \
 
 
 ## Overrides
-During rendering by helm a kubernetes resources files, following [values overrides](https://github.com/kyma-project/btp-manager/blob/main/module-chart/overrides.yaml) are appiled.
+While rendering Kubernetes resource files by Helm, the following [values overrides](https://github.com/kyma-project/btp-manager/blob/main/module-chart/overrides.yaml) are applied.
 
 ## Publish a new version of the chart
 1.  Download the original chart from the Helm repository.  
