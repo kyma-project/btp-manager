@@ -1,5 +1,7 @@
 # sap-btp-operator Helm chart
 
+## Overview
+
 This is a custom version of the sap-btp-operator Helm chart.
 
 The upstream version of the sap-btp-operator Helm chart has a dependency on the jetstack cert-manager. This custom version makes [jetstack/cert-manager](https://github.com/jetstack/cert-manager) optional and adds the possibility to use a custom caBundle or [gardener/cert-management](https://github.com/gardener/cert-management).
@@ -79,15 +81,15 @@ helm template sap-btp-operator . \
 </details>
 
 
-## Changes between the chart and the original one
-### Istio disabled
+## Change the original chart to the sap-btp-operator Helm chart 
+1. Disable Istio.
 
 Add the annotation to the deployment:
 ```
 sidecar.istio.io/inject: "false"
 ```
 
-### Move Secrets into `webhook.yml` and define certificates:
+2. Move Secrets into `webhook.yml` and define certificates:
 ```yaml
 {{- $cn := printf "sap-btp-operator-webhook-service"  }}
 {{- $ca := genCA (printf "%s-%s" $cn "ca") 3650 }}
@@ -117,14 +119,14 @@ data:
 ---
 {{- end}}
 ```
-Add the `caBundle` definition in both webhooks:
+3. Add the `caBundle` definition in both webhooks:
 ```
 {{- if not .Values.manager.certificates }}
 caBundle: {{ b64enc $ca.Cert }}
 {{- end }}
 ```
 
-### Add sap-btp-operator labels
+4. Add sap-btp-operator labels
 
 The deployment and service must contain btp-operator specific labels, such as deployment spec, deployment template, and the service labels selector:
 ```yaml
@@ -133,25 +135,27 @@ app.kubernetes.io/name: sap-btp-operator
 ```
 
 ## Publish a new version of the chart
-### Download the original chart from the Helm repository
-Configure the Helm repository:
-```
-helm repo add sap-btp-operator https://sap.github.io/sap-btp-service-operator
-```
-Pull the chart
-```
-helm pull sap-btp-operator/sap-btp-operator
-```
-You can specify the version if needed:
-```
-helm pull sap-btp-operator/sap-btp-operator --version v0.2.0
-```
+1.  Download the original chart from the Helm repository.  
+   
+     i. Configure the Helm repository:
+    ```
+     helm repo add sap-btp-operator https://sap.github.io/sap-btp-service-operator
+    ```  
+    ii. Pull the chart
 
-Unpack the downloaded tar and apply necessary changes.
+    ```
+    helm pull sap-btp-operator/sap-btp-operator
+    ```
+    > **NOTE:** You can specify the version if needed:
+    >```
+    >helm pull sap-btp-operator/sap-btp-operator --version v0.2.0
+    >```
 
-### Create a package
-```
-helm package chart 
-```
-### GitHub release
+    iii. Unpack the downloaded tar and apply necessary changes.
+
+1. Create a package
+   ```
+   helm package chart 
+   ```
+1. Release on GitHub
 Create a GitHub release and upload the generated Helm chart (tgz).
