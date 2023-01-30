@@ -1,4 +1,4 @@
-name: Auto bump chart
+name: Auto update chart/resources
 
 env:
   ORG: kyma-project
@@ -29,7 +29,6 @@ jobs:
 
     - name: Stash changes
       run: |
-        git status
         git add module-chart 
         git add module-resources
         git stash
@@ -37,18 +36,16 @@ jobs:
     - uses: actions/checkout@v3
       with:
         ref: main
-        clean: false
-
     - name: Create PR
       run: |
 
         git config --global user.email $GIT_EMAIL
         git config --global user.name $GIT_NAME
  
-        BRANCH_NAME="Chart-$TAG"
-        GIT_MSG="Auto-update charts to $TAG" 
+        branch_name="Chart-$TAG"
+        git_msg="Auto-update charts to $TAG" 
 
-        git checkout -B $BRANCH_NAME
+        git checkout -B $branch_name
 
         git stash apply
 
@@ -56,18 +53,18 @@ jobs:
         git add module-resources
 
         if [ -n "$(git status --porcelain)" ]; then
-          git commit -m "$GIT_MSG"
+          git commit -m "$git_msg"
         
           git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
-          git push --set-upstream origin $BRANCH_NAME -f
+          git push --set-upstream origin $branch_name -f
   
           prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-          if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+          if  echo $prs | tr " " '\n' | grep -F -q -x $branch_name; then
               echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
               exit 0
           fi
   
-          gh pr create -B main --title "$GIT_MSG" --body ""
+          gh pr create -B main --title "$git_msg" --body ""
         fi
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
