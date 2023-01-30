@@ -81,58 +81,8 @@ helm template sap-btp-operator . \
 </details>
 
 
-## Change the original chart to the sap-btp-operator Helm chart 
-1. Disable Istio.
-
-Add the annotation to the deployment:
-```
-sidecar.istio.io/inject: "false"
-```
-
-2. Move Secrets into `webhook.yml` and define certificates:
-```yaml
-{{- $cn := printf "sap-btp-operator-webhook-service"  }}
-{{- $ca := genCA (printf "%s-%s" $cn "ca") 3650 }}
-{{- $altName1 := printf "%s.%s" $cn .Release.Namespace }}
-{{- $altName2 := printf "%s.%s.svc" $cn .Release.Namespace }}
-{{- $cert := genSignedCert $cn nil (list $altName1 $altName2) 3650 $ca }}
-{{- if not .Values.manager.certificates }}
-apiVersion: v1
-kind: Secret
-metadata:
-  name: webhook-server-cert
-  namespace: {{.Release.Namespace}}
-type: kubernetes.io/tls
-data:
-  tls.crt: {{ b64enc $cert.Cert }}
-  tls.key: {{ b64enc $cert.Key }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: sap-btp-service-operator-tls
-  namespace: {{ .Release.Namespace }}
-type: kubernetes.io/tls
-data:
-  tls.crt: {{ b64enc $cert.Cert }}
-  tls.key: {{ b64enc $cert.Key }}
----
-{{- end}}
-```
-3. Add the `caBundle` definition in both webhooks:
-```
-{{- if not .Values.manager.certificates }}
-caBundle: {{ b64enc $ca.Cert }}
-{{- end }}
-```
-
-4. Add sap-btp-operator labels
-
-The deployment and service must contain btp-operator specific labels, such as deployment spec, deployment template, and the service labels selector:
-```yaml
-app.kubernetes.io/instance: sap-btp-operator
-app.kubernetes.io/name: sap-btp-operator
-```
+## Overrides
+During rendering by helm a kubernetes resources files, following [values overrides](https://github.com/kyma-project/btp-manager/blob/main/module-chart/overrides.yaml) are appiled.
 
 ## Publish a new version of the chart
 1.  Download the original chart from the Helm repository.  
