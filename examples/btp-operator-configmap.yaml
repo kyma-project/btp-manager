@@ -4,7 +4,7 @@ metadata:
   name: sap-btp-manager
   namespace: kyma-system
 data:
-  ChartPath: ./module-chart
+  ChartPath: ./module-chart/chart
   ChartNamespace: kyma-system
   SecretName: sap-btp-manager
   DeploymentName: sap-btp-operator-controller-manager

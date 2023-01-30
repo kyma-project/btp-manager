@@ -31,5 +31,5 @@ Dockerfile.cross
 /mod/
 /template.yaml
 .idea/
-/module-chart/manifest/
+/module-chart/chart/manifest/
 /controllers/testdata/test-module-chart/
