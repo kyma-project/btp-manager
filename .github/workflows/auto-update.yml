@@ -36,9 +36,10 @@ jobs:
         echo "MSG=Auto-update charts to $TAG" >> $GITHUB_ENV
 
     - name: Check if there are changes
+      shell: bash
       run: |
         prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-        if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+        if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
           echo "open pr already exists, no need to create new one"
           echo "CREATE_PR=true" >> $GITHUB_ENV
         elif if [ -z "$(git status --porcelain)" ]; then
