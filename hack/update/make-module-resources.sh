@@ -19,7 +19,7 @@ runActionForEachYaml() {
   if [ "$(ls -A $directory)" ]; then    
     for combinedYaml in $directory/*
     do
-        mkdir 'temp' && cd "$_"
+        mkdir 'temp' && cd 'temp'
         yq -s '"file_" + $index' "../$combinedYaml"
         for singleYaml in *
         do
@@ -27,7 +27,7 @@ runActionForEachYaml() {
         done
         cd .. && rm -r 'temp'
     done
-	else
+  else
     echo "$directory is Empty"
   fi
 }
