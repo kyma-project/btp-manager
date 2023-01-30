@@ -41,12 +41,12 @@ jobs:
         prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
         if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
           echo "open pr already exists, no need to create new one"
-          echo "CREATE_PR=true" >> $GITHUB_ENV
+          echo "CREATE_PR=false" >> $GITHUB_ENV
         elif [ -z "$(git status --porcelain)" ]; then
           echo "nothing changed, exiting"
-          echo "CREATE_PR=true" >> $GITHUB_ENV
-        else
           echo "CREATE_PR=false" >> $GITHUB_ENV
+        else
+          echo "CREATE_PR=true" >> $GITHUB_ENV
         fi
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
