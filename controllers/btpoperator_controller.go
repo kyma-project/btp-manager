@@ -774,6 +774,10 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			HardDeleteCheckInterval, err = time.ParseDuration(v)
 		case "HardDeleteTimeout":
 			HardDeleteTimeout, err = time.ParseDuration(v)
+		case "ResourcesPath":
+			ResourcesPath = v
+		case "ReadyCheckInterval":
+			ReadyCheckInterval, err = time.ParseDuration(v)
 		default:
 			logger.Info("unknown config update key", k, v)
 		}
