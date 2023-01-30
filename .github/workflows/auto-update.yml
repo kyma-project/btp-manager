@@ -36,34 +36,36 @@ jobs:
         echo "MSG=Auto-update charts to $TAG" >> $GITHUB_ENV
 
     - name: Check if there are changes
-      shell: bash
       run: |
         prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
         if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
-          echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
-          exit 0
-        fi
-
-        if [ -z "$(git status --porcelain)" ]; then
+          echo "open pr already exists, no need to create new one"
+          echo "CREATE_PR=true" >> $GITHUB_ENV
+        elif if [ -z "$(git status --porcelain)" ]; then
           echo "nothing changed, exiting"
-          exit 0
+          echo "CREATE_PR=true" >> $GITHUB_ENV
+        else
+          echo "CREATE_PR=false" >> $GITHUB_ENV
         fi
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
 
     - name: Pass changes
+      if: env.CREATE_PR == "true"
       run: |
         git add module-chart/* 
         git add module-resources/* 
         git stash push --staged
 
     - uses: actions/checkout@v3
+      if: env.CREATE_PR == "true"
       with:
         ref: main
-    - run: git checkout -B $BRANCH_NAME
-
+        
     - name: Create PR
+      if: env.CREATE_PR == "true"
       run: |
+        git checkout -B $BRANCH_NAME
         git stash apply
         git add module-chart/* 
         git add module-resources/*
