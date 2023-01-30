@@ -40,16 +40,16 @@ jobs:
         prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
         if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
           echo "open pr already exists, no need to create new one, pr will be updated by push from previous step"
-          exit 0
+          exit 1
         fi
 
         if [ -z "$(git status --porcelain)" ]; then
           echo "nothing changed, exiting"
-          exit 0
+          exit 1
         fi
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
-        
+
     - name: Pass changes
       run: |
         git add module-chart/* 
