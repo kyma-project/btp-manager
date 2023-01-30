@@ -2,7 +2,7 @@
 cd "$(dirname "$0")"
 
 readonly CHART_PATH="../../module-chart/chart"
-readonly CHART_OVERRIDES_PATH="../../module-chart/public-overrides.yaml"
+readonly CHART_OVERRIDES_PATH="../../module-chart/overrides.yaml"
 readonly EXSITING_RESOURCES_PATH="../../module-resources"
 readonly EXSITING_RESOURCES_DELETE_PATH="../../module-resources/delete"
 readonly EXSITING_RESOURCES_APPLY_PATH="../../module-resources/apply"
