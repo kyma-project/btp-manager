@@ -3,12 +3,6 @@ cd "$(dirname "$0")"
 
 readonly CHART_PATH="../../module-chart/chart"
 
-trap 'on_error' ERR
-function on_error {
-    echo "error"
-    exit 1
-}
-
 latest=$(curl \
         -H "Accept: application/vnd.github+json" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
