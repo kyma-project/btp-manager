@@ -19,13 +19,19 @@ jobs:
     - name: Update chart 
       run: |
         chmod +x hack/update/make-module-chart.sh
-        latest=$(sh hack/update/make-module-chart.sh)
-        echo "TAG=${latest}" >> $GITHUB_ENV
+        result=$(sh hack/update/make-module-chart.sh)
+        if [[ $result == "error" ]]; then
+          exit 1
+        fi
+        echo "TAG=${result}" >> $GITHUB_ENV
 
     - name: Make templates
       run: |
         chmod +x hack/update/make-module-resources.sh
-        hack/update/make-module-resources.sh $TAG 
+        result=$(sh hack/update/make-module-resources.sh $TAG)
+        if [[ $result == "error" ]]; then
+          exit 1
+        fi
 
     - name: Configure Git 
       run: |
