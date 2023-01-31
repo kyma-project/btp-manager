@@ -9,7 +9,7 @@ readonly EXISTING_RESOURCES_APPLY_PATH="../../module-resources/apply"
 readonly HELM_OUTPUT_PATH="rendered"
 readonly NEW_RESOURCES_PATH="rendered/sap-btp-operator/templates"
 
-helm template $1 $CHART_PATH --output-dir $HELM_OUTPUT_PATH --values $CHART_OVERRIDES_PATH
+helm template $1 $CHART_PATH --output-dir $HELM_OUTPUT_PATH --values $CHART_OVERRIDES_PATH --namespace "kyma-system"
 
 trap 'rm -rf -- "temp"' EXIT
 runActionForEachYaml() {
