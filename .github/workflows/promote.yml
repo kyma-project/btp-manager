@@ -7,7 +7,7 @@ env:
   BTP_MANAGER_REPO: btp-manager
   KYMA_REPO: kyma
   TEMPLATE_NAME_FROM_REALASE: template.yaml
-  TEMPLATE_NAME_FOR_KYMA: moduletemplate-btp-manageer.yaml
+  TEMPLATE_NAME_FOR_KYMA: moduletemplate-btp-manager.yaml
   GIT_EMAIL: <>
   GIT_NAME: kyma-btp-manager-bot
 
@@ -76,6 +76,8 @@ jobs:
     - name: Clone Kyma Repo 
       run: |
         git clone https://github.com/$BOT_ORG/$KYMA_REPO.git
+        git fetch upstream
+        git merge upstream/main
 
     - name: Create Branch
       working-directory: kyma
