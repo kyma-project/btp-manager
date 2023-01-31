@@ -4,18 +4,18 @@
 
 manager:
   memory_limit: 200Mi
-  cpu_limit: 250m  
+  cpu_limit: 250m
   req_memory_limit: 20Mi
-  req_cpu_limit: 10m
+  req_cpu_limit: 100m
   allow_cluster_access: true
   allowed_namespaces: []
-  replica_count: 1
-  enable_leader_election: false
+  replica_count: 2
+  enable_leader_election: true
   management_namespace:
-  priorityClassName: kyma-system
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.2.5
+    tag: v0.3.6
+    sha: ""
   secret:
     b64encoded: false
     enabled: true
@@ -27,9 +27,20 @@ manager:
     sm_url: ""
     tokenurl: ""
     tokenurlsuffix: "/oauth/token"
-  certificates: {}
+  rbacProxy:
+    image:
+      repository: quay.io/brancz/kube-rbac-proxy
+      sha: ""
+      tag: v0.11.0
+    memory_limit: ""
+    cpu_limit: ""
+    req_memory_limit: ""
+    req_cpu_limit: ""
+  imagePullSecrets: []
+#   - name: registrySecretName
+  certificates:
     # Configure if https://github.com/jetstack/cert-manager is used
-    # certManager: true
+    certManager: true
     # Configure if self-generated, self-signed certificates are used
     # selfSigned: {}
     # selfSigned:
@@ -60,6 +71,8 @@ manager:
   #   runAsNonRoot: true
   securityContext: {}
   health_service:
+    enabled: false
+  kubernetesMatchLabels:
     enabled: false
 cluster:
   id:
