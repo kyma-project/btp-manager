@@ -2,10 +2,12 @@
 name: Promote to channel
 
 env:
-  ORG: kyma-project
+  BOT_ORG: kyma-btp-manager-bot
+  KYMA_ORG: kyma-project
   BTP_MANAGER_REPO: btp-manager
   KYMA_REPO: kyma
-  TEMPLATE_NAME: template.yaml
+  TEMPLATE_NAME_FROM_REALASE: template.yaml
+  TEMPLATE_NAME_FOR_KYMA: moduletemplate-btp-manageer.yaml
   GIT_EMAIL: <>
   GIT_NAME: kyma-btp-manager-bot
 
@@ -38,7 +40,7 @@ jobs:
         latest=$(curl \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/$ORG/$BTP_MANAGER_REPO/releases/latest | jq -r '.tag_name') 
+                  https://api.github.com/repos/$KYMA_ORG/$BTP_MANAGER_REPO/releases/latest | jq -r '.tag_name') 
 
         echo "TAG=${latest}" >> $GITHUB_ENV
 
@@ -49,7 +51,7 @@ jobs:
           tags=$(curl \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/$ORG/$BTP_MANAGER_REPO/tags | jq -r '.[] | .name')
+                  https://api.github.com/repos/$KYMA_ORG/$BTP_MANAGER_REPO/tags | jq -r '.[] | .name')
           
           if  echo $tags | tr " " '\n' | grep -F -q -x ${{ inputs.releaseTag }}; then
               echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
@@ -64,7 +66,7 @@ jobs:
       run: echo "BRANCH_NAME=$BTP_MANAGER_REPO-$TAG" >> $GITHUB_ENV
 
     - name: Download module template 
-      run: curl -O -J -L https://github.com/$ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME
+      run: curl -O -J -L https://github.com/$KYMA_ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME_FROM_REALASE
 
     - name: Setup GitHub config
       run: |
@@ -73,7 +75,7 @@ jobs:
 
     - name: Clone Kyma Repo 
       run: |
-        git clone https://github.com/$ORG/$KYMA_REPO.git
+        git clone https://github.com/$BOT_ORG/$KYMA_REPO.git
 
     - name: Create Branch
       working-directory: kyma
@@ -81,31 +83,33 @@ jobs:
         git checkout -B $BRANCH_NAME
 
     - name: Add module template
-      run: yes | cp -rf $TEMPLATE_NAME $KYMA_REPO/modules/${{ inputs.channel }}
+      run: |
+        mv $TEMPLATE_NAME_FROM_REALASE $TEMPLATE_NAME_FOR_KYMA
+        yes | cp -rf $TEMPLATE_NAME_FOR_KYMA $KYMA_REPO/modules/${{ inputs.channel }}
 
     - name: Commit Changes
       working-directory: kyma
       run: |
         git add .
-        git commit -m "Update $TEMPLATE_NAME"
+        git commit -m "Update $TEMPLATE_NAME_FOR_KYMA"
 
     - name: Push Changes
       working-directory: kyma
       run: |
-        git remote set-url origin https://${{ secrets.BOT_TOKEN }}@github.com/$ORG/$KYMA_REPO.git
+        git remote set-url origin https://${{ secrets.BOT_TOKEN }}@github.com/$BOT_ORG/$KYMA_REPO.git
         git push --set-upstream origin $BRANCH_NAME -f
 
     - name: Create PR if needed
       working-directory: kyma
       shell: bash
       run: |
-        prs=$(gh pr list -R https://github.com/$ORG/$KYMA_REPO/ -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+        prs=$(gh pr list -R https://github.com/$KYMA_ORG/$KYMA_REPO/ -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
        
         if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "opened pr already exists, no need to create new one, pr will be updated by push from previous step"
             exit 0
         fi
        
-        gh pr create -B main -R https://github.com/$ORG/$KYMA_REPO/ --title "Promote BTP Manager to ( $TAG )" --fill
+        gh pr create -B main -R https://github.com/$KYMA_ORG/$KYMA_REPO/ --title "Promote BTP Manager to ( $TAG )" --fill
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
