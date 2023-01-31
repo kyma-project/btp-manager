@@ -80,6 +80,7 @@ jobs:
     - name: Sync Repo
       working-directory: kyma
       run: |
+        git remote add upstream https://github.com/$KYMA_ORG/$KYMA_REPO/
         git fetch upstream
         git merge upstream/main
 
