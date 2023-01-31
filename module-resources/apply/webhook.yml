@@ -1,10 +1,8 @@
+---
+# Source: sap-btp-operator/templates/webhook.yml
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  {{- if .Values.manager.certificates.certManager }}
-  annotations:
-    cert-manager.io/inject-ca-from: {{.Release.Namespace}}/sap-btp-operator-serving-cert
-  {{- end}}
   name: sap-btp-operator-mutating-webhook-configuration
 webhooks:
   - admissionReviewVersions:
@@ -13,14 +11,8 @@ webhooks:
     clientConfig:
       service:
         name: sap-btp-operator-webhook-service
-        namespace: {{.Release.Namespace}}
+        namespace: kyma-system
         path: /mutate-services-cloud-sap-com-v1-servicebinding
-      {{- if .Values.manager.certificates.selfSigned }}
-      caBundle: {{.Values.manager.certificates.selfSigned.caBundle }}
-      {{- end }}
-      {{- if .Values.manager.certificates.gardenerCertManager }}
-      caBundle: {{.Values.manager.certificates.gardenerCertManager.caBundle }}
-      {{- end }}
     failurePolicy: Fail
     name: mservicebinding.kb.io
     rules:
@@ -40,14 +32,8 @@ webhooks:
     clientConfig:
       service:
         name: sap-btp-operator-webhook-service
-        namespace: {{.Release.Namespace}}
+        namespace: kyma-system
         path: /mutate-services-cloud-sap-com-v1-serviceinstance
-      {{- if .Values.manager.certificates.selfSigned }}
-      caBundle: {{.Values.manager.certificates.selfSigned.caBundle }}
-      {{- end }}
-      {{- if .Values.manager.certificates.gardenerCertManager }}
-      caBundle: {{.Values.manager.certificates.gardenerCertManager.caBundle }}
-      {{- end }}
     failurePolicy: Fail
     name: mserviceinstance.kb.io
     rules:
@@ -62,13 +48,10 @@ webhooks:
           - serviceinstances
     sideEffects: None
 ---
+# Source: sap-btp-operator/templates/webhook.yml
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  {{- if .Values.manager.certificates.certManager }}
-  annotations:
-    cert-manager.io/inject-ca-from: {{.Release.Namespace}}/sap-btp-operator-serving-cert
-  {{- end}}
   name: sap-btp-operator-validating-webhook-configuration
 webhooks:
   - admissionReviewVersions:
@@ -77,14 +60,8 @@ webhooks:
     clientConfig:
       service:
         name: sap-btp-operator-webhook-service
-        namespace: {{.Release.Namespace}}
+        namespace: kyma-system
         path: /validate-services-cloud-sap-com-v1-servicebinding
-      {{- if .Values.manager.certificates.selfSigned }}
-      caBundle: {{.Values.manager.certificates.selfSigned.caBundle }}
-      {{- end }}
-      {{- if .Values.manager.certificates.gardenerCertManager }}
-      caBundle: {{.Values.manager.certificates.gardenerCertManager.caBundle }}
-      {{- end }}
     failurePolicy: Fail
     name: vservicebinding.kb.io
     rules:
