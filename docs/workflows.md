@@ -12,12 +12,12 @@ If you want to control the workflow, you can set the following inputs in the Git
 
 ## Auto update chart and resources
 
-The goal of workflow is to to update chart (module-chart/chart) to newest version, render resource templates from newest chart and create PR with changes. Workflow work on two shell scripts:
+The goal of the workflow is to update the chart (module-chart/chart) to the newest version, render resource templates from the newest chart, and create a PR with the changes. The workflow works on two shell scripts:
 
-- make-module-chart.sh - it download charts from (upstream)[https://github.com/SAP/sap-btp-service-operator] from realase tagged as 'latest' and place it in module-chart/chart. 
+- `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator) from the release tagged as 'latest' and places it in the `module-chart/chart`. 
 	
-- make-module-resources - it use helm to render kuberneter resources templates, as a base it takes chart from module-chart/chart and also takes values to override https://github.com/kyma-project/btp-manager/blob/main/module-chart/overrides.yaml. After helm templating finishes templating with appiled overrides, the generated resources are put into module-resources/apply, the resources which were in previous version but they are not in new version are placed under module-resource/delete
+- `make-module-resources.sh` - uses Helm to render Kubernetes resources templates. As a base it takes a the chart from the `module-chart/chart` and also takes values to [override](https://github.com/kyma-project/btp-manager/blob/main/module-chart/overrides.yaml). After Helm finishes templating with the applied overrides, the generated resources are put into `module-resources/apply`. The resources that were used in the previous version but are not used in the new version are placed under `module-resource/delete`.
  
-Both of above scripts are executed from the workflow but also can be triggered manually from developers computer. They are placed under hack/update/.
+Both scripts are run from the workflow but can also be triggered manually from the developer's computer. They are placed under `hack/update/`.
 
-We want to keep module-chart/chart in sync with (upstream)[https://github.com/SAP/sap-btp-service-operator], thus there should be not applied any manual changes there.
+To keep `module-chart/chart` in sync with the [upstream](https://github.com/SAP/sap-btp-service-operator), you must not apply any manual changes there.
