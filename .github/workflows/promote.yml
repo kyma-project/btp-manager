@@ -76,6 +76,10 @@ jobs:
     - name: Clone Kyma Repo 
       run: |
         git clone https://github.com/$BOT_ORG/$KYMA_REPO.git
+
+    - name: Sync Repo
+      working-directory: kyma
+      run: |
         git fetch upstream
         git merge upstream/main
 
