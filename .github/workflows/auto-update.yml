@@ -6,7 +6,8 @@ env:
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' 
 
 jobs:
   auto-bump-chart:
