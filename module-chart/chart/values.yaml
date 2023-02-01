@@ -38,9 +38,9 @@ manager:
     req_cpu_limit: ""
   imagePullSecrets: []
 #   - name: registrySecretName
-  certificates:
+  certificates: {}
     # Configure if https://github.com/jetstack/cert-manager is used
-    certManager: true
+    # certManager: true
     # Configure if self-generated, self-signed certificates are used
     # selfSigned: {}
     # selfSigned:
