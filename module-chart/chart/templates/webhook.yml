@@ -36,6 +36,7 @@ data:
   tls.crt: "{{ .Values.manager.certificates.selfSigned.crt }}"
   tls.key: "{{ .Values.manager.certificates.selfSigned.key }}"
 ---
+{{- end}}
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
