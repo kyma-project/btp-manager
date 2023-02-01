@@ -16,3 +16,10 @@ How to create a release:
 6. The Github action waits for `template.yaml` asset in the Github release and waits for images in the Docker registry.
 
 ![Release diagram](./assets/release.svg)
+
+## Replacing an existing release
+
+To regenerate an existing release do the following steps:
+
+1. Delete Github release
+2. Delete Github tag
