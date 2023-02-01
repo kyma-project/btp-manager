@@ -23,3 +23,4 @@ To regenerate an existing release do the following steps:
 
 1. Delete Github release
 2. Delete Github tag
+3. Run the "Create a release" pipeline (described above)
