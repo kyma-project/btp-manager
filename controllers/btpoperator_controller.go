@@ -539,23 +539,22 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, us []*un
 
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
-	resourcesReadinessInformer := make(chan<- bool, numOfResources)
+	resourcesReadinessInformer := make(chan bool, numOfResources)
 	allReadyInformer := make(chan bool)
 	for _, u := range us {
 		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
 	}
-	go func(c chan<- bool) {
-		now := time.Now()
-		for {
-			if time.Since(now) >= ReadyTimeout {
+	go func(c chan bool) {
+		timeout := time.After(ReadyTimeout)
+		for i := 0; i < numOfResources; i++ {
+			select {
+			case <-resourcesReadinessInformer:
+				continue
+			case <-timeout:
 				return
 			}
-			if len(resourcesReadinessInformer) == numOfResources {
-				allReadyInformer <- true
-				return
-			}
-			time.Sleep(ReadyCheckInterval)
 		}
+		allReadyInformer <- true
 	}(resourcesReadinessInformer)
 	select {
 	case <-allReadyInformer:
