@@ -63,9 +63,11 @@ func main() {
 	flag.StringVar(&controllers.ConfigName, "config-name", controllers.ConfigName, "ConfigMap name with configuration knobs for the btp-manager internals.")
 	flag.StringVar(&controllers.DeploymentName, "deployment-name", controllers.DeploymentName, "Name of the deployment of sap-btp-operator for deprovisioning.")
 	flag.StringVar(&controllers.ChartPath, "chart-path", controllers.ChartPath, "Path to the root directory inside the chart.")
+	flag.StringVar(&controllers.ResourcesPath, "resources-path", controllers.ResourcesPath, "Path to the directory with module resources to apply/delete.")
 	flag.DurationVar(&controllers.ProcessingStateRequeueInterval, "processing-state-requeue-interval", controllers.ProcessingStateRequeueInterval, `Requeue interval for state "processing".`)
 	flag.DurationVar(&controllers.ReadyStateRequeueInterval, "ready-state-requeue-interval", controllers.ReadyStateRequeueInterval, `Requeue interval for state "ready".`)
 	flag.DurationVar(&controllers.ReadyTimeout, "ready-timeout", controllers.ReadyTimeout, "Helm chart timeout.")
+	flag.DurationVar(&controllers.ReadyCheckInterval, "ready-check-interval", controllers.ReadyCheckInterval, "Ready check retry interval.")
 	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
 	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
 	opts := zap.Options{
@@ -100,11 +102,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	reconciler := &controllers.BtpOperatorReconciler{
-		Client:                mgr.GetClient(),
-		Scheme:                scheme,
-		WaitForChartReadiness: true,
-	}
+	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")

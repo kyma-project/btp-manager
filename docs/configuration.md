@@ -10,6 +10,8 @@ $ manager --help
 Usage of ./manager:
   -chart-path string
     	Path to the root directory inside the chart. (default "./module-chart/chart")
+  -resources-path string
+    Path to the directory with module resources to apply/delete. (default "./module-resources")
   -chart-namespace string
     	Namespace to install chart resources. (default "kyma-system")
   -config-name string
@@ -34,6 +36,8 @@ Usage of ./manager:
     	Helm chart timeout. (default 1m0s)
   -hard-delete-check-interval duration
     	Hard delete retry interval. (default 10s)
+  -ready-check-interval duration
+    	Ready check retry interval. (default 2s)
   -secret-name string
     	Secret name with input values for sap-btp-operator chart templating. (default "sap-btp-manager")
   -zap-devel

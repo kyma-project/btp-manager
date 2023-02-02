@@ -33,3 +33,4 @@ Dockerfile.cross
 .idea/
 /module-chart/chart/manifest/
 /controllers/testdata/test-module-chart/
+/controllers/testdata/test-module-resources/

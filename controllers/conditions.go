@@ -8,28 +8,33 @@ import (
 type Reason string
 
 const (
-	ReconcileSucceeded                Reason = "ReconcileSucceeded"
-	Initialized                       Reason = "Initialized"
-	Processing                        Reason = "Processing"
-	OlderCRExists                     Reason = "OlderCRExists"
-	ChartInstallFailed                Reason = "ChartInstallFailed"
-	ConsistencyCheckFailed            Reason = "ConsistencyCheckFailed"
-	MissingSecret                     Reason = "MissingSecret"
-	InvalidSecret                     Reason = "InvalidSecret"
-	HardDeleting                      Reason = "HardDeleting"
-	ResourceRemovalFailed             Reason = "ResourceRemovalFailed"
-	SoftDeleting                      Reason = "SoftDeleting"
-	Updated                           Reason = "Updated"
-	UpdateCheck                       Reason = "UpdateCheck"
-	UpdateCheckSucceeded              Reason = "UpdateCheckSucceeded"
-	InconsistentChart                 Reason = "InconsistentChart"
-	UpdateDone                        Reason = "UpdateDone"
-	PreparingInstallInfoFailed        Reason = "PreparingInstallInfoFailed"
-	ChartPathEmpty                    Reason = "ChartPathEmpty"
-	DeletionOfOrphanedResourcesFailed Reason = "DeletionOfOrphanedResourcesFailed"
-	StoringChartDetailsFailed         Reason = "StoringChartDetailsFailed"
-	GettingConfigMapFailed            Reason = "GettingConfigMapFailed"
-	ReadyType                                = "Ready"
+	ReconcileSucceeded                 Reason = "ReconcileSucceeded"
+	ReconcileFailed                    Reason = "ReconcileFailed"
+	Initialized                        Reason = "Initialized"
+	Processing                         Reason = "Processing"
+	OlderCRExists                      Reason = "OlderCRExists"
+	ChartInstallFailed                 Reason = "ChartInstallFailed"
+	ConsistencyCheckFailed             Reason = "ConsistencyCheckFailed"
+	MissingSecret                      Reason = "MissingSecret"
+	InvalidSecret                      Reason = "InvalidSecret"
+	HardDeleting                       Reason = "HardDeleting"
+	ResourceRemovalFailed              Reason = "ResourceRemovalFailed"
+	SoftDeleting                       Reason = "SoftDeleting"
+	Updated                            Reason = "Updated"
+	UpdateCheck                        Reason = "UpdateCheck"
+	UpdateCheckSucceeded               Reason = "UpdateCheckSucceeded"
+	InconsistentChart                  Reason = "InconsistentChart"
+	UpdateDone                         Reason = "UpdateDone"
+	PreparingInstallInfoFailed         Reason = "PreparingInstallInfoFailed"
+	ChartPathEmpty                     Reason = "ChartPathEmpty"
+	DeletionOfOrphanedResourcesFailed  Reason = "DeletionOfOrphanedResourcesFailed"
+	StoringChartDetailsFailed          Reason = "StoringChartDetailsFailed"
+	GettingConfigMapFailed             Reason = "GettingConfigMapFailed"
+	CreatingObjectsFromManifestsFailed Reason = "CreatingObjectsFromManifestsFailed"
+	PreparingModuleResourcesFailed     Reason = "PreparingModuleResourcesFailed"
+	ProvisioningFailed                 Reason = "ProvisioningFailed"
+	UpdateFailed                       Reason = "UpdateFailed"
+	ReadyType                                 = "Ready"
 )
 
 type TypeAndStatus struct {
@@ -48,27 +53,32 @@ var NotReady = TypeAndStatus{
 }
 
 var Reasons = map[Reason]TypeAndStatus{
-	ReconcileSucceeded:                Ready,
-	Updated:                           NotReady,
-	Initialized:                       NotReady,
-	ChartInstallFailed:                NotReady,
-	ConsistencyCheckFailed:            NotReady,
-	Processing:                        NotReady,
-	OlderCRExists:                     NotReady,
-	MissingSecret:                     NotReady,
-	InvalidSecret:                     NotReady,
-	HardDeleting:                      NotReady,
-	ResourceRemovalFailed:             NotReady,
-	SoftDeleting:                      NotReady,
-	UpdateCheck:                       NotReady,
-	UpdateCheckSucceeded:              Ready,
-	InconsistentChart:                 NotReady,
-	UpdateDone:                        Ready,
-	PreparingInstallInfoFailed:        NotReady,
-	ChartPathEmpty:                    NotReady,
-	DeletionOfOrphanedResourcesFailed: NotReady,
-	StoringChartDetailsFailed:         NotReady,
-	GettingConfigMapFailed:            NotReady,
+	ReconcileSucceeded:                 Ready,
+	UpdateDone:                         Ready,
+	UpdateCheckSucceeded:               Ready,
+	ReconcileFailed:                    NotReady,
+	Updated:                            NotReady,
+	Initialized:                        NotReady,
+	ChartInstallFailed:                 NotReady,
+	ConsistencyCheckFailed:             NotReady,
+	Processing:                         NotReady,
+	OlderCRExists:                      NotReady,
+	MissingSecret:                      NotReady,
+	InvalidSecret:                      NotReady,
+	HardDeleting:                       NotReady,
+	ResourceRemovalFailed:              NotReady,
+	SoftDeleting:                       NotReady,
+	UpdateCheck:                        NotReady,
+	InconsistentChart:                  NotReady,
+	PreparingInstallInfoFailed:         NotReady,
+	ChartPathEmpty:                     NotReady,
+	DeletionOfOrphanedResourcesFailed:  NotReady,
+	StoringChartDetailsFailed:          NotReady,
+	GettingConfigMapFailed:             NotReady,
+	CreatingObjectsFromManifestsFailed: NotReady,
+	PreparingModuleResourcesFailed:     NotReady,
+	ProvisioningFailed:                 NotReady,
+	UpdateFailed:                       NotReady,
 }
 
 func ConditionFromExistingReason(reason Reason, message string) *metav1.Condition {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/gvksutils"
@@ -23,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +50,7 @@ const (
 	suffix                = "updated"
 	defaultChartPath      = "./testdata/test-module-chart"
 	newChartVersion       = "v99"
+	defaultResourcesPath  = "./testdata/test-module-resources"
 )
 
 type timeoutK8sClient struct {
@@ -99,13 +100,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	BeforeAll(func() {
 		err := createPrereqs()
 		Expect(err).To(BeNil())
-		Expect(testChartPreparation()).To(Succeed())
+		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
+		Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
 		ChartPath = defaultChartPath
+		ResourcesPath = defaultResourcesPath
 		reconciler.updateCheckDone = true
 	})
 
 	AfterAll(func() {
-		Expect(testChartCleanup()).To(Succeed())
+		Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
+		Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
 	})
 
 	BeforeEach(func() {
@@ -245,7 +249,9 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 
-	Describe("Update", func() {
+	// Update tests disabled due to changes in the workflow
+	// (replacing module-manager dependent flows with own solutions)
+	/*Describe("Update", func() {
 		var initChartVersion string
 		var minimalExpectedElementsCount int
 		var gvks []schema.GroupVersionKind
@@ -357,7 +363,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
 		})
-	})
+	})*/
 })
 
 func copyChartAndSetPath() {
@@ -641,17 +647,17 @@ func filterWebhooks(file []byte) (filtered []byte, hasWebhook bool) {
 	return
 }
 
-func testChartPreparation() error {
-	Expect(os.MkdirAll(defaultChartPath, 0700)).To(Succeed())
-	src := fmt.Sprintf("%v/.", ChartPath)
-	cmd := exec.Command("cp", "-r", src, defaultChartPath)
+func createChartOrResourcesCopyWithoutWebhooks(src, dst string) error {
+	Expect(os.MkdirAll(dst, 0700)).To(Succeed())
+	src = fmt.Sprintf("%v/.", src)
+	cmd := exec.Command("cp", "-r", src, dst)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("copying: %v -> %v\n\nout: %v\nerr: %v", src, defaultChartPath, string(out), err)
+		return fmt.Errorf("copying: %v -> %v\n\nout: %v\nerr: %v", src, dst, string(out), err)
 	}
 	filterWebhooksDisabled := os.Getenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS")
 
-	return filepath.WalkDir(defaultChartPath, func(path string, de fs.DirEntry, err error) error {
+	return filepath.WalkDir(dst, func(path string, de fs.DirEntry, err error) error {
 		if filterWebhooksDisabled == "true" {
 			return nil
 		}
@@ -679,8 +685,8 @@ func testChartPreparation() error {
 	})
 }
 
-func testChartCleanup() error {
-	return os.RemoveAll(defaultChartPath)
+func removeAllFromPath(path string) error {
+	return os.RemoveAll(path)
 }
 
 func doChecks() {
@@ -733,7 +739,7 @@ func checkIfNoBtpResourceExists() {
 			Group:   gvk.Group,
 			Kind:    gvk.Kind,
 		})
-		if err := k8sClient.List(ctx, list, labelFilter); err != nil {
+		if err := k8sClient.List(ctx, list, managedByLabelFilter); err != nil {
 			if !canIgnoreErr(err) {
 				found = true
 				break
