@@ -49,7 +49,7 @@ jobs:
             sleep 15
           done
       - name: Wait for btp-operator module
-        # Prow job which uploads the template.yaml also pushes the OCI module image to the registry, so there is no need to make retries for tbp-operator module image. It must exists.
+        # Prow job which uploads the template.yaml also pushes the OCI module image to the registry, so there is no need to make retries for btp-operator module image. It must exist.
         run: |
           found=$(skopeo list-tags $BTP_OPERATOR_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
           if [ $found == "false" ]; then
