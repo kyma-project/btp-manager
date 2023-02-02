@@ -92,7 +92,7 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           /repos/$ORG/$BTP_MANAGER_REPO/branches/$BRANCH_NAME/protection
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
 
     - name: Create PR
       if: env.CONTINUE == 'true'
