@@ -1,7 +1,7 @@
 name: Auto update chart/resources
 
 env:
-  ORG: kyma-project
+  ORG: ukff
   BTP_MANAGER_REPO: btp-manager
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
@@ -18,18 +18,34 @@ jobs:
 
     - uses: actions/checkout@v3
 
-    - name: Update chart 
+    - name: Check for new version
+      run: |
+        chmod +x hack/update/get-latest-chart-version.sh 
+        latest=$(hack/update/get-latest-chart-version.sh)
+        current=$(yq '.version' ./module-chart/chart/Chart.yaml)
+        if [[ $latest == $current ]]; then
+          echo "version are the same: $latest=$current"
+          echo "CONTINUE=false" >> $GITHUB_ENV
+        else
+          echo "version update from $current to $latest"
+          echo "CONTINUE=true" >> $GITHUB_ENV
+          echo "TAG=${latest}" >> $GITHUB_ENV
+        fi
+
+    - name: Update chart
+      if: env.CONTINUE == 'true'
       run: |
         chmod +x hack/update/make-module-chart.sh
-        latest=$(sh hack/update/make-module-chart.sh)
-        echo "TAG=${latest}" >> $GITHUB_ENV
+        hack/update/make-module-chart.sh $TAG
 
     - name: Make templates
+      if: env.CONTINUE == 'true'
       run: |
         chmod +x hack/update/make-module-resources.sh
-        hack/update/make-module-resources.sh $TAG 
+        hack/update/make-module-resources.sh $TAG
 
-    - name: Configure Git 
+    - name: Configure Git
+      if: env.CONTINUE == 'true'
       run: |
         git config --global user.email $GIT_EMAIL
         git config --global user.name $GIT_NAME
@@ -38,35 +54,36 @@ jobs:
         echo "MSG=Update module chart and resources to $TAG" >> $GITHUB_ENV
 
     - name: Check if there are changes
+      if: env.CONTINUE == 'true'
       shell: bash
       run: |
         prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
         if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
           echo "open pr already exists, no need to create new one"
-          echo "CREATE_PR=false" >> $GITHUB_ENV
+          echo "CONTINUE=false" >> $GITHUB_ENV
         elif [ -z "$(git status --porcelain)" ]; then
           echo "nothing changed, exiting"
-          echo "CREATE_PR=false" >> $GITHUB_ENV
+          echo "CONTINUE=false" >> $GITHUB_ENV
         else
-          echo "CREATE_PR=true" >> $GITHUB_ENV
+          echo "CONTINUE=true" >> $GITHUB_ENV
         fi
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
 
     - name: Pass changes
-      if: env.CREATE_PR == 'true'
+      if: env.CONTINUE == 'true'
       run: |
         git add module-chart/* 
         git add module-resources/* 
         git stash push --staged
 
     - uses: actions/checkout@v3
-      if: env.CREATE_PR == 'true'
+      if: env.CONTINUE == 'true'
       with:
         ref: main
 
     - name: Create PR
-      if: env.CREATE_PR == 'true'
+      if: env.CONTINUE == 'true'
       run: |
         git checkout -B $BRANCH_NAME
         git stash apply

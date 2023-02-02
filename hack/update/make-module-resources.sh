@@ -1,4 +1,7 @@
 #!/bin/bash
+set -e
+set -o pipefail
+
 cd "$(dirname "$0")"
 
 readonly CHART_PATH="../../module-chart/chart"
@@ -9,7 +12,8 @@ readonly EXISTING_RESOURCES_APPLY_PATH="../../module-resources/apply"
 readonly HELM_OUTPUT_PATH="rendered"
 readonly NEW_RESOURCES_PATH="rendered/sap-btp-operator/templates"
 
-helm template $1 $CHART_PATH --output-dir $HELM_OUTPUT_PATH --values $CHART_OVERRIDES_PATH --namespace "kyma-system"
+tag=$1
+helm template $tag $CHART_PATH --output-dir $HELM_OUTPUT_PATH --values $CHART_OVERRIDES_PATH --namespace "kyma-system"
 
 trap 'rm -rf -- "temp"' EXIT
 runActionForEachYaml() {
@@ -45,7 +49,6 @@ actionForExistingResource() {
 }
 
 incoming_resources=()
-
 runActionForEachYaml $NEW_RESOURCES_PATH actionForNewResource
 
 touch to-delete.yml
