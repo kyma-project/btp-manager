@@ -4,7 +4,7 @@
 
 This is a custom version of the sap-btp-operator Helm chart.
 
-The upstream version of the sap-btp-operator Helm chart has a dependency on the jetstack cert-manager. This custom version makes [jetstack/cert-manager](https://github.com/jetstack/cert-manager) optional and adds the possibility to use a custom caBundle or [gardener/cert-management](https://github.com/gardener/cert-management).
+The upstream version of the sap-btp-operator Helm chart has a dependency on the Jetstack cert-manager. This custom version makes [jetstack/cert-manager](https://github.com/jetstack/cert-manager) optional and adds the possibility to use a custom caBundle or [gardener/cert-management](https://github.com/gardener/cert-management).
 
 ## Prerequisites
 
@@ -85,9 +85,9 @@ helm template sap-btp-operator . \
 While rendering Kubernetes resource files by Helm, the following [values overrides](https://github.com/kyma-project/btp-manager/blob/main/module-chart/overrides.yaml) are applied.
 
 ## Publish a new version of the chart
-1.  Download the original chart from the Helm repository.  
+1.  Download the original chart from the Helm repository  
    
-     i. Configure the Helm repository:
+     i. Configure the Helm repository
     ```
      helm repo add sap-btp-operator https://sap.github.io/sap-btp-service-operator
     ```  
@@ -96,7 +96,7 @@ While rendering Kubernetes resource files by Helm, the following [values overrid
     ```
     helm pull sap-btp-operator/sap-btp-operator
     ```
-    > **NOTE:** You can specify the version if needed:
+    > **NOTE:** You can specify the version if needed
     >```
     >helm pull sap-btp-operator/sap-btp-operator --version v0.2.0
     >```
@@ -107,5 +107,5 @@ While rendering Kubernetes resource files by Helm, the following [values overrid
    ```
    helm package chart 
    ```
-1. Release on GitHub
+1. Release on GitHub  
 Create a GitHub release and upload the generated Helm chart (tgz).

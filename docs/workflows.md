@@ -1,5 +1,5 @@
 ---
-title: GithubAction workflows
+title: GitHub Action workflows
 ---
 
 ## Promote BTP Manager to release channel
