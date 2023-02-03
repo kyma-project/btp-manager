@@ -67,5 +67,5 @@ jobs:
             echo "Waiting for btp-operator image: $BTP_MANAGER_REPO:${{ github.event.inputs.name }}"
             sleep 10
           done
-          echo "BTP-manager image found
+          echo "BTP-manager image found"
       
