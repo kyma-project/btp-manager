@@ -33,10 +33,6 @@ jobs:
               - TBD
           draft: false
           prerelease: false
-      - name: Create release branch
-        run: |
-            git checkout -b ${{ github.event.inputs.name }}
-            git push --set-upstream origin ${{ github.event.inputs.name }}
   wait-for-prow-jobs:
     # this step waits until proper Prow job uploads the template.yaml file, docker image and module OCI image
     runs-on: ubuntu-latest
