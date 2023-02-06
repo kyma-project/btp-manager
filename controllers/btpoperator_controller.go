@@ -1328,15 +1328,25 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
+	usToDelete, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToDeletePath())
+	if err != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create deletable objects from manifests: %s", err))
+	}
+	err = r.deleteResources(ctx, usToDelete)
+	if err != nil {
+		logger.Error(err, "while deleting outdated resources")
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, "Failed to delete outdated resources")
+	}
+
+	usToApply, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
 	if err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 	}
-	if errorWithReason := r.prepareModuleResources(ctx, us); errorWithReason != nil {
+	if errorWithReason := r.prepareModuleResources(ctx, usToApply); errorWithReason != nil {
 		logger.Error(errorWithReason, "while preparing resources for provisioning")
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 	}
-	if err = r.reconcileResources(ctx, us); err != nil {
+	if err = r.reconcileResources(ctx, usToApply); err != nil {
 		logger.Error(err, "while reconciling resources")
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ReconcileFailed, "Failed to reconcile resources")
 	}
