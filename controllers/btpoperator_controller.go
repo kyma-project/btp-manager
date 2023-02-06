@@ -449,21 +449,33 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, UpdateCheckSucceeded, "Update not required")
 		}
 	default:
-		logger.Info("provisioning")
+		logger.Info("Provisioning")
 
-		us, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
+		// delete outdated resources
+		usToDelete, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToDeletePath())
+		if err != nil {
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create deletable objects from manifests: %s", err))
+		}
+		err = r.deleteResources(ctx, usToDelete)
+		if err != nil {
+			logger.Error(err, "while deleting outdated resources")
+			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, "Failed to delete outdated resources")
+		}
+
+		// apply new resources
+		usToApply, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
 		if err != nil {
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, CreatingObjectsFromManifestsFailed, fmt.Sprintf("Failed to create applicable objects from manifests: %s", err))
 		}
-		if errorWithReason := r.prepareModuleResources(ctx, us); errorWithReason != nil {
+		if errorWithReason := r.prepareModuleResources(ctx, usToApply); errorWithReason != nil {
 			logger.Error(errorWithReason, "while preparing resources for provisioning")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, errorWithReason.reason, errorWithReason.message)
 		}
-		if err = r.reconcileResources(ctx, us); err != nil {
+		if err = r.reconcileResources(ctx, usToApply); err != nil {
 			logger.Error(err, "while provisioning resources")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, "Failed to provision module resources")
 		}
-		if err = r.waitForResourcesReadiness(ctx, us); err != nil {
+		if err = r.waitForResourcesReadiness(ctx, usToApply); err != nil {
 			logger.Error(err, "while waiting for resources readiness")
 			return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, "Timed out while waiting for resources readiness")
 		}
@@ -488,6 +500,25 @@ func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(ctx co
 	}
 
 	return us, nil
+}
+
+func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
+	logger.Info("deleting outdated resources")
+
+	var errs []string
+	for _, u := range us {
+		if err := r.Delete(ctx, u); err != nil && !k8serrors.IsNotFound(err) {
+			errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
+		}
+		logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
+	}
+
+	if errs != nil {
+		return errors.New(strings.Join(errs, ", "))
+	}
+
+	return nil
 }
 
 func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured) *ErrorWithReason {
