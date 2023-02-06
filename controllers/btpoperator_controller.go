@@ -327,7 +327,13 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 		}
 	}
 
-	r.addLabels(us...)
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+	if err != nil {
+		logger.Error(err, "while getting module chart version")
+		return fmt.Errorf("Failed to get module chart version: %w", err)
+	}
+
+	r.addLabels(chartVer, us...)
 	r.setNamespace(us...)
 	r.deleteCreationTimestamp(us...)
 	if err := r.setConfigMapValues(s, us[configMapIndex]); err != nil {
@@ -1010,13 +1016,15 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	return nil
 }
 
-func (r *BtpOperatorReconciler) addLabels(us ...*unstructured.Unstructured) {
+func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
+
 	for _, u := range us {
 		labels := u.GetLabels()
 		if len(labels) == 0 {
 			labels = make(map[string]string)
 		}
 		labels[managedByLabelKey] = operatorName
+		labels[chartVersionKey] = chartVer
 		u.SetLabels(labels)
 	}
 }
