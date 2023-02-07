@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	internalmanifest "github.com/kyma-project/btp-manager/internal/manifest"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -114,16 +114,16 @@ var (
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
-	manifestHandler *internalmanifest.Handler
 	Scheme          *runtime.Scheme
+	manifestHandler *manifest.Handler
 	workqueueSize   int
 }
 
 func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:          client,
-		manifestHandler: &internalmanifest.Handler{Scheme: scheme},
 		Scheme:          scheme,
+		manifestHandler: &manifest.Handler{Scheme: scheme},
 	}
 }
 
@@ -236,192 +236,20 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module provisioning succeeded")
 }
 
-func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
 	logger := log.FromContext(ctx)
 
-	usToApply, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
+	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
-		logger.Error(err, "while creating applicable objects from manifests")
-		return fmt.Errorf("Failed to create applicable objects from manifests: %w", err)
-	}
-	if err = r.prepareModuleResources(ctx, usToApply, s); err != nil {
-		logger.Error(err, "while preparing applicable object to apply")
-		return fmt.Errorf("Failed to prepare applicable objects to apply: %w", err)
-	}
-	if err = r.applyResources(ctx, usToApply); err != nil {
-		logger.Error(err, "while applying resources")
-		return fmt.Errorf("Failed to apply module resources: %w", err)
-	}
-	if err = r.waitForResourcesReadiness(ctx, usToApply); err != nil {
-		logger.Error(err, "while waiting for resources readiness")
-		return fmt.Errorf("Timed out while waiting for resources readiness: %w", err)
+		logger.Error(err, "while getting the required Secret")
+		return nil, NewErrorWithReason(MissingSecret, "Secret resource not found")
 	}
 
-	return nil
-}
-
-func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-
-	usToDelete, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToDeletePath())
-	if err != nil {
-		logger.Error(err, "while creating deletable objects from manifests")
-		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+	if err = r.verifySecret(secret); err != nil {
+		logger.Error(err, "while verifying the required Secret")
+		return nil, NewErrorWithReason(InvalidSecret, "Secret validation failed")
 	}
-	err = r.deleteResources(ctx, usToDelete)
-	if err != nil {
-		logger.Error(err, "while deleting outdated resources")
-		return fmt.Errorf("Failed to delete outdated resources: %w", err)
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(ctx context.Context, manifestsDir string) ([]*unstructured.Unstructured, error) {
-	logger := log.FromContext(ctx)
-
-	objs, err := r.manifestHandler.CollectObjectsFromDir(manifestsDir)
-	if err != nil {
-		logger.Error(err, "while collecting objects from manifests")
-		return nil, err
-	}
-	us, err := r.manifestHandler.ObjectsToUnstructured(objs)
-	if err != nil {
-		logger.Error(err, "while converting objects to Unstructured")
-		return nil, err
-	}
-
-	return us, nil
-}
-
-func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-	logger.Info("deleting outdated resources")
-
-	var errs []string
-	for _, u := range us {
-		if err := r.Delete(ctx, u); err != nil && !k8serrors.IsNotFound(err) {
-			errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
-		}
-		logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
-	}
-
-	if errs != nil {
-		return errors.New(strings.Join(errs, ", "))
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured, s *corev1.Secret) error {
-	logger := log.FromContext(ctx)
-	logger.Info("preparing module resources")
-
-	var configMapIndex, secretIndex int
-	for i, u := range us {
-		if u.GetName() == btpServiceOperatorConfigMap && u.GetKind() == configMapKind {
-			configMapIndex = i
-		}
-		if u.GetName() == btpServiceOperatorSecret && u.GetKind() == secretKind {
-			secretIndex = i
-		}
-	}
-
-	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
-	if err != nil {
-		logger.Error(err, "while getting module chart version")
-		return fmt.Errorf("Failed to get module chart version: %w", err)
-	}
-
-	r.addLabels(chartVer, us...)
-	r.setNamespace(us...)
-	r.deleteCreationTimestamp(us...)
-	if err := r.setConfigMapValues(s, us[configMapIndex]); err != nil {
-		logger.Error(err, "while setting ConfigMap values")
-		return fmt.Errorf("Failed to set ConfigMap values: %w", err)
-	}
-	if err := r.setSecretValues(s, us[secretIndex]); err != nil {
-		logger.Error(err, "while setting Secret values")
-		return fmt.Errorf("Failed to set Secret values: %w", err)
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-	logger.Info("reconciling module resources")
-
-	for _, u := range us {
-		if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-			return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
-		}
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
-	numOfResources := len(us)
-	resourcesReadinessInformer := make(chan bool, numOfResources)
-	allReadyInformer := make(chan bool)
-	for _, u := range us {
-		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
-	}
-	go func(c chan bool) {
-		timeout := time.After(ReadyTimeout)
-		for i := 0; i < numOfResources; i++ {
-			select {
-			case <-resourcesReadinessInformer:
-				continue
-			case <-timeout:
-				return
-			}
-		}
-		allReadyInformer <- true
-	}(resourcesReadinessInformer)
-	select {
-	case <-allReadyInformer:
-		return nil
-	case <-time.After(ReadyTimeout):
-		return errors.New("resources readiness timeout reached")
-	}
-}
-
-func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Deleting state")
-
-	if len(cr.GetFinalizers()) == 0 {
-		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
-		return nil
-	}
-
-	if err := r.handleDeprovisioning(ctx, cr); err != nil {
-		logger.Error(err, "deprovisioning failed")
-		return err
-	}
-	logger.Info("Deprovisioning success. Removing finalizers in CR")
-	cr.SetFinalizers([]string{})
-	if err := r.Update(ctx, cr); err != nil {
-		return err
-	}
-	existingBtpOperators := &v1alpha1.BtpOperatorList{}
-	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to fetch existing BtpOperators")
-		return fmt.Errorf("while getting existing BtpOperators: %w", err)
-	}
-	for _, item := range existingBtpOperators.Items {
-		if item.GetUID() == cr.GetUID() {
-			continue
-		}
-		remainingCr := item
-		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, types.StateProcessing, Processing, "After deprovisioning"); err != nil {
-			logger.Error(err, "unable to set \"Processing\" state")
-		}
-	}
-
-	return nil
+	return secret, nil
 }
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
@@ -467,6 +295,226 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 	return nil
 }
 
+func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+
+	usToDelete, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToDeletePath())
+	if err != nil {
+		logger.Error(err, "while creating deletable objects from manifests")
+		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+	}
+	err = r.deleteResources(ctx, usToDelete)
+	if err != nil {
+		logger.Error(err, "while deleting outdated resources")
+		return fmt.Errorf("Failed to delete outdated resources: %w", err)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(ctx context.Context, manifestsDir string) ([]*unstructured.Unstructured, error) {
+	logger := log.FromContext(ctx)
+
+	objs, err := r.manifestHandler.CollectObjectsFromDir(manifestsDir)
+	if err != nil {
+		logger.Error(err, "while collecting objects from manifests")
+		return nil, err
+	}
+	us, err := r.manifestHandler.ObjectsToUnstructured(objs)
+	if err != nil {
+		logger.Error(err, "while converting objects to Unstructured")
+		return nil, err
+	}
+
+	return us, nil
+}
+
+func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
+	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
+}
+
+func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
+	logger.Info("deleting outdated resources")
+
+	var errs []string
+	for _, u := range us {
+		if err := r.Delete(ctx, u); err != nil && !k8serrors.IsNotFound(err) {
+			errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
+		}
+		logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
+	}
+
+	if errs != nil {
+		return errors.New(strings.Join(errs, ", "))
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev1.Secret) error {
+	logger := log.FromContext(ctx)
+
+	usToApply, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
+	if err != nil {
+		logger.Error(err, "while creating applicable objects from manifests")
+		return fmt.Errorf("Failed to create applicable objects from manifests: %w", err)
+	}
+	if err = r.prepareModuleResources(ctx, usToApply, s); err != nil {
+		logger.Error(err, "while preparing applicable object to apply")
+		return fmt.Errorf("Failed to prepare applicable objects to apply: %w", err)
+	}
+	if err = r.applyResources(ctx, usToApply); err != nil {
+		logger.Error(err, "while applying resources")
+		return fmt.Errorf("Failed to apply module resources: %w", err)
+	}
+	if err = r.waitForResourcesReadiness(ctx, usToApply); err != nil {
+		logger.Error(err, "while waiting for resources readiness")
+		return fmt.Errorf("Timed out while waiting for resources readiness: %w", err)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
+	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
+}
+
+func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured, s *corev1.Secret) error {
+	logger := log.FromContext(ctx)
+	logger.Info("preparing module resources")
+
+	var configMapIndex, secretIndex int
+	for i, u := range us {
+		if u.GetName() == btpServiceOperatorConfigMap && u.GetKind() == configMapKind {
+			configMapIndex = i
+		}
+		if u.GetName() == btpServiceOperatorSecret && u.GetKind() == secretKind {
+			secretIndex = i
+		}
+	}
+
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+	if err != nil {
+		logger.Error(err, "while getting module chart version")
+		return fmt.Errorf("Failed to get module chart version: %w", err)
+	}
+
+	r.addLabels(chartVer, us...)
+	r.setNamespace(us...)
+	r.deleteCreationTimestamp(us...)
+	if err := r.setConfigMapValues(s, us[configMapIndex]); err != nil {
+		logger.Error(err, "while setting ConfigMap values")
+		return fmt.Errorf("Failed to set ConfigMap values: %w", err)
+	}
+	if err := r.setSecretValues(s, us[secretIndex]); err != nil {
+		logger.Error(err, "while setting Secret values")
+		return fmt.Errorf("Failed to set Secret values: %w", err)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
+
+	for _, u := range us {
+		labels := u.GetLabels()
+		if len(labels) == 0 {
+			labels = make(map[string]string)
+		}
+		labels[managedByLabelKey] = operatorName
+		labels[chartVersionKey] = chartVer
+		u.SetLabels(labels)
+	}
+}
+
+func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
+	for _, u := range us {
+		u.SetNamespace(ChartNamespace)
+	}
+}
+
+func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unstructured) {
+	for _, u := range us {
+		unstructured.RemoveNestedField(u.Object, "metadata", "creationTimestamp")
+	}
+}
+
+func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
+}
+
+func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+	for k := range secret.Data {
+		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
+	logger.Info("reconciling module resources")
+
+	for _, u := range us {
+		if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
+			return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
+	numOfResources := len(us)
+	resourcesReadinessInformer := make(chan bool, numOfResources)
+	allReadyInformer := make(chan bool)
+	for _, u := range us {
+		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
+	}
+	go func(c chan bool) {
+		timeout := time.After(ReadyTimeout)
+		for i := 0; i < numOfResources; i++ {
+			select {
+			case <-resourcesReadinessInformer:
+				continue
+			case <-timeout:
+				return
+			}
+		}
+		allReadyInformer <- true
+	}(resourcesReadinessInformer)
+	select {
+	case <-allReadyInformer:
+		return nil
+	case <-time.After(ReadyTimeout):
+		return errors.New("resources readiness timeout reached")
+	}
+}
+
+func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+	logger := log.FromContext(ctx)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval/2)
+	defer cancel()
+
+	var err error
+	now := time.Now()
+	got := &unstructured.Unstructured{}
+	got.SetGroupVersionKind(u.GroupVersionKind())
+	for {
+		if time.Since(now) >= ReadyTimeout {
+			logger.Error(err, fmt.Sprintf("failed to get %s %s from the cluster", u.GetName(), u.GetKind()))
+			return
+		}
+		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
+			c <- true
+			return
+		}
+		time.Sleep(ReadyCheckInterval)
+	}
+}
+
 func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
@@ -474,151 +522,40 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "Resource has been updated")
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Config = mgr.GetConfig()
+func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling Deleting state")
 
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.BtpOperator{},
-			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
-		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
-			builder.WithPredicates(r.watchSecretPredicates()),
-		).
-		Watches(
-			&source.Kind{Type: &corev1.ConfigMap{}},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
-			builder.WithPredicates(r.watchConfigPredicates()),
-		).
-		Complete(r)
-}
-
-func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcile.Request {
-	logger := log.FromContext(nil, "name", object.GetName(), "namespace", object.GetNamespace())
-	cm, ok := object.(*corev1.ConfigMap)
-	if !ok {
-		return []reconcile.Request{}
-	}
-	logger.Info("reconciling config update", "config", cm.Data)
-	for k, v := range cm.Data {
-		var err error
-		switch k {
-		case "ChartNamespace":
-			ChartNamespace = v
-		case "ChartPath":
-			ChartPath = v
-		case "SecretName":
-			SecretName = v
-		case "ConfigName":
-			ConfigName = v
-		case "DeploymentName":
-			DeploymentName = v
-		case "ProcessingStateRequeueInterval":
-			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
-		case "ReadyStateRequeueInterval":
-			ReadyStateRequeueInterval, err = time.ParseDuration(v)
-		case "ReadyTimeout":
-			ReadyTimeout, err = time.ParseDuration(v)
-		case "HardDeleteCheckInterval":
-			HardDeleteCheckInterval, err = time.ParseDuration(v)
-		case "HardDeleteTimeout":
-			HardDeleteTimeout, err = time.ParseDuration(v)
-		case "ResourcesPath":
-			ResourcesPath = v
-		case "ReadyCheckInterval":
-			ReadyCheckInterval, err = time.ParseDuration(v)
-		default:
-			logger.Info("unknown config update key", k, v)
-		}
-		if err != nil {
-			logger.Info("failed to parse config update", k, err)
-		}
-	}
-
-	return r.enqueueOldestBtpOperator()
-}
-
-func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
-	btpOperators := &v1alpha1.BtpOperatorList{}
-	err := r.List(context.Background(), btpOperators)
-	if err != nil {
-		return []reconcile.Request{}
-	}
-	if len(btpOperators.Items) == 0 {
+	if len(cr.GetFinalizers()) == 0 {
+		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
 		return nil
 	}
-	requests := make([]reconcile.Request, 0)
-	oldestCr := r.getOldestCR(btpOperators)
-	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
 
-	return requests
-}
-
-func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
-	return r.enqueueOldestBtpOperator()
-}
-
-func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
-	nameMatches := func(o client.Object) bool { return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace }
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
-		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
-		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
+	if err := r.handleDeprovisioning(ctx, cr); err != nil {
+		logger.Error(err, "deprovisioning failed")
+		return err
 	}
-}
-
-func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			secret, ok := e.Object.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			return secret.Name == SecretName && secret.Namespace == ChartNamespace
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			secret, ok := e.Object.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			return secret.Name == SecretName && secret.Namespace == ChartNamespace
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
-			if !ok {
-				return false
-			}
-			if oldSecret.Name == SecretName && oldSecret.Namespace == ChartNamespace {
-				return true
-			}
-			return false
-		},
+	logger.Info("Deprovisioning success. Removing finalizers in CR")
+	cr.SetFinalizers([]string{})
+	if err := r.Update(ctx, cr); err != nil {
+		return err
 	}
-}
-
-func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return true
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			newBtpOperator, ok := e.ObjectNew.(*v1alpha1.BtpOperator)
-			if !ok {
-				return false
-			}
-			if newBtpOperator.GetStatus().State == types.StateError && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
-				return false
-			}
-			return true
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return true
-		},
+	existingBtpOperators := &v1alpha1.BtpOperatorList{}
+	if err := r.List(ctx, existingBtpOperators); err != nil {
+		logger.Error(err, "unable to fetch existing BtpOperators")
+		return fmt.Errorf("while getting existing BtpOperators: %w", err)
 	}
+	for _, item := range existingBtpOperators.Items {
+		if item.GetUID() == cr.GetUID() {
+			continue
+		}
+		remainingCr := item
+		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, types.StateProcessing, Processing, "After deprovisioning"); err != nil {
+			logger.Error(err, "unable to set \"Processing\" state")
+		}
+	}
+
+	return nil
 }
 
 func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -748,6 +685,20 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	}
 }
 
+func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
+	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+
+	if err := r.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
@@ -761,20 +712,6 @@ func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.Group
 	}
 
 	return nil
-}
-
-func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
-	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
-	crd := &apiextensionsv1.CustomResourceDefinition{}
-
-	if err := r.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return false, nil
-		} else {
-			return false, err
-		}
-	}
-	return true, nil
 }
 
 func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *corev1.NamespaceList, gvk schema.GroupVersionKind) (bool, error) {
@@ -801,6 +738,32 @@ func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *
 	}
 
 	return false, nil
+}
+
+func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context) error {
+	gvks, err := ymlutils.GatherChartGvks(ChartPath)
+	if err != nil {
+		return err
+	}
+
+	if err := r.deleteAllInstalledResources(ctx, gvks); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) deleteAllInstalledResources(ctx context.Context, gvks []schema.GroupVersionKind) error {
+	for _, gvk := range gvks {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(gvk)
+		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
+			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
@@ -858,23 +821,38 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	return nil
 }
 
-func (r *BtpOperatorReconciler) GvkToList(gvk schema.GroupVersionKind) *unstructured.UnstructuredList {
-	listGvk := gvk
-	listGvk.Kind = gvk.Kind + "List"
-	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(listGvk)
-	return list
-}
-
-func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk schema.GroupVersionKind) error {
-	list := r.GvkToList(gvk)
-
-	if err := r.List(ctx, list); err != nil {
+func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
+	deployment := &appsv1.Deployment{}
+	if err := r.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, deployment); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
-	} else if len(list.Items) > 0 {
-		return fmt.Errorf("list returned %d records", len(list.Items))
+	} else {
+		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+
+	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
+	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: ChartNamespace}, mutatingWebhook); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+
+	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: ChartNamespace}, validatingWebhook); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -912,88 +890,26 @@ func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.Group
 	return nil
 }
 
-func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
-	/*
-		r.deleteDeployment(ctx)
-		r.deleteMutatingWebhook(ctx)
-		r.deleteValidatingWebhook(ctx)
-	*/
-	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, deployment); err != nil {
+func (r *BtpOperatorReconciler) GvkToList(gvk schema.GroupVersionKind) *unstructured.UnstructuredList {
+	listGvk := gvk
+	listGvk.Kind = gvk.Kind + "List"
+	list := &unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(listGvk)
+	return list
+}
+
+func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk schema.GroupVersionKind) error {
+	list := r.GvkToList(gvk)
+
+	if err := r.List(ctx, list); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
-	} else {
-		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
-			return err
-		}
-	}
-
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: ChartNamespace}, mutatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
-			return err
-		}
-	}
-
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: ChartNamespace}, validatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
-			return err
-		}
+	} else if len(list.Items) > 0 {
+		return fmt.Errorf("list returned %d records", len(list.Items))
 	}
 
 	return nil
-}
-
-func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context) error {
-	gvks, err := ymlutils.GatherChartGvks(ChartPath)
-	if err != nil {
-		return err
-	}
-
-	if err := r.deleteAllInstalledResources(ctx, gvks); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) deleteAllInstalledResources(ctx context.Context, gvks []schema.GroupVersionKind) error {
-	for _, gvk := range gvks {
-		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(gvk)
-		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
-			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
-	logger := log.FromContext(ctx)
-
-	secret, err := r.getRequiredSecret(ctx)
-	if err != nil {
-		logger.Error(err, "while getting the required Secret")
-		return nil, NewErrorWithReason(MissingSecret, "Secret resource not found")
-	}
-
-	if err = r.verifySecret(secret); err != nil {
-		logger.Error(err, "while verifying the required Secret")
-		return nil, NewErrorWithReason(InvalidSecret, "Secret validation failed")
-	}
-	return secret, nil
 }
 
 func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -1016,70 +932,149 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	return nil
 }
 
-func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
+// SetupWithManager sets up the controller with the Manager.
+func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
 
-	for _, u := range us {
-		labels := u.GetLabels()
-		if len(labels) == 0 {
-			labels = make(map[string]string)
-		}
-		labels[managedByLabelKey] = operatorName
-		labels[chartVersionKey] = chartVer
-		u.SetLabels(labels)
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.BtpOperator{},
+			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			builder.WithPredicates(r.watchSecretPredicates()),
+		).
+		Watches(
+			&source.Kind{Type: &corev1.ConfigMap{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
+			builder.WithPredicates(r.watchConfigPredicates()),
+		).
+		Complete(r)
+}
+
+func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newBtpOperator, ok := e.ObjectNew.(*v1alpha1.BtpOperator)
+			if !ok {
+				return false
+			}
+			if newBtpOperator.GetStatus().State == types.StateError && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
+				return false
+			}
+			return true
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return true
+		},
 	}
 }
 
-func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
-	for _, u := range us {
-		u.SetNamespace(ChartNamespace)
+func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
+	return r.enqueueOldestBtpOperator()
+}
+
+func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
+	btpOperators := &v1alpha1.BtpOperatorList{}
+	err := r.List(context.Background(), btpOperators)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	if len(btpOperators.Items) == 0 {
+		return nil
+	}
+	requests := make([]reconcile.Request, 0)
+	oldestCr := r.getOldestCR(btpOperators)
+	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
+
+	return requests
+}
+
+func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			return secret.Name == SecretName && secret.Namespace == ChartNamespace
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			secret, ok := e.Object.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			return secret.Name == SecretName && secret.Namespace == ChartNamespace
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
+			if !ok {
+				return false
+			}
+			if oldSecret.Name == SecretName && oldSecret.Namespace == ChartNamespace {
+				return true
+			}
+			return false
+		},
 	}
 }
 
-func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unstructured) {
-	for _, u := range us {
-		unstructured.RemoveNestedField(u.Object, "metadata", "creationTimestamp")
+func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcile.Request {
+	logger := log.FromContext(nil, "name", object.GetName(), "namespace", object.GetNamespace())
+	cm, ok := object.(*corev1.ConfigMap)
+	if !ok {
+		return []reconcile.Request{}
 	}
-}
-
-func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
-}
-
-func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	for k := range secret.Data {
-		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
-			return err
+	logger.Info("reconciling config update", "config", cm.Data)
+	for k, v := range cm.Data {
+		var err error
+		switch k {
+		case "ChartNamespace":
+			ChartNamespace = v
+		case "ChartPath":
+			ChartPath = v
+		case "SecretName":
+			SecretName = v
+		case "ConfigName":
+			ConfigName = v
+		case "DeploymentName":
+			DeploymentName = v
+		case "ProcessingStateRequeueInterval":
+			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
+		case "ReadyStateRequeueInterval":
+			ReadyStateRequeueInterval, err = time.ParseDuration(v)
+		case "ReadyTimeout":
+			ReadyTimeout, err = time.ParseDuration(v)
+		case "HardDeleteCheckInterval":
+			HardDeleteCheckInterval, err = time.ParseDuration(v)
+		case "HardDeleteTimeout":
+			HardDeleteTimeout, err = time.ParseDuration(v)
+		case "ResourcesPath":
+			ResourcesPath = v
+		case "ReadyCheckInterval":
+			ReadyCheckInterval, err = time.ParseDuration(v)
+		default:
+			logger.Info("unknown config update key", k, v)
+		}
+		if err != nil {
+			logger.Info("failed to parse config update", k, err)
 		}
 	}
-	return nil
+
+	return r.enqueueOldestBtpOperator()
 }
 
-func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
-	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
-}
-
-func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
-	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
-}
-
-func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
-	logger := log.FromContext(ctx)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval/2)
-	defer cancel()
-
-	var err error
-	now := time.Now()
-	got := &unstructured.Unstructured{}
-	got.SetGroupVersionKind(u.GroupVersionKind())
-	for {
-		if time.Since(now) >= ReadyTimeout {
-			logger.Error(err, fmt.Sprintf("failed to get %s %s from the cluster", u.GetName(), u.GetKind()))
-			return
-		}
-		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
-			c <- true
-			return
-		}
-		time.Sleep(ReadyCheckInterval)
+func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
+	nameMatches := func(o client.Object) bool { return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace }
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
+		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
+		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
 	}
 }
