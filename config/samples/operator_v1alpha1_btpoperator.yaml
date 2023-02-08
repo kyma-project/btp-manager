@@ -10,3 +10,5 @@ metadata:
   name: btpoperator-sample
 spec:
   # TODO(user): Add fields here
+  # spec must not be empty
+  anything: goes
