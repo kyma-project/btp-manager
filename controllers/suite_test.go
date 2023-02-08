@@ -24,13 +24,12 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/zap/zapcore"
-
 	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
+	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -115,7 +114,6 @@ func matchDeleted() gomegatypes.GomegaMatcher {
 }
 
 func TestAPIs(t *testing.T) {
-
 	RegisterFailHandler(Fail)
 
 	suiteCfg, reporterCfg := GinkgoConfiguration()

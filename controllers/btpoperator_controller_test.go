@@ -12,18 +12,18 @@ import (
 	"sync"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/gvksutils"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,10 +46,11 @@ const (
 	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
 	k8sOpsTimeout         = time.Second * 3
 	k8sOpsPollingInterval = time.Millisecond * 200
-	updatePath            = "./testdata/module-chart-update"
+	chartUpdatePath       = "./testdata/module-chart-update"
+	resourcesUpdatePath   = "./testdata/module-resources-update"
 	suffix                = "updated"
 	defaultChartPath      = "./testdata/test-module-chart"
-	newChartVersion       = "v99"
+	newChartVersion       = "9.9.9"
 	defaultResourcesPath  = "./testdata/test-module-resources"
 )
 
@@ -104,7 +105,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
 		ChartPath = defaultChartPath
 		ResourcesPath = defaultResourcesPath
-		reconciler.updateCheckDone = true
 	})
 
 	AfterAll(func() {
@@ -249,71 +249,60 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 
-	// Update tests disabled due to changes in the workflow
-	// (replacing module-manager dependent flows with own solutions)
-	/*Describe("Update", func() {
+	Describe("Update", func() {
 		var initChartVersion string
-		var minimalExpectedElementsCount int
-		var gvks []schema.GroupVersionKind
+		var initApplyObjectsNum int
 
 		BeforeAll(func() {
-			copyChartAndSetPath()
-
 			err := createPrereqs()
 			Expect(err).To(BeNil())
 
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+		})
 
+		BeforeEach(func() {
 			cr = createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
 			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 
-			initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+			initChartVersion, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 			Expect(err).To(BeNil())
+			_ = initChartVersion
 
-			gvks, err = ymlutils.GatherChartGvks(defaultChartPath)
+			m := manifest.Handler{Scheme: k8sManager.GetScheme()}
+			initApplyObjs, err := m.CollectObjectsFromDir(ResourcesPath + "/apply")
 			Expect(err).To(BeNil())
-			minimalExpectedElementsCount = len(gvks)
+			initApplyObjectsNum = len(initApplyObjs)
+			_ = initApplyObjectsNum
 
-			revertToOriginalChart()
+			copyDirRecursively(ChartPath, chartUpdatePath)
+			copyDirRecursively(ResourcesPath, resourcesUpdatePath)
+			ChartPath = chartUpdatePath
+			ResourcesPath = resourcesUpdatePath
 		})
 
-		BeforeEach(func() {
-			copyChartAndSetPath()
+		When("update all resources names and bump chart version", Label("test-update"), func() {
+			It("new resources (with new names) should be created and old ones removed", func() {
+				err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(
+					fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator),
+					fmt.Sprintf("%s%cdelete%cto-delete.yml", ResourcesPath, os.PathSeparator, os.PathSeparator))
 
-			simulateRestart(ctx, cr)
-
-			Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
-			Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
-		})
-
-		When("update of all resources names and bump chart version", Label("test-update"), func() {
-			It("new resources (with new name) should be created and old ones removed", func() {
-				err := ymlutils.TransformCharts(updatePath, suffix)
+				err = ymlutils.AddSuffixToNameInManifests(ResourcesPath, suffix)
 				Expect(err).To(BeNil())
 
-				err = ymlutils.UpdateVersion(updatePath, newChartVersion)
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				simulateRestart(ctx, cr)
-
-				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
-				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(newChartVersion))
-
-				oldCount, newCount := countResources()
-				Expect(oldCount).To(BeZero())
-				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
-
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateDone)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
 			})
 		})
 
 		When("update of all resources names and leave same chart version", Label("test-update"), func() {
 			It("new ones not created because version is not changed, old ones should stay", Label("test-update"), func() {
-				err := ymlutils.TransformCharts(updatePath, suffix)
+				err := ymlutils.AddSuffixToNameInManifests(chartUpdatePath, suffix)
 				Expect(err).To(BeNil())
 
 				simulateRestart(ctx, cr)
@@ -332,7 +321,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		When("resources should stay as they are and we bump chart version", Label("test-update"), func() {
 			It("existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)", func() {
-				err := ymlutils.UpdateVersion(updatePath, newChartVersion)
+				err := ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
 				oldCount, newCount := countResources()
@@ -363,21 +352,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			err := k8sClient.Delete(ctx, configMap)
 			Expect(err).To(BeNil())
 		})
-	})*/
+	})
 })
 
-func copyChartAndSetPath() {
-	cmd := exec.Command("cp", "-r", ChartPath, updatePath)
+func copyDirRecursively(src, target string) {
+	cmd := exec.Command("cp", "-r", src, target)
 	err := cmd.Run()
 	Expect(err).To(BeNil())
-
-	ChartPath = updatePath
 }
 
 func revertToOriginalChart() {
 	ChartPath = defaultChartPath
 
-	err := os.RemoveAll(updatePath)
+	err := os.RemoveAll(chartUpdatePath)
 	Expect(err).To(BeNil())
 }
 

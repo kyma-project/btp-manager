@@ -7,14 +7,13 @@ import (
 	"strings"
 )
 
-func TransformCharts(chartPath string, suffix string) error {
-	root := fmt.Sprintf("%s/templates/", chartPath)
-	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+func AddSuffixToNameInManifests(manifestsDir, suffix string) error {
+	if err := filepath.Walk(manifestsDir, func(path string, info os.FileInfo, err error) error {
 		if !strings.HasSuffix(info.Name(), ".yml") {
 			return nil
 		}
 
-		filename := fmt.Sprintf("%s/%s", root, info.Name())
+		filename := fmt.Sprintf("%s/%s", path, info.Name())
 		input, err := os.ReadFile(filename)
 		if err != nil {
 			return err
@@ -41,7 +40,7 @@ func TransformCharts(chartPath string, suffix string) error {
 	return nil
 }
 
-func UpdateVersion(chartPath, newVersion string) error {
+func UpdateChartVersion(chartPath, newVersion string) error {
 	filename := fmt.Sprintf("%s/%s", chartPath, "Chart.yaml")
 	input, err := os.ReadFile(filename)
 	if err != nil {
