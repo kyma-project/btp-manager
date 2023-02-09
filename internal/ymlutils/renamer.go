@@ -13,17 +13,32 @@ func AddSuffixToNameInManifests(manifestsDir, suffix string) error {
 			return nil
 		}
 
-		filename := fmt.Sprintf("%s/%s", path, info.Name())
+		filename := fmt.Sprintf(path)
 		input, err := os.ReadFile(filename)
 		if err != nil {
 			return err
 		}
 
+		reachedMetadata, reachedSpec := false, false
 		lines := strings.Split(string(input), "\n")
 		for i, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "name:") {
+			if strings.HasPrefix(line, "metadata:") {
+				reachedMetadata = true
+				continue
+			}
+			if strings.HasPrefix(line, "spec:") {
+				reachedSpec = true
+				continue
+			}
+			if reachedMetadata && strings.HasPrefix(strings.TrimSpace(line), "name:") {
 				lines[i] = lines[i] + suffix
+				reachedMetadata = false
+				continue
+			}
+			if reachedSpec && strings.HasPrefix(strings.TrimSpace(line), "group:") {
+				lines[i] = lines[i] + suffix
+				reachedSpec = false
+				continue
 			}
 		}
 		output := strings.Join(lines, "\n")
