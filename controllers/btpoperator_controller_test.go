@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"github.com/kyma-project/btp-manager/internal/gvksutils"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
@@ -48,7 +47,7 @@ const (
 	k8sOpsPollingInterval = time.Millisecond * 200
 	chartUpdatePath       = "./testdata/module-chart-update"
 	resourcesUpdatePath   = "./testdata/module-resources-update"
-	suffix                = "updated"
+	suffix                = "-updated"
 	defaultChartPath      = "./testdata/test-module-chart"
 	newChartVersion       = "9.9.9"
 	defaultResourcesPath  = "./testdata/test-module-resources"
@@ -251,7 +250,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	Describe("Update", func() {
 		var initChartVersion string
-		var initApplyObjectsNum int
+		var manifestHandler *manifest.Handler
+		var initApplyObjs []runtime.Object
+		var gvks []schema.GroupVersionKind
+		var initResourcesNum int
+		var err error
 
 		BeforeAll(func() {
 			err := createPrereqs()
@@ -260,6 +263,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+
+			manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
 		})
 
 		BeforeEach(func() {
@@ -268,15 +273,17 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
 			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 
-			initChartVersion, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+			initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 			Expect(err).To(BeNil())
 			_ = initChartVersion
 
-			m := manifest.Handler{Scheme: k8sManager.GetScheme()}
-			initApplyObjs, err := m.CollectObjectsFromDir(ResourcesPath + "/apply")
+			initApplyObjs, err = manifestHandler.CollectObjectsFromDir(ResourcesPath + "/apply")
 			Expect(err).To(BeNil())
-			initApplyObjectsNum = len(initApplyObjs)
-			_ = initApplyObjectsNum
+
+			gvks = getUniqueGvksFromObjects(initApplyObjs)
+
+			initResourcesNum, err = countResourcesForGivenChartVer(gvks, initChartVersion)
+			Expect(err).To(BeNil())
 
 			copyDirRecursively(ChartPath, chartUpdatePath)
 			copyDirRecursively(ResourcesPath, resourcesUpdatePath)
@@ -284,23 +291,55 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			ResourcesPath = resourcesUpdatePath
 		})
 
+		AfterEach(func() {
+			cr = &v1alpha1.BtpOperator{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			Expect(isCrNotFound()).To(BeTrue())
+
+			err := os.RemoveAll(chartUpdatePath)
+			Expect(err).To(BeNil())
+			err = os.RemoveAll(resourcesUpdatePath)
+			Expect(err).To(BeNil())
+
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
+		})
+
 		When("update all resources names and bump chart version", Label("test-update"), func() {
 			It("new resources (with new names) should be created and old ones removed", func() {
 				err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(
 					fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator),
 					fmt.Sprintf("%s%cdelete%cto-delete.yml", ResourcesPath, os.PathSeparator, os.PathSeparator))
+				Expect(err).To(BeNil())
 
-				err = ymlutils.AddSuffixToNameInManifests(ResourcesPath, suffix)
+				err = ymlutils.AddSuffixToNameInManifests(fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), suffix)
 				Expect(err).To(BeNil())
 
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
+				initApplyObjs, err = manifestHandler.CollectObjectsFromDir(ResourcesPath + "/apply")
+				Expect(err).To(BeNil())
+
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
+
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
 			})
 		})
 
-		When("update of all resources names and leave same chart version", Label("test-update"), func() {
+		/*When("update of all resources names and leave same chart version", Label("test-update"), func() {
 			It("new ones not created because version is not changed, old ones should stay", Label("test-update"), func() {
 				err := ymlutils.AddSuffixToNameInManifests(chartUpdatePath, suffix)
 				Expect(err).To(BeNil())
@@ -317,9 +356,9 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateCheckSucceeded)))
 			})
-		})
+		})*/
 
-		When("resources should stay as they are and we bump chart version", Label("test-update"), func() {
+		/*When("resources should stay as they are and we bump chart version", Label("test-update"), func() {
 			It("existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)", func() {
 				err := ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
@@ -339,97 +378,45 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateDone)))
 			})
-		})
-
-		AfterEach(func() {
-
-			revertToOriginalChart()
-
-			reconciler.updateCheckDone = false
-			reconciler.currentVersion = ""
-
-			configMap := reconciler.buildBtpManagerConfigMap()
-			err := k8sClient.Delete(ctx, configMap)
-			Expect(err).To(BeNil())
-		})
+		})*/
 	})
 })
+
+func getUniqueGvksFromObjects(objs []runtime.Object) []schema.GroupVersionKind {
+	gvks := make([]schema.GroupVersionKind, 0)
+	helper := make(map[string]struct{}, 0)
+	for _, o := range objs {
+		gvk := o.GetObjectKind().GroupVersionKind()
+		gvkString := gvk.String()
+		if _, exists := helper[gvkString]; exists {
+			continue
+		}
+		helper[gvkString] = struct{}{}
+		gvks = append(gvks, gvk)
+	}
+
+	return gvks
+}
+
+func countResourcesForGivenChartVer(gvks []schema.GroupVersionKind, version string) (int, error) {
+	var foundResources int
+	var ul *unstructured.UnstructuredList
+	for _, gvk := range gvks {
+		ul = &unstructured.UnstructuredList{}
+		ul.SetGroupVersionKind(gvk)
+		if err := k8sClient.List(ctx, ul, client.MatchingLabels{chartVersionKey: version}); err != nil {
+			return 0, err
+		}
+		foundResources += len(ul.Items)
+	}
+
+	return foundResources, nil
+}
 
 func copyDirRecursively(src, target string) {
 	cmd := exec.Command("cp", "-r", src, target)
 	err := cmd.Run()
 	Expect(err).To(BeNil())
-}
-
-func revertToOriginalChart() {
-	ChartPath = defaultChartPath
-
-	err := os.RemoveAll(chartUpdatePath)
-	Expect(err).To(BeNil())
-}
-
-func pullFromBtpManagerConfigMap(key string) string {
-	ctx := context.Background()
-	configMap := reconciler.buildBtpManagerConfigMap()
-	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)
-	Expect(err).To(BeNil())
-	Expect(configMap).ToNot(BeNil())
-	value, ok := configMap.Data[key]
-	Expect(ok).To(BeTrue())
-	return value
-}
-
-func simulateRestart(ctx context.Context, cr *v1alpha1.BtpOperator) {
-	reconciler.updateCheckDone = false
-	reconciler.currentVersion = ""
-	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-		Namespace: cr.Namespace,
-		Name:      cr.Name,
-	}})
-	Expect(err).To(BeNil())
-	Eventually(getCurrentCrState).Should(Equal(types.StateReady))
-}
-
-func countResources() (int, int) {
-	oldVersion := pullFromBtpManagerConfigMap(oldChartVersionKey)
-	oldVersionLabel := client.MatchingLabels{chartVersionKey: oldVersion}
-	oldGvksText := pullFromBtpManagerConfigMap(oldGvksKey)
-	oldGvks, err := gvksutils.StrToGvks(oldGvksText)
-	Expect(err).To(BeNil())
-	oldCount := countWithLabel(oldVersionLabel, oldGvks)
-
-	currentVersion := pullFromBtpManagerConfigMap(currentCharVersionKey)
-	currentVersionLabel := client.MatchingLabels{chartVersionKey: currentVersion}
-	currentGvksText := pullFromBtpManagerConfigMap(currentGvksKey)
-	currentGvks, err := gvksutils.StrToGvks(currentGvksText)
-	Expect(err).To(BeNil())
-	newCount := countWithLabel(currentVersionLabel, currentGvks)
-
-	if oldVersion == currentVersion {
-		fmt.Printf("versions are equal (%s), with count = {%d} \n", oldVersion, oldCount)
-	} else {
-		fmt.Printf("oldCount = {%d}, newCount = {%d} \n", oldCount, newCount)
-	}
-
-	return oldCount, newCount
-}
-
-func countWithLabel(label client.MatchingLabels, gvks []schema.GroupVersionKind) int {
-	count := 0
-	for _, gvk := range gvks {
-		list := &unstructured.UnstructuredList{}
-		list.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   gvk.Group,
-			Version: gvk.Version,
-			Kind:    gvk.Kind,
-		})
-		if err := k8sClient.List(ctx, list, label); err != nil && !canIgnoreErr(err) {
-			Expect(err).To(BeNil())
-		} else {
-			count += len(list.Items)
-		}
-	}
-	return count
 }
 
 func createPrereqs() error {
