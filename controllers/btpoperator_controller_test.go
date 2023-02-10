@@ -338,7 +338,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		When("update some resources names and bump chart version", Label("test-update"), func() {
 			It("resources with new names should be created, resources with old names should be deleted, unchanged resources should stay and receive new chart version", func() {
-				err := createNTemporaryApplicableManifests(3, fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
+				updateManifestsNum := 3
+				err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
 				Expect(err).To(BeNil())
 
 				oldObjs, err := manifestHandler.CollectObjectsFromDir(fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
@@ -354,7 +355,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.AddSuffixToNameInManifests(fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator), suffix)
 				Expect(err).To(BeNil())
 
-				err = moveFilesFromDirToDir(fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator))
+				err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator))
 				Expect(err).To(BeNil())
 
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
@@ -373,7 +374,53 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
 				Expect(err).To(BeNil())
 				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
-				assertRemovalOfResources(oldUns...)
+				assertResourcesRemoval(oldUns...)
+			})
+		})
+
+		When("remove some manifests and bump chart version", Label("test-update"), func() {
+			It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
+				allManifests := 99
+				err = moveOrCopyNFilesFromDirToDir(allManifests, true, fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
+				Expect(err).To(BeNil())
+
+				remainingManifestsNum := 4
+				err := moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator))
+				Expect(err).To(BeNil())
+
+				expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
+				Expect(err).To(BeNil())
+				unexpectedUns, err := manifestHandler.ObjectsToUnstructured(expectedDeleteObjs)
+				Expect(err).To(BeNil())
+
+				expectedApplyObjs, err := manifestHandler.CollectObjectsFromDir(fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator))
+				Expect(err).To(BeNil())
+				expectedUns, err := manifestHandler.ObjectsToUnstructured(expectedApplyObjs)
+				Expect(err).To(BeNil())
+
+				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(
+					fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator),
+					fmt.Sprintf("%s%cdelete%cto-delete.yml", ResourcesPath, os.PathSeparator, os.PathSeparator))
+				Expect(err).To(BeNil())
+
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
+
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(len(expectedApplyObjs)))
+				assertResourcesExistence(expectedUns...)
+				assertResourcesRemoval(unexpectedUns...)
 			})
 		})
 
@@ -420,7 +467,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 })
 
-func assertRemovalOfResources(uns ...*unstructured.Unstructured) {
+func assertResourcesExistence(uns ...*unstructured.Unstructured) {
+	for _, u := range uns {
+		gvk := u.GroupVersionKind()
+		temp := &unstructured.Unstructured{}
+		temp.SetGroupVersionKind(gvk)
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: u.GetNamespace(), Name: u.GetName()}, temp)).To(Succeed())
+	}
+}
+
+func assertResourcesRemoval(uns ...*unstructured.Unstructured) {
 	for _, u := range uns {
 		gvk := u.GroupVersionKind()
 		temp := &unstructured.Unstructured{}
@@ -436,29 +492,8 @@ func assertRemovalOfResources(uns ...*unstructured.Unstructured) {
 	}
 }
 
-func moveFilesFromDirToDir(srcDir, targetDir string) error {
-	srcFiles, err := os.ReadDir(srcDir)
-	if err != nil {
-		return err
-	}
-	for _, f := range srcFiles {
-		input, err := os.ReadFile(fmt.Sprintf("%s%c%s", srcDir, os.PathSeparator, f.Name()))
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(fmt.Sprintf("%s%c%s", targetDir, os.PathSeparator, f.Name()), input, 0700); err != nil {
-			return err
-		}
-		if err := os.Remove(fmt.Sprintf("%s%c%s", srcDir, os.PathSeparator, f.Name())); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func createNTemporaryApplicableManifests(n int, srcDir, targetDir string) error {
-	if err := os.Mkdir(targetDir, 0700); err != nil {
+func moveOrCopyNFilesFromDirToDir(filesNum int, deleteFiles bool, srcDir, targetDir string) error {
+	if err := os.Mkdir(targetDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
 	files, err := os.ReadDir(srcDir)
@@ -466,7 +501,7 @@ func createNTemporaryApplicableManifests(n int, srcDir, targetDir string) error 
 		return err
 	}
 	for i, f := range files {
-		if i >= n {
+		if i >= filesNum {
 			break
 		}
 		input, err := os.ReadFile(fmt.Sprintf("%s%c%s", srcDir, os.PathSeparator, f.Name()))
@@ -475,6 +510,11 @@ func createNTemporaryApplicableManifests(n int, srcDir, targetDir string) error 
 		}
 		if err := os.WriteFile(fmt.Sprintf("%s%c%s", targetDir, os.PathSeparator, f.Name()), input, 0700); err != nil {
 			return err
+		}
+		if deleteFiles {
+			if err := os.Remove(fmt.Sprintf("%s%c%s", srcDir, os.PathSeparator, f.Name())); err != nil {
+				return err
+			}
 		}
 	}
 
