@@ -267,6 +267,16 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
 		})
 
+		AfterAll(func() {
+			err := os.RemoveAll(chartUpdatePath)
+			Expect(err).To(BeNil())
+			err = os.RemoveAll(resourcesUpdatePath)
+			Expect(err).To(BeNil())
+
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
+		})
+
 		BeforeEach(func() {
 			cr = createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
