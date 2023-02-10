@@ -380,7 +380,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		When("remove some manifests and bump chart version", Label("test-update"), func() {
 			It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
-				allManifests := 99
+				allManifests := 99 // higher number than number of manifests
 				err = moveOrCopyNFilesFromDirToDir(allManifests, true, fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
 				Expect(err).To(BeNil())
 
@@ -424,46 +424,26 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		/*When("update of all resources names and leave same chart version", Label("test-update"), func() {
-			It("new ones not created because version is not changed, old ones should stay", Label("test-update"), func() {
-				err := ymlutils.AddSuffixToNameInManifests(chartUpdatePath, suffix)
+		When("bump chart version only", Label("test-update"), func() {
+			It("resources should stay and receive new chart version", func() {
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				simulateRestart(ctx, cr)
-
-				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
-				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(initChartVersion))
-
-				oldCount, newCount := countResources()
-				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(pullFromBtpManagerConfigMap(oldChartVersionKey)))
-				Expect(newCount).To(BeEquivalentTo(oldCount))
-				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
-
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateCheckSucceeded)))
-			})
-		})*/
-
-		/*When("resources should stay as they are and we bump chart version", Label("test-update"), func() {
-			It("existing resources has new version set and we delete nothing (check if any resources with old labels exists -> should be 0)", func() {
-				err := ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
 				Expect(err).To(BeNil())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
 
-				oldCount, newCount := countResources()
-				Expect(newCount).To(BeEquivalentTo(oldCount))
-				Expect(oldCount >= minimalExpectedElementsCount).To(BeTrue())
-
-				simulateRestart(ctx, cr)
-
-				Expect(pullFromBtpManagerConfigMap(oldChartVersionKey)).To(Equal(initChartVersion))
-				Expect(pullFromBtpManagerConfigMap(currentCharVersionKey)).To(Equal(newChartVersion))
-
-				oldCount, newCount = countResources()
-				Expect(oldCount).To(BeEquivalentTo(0))
-				Expect(newCount >= minimalExpectedElementsCount).To(BeTrue())
-
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, UpdateDone)))
+				actualNumOfResourcesWithOldChartVer, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfResourcesWithOldChartVer).To(Equal(0))
+				actualNumOfResourcesWithNewChartVer, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfResourcesWithNewChartVer).To(Equal(initResourcesNum))
 			})
-		})*/
+		})
 	})
 })
 
