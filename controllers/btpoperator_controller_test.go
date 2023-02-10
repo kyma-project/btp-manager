@@ -287,7 +287,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(err).To(BeNil())
 			_ = initChartVersion
 
-			initApplyObjs, err = manifestHandler.CollectObjectsFromDir(ResourcesPath + "/apply")
+			initApplyObjs, err = manifestHandler.CollectObjectsFromDir(getApplyPath())
 			Expect(err).To(BeNil())
 
 			gvks = getUniqueGvksFromObjects(initApplyObjs)
@@ -319,12 +319,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		When("update all resources names and bump chart version", Label("test-update"), func() {
 			It("new resources (with new names) should be created and old ones removed", func() {
-				err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(
-					fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator),
-					fmt.Sprintf("%s%cdelete%cto-delete.yml", ResourcesPath, os.PathSeparator, os.PathSeparator))
+				err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(getApplyPath(), getToDeleteYamlPath())
 				Expect(err).To(BeNil())
 
-				err = ymlutils.AddSuffixToNameInManifests(fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), suffix)
+				err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
 				Expect(err).To(BeNil())
 
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
@@ -349,23 +347,21 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		When("update some resources names and bump chart version", Label("test-update"), func() {
 			It("resources with new names should be created, resources with old names should be deleted, unchanged resources should stay and receive new chart version", func() {
 				updateManifestsNum := 3
-				err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
+				err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, getApplyPath(), getTempPath())
 				Expect(err).To(BeNil())
 
-				oldObjs, err := manifestHandler.CollectObjectsFromDir(fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
+				oldObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
 				Expect(err).To(BeNil())
 				oldUns, err := manifestHandler.ObjectsToUnstructured(oldObjs)
 				Expect(err).To(BeNil())
 
-				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(
-					fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator),
-					fmt.Sprintf("%s%cdelete%cto-delete.yml", ResourcesPath, os.PathSeparator, os.PathSeparator))
+				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
 				Expect(err).To(BeNil())
 
-				err = ymlutils.AddSuffixToNameInManifests(fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator), suffix)
+				err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix)
 				Expect(err).To(BeNil())
 
-				err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator))
+				err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
 				Expect(err).To(BeNil())
 
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
@@ -391,26 +387,24 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		When("remove some manifests and bump chart version", Label("test-update"), func() {
 			It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
 				allManifests := 99 // higher number than number of manifests
-				err = moveOrCopyNFilesFromDirToDir(allManifests, true, fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
+				err = moveOrCopyNFilesFromDirToDir(allManifests, true, getApplyPath(), getTempPath())
 				Expect(err).To(BeNil())
 
 				remainingManifestsNum := 4
-				err := moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator), fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator))
+				err := moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, getTempPath(), getApplyPath())
 				Expect(err).To(BeNil())
 
-				expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator))
+				expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
 				Expect(err).To(BeNil())
 				unexpectedUns, err := manifestHandler.ObjectsToUnstructured(expectedDeleteObjs)
 				Expect(err).To(BeNil())
 
-				expectedApplyObjs, err := manifestHandler.CollectObjectsFromDir(fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator))
+				expectedApplyObjs, err := manifestHandler.CollectObjectsFromDir(getApplyPath())
 				Expect(err).To(BeNil())
 				expectedUns, err := manifestHandler.ObjectsToUnstructured(expectedApplyObjs)
 				Expect(err).To(BeNil())
 
-				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(
-					fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator),
-					fmt.Sprintf("%s%cdelete%cto-delete.yml", ResourcesPath, os.PathSeparator, os.PathSeparator))
+				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
 				Expect(err).To(BeNil())
 
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
@@ -456,6 +450,22 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 })
+
+func getApplyPath() string {
+	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
+}
+
+func getDeletePath() string {
+	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
+}
+
+func getToDeleteYamlPath() string {
+	return fmt.Sprintf("%s%cto-delete.yml", getDeletePath(), os.PathSeparator)
+}
+
+func getTempPath() string {
+	return fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator)
+}
 
 func assertResourcesExistence(uns ...*unstructured.Unstructured) {
 	for _, u := range uns {
