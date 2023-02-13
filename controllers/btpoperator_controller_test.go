@@ -328,6 +328,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
+				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
@@ -366,6 +367,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
+				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
@@ -408,6 +410,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
+				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
@@ -430,6 +433,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
+				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
