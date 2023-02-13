@@ -137,16 +137,16 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("BtpOperator resource not found. Ignoring since object must be deleted.")
+			logger.Info("BtpOperator CR not found. Ignoring since object has been deleted.")
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "unable to fetch BtpOperator resource")
+		logger.Error(err, "unable to get BtpOperator CR")
 		return ctrl.Result{}, err
 	}
 
 	existingBtpOperators := &v1alpha1.BtpOperatorList{}
 	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to fetch existing BtpOperators")
+		logger.Error(err, "unable to get existing BtpOperator CRs")
 		return ctrl.Result{}, err
 	}
 
@@ -197,7 +197,7 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the operand",
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the module",
 		oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
@@ -233,18 +233,21 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, err.Error())
 	}
 
+	logger.Info("provisioning succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module provisioning succeeded")
 }
 
 func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
 	logger := log.FromContext(ctx)
 
+	logger.Info("getting the required Secret")
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
 		return nil, NewErrorWithReason(MissingSecret, "Secret resource not found")
 	}
 
+	logger.Info("verifying the required Secret")
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
 		return nil, NewErrorWithReason(InvalidSecret, "Secret validation failed")
@@ -259,7 +262,7 @@ func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.
 		if k8serrors.IsNotFound(err) {
 			return nil, fmt.Errorf("%s Secret in %s namespace not found", SecretName, ChartNamespace)
 		}
-		return nil, fmt.Errorf("unable to fetch Secret: %w", err)
+		return nil, fmt.Errorf("unable to get Secret: %w", err)
 	}
 
 	return secret, nil
@@ -298,11 +301,14 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 
-	usToDelete, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToDeletePath())
+	logger.Info("getting outdated module resources to delete")
+	usToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
 	if err != nil {
-		logger.Error(err, "while creating deletable objects from manifests")
+		logger.Error(err, "while getting deletable objects from manifests")
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
+	logger.Info(fmt.Sprintf("got %d outdated module resources to delete", len(usToDelete)))
+
 	err = r.deleteResources(ctx, usToDelete)
 	if err != nil {
 		logger.Error(err, "while deleting outdated resources")
@@ -312,17 +318,13 @@ func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) err
 	return nil
 }
 
-func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(ctx context.Context, manifestsDir string) ([]*unstructured.Unstructured, error) {
-	logger := log.FromContext(ctx)
-
+func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
 	objs, err := r.manifestHandler.CollectObjectsFromDir(manifestsDir)
 	if err != nil {
-		logger.Error(err, "while collecting objects from manifests")
 		return nil, err
 	}
 	us, err := r.manifestHandler.ObjectsToUnstructured(objs)
 	if err != nil {
-		logger.Error(err, "while converting objects to Unstructured")
 		return nil, err
 	}
 
@@ -335,14 +337,14 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 
 func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
-	logger.Info("deleting outdated resources")
 
 	var errs []string
 	for _, u := range us {
 		if err := r.Delete(ctx, u); err != nil && !k8serrors.IsNotFound(err) {
 			errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
+		} else {
+			logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
 		}
-		logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
 	}
 
 	if errs != nil {
@@ -355,21 +357,29 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
-	usToApply, err := r.createUnstructuredObjectsFromManifestsDir(ctx, r.getResourcesToApplyPath())
+	logger.Info("getting module resources to apply")
+	usToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while creating applicable objects from manifests")
 		return fmt.Errorf("Failed to create applicable objects from manifests: %w", err)
 	}
+	logger.Info(fmt.Sprintf("got %d module resources to apply", len(usToApply)))
+
+	logger.Info("preparing module resources to apply")
 	if err = r.prepareModuleResources(ctx, usToApply, s); err != nil {
 		logger.Error(err, "while preparing applicable object to apply")
 		return fmt.Errorf("Failed to prepare applicable objects to apply: %w", err)
 	}
+
+	logger.Info("applying module resources")
 	if err = r.applyResources(ctx, usToApply); err != nil {
-		logger.Error(err, "while applying resources")
+		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("Failed to apply module resources: %w", err)
 	}
+
+	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, usToApply); err != nil {
-		logger.Error(err, "while waiting for resources readiness")
+		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("Timed out while waiting for resources readiness: %w", err)
 	}
 
@@ -382,7 +392,6 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 
 func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
-	logger.Info("preparing module resources")
 
 	var configMapIndex, secretIndex int
 	for i, u := range us {
@@ -454,9 +463,6 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 }
 
 func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-	logger.Info("reconciling module resources")
-
 	for _, u := range us {
 		if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
 			return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
@@ -519,7 +525,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "Resource has been updated")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "CR has been updated")
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -929,6 +935,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ReconcileFailed, err.Error())
 	}
 
+	logger.Info("reconciliation succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module reconciliation succeeded")
 }
 
