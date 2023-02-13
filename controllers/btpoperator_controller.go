@@ -302,14 +302,14 @@ func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) err
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting outdated module resources to delete")
-	usToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
+	resourcesToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
 	if err != nil {
-		logger.Error(err, "while getting deletable objects from manifests")
+		logger.Error(err, "while getting objects to delete from manifests")
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d outdated module resources to delete", len(usToDelete)))
+	logger.Info(fmt.Sprintf("got %d outdated module resources to delete", len(resourcesToDelete)))
 
-	err = r.deleteResources(ctx, usToDelete)
+	err = r.deleteResources(ctx, resourcesToDelete)
 	if err != nil {
 		logger.Error(err, "while deleting outdated resources")
 		return fmt.Errorf("Failed to delete outdated resources: %w", err)
@@ -340,11 +340,14 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 
 	var errs []string
 	for _, u := range us {
-		if err := r.Delete(ctx, u); err != nil && !k8serrors.IsNotFound(err) {
-			errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
-		} else {
-			logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
+		if err := r.Delete(ctx, u); err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			} else {
+				errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
+			}
 		}
+		logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
 	}
 
 	if errs != nil {
@@ -358,27 +361,27 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to apply")
-	usToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
+	resourcesToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while creating applicable objects from manifests")
 		return fmt.Errorf("Failed to create applicable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d module resources to apply", len(usToApply)))
+	logger.Info(fmt.Sprintf("got %d module resources to apply", len(resourcesToApply)))
 
 	logger.Info("preparing module resources to apply")
-	if err = r.prepareModuleResources(ctx, usToApply, s); err != nil {
-		logger.Error(err, "while preparing applicable object to apply")
-		return fmt.Errorf("Failed to prepare applicable objects to apply: %w", err)
+	if err = r.prepareModuleResources(ctx, resourcesToApply, s); err != nil {
+		logger.Error(err, "while preparing objects to apply")
+		return fmt.Errorf("Failed to prepare objects to apply: %w", err)
 	}
 
 	logger.Info("applying module resources")
-	if err = r.applyResources(ctx, usToApply); err != nil {
+	if err = r.applyResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("Failed to apply module resources: %w", err)
 	}
 
 	logger.Info("waiting for module resources readiness")
-	if err = r.waitForResourcesReadiness(ctx, usToApply); err != nil {
+	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("Timed out while waiting for resources readiness: %w", err)
 	}
