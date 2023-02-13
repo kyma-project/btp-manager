@@ -45,11 +45,11 @@ func TestEndToEnd(t *testing.T) {
 	exec.Command("make", "-C", "../../", "deploy",
 		"IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-"+prNumber).Run()
 
-	out, err := exec.Command("kubectl", "rollout", "status", "--namespace=btp-manager-system",
+	out, err := exec.Command("kubectl", "rollout", "status", "--namespace=kyma-system",
 		"deployment/btp-manager-controller-manager", "--timeout=300s").Output()
 	fmt.Println(string(out))
 	if err != nil {
-		t.Errorf("Error running command 'kubectl rollout status --namespace=btp-manager-system deployment/btp-manager"+
+		t.Errorf("Error running command 'kubectl rollout status --namespace=kyma-system deployment/btp-manager"+
 			"-controller-manager --timeout=60s': %s", err)
 	}
 
