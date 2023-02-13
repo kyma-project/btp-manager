@@ -1,5 +1,5 @@
 # Adds namespace to all resources.
-namespace: btp-manager-system
+namespace: kyma-system
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
@@ -22,7 +22,7 @@ resources:
 - ../crd
 - ../rbac
 - ../manager
-- ../prometheus
+# - ../prometheus
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 #- ../webhook
