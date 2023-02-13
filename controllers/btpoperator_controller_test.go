@@ -254,6 +254,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		var initApplyObjs []runtime.Object
 		var gvks []schema.GroupVersionKind
 		var initResourcesNum int
+		var actualWorkqueueSize func() int
 		var err error
 
 		BeforeAll(func() {
@@ -265,6 +266,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 
 			manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
+			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
 		})
 
 		AfterAll(func() {
@@ -305,6 +307,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			cr = &v1alpha1.BtpOperator{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
 			Expect(isCrNotFound()).To(BeTrue())
 
@@ -328,7 +331,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
@@ -367,7 +370,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
@@ -410,7 +413,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
@@ -433,7 +436,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				Eventually(reconciler.workqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
