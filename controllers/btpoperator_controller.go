@@ -936,7 +936,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	}
 
 	logger.Info("reconciliation succeeded")
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module reconciliation succeeded")
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

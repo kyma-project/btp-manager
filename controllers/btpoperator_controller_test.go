@@ -333,7 +333,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
 
 				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
 				Expect(err).To(BeNil())
@@ -372,7 +371,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
 
 				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
 				Expect(err).To(BeNil())
@@ -415,7 +413,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
 
 				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
 				Expect(err).To(BeNil())
@@ -438,7 +435,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateReady, metav1.ConditionTrue, ReconcileSucceeded)))
 
 				actualNumOfResourcesWithOldChartVer, err := countResourcesForGivenChartVer(gvks, initChartVersion)
 				Expect(err).To(BeNil())
