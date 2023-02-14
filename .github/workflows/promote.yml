@@ -6,7 +6,7 @@ env:
   KYMA_ORG: kyma-project
   BTP_MANAGER_REPO: btp-manager
   KYMA_REPO: kyma
-  TEMPLATE_NAME_FROM_REALASE: template.yaml
+  TEMPLATE_NAME_FROM_RELEASE: template.yaml
   TEMPLATE_NAME_FOR_KYMA: moduletemplate-btp-manager.yaml
   GIT_EMAIL: <>
   GIT_NAME: kyma-btp-manager-bot
@@ -44,7 +44,7 @@ jobs:
 
         echo "TAG=${latest}" >> $GITHUB_ENV
 
-    - name: Validate Given Relase Tag
+    - name: Validate Given Release Tag
       if: inputs.releaseTag != 'use latest available release'
       shell: bash
       run: |
@@ -66,7 +66,7 @@ jobs:
       run: echo "BRANCH_NAME=$BTP_MANAGER_REPO-$TAG" >> $GITHUB_ENV
 
     - name: Download module template 
-      run: curl -O -J -L https://github.com/$KYMA_ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME_FROM_REALASE
+      run: curl -O -J -L https://github.com/$KYMA_ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME_FROM_RELEASE
 
     - name: Setup GitHub config
       run: |
@@ -91,7 +91,7 @@ jobs:
 
     - name: Add module template
       run: |
-        mv $TEMPLATE_NAME_FROM_REALASE $TEMPLATE_NAME_FOR_KYMA
+        mv $TEMPLATE_NAME_FROM_RELEASE $TEMPLATE_NAME_FOR_KYMA
         yes | cp -rf $TEMPLATE_NAME_FOR_KYMA $KYMA_REPO/modules/${{ inputs.channel }}
 
     - name: Commit Changes
