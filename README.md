@@ -19,16 +19,16 @@ make run
 
 ## Installation with btp-operator module image
 
-Use the following command to download and run btp-manager from OCI image.
+Use the following command to download and run btp-manager from OCI Image.
 
 ```shell
 ./hack/run_module_image.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.32
 ```
 > **NOTE:** Before using the script, you must install [skopeo](https://github.com/containers/skopeo) and [jq](https://github.com/stedolan/jq).
 
-## Installation using a template.yaml
+## Installation with `template.yaml`
 
-To install btp-operator module using a template file (an output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command), use the following commands:
+To install btp-operator module using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command), use the following commands:
 
 1. Download the template file, for example:
 ```shell
