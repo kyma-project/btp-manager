@@ -767,7 +767,7 @@ func (r *BtpOperatorReconciler) deleteAllInstalledResources(ctx context.Context,
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
 		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
-			if !k8serrors.IsNotFound(err) && !k8serrors.IsMethodNotSupported(err) && !meta.IsNoMatchError(err) {
+			if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 				return err
 			}
 		}

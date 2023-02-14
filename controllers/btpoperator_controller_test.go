@@ -348,7 +348,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 
 		When("update some resources names and bump chart version", Label("test-update"), func() {
-			It("resources with new names should be created, resources with old names should be deleted, unchanged resources should stay and receive new chart version", func() {
+			It("all applied resources should receive new chart version, resources with new names should replace the ones with old names", func() {
 				updateManifestsNum := 3
 				err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, getApplyPath(), getTempPath())
 				Expect(err).To(BeNil())
@@ -389,12 +389,13 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		When("remove some manifests and bump chart version", Label("test-update"), func() {
 			It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
-				allManifests := 99 // higher number than number of manifests
-				err = moveOrCopyNFilesFromDirToDir(allManifests, true, getApplyPath(), getTempPath())
+				allManifests, err := manifestHandler.GetManifestsFromDir(getApplyPath())
+				Expect(err).To(BeNil())
+				err = moveOrCopyNFilesFromDirToDir(len(allManifests), true, getApplyPath(), getTempPath())
 				Expect(err).To(BeNil())
 
 				remainingManifestsNum := 4
-				err := moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, getTempPath(), getApplyPath())
+				err = moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, getTempPath(), getApplyPath())
 				Expect(err).To(BeNil())
 
 				expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
