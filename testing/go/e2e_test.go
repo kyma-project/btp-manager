@@ -5,63 +5,39 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"testing"
+)
+
+const (
+	run_module_image_script_name = "../../hack/run_module_image.sh"
+	helm_uninstall_invocation    = "helm uninstall btp-manager"
+	image_name_env               = "IMAGE_NAME"
 )
 
 func TestEndToEnd(t *testing.T) {
 	log.Println("Starting end-to-end test")
 
-	cmd := exec.Command("make", "-v")
-	err := cmd.Run()
+	checkPrerequisites(t)
+	imageReference := getImageName(t)
+
+	out, err := exec.Command(run_module_image_script_name, imageReference).Output()
 	if err != nil {
-		t.Fatal("make is not installed")
+		t.Fatalf("Expected script %s to be run successfully, but got error: %v and output: \n%s", run_module_image_script_name, err, out)
 	}
 
-	cmd = exec.Command("kubectl", "version")
-	err = cmd.Run()
+	checkResourcesExistence(t, err)
+
+	err = exec.Command(helm_uninstall_invocation).Run()
 	if err != nil {
-		t.Fatal("kubectl is not installed")
+		t.Fatalf("Expected 'helm uninstall' successfully, but got error: %v", err)
 	}
+}
 
-	err = exec.Command("make", "-C", "../../", "install").Run()
-	if err != nil {
-		t.Errorf("Error running command 'make install': %v", err)
-	}
+func checkResourcesExistence(t *testing.T, err error) {
+	log.Println("Checking resources")
 
-	prNumber := os.Getenv("PRNUMBER")
-	if prNumber == "" {
-		t.Error("PRNUMBER env variable is not set")
-	}
-
-	_, err = strconv.Atoi(prNumber)
-	if err != nil {
-		t.Errorf("PRNUMBER env variable is not a number: %v", err)
-	}
-
-	exec.Command("kubectl", "create", "namespace", "kyma-system").Run()
-
-	// expected to return exit status 2 as Prometheus is not installed, hence error suppressed
-	exec.Command("make", "-C", "../../", "deploy",
-		"IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-"+prNumber).Run()
-
-	out, err := exec.Command("kubectl", "rollout", "status", "--namespace=kyma-system",
-		"deployment/btp-manager-controller-manager", "--timeout=300s").Output()
-	fmt.Println(string(out))
-	if err != nil {
-		t.Errorf("Error running command 'kubectl rollout status --namespace=kyma-system deployment/btp-manager"+
-			"-controller-manager --timeout=60s': %s", err)
-	}
-
-	out, err = exec.Command("kubectl", "apply", "-f", "../../deployments/prerequisites.yaml", "-f",
-		"../../examples/btp-manager-secret.yaml", "-f", "../../examples/btp-operator.yaml").Output()
-	fmt.Println(string(out))
-	if err != nil {
-		t.Errorf("Error running command 'kubectl apply -f deployments/prerequisites.yaml -f examples/btp-manager-secret.yaml -f examples/btp-operator.yaml': %v", err)
-	}
-
-	out, err = exec.Command("kubectl", "get", "priorityclass", "kyma-system").Output()
+	out, err := exec.Command("kubectl", "get", "priorityclass", "kyma-system").Output()
 	fmt.Println(string(out))
 	if err != nil {
 		t.Errorf("Expected priorityclass kyma-system to exist, but got error: %v", err)
@@ -88,6 +64,32 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected btpoperator btpoperator-sample to exist, but got error: %v", err)
 	}
-
 	fmt.Println(string(out))
+}
+
+func checkPrerequisites(t *testing.T) {
+	log.Println("Checking prerequisites")
+
+	out, err := exec.Command("helm", "version").Output()
+	if err != nil {
+		t.Fatal("helm is not installed")
+	}
+
+	log.Printf("helm version:%s", out)
+
+	cmd := exec.Command("kubectl", "version")
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal("kubectl is not installed")
+	}
+}
+
+func getImageName(t *testing.T) string {
+	log.Println("Getting image name from the environment")
+
+	imageName := os.Getenv(image_name_env)
+	if imageName == "" {
+		t.Fatalf("%s env variable is not set", image_name_env)
+	}
+	return imageName
 }
