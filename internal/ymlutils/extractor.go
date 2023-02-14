@@ -112,3 +112,39 @@ func ExtractStringValueFromYamlForGivenKey(filePath string, key string) (string,
 
 	return "", nil
 }
+
+func CopyManifestsFromYamlsIntoOneYaml(sourceManifestsDir, targetYaml string) error {
+	if err := filepath.Walk(sourceManifestsDir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(info.Name(), ".yml") && !strings.HasSuffix(info.Name(), ".yaml") {
+			return nil
+		}
+
+		filename := fmt.Sprintf(path)
+		input, err := os.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+
+		targetFile, err := os.OpenFile(targetYaml, os.O_RDWR|os.O_APPEND, 0666)
+		if err != nil {
+			return err
+		}
+		_, err = targetFile.Write(input)
+		if err != nil {
+			return err
+		}
+		err = targetFile.Close()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}

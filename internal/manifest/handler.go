@@ -1,7 +1,6 @@
 package manifest
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -70,7 +69,7 @@ func (h *Handler) GetManifestsFromYaml(yamlFile string) ([]string, error) {
 		manifests = append(manifests, part)
 	}
 	if len(manifests) == 0 {
-		return nil, errors.New(fmt.Sprintf("%s does not contain manifests", yamlFile))
+		return nil, nil
 	}
 
 	return manifests, nil
