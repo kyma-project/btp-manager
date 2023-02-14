@@ -69,7 +69,7 @@ func UpdateChartVersion(chartPath, newVersion string) error {
 		}
 	}
 	output := strings.Join(lines, "\n")
-	err = os.WriteFile(filename, []byte(output), 0644)
+	err = os.WriteFile(filename, []byte(output), 0700)
 	if err != nil {
 		return err
 	}
