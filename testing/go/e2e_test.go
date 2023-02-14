@@ -40,6 +40,8 @@ func TestEndToEnd(t *testing.T) {
 		t.Errorf("PRNUMBER env variable is not a number: %v", err)
 	}
 
+	exec.Command("kubectl", "create", "namespace", "kyma-system")
+
 	// expected to return exit status 2 as Prometheus is not installed, hence error suppressed
 	exec.Command("make", "-C", "../../", "deploy",
 		"IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-"+prNumber).Run()
