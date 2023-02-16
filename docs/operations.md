@@ -7,6 +7,7 @@ title: BTP Manager operations
 BTP Manager performs the following operations:
 
 - provisioning of SAP BTP Service Operator
+- update of SAP BTP Service Operator
 - deprovisioning of SAP BTP Service Operator and its resources, Service Instances and Service Bindings
 
 ## Provisioning
@@ -56,13 +57,16 @@ key values should be empty. If some required data is missing, the reconciler thr
 missing keys/values, sets the CR in `Error` state (reason `InvalidSecret`), and stops the reconciliation until there is a change in the required
 Secret.
 
-After checking the Secret, the reconciler prepares the module's chart for provisioning. It
-adds `app.kubernetes.io/managed-by: btp-manager` label to all chart resources, sets data from the required Secret as
-overrides and applies them among overrides from `values.yaml`. When the chart install info is correct, the reconciler
-starts the provisioning and waits specified time for all chart resources to be in `Ready` state. If timeout is reached,
-the CR receives `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed
+After checking the Secret, the reconciler proceeds to apply and delete operations of [module resources](../module-resources).
+`module-resources` directory is created by one of GitHub actions and contains manifests for apply and delete operations. See [workflows](workflows.md#auto-update-chart-and-resources) for more details.
+First the reconciler deletes outdated module resources which are stored as manifests in [to-delete.yml](../module-resources/delete/to-delete.yml).
+When all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in [apply](../module-resources/apply) directory to be applied into the cluster.
+The resources preparation consists of adding `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, 
+setting `kyma-system` Namespace in all resources, setting module Secret and Configmap based on data read from the required Secret. 
+After preparing resources, the reconciler starts applying them into the cluster and waits specified time for all module resources existence in the cluster. 
+If timeout is reached, the CR receives `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed
 set of [timeouts](../controllers/btpoperator_controller.go) defined as `consts` which limit the processing time
-for performed operations. The provisioning is successful when all chart resources are in `Ready` state and this is the
+for performed operations. The provisioning is successful when all module resources exist in the cluster. This is the
 condition which allows the reconciler to set the CR in `Ready` state.
 
 ## Deprovisioning
@@ -119,19 +123,5 @@ Only one Condition of type `Ready` is used.
 
 ## Updating
 
-![Updating diagram](./assets/updating.svg)
-
-The updating logic is based on the chart files placed in the `ChartPath`.
-
-The application creates a ConfigMap, `btp-manager-versions`, if one does not exist,  and then uses it for storing the following data: 
-- the current version within currently installed gvks
-- the old version within old gvks
-
-The label `app.kubernetes.io/chart-version` is assigned to all resources.
-
-After a restart, during the first reconcile loop iteration, the application inspects `Chart.yaml` file from which it extracts a new version of the chart.
-If the version has changed, the application updates the `btp-manager-versions` and shifts values; that is, it moves current values to old values, and new values to current values.
-In the next step, call the ConsistencyCheck which handles the update. If there are new resources in the charts, it is applied to the cluster. If some of the chart resources are changed, the resources on the cluster are updated.
-The ConsistencyCheck also applies a label with the current version to all matching resources. 
-If some resources during the check are on the cluster and at the same time they are not in the chart resources, they stay with the old version label.
-The resources labeled with the old version are deleted by the application.
+The update process is almost the same as the provisioning process. The only difference is BtpOperator CR existence in the cluster, 
+for the update process the custom resource should be present in the cluster with `Ready` state.  
