@@ -17,10 +17,15 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"crypto/rsa"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/certs"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strings"
 	"time"
@@ -108,6 +113,13 @@ var (
 		Kind:    btpOperatorServiceInstance,
 	}
 	managedByLabelFilter = client.MatchingLabels{managedByLabelKey: operatorName}
+)
+
+var (
+	CaCertSecretName      = "ca-server-cert"
+	WebhookCertSecretName = "webhook-server-cert"
+	validatingWebhookGvk  = (&admissionregistrationv1.ValidatingWebhookConfiguration{}).GroupVersionKind()
+	mutatingWebhookGvk    = (&admissionregistrationv1.MutatingWebhookConfigurationList{}).GroupVersionKind()
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
@@ -443,7 +455,72 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 		return fmt.Errorf("Failed to set Secret values: %w", err)
 	}
 
+	var ca []byte
+	var pk *rsa.PrivateKey
+	caSecretExists, err := r.doSecretExists(CaCertSecretName)
+	if err != nil {
+		return err
+	} else if !caSecretExists {
+		ca, pk, err = certs.GenerateSelfSignedCert(time.Now())
+		if err != nil {
+			return err
+		}
+		err, data := r.MapCertToSecretData(ca, pk, "ca.crt", "ca.key")
+		if err != nil {
+			return err
+		}
+		secret := r.BuildSecretWithData(CaCertSecretName, data)
+		logger.Error(fmt.Errorf("."), "ljdbg", secret)
+
+		unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
+		if err != nil {
+			return err
+		}
+		u := &unstructured.Unstructured{Object: unstructuredObj}
+		us = append(us, u)
+	}
+
+	certSecretExists, err := r.doSecretExists(WebhookCertSecretName)
+	if err != nil {
+		return err
+	} else if !certSecretExists {
+		cert, pk, err := certs.GenerateSignedCert(time.Now(), ca, pk)
+		if err != nil {
+			return err
+		}
+		err, data := r.MapCertToSecretData(cert, pk, "tls.crt", "tls.key")
+		if err != nil {
+			return err
+		}
+		secret := r.BuildSecretWithData(WebhookCertSecretName, data)
+		logger.Error(fmt.Errorf("."), "ljdbg", secret)
+
+		unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
+		if err != nil {
+			return err
+		}
+		u := &unstructured.Unstructured{Object: unstructuredObj}
+		us = append(us, u)
+	}
+
 	return nil
+}
+
+func (r *BtpOperatorReconciler) doSecretExists(name string) (bool, error) {
+	ca := &corev1.Secret{}
+	if err := r.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, ca); err != nil && !k8serrors.IsNotFound(err) {
+		return false, err
+	}
+
+	if ca != nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *BtpOperatorReconciler) Set(secret corev1.Secret) {
+
 }
 
 func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
@@ -1131,3 +1208,127 @@ func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
 		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
 	}
 }
+
+func (r *BtpOperatorReconciler) MapCertToSecretData(cert []byte, privateKey *rsa.PrivateKey, keyNameForCert, keyNameForPrivateKey string) (error, map[string][]byte) {
+	var buf bytes.Buffer
+	err := binary.Write(&buf, binary.LittleEndian, &privateKey)
+	if err != nil {
+		return err, nil
+	}
+
+	return nil, map[string][]byte{
+		keyNameForCert:       cert,
+		keyNameForPrivateKey: buf.Bytes(),
+	}
+}
+
+func (r *BtpOperatorReconciler) BuildSecretWithData(name string, data map[string][]byte) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "kyma-system",
+			Labels: map[string]string{
+				managedByLabelKey: operatorName,
+			},
+		},
+		Data: data,
+	}
+}
+
+/*
+func (r *BtpOperatorReconciler) CreateSecret(name string, data map[string][]byte) error {
+	secret := r.BuildSecretWithData(name, data)
+	if err := r.Create(context.TODO(), secret); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) UpdateSecretWithData(name string, data map[string][]byte) error {
+	secret := &corev1.Secret{}
+	if err := r.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret); err != nil {
+		return err
+	}
+
+	secret.Data = data
+	if err := r.Update(context.TODO(), secret); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) getCAFromSecret(name string) (string, error) {
+	ca := &corev1.Secret{}
+	if err := r.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, ca); err != nil {
+		return "", err
+	}
+
+	caBundle, ok := ca.Data["CA"]
+	if !ok {
+		return "", fmt.Errorf("while getting CA data")
+	}
+
+	return string(caBundle), nil
+}
+
+func (r *BtpOperatorReconciler) reconcileAllWebhooksCABundles() error {
+	currentCa, err := r.getCAFromSecret(CaCertSecretName)
+	if err != nil {
+		return err
+	}
+
+	if err := r.reconcileWebhookCABundles(&validatingWebhookGvk, &currentCa); err != nil {
+		return err
+	}
+
+	if err := r.reconcileWebhookCABundles(&mutatingWebhookGvk, &currentCa); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) reconcileWebhookCABundles(gvk *schema.GroupVersionKind, value *string) error {
+	ensureGvkIsWebhook := func(gvk *schema.GroupVersionKind) error {
+		if !reflect.DeepEqual(gvk, mutatingWebhookGvk) || !reflect.DeepEqual(gvk, validatingWebhookGvk) {
+			return fmt.Errorf("kind %s not supported", gvk.Kind)
+		}
+		return nil
+	}
+
+	if err := ensureGvkIsWebhook(gvk); err != nil {
+		return err
+	}
+
+	us := &unstructured.UnstructuredList{}
+	us.SetGroupVersionKind(*gvk)
+	if err := r.List(context.TODO(), us, managedByLabelFilter); err != nil {
+		return err
+	}
+
+	for _, webhook := range us.Items {
+		webhookValue := reflect.ValueOf(webhook)
+		attachedWebhooks := webhookValue.FieldByName("Webhooks")
+		updateWebhook := false
+		for i := 0; i < attachedWebhooks.NumField(); i++ {
+			admissionReviewVersion := reflect.ValueOf(attachedWebhooks.Field(i).Interface())
+			clientConfig := admissionReviewVersion.FieldByName("clientConfig")
+			caBundle := clientConfig.FieldByName("caBundle")
+			if caBundle.String() != *value {
+				caBundle.SetString(*value)
+				updateWebhook = true
+			}
+		}
+
+		if updateWebhook {
+			if err := r.Update(context.TODO(), &webhook); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+*/

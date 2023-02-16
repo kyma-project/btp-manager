@@ -154,7 +154,7 @@ var _ = BeforeSuite(func() {
 	}))
 
 	ctx, cancel = context.WithCancel(context.TODO())
-
+	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
