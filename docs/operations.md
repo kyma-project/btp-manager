@@ -58,13 +58,13 @@ missing keys/values, sets the CR in `Error` state (reason `InvalidSecret`), and 
 Secret.
 
 After checking the Secret, the reconciler proceeds to apply and delete operations of [module resources](../module-resources).
-`module-resources` directory is created by one of GitHub actions and contains manifests for apply and delete operations. See [workflows](workflows.md#auto-update-chart-and-resources) for more details.
-First the reconciler deletes outdated module resources which are stored as manifests in [to-delete.yml](../module-resources/delete/to-delete.yml).
-When all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in [apply](../module-resources/apply) directory to be applied into the cluster.
-The resources preparation consists of adding `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, 
-setting `kyma-system` Namespace in all resources, setting module Secret and Configmap based on data read from the required Secret. 
-After preparing resources, the reconciler starts applying them into the cluster and waits specified time for all module resources existence in the cluster. 
-If timeout is reached, the CR receives `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed
+The `module-resources` directory is created by one of GitHub Actions and contains manifests for applying and deleting operations. See [workflows](workflows.md#auto-update-chart-and-resources) for more details.
+First, the reconciler deletes outdated module resources stored as manifests in [to-delete.yml](../module-resources/delete/to-delete.yml).
+When all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in the [apply](../module-resources/apply) directory to be applied to the cluster.
+Preparation of current resources consists of adding the `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, 
+setting `kyma-system` Namespace in all resources, setting module Secret and ConfigMap based on data read from the required Secret. 
+After preparing the resources, the reconciler starts applying them to the cluster and waits a specified time for all module resources existence in the cluster. 
+If the timeout is reached, the CR receives the `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed
 set of [timeouts](../controllers/btpoperator_controller.go) defined as `consts` which limit the processing time
 for performed operations. The provisioning is successful when all module resources exist in the cluster. This is the
 condition which allows the reconciler to set the CR in `Ready` state.
@@ -93,7 +93,7 @@ If an error occurs during deprovisioning, `your-btpoperator` is set to `Error`.
 ![Deprovisioning diagram](./assets/deprovisioning.svg)
 
 ## Conditions
-The state of BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/types/declaritive.go#L58) that comprises State
+The state of BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/declarative/v2/object.go#L23) that comprises State
 and Conditions.
 Only one Condition of type `Ready` is used.
 
