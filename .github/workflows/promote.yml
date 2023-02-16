@@ -117,6 +117,6 @@ jobs:
             exit 0
         fi
        
-        gh pr create -B main -R https://github.com/$KYMA_ORG/$KYMA_REPO/ --title "Promote BTP Manager to ( $TAG )" --fill
+        gh pr create -B main -R https://github.com/$KYMA_ORG/$KYMA_REPO/ --title "Promote BTP Manager to ( $TAG )" --fill --body "https://github.com/kyma-project/btp-manager/releases/$TAG"
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
