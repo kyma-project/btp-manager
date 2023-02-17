@@ -17,6 +17,8 @@ The goal of the workflow is to update the chart (module-chart/chart) to the newe
 - `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator) from the release tagged as 'latest' and places it in the `module-chart/chart`. 
 	
 - `make-module-resources.sh` - uses Helm to render Kubernetes resources templates. As a base it takes a the chart from the `module-chart/chart` and also takes values to [override](https://github.com/kyma-project/btp-manager/blob/main/module-chart/overrides.yaml). After Helm finishes templating with the applied overrides, the generated resources are put into `module-resources/apply`. The resources that were used in the previous version but are not used in the new version are placed under `module-resource/delete`.
+During the process of iterating over the `sap-btp-service-operator` resources, the script also keeps track of the GVKs to generate RBAC rules in [`btpoperator\_controller.go`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/controllers/btpoperator_controller.go#L135-L146) which feeds into RBAC `ClusterRole` in [`role.yaml`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/config/rbac/role.yaml#L1) resource
+kept in sync with `make manifests` just like any standard [kubebuilder operator](https://book-v2.book.kubebuilder.io/reference/markers/rbac.html).
  
 Both scripts are run from the workflow but can also be triggered manually from the developer's computer. They are placed under `hack/update/`.
 
