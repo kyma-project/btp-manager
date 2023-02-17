@@ -37,21 +37,9 @@ manager:
     req_memory_limit: ""
     req_cpu_limit: ""
   imagePullSecrets: []
-  #   - name: registrySecretName
-  pullSecretTemplate:
-  # creates a secret to be used in imagePullSecrets from a template
-  # output of data will be in form {"auths":{"myhost":{"auth":<encoded username:password>},"myhost1":{"auth":<encoded username:password>}}}
-  #    name: registrySecretName
-  #    authentication:
-  #      - password: mypwd
-  #        username: myuser
-  #        host: myhost
-  #      - password: mypwd1
-  #        username: myuser1
-  #        host: myhost1
   certificates:
     # Configure if https://github.com/jetstack/cert-manager is used
-    # certManager: true
+    certManager: true
     # Configure if self-generated, self-signed certificates are used
     # selfSigned: {}
     # selfSigned:
