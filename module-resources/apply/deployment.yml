@@ -19,13 +19,14 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 16cdc0e55cacd2e9ed89f503cacbbe859e9c88810356f1e0edbe845652e5e857
+        checksum/config: 93a7ebc69cc684497c56708a43a4f07035b9b20daa015710cfffcb01e85a34bc
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
         app.kubernetes.io/instance: sap-btp-operator
         app.kubernetes.io/name: sap-btp-operator
     spec:
+      serviceAccountName: sap-btp-operator
       containers:
         - args:
             - --secure-listen-address=0.0.0.0:8443
@@ -47,7 +48,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: sap-btp-operator-config
-          image: "ghcr.io/sap/sap-btp-service-operator/controller:v0.3.6"
+          image: "ghcr.io/sap/sap-btp-service-operator/controller:v0.3.7"
           imagePullPolicy: IfNotPresent
           name: manager
           ports:
