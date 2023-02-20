@@ -1404,7 +1404,7 @@ func (r *BtpOperatorReconciler) checkIfCertExpire(secretName string) (bool, erro
 		return false, err
 	}
 
-	rr, err := r.GetValueByKey(r.buildFilenameWithExtension(prefix, "crt"), caData)
+	rr, err := r.getValueByKey(r.buildFilenameWithExtension(prefix, "crt"), caData)
 	if err != nil {
 		return true, err
 	}
@@ -1429,7 +1429,7 @@ func (r *BtpOperatorReconciler) isWebhookCertSignedByRoot() (bool, error) {
 }
 
 func (r *BtpOperatorReconciler) fullyRegenerate(resourcesToApply *[]*unstructured.Unstructured) error {
-	CA, CAPk, err := r.GenereateSelfSignedCertAndAddToResources(resourcesToApply)
+	CA, CAPk, err := r.genereateSelfSignedCertAndAddToResources(resourcesToApply)
 	if err != nil {
 		return err
 	}
