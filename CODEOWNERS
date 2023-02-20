@@ -1,5 +1,5 @@
 # Default owners of the repository
-* @PK85 @jaroslaw-pieszka @piotrmiskiewicz @ralikio @szwedm @ukff @wozniakjan @MarekMichali
+* @kyma-project/gopher
 
 # Owners of all .md files in the repository
-*.md @IwonaLanger @grego952 @NHingerl @mmitoraj @nataliasitko
+*.md @kyma-project/technical-writers
