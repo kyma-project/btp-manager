@@ -425,28 +425,16 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	return nil
 }
 
-func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
-	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
-}
-
-func (r *BtpOperatorReconciler) reconcileWebhooks() error {
-
-}
-
 func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	var configMapIndex, secretIndex int
-	var webhooksIndex []int
 	for i, u := range *resourcesToApply {
 		if u.GetName() == btpServiceOperatorConfigMap && u.GetKind() == configMapKind {
 			configMapIndex = i
 		}
 		if u.GetName() == btpServiceOperatorSecret && u.GetKind() == secretKind {
 			secretIndex = i
-		}
-		if u.GetName() == "" && u.GetKind() == "" {
-			webhooksIndex = append(webhooksIndex, i)
 		}
 	}
 
@@ -1340,7 +1328,7 @@ func (r *BtpOperatorReconciler) applyUnstructuredCertAsSecret(us *[]*unstructure
 	if err != nil {
 		return err
 	}
-	err, data := r.MapCertToSecretData(cert, pk, fmt.Sprintf("%s.crt", prefix), fmt.Sprintf("%s.key", prefix))
+	err, data := r.mapCertToSecretData(cert, pk, fmt.Sprintf("%s.crt", prefix), fmt.Sprintf("%s.key", prefix))
 	if err != nil {
 		return err
 	}
