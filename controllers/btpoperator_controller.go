@@ -467,67 +467,6 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, reso
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkWebhooksCertifications(resourcesToApply *[]*unstructured.Unstructured) error {
-	rootCertExists, err := r.doSecretExists(CaCertSecretName)
-	if err != nil {
-		return err
-	}
-	if !rootCertExists {
-		if err := r.fullyRegenerate(resourcesToApply); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	webhookCertExists, err := r.doSecretExists(WebhookCertSecretName)
-	if err != nil {
-		return err
-	}
-	if !webhookCertExists {
-		if err := r.partialRegenerate(resourcesToApply); err != nil {
-			return err
-		}
-	}
-
-	if err := r.reconcileWebhookCABundles(resourcesToApply, nil); err != nil {
-		return err
-	}
-
-	signOk, err := r.isWebhookCertSignedByRoot()
-	if err != nil {
-		return err
-	}
-	if !signOk {
-		if err := r.fullyRegenerate(resourcesToApply); err != nil {
-			return nil
-		}
-		return nil
-	}
-
-	rootCertValid, err := r.checkIfCertExpire(CaCertSecretName)
-	if err != nil {
-		return err
-	}
-	if !rootCertValid {
-		if err := r.fullyRegenerate(resourcesToApply); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	caWebhookCertValid, err := r.checkIfCertExpire(WebhookCertSecretName)
-	if err != nil {
-		return err
-	}
-	if !caWebhookCertValid {
-		if err := r.partialRegenerate(resourcesToApply); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
 
 	for _, u := range us {
@@ -1212,6 +1151,67 @@ func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
 		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
 		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
 	}
+}
+
+func (r *BtpOperatorReconciler) checkWebhooksCertifications(resourcesToApply *[]*unstructured.Unstructured) error {
+	rootCertExists, err := r.doSecretExists(CaCertSecretName)
+	if err != nil {
+		return err
+	}
+	if !rootCertExists {
+		if err := r.fullyRegenerate(resourcesToApply); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	webhookCertExists, err := r.doSecretExists(WebhookCertSecretName)
+	if err != nil {
+		return err
+	}
+	if !webhookCertExists {
+		if err := r.partialRegenerate(resourcesToApply); err != nil {
+			return err
+		}
+	}
+
+	if err := r.reconcileWebhookCABundles(resourcesToApply, nil); err != nil {
+		return err
+	}
+
+	signOk, err := r.isWebhookCertSignedByRoot()
+	if err != nil {
+		return err
+	}
+	if !signOk {
+		if err := r.fullyRegenerate(resourcesToApply); err != nil {
+			return nil
+		}
+		return nil
+	}
+
+	rootCertValid, err := r.checkIfCertExpire(CaCertSecretName)
+	if err != nil {
+		return err
+	}
+	if !rootCertValid {
+		if err := r.fullyRegenerate(resourcesToApply); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	caWebhookCertValid, err := r.checkIfCertExpire(WebhookCertSecretName)
+	if err != nil {
+		return err
+	}
+	if !caWebhookCertValid {
+		if err := r.partialRegenerate(resourcesToApply); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *BtpOperatorReconciler) mapCertToSecretData(cert []byte, privateKey *rsa.PrivateKey, keyNameForCert, keyNameForPrivateKey string) (error, map[string][]byte) {
