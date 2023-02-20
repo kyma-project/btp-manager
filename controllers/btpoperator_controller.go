@@ -76,6 +76,7 @@ var (
 	ResourcesPath                  = "./module-resources"
 	RootCertExpiration             = time.Now().Add(time.Minute * 5)
 	WebhookCertExpriation          = time.Now().Add(time.Minute * 5)
+	ExpirationBoundary             = time.Hour * -72
 )
 
 const (
@@ -169,7 +170,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
 	logger := log.FromContext(ctx)
-	//aa
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -1415,9 +1415,8 @@ func (r *BtpOperatorReconciler) CheckIfCertExpire(secretName string) (bool, erro
 		return true, err
 	}
 
-	now := time.Now()
-	futureBoundare := time.Now().Add(time.Hour * 72)
-	expiresSoon := now.After(futureBoundare)
+	expirationTriggerBound := caTemplate.NotAfter.Add(ExpirationBoundary) //NotAfter is expiration day
+	expiresSoon := time.Now().After(expirationTriggerBound)
 	return expiresSoon, nil
 }
 
@@ -1426,5 +1425,8 @@ func (*BtpOperatorReconciler) FindResourceInUnstructured() *unstructured.Unstruc
 }
 
 func (r *BtpOperatorReconciler) verifySign() error {
+	//test
+
+	//test2
 	return nil
 }
