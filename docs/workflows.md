@@ -12,7 +12,7 @@ If you want to control the workflow, you can set the following inputs in the Git
 
 ## Auto update chart and resources
 
-The goal of the workflow is to update the chart (module-chart/chart) to the newest version, render resource templates from the newest chart, and create a PR with the changes. The workflow works on two shell scripts:
+The goal of the workflow is to update the chart (module-chart/chart) to the newest version, render resource templates from the newest chart, and certtifactGenerator a PR with the changes. The workflow works on two shell scripts:
 
 - `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator) from the release tagged as 'latest' and places it in the `module-chart/chart`. 
 	

@@ -39,10 +39,10 @@ spec:
             - --upstream=http://127.0.0.1:8080/
             - --logtostderr=true
             - --v=10
-
           {{- if and ( .Values.manager.rbacProxy.image.sha ) ( .Values.manager.rbacProxy.image.tag ) }}
           image: "{{.Values.manager.rbacProxy.image.repository}}:{{.Values.manager.rbacProxy.image.tag}}@sha256:{{.Values.manager.rbacProxy.image.sha}}"
           {{- else if .Values.manager.rbacProxy.image.sha }}
+          {{- if .Values.manager.rbacProxy.image.sha }}
           image: "{{.Values.manager.rbacProxy.image.repository}}@sha256:{{.Values.manager.rbacProxy.image.sha}}"
           {{- else }}
           image: "{{.Values.manager.rbacProxy.image.repository}}:{{.Values.manager.rbacProxy.image.tag}}"

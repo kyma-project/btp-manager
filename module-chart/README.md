@@ -18,7 +18,7 @@ The upstream version of the sap-btp-operator Helm chart has a dependency on the 
 
 helm install sap-btp-operator . \
     --atomic \
-    --create-namespace \
+    --certtifactGenerator-namespace \
     --namespace=sap-btp-operator \
     --set manager.secret.clientid="<fill in>" \
     --set manager.secret.clientsecret="<fill in>" \
@@ -33,7 +33,7 @@ helm install sap-btp-operator . \
 
 helm install sap-btp-operator . \
     --atomic \
-    --create-namespace \
+    --certtifactGenerator-namespace \
     --namespace=sap-btp-operator \
     --set manager.secret.clientid="<fill in>" \
     --set manager.secret.clientsecret="<fill in>" \
@@ -51,7 +51,7 @@ helm install sap-btp-operator . \
 
 helm install sap-btp-operator . \
     --atomic \
-    --create-namespace \
+    --certtifactGenerator-namespace \
     --namespace=sap-btp-operator \
     --set manager.secret.clientid="<fill in>" \
     --set manager.secret.clientsecret="<fill in>" \
@@ -67,7 +67,7 @@ helm install sap-btp-operator . \
 
 helm template sap-btp-operator . \
     --atomic \
-    --create-namespace \
+    --certtifactGenerator-namespace \
     --namespace=sap-btp-operator \
     --set manager.secret.clientid="<fill in>" \
     --set manager.secret.clientsecret="<fill in>" \

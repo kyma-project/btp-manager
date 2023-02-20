@@ -1,12 +1,16 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"io/fs"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"log"
 	"os"
 	"os/exec"
@@ -105,6 +109,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
+		os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
+
 		err := createPrereqs()
 		Expect(err).To(BeNil())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
@@ -188,22 +194,27 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	*/
 
 	Describe("Provisioning - Certs", func() {
-
-		BeforeEach(func() {
-			cr = createBtpOperator()
-			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		})
-
 		BeforeAll(func() {
+			err := createPrereqs()
+			Expect(err).To(BeNil())
+
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+		})
+
+		BeforeEach(func() {
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 		})
 
 		AfterEach(func() {
 			cr = &v1alpha1.BtpOperator{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
 			Expect(isCrNotFound()).To(BeTrue())
 		})
@@ -211,22 +222,48 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		When("", func() {
 			It("", func() {
 				time.Sleep(time.Second * 5)
-				sl := &corev1.SecretList{}
-				k8sClient.List(ctx, sl)
-				lsl := len(sl.Items)
-				blsl := lsl > 0
-				logger.Info("len", "len", prettyPrint(sl))
-				spew.Dump(lsl)
 
 				ca := &corev1.Secret{}
-				err := k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: CaCertSecretName}, ca)
+				err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaCertSecretName}, ca)
 				Expect(err).To(BeNil())
+				caData := GetDataFromSecret(CaCertSecretName)
+				caCrt := GetValueByKey("ca.crt", caData)
+				_ = GetValueByKey("ca.key", caData)
+				caTemplate, err := x509.ParseCertificate(caCrt)
+				Expect(err).To(BeNil())
+				Expect(caTemplate).To(Not(BeNil()))
+				Expect(caTemplate.IsCA).To(BeTrue())
+				caPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caTemplate.Raw})
+				caRoots := x509.NewCertPool()
+				ok := caRoots.AppendCertsFromPEM(caPem)
+				Expect(ok).To(BeTrue())
+				verifyOptions := x509.VerifyOptions{
+					Roots: caRoots,
+				}
+				caTemplate.Verify(verifyOptions)
 
 				cert := &corev1.Secret{}
-				err = k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: WebhookCertSecretName}, cert)
+				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: WebhookCertSecretName}, cert)
 				Expect(err).To(BeNil())
+				certData := GetDataFromSecret(WebhookCertSecretName)
+				certCrt := GetValueByKey("tls.crt", certData)
+				_ = GetValueByKey("tls.key", certData)
+				certTemplate, err := x509.ParseCertificate(certCrt)
+				Expect(err).To(BeNil())
+				Expect(certTemplate).To(Not(BeNil()))
+				Expect(certTemplate.IsCA).To(BeFalse())
+				certRoots := x509.NewCertPool()
+				ok = certRoots.AppendCertsFromPEM(caPem)
+				Expect(ok).To(BeTrue())
+				certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certTemplate.Raw})
+				ok = certRoots.AppendCertsFromPEM(certPem)
+				Expect(ok).To(BeTrue())
+				verifyOptions2 := x509.VerifyOptions{
+					Roots: certRoots,
+				}
+				certTemplate.Verify(verifyOptions2)
 
-				Expect(blsl).Should(BeTrue())
+				EnsureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(caCrt)
 			})
 		})
 	})
@@ -508,6 +545,47 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	*/
 })
+
+func DecodeBase64(src []byte) []byte {
+	var dst []byte
+	_, err := base64.StdEncoding.Decode(dst, src)
+	Expect(err).To(BeNil())
+	return dst
+}
+
+func GetDataFromSecret(name string) map[string][]byte {
+	secret := &corev1.Secret{}
+	err := k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret)
+	Expect(err).To(BeNil())
+	return secret.Data
+}
+
+func GetValueByKey(key string, m map[string][]byte) []byte {
+	value, ok := m[key]
+	Expect(ok).To(BeTrue())
+	return value
+}
+
+func EnsureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(expectedCACert []byte) {
+	vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
+	err := k8sClient.List(context.TODO(), vw, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	for _, w := range vw.Items {
+		for _, n := range w.Webhooks {
+			areEqual := bytes.Equal(n.ClientConfig.CABundle, expectedCACert)
+			Expect(areEqual).To(BeZero())
+		}
+	}
+	mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+	err = k8sClient.List(context.TODO(), mw, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	for _, w := range vw.Items {
+		for _, n := range w.Webhooks {
+			areEqual := bytes.Equal(n.ClientConfig.CABundle, expectedCACert)
+			Expect(areEqual).To(BeZero())
+		}
+	}
+}
 
 func getApplyPath() string {
 	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)

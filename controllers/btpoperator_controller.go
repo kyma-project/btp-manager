@@ -22,6 +22,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -71,6 +72,8 @@ var (
 	ChartPath                      = "./module-chart/chart"
 	HardDeleteCheckInterval        = time.Second * 10
 	ResourcesPath                  = "./module-resources"
+	RootCertExpiration             = time.Now().Add(time.Minute * 5)
+	WebhookCertExpriation          = time.Now().Add(time.Minute * 5)
 )
 
 const (
@@ -336,7 +339,7 @@ func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) err
 	resourcesToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
-		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+		return fmt.Errorf("Failed to certtifactGenerator deletable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d outdated module resources to delete", len(resourcesToDelete)))
 
@@ -395,12 +398,12 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	resourcesToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while creating applicable objects from manifests")
-		return fmt.Errorf("Failed to create applicable objects from manifests: %w", err)
+		return fmt.Errorf("Failed to certtifactGenerator applicable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply", len(resourcesToApply)))
 
 	logger.Info("preparing module resources to apply")
-	if err = r.prepareModuleResources(ctx, resourcesToApply, s); err != nil {
+	if err = r.prepareModuleResources(ctx, &resourcesToApply, s); err != nil {
 		logger.Error(err, "while preparing objects to apply")
 		return fmt.Errorf("Failed to prepare objects to apply: %w", err)
 	}
@@ -424,16 +427,24 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
 }
 
-func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us []*unstructured.Unstructured, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) reconcileWebhooks() {
+
+}
+
+func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	var configMapIndex, secretIndex int
-	for i, u := range us {
+	var webhooksIndex []int
+	for i, u := range *resourcesToApply {
 		if u.GetName() == btpServiceOperatorConfigMap && u.GetKind() == configMapKind {
 			configMapIndex = i
 		}
 		if u.GetName() == btpServiceOperatorSecret && u.GetKind() == secretKind {
 			secretIndex = i
+		}
+		if u.GetName() == "" && u.GetKind() == "" {
+			webhooksIndex = append(webhooksIndex, i)
 		}
 	}
 
@@ -443,84 +454,106 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, us [
 		return fmt.Errorf("Failed to get module chart version: %w", err)
 	}
 
-	r.addLabels(chartVer, us...)
-	r.setNamespace(us...)
-	r.deleteCreationTimestamp(us...)
-	if err := r.setConfigMapValues(s, us[configMapIndex]); err != nil {
+	r.addLabels(chartVer, *resourcesToApply...)
+	r.setNamespace(*resourcesToApply...)
+	r.deleteCreationTimestamp(*resourcesToApply...)
+	if err := r.setConfigMapValues(s, (*resourcesToApply)[configMapIndex]); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("Failed to set ConfigMap values: %w", err)
 	}
-	if err := r.setSecretValues(s, us[secretIndex]); err != nil {
+	if err := r.setSecretValues(s, (*resourcesToApply)[secretIndex]); err != nil {
 		logger.Error(err, "while setting Secret values")
 		return fmt.Errorf("Failed to set Secret values: %w", err)
 	}
 
-	var ca []byte
-	var pk *rsa.PrivateKey
-	caSecretExists, err := r.doSecretExists(CaCertSecretName)
+	rootCertExists, err := r.doSecretExists(CaCertSecretName)
 	if err != nil {
 		return err
-	} else if !caSecretExists {
-		ca, pk, err = certs.GenerateSelfSignedCert(time.Now())
-		if err != nil {
-			return err
-		}
-		err, data := r.MapCertToSecretData(ca, pk, "ca.crt", "ca.key")
-		if err != nil {
-			return err
-		}
-		secret := r.BuildSecretWithData(CaCertSecretName, data)
-		logger.Error(fmt.Errorf("."), "ljdbg", secret)
-
-		unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
-		if err != nil {
-			return err
-		}
-		u := &unstructured.Unstructured{Object: unstructuredObj}
-		us = append(us, u)
 	}
 
-	certSecretExists, err := r.doSecretExists(WebhookCertSecretName)
+	var CA []byte
+	var CAPk *rsa.PrivateKey
+	if !rootCertExists {
+		CA, CAPk, err = r.GenereateSelfSignedCertAndAddToResources(resourcesToApply)
+		if err != nil {
+			return err
+		}
+		err = r.GenereateSignedCertAndAddToResources(resourcesToApply, CA, CAPk)
+		if err != nil {
+			return err
+		}
+	}
+
+	webhookCertExists, err := r.doSecretExists(WebhookCertSecretName)
 	if err != nil {
 		return err
-	} else if !certSecretExists {
-		cert, pk, err := certs.GenerateSignedCert(time.Now(), ca, pk)
-		if err != nil {
-			return err
+	}
+	if !webhookCertExists {
+		if rootCertExists {
+			err = r.GenereateSignedCertAndAddToResources(resourcesToApply, nil, nil)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = r.GenereateSignedCertAndAddToResources(resourcesToApply, CA, CAPk)
+			if err != nil {
+				return err
+			}
 		}
-		err, data := r.MapCertToSecretData(cert, pk, "tls.crt", "tls.key")
-		if err != nil {
-			return err
-		}
-		secret := r.BuildSecretWithData(WebhookCertSecretName, data)
-		logger.Error(fmt.Errorf("."), "ljdbg", secret)
+	}
 
-		unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
-		if err != nil {
-			return err
+	for i, u := range *resourcesToApply {
+
+		if u.GetKind() == "ValidatingWebhookConfiguration" {
+			wh := &admissionregistrationv1.MutatingWebhookConfiguration{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, wh); err != nil {
+				return err
+			}
+
+			webhooks := wh.Webhooks
+			for j, w := range webhooks {
+				r := bytes.Compare(w.ClientConfig.CABundle, CA)
+				if w.ClientConfig.CABundle == nil || r != 0 {
+					w.ClientConfig.CABundle = CA
+				}
+				webhooks[j] = w
+			}
+
+			wh.Webhooks = webhooks
+			uuu, err := runtime.DefaultUnstructuredConverter.ToUnstructured(wh)
+			if err != nil {
+				return err
+			}
+			u = &unstructured.Unstructured{Object: uuu}
+			(*resourcesToApply)[i] = u
 		}
-		u := &unstructured.Unstructured{Object: unstructuredObj}
-		us = append(us, u)
+
+		if u.GetKind() == "MutatingWebhookConfiguration" {
+			wh := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, wh); err != nil {
+				return err
+			}
+
+			webhooks := wh.Webhooks
+			for j, w := range webhooks {
+				r := bytes.Compare(w.ClientConfig.CABundle, CA)
+				if w.ClientConfig.CABundle == nil || r != 0 {
+					w.ClientConfig.CABundle = CA
+				}
+				webhooks[j] = w
+			}
+
+			wh.Webhooks = webhooks
+			uuu, err := runtime.DefaultUnstructuredConverter.ToUnstructured(wh)
+			if err != nil {
+				return err
+			}
+			u = &unstructured.Unstructured{Object: uuu}
+			(*resourcesToApply)[i] = u
+		}
 	}
 
 	return nil
-}
-
-func (r *BtpOperatorReconciler) doSecretExists(name string) (bool, error) {
-	ca := &corev1.Secret{}
-	if err := r.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, ca); err != nil && !k8serrors.IsNotFound(err) {
-		return false, err
-	}
-
-	if ca != nil {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (r *BtpOperatorReconciler) Set(secret corev1.Secret) {
-
 }
 
 func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
@@ -1210,20 +1243,23 @@ func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
 }
 
 func (r *BtpOperatorReconciler) MapCertToSecretData(cert []byte, privateKey *rsa.PrivateKey, keyNameForCert, keyNameForPrivateKey string) (error, map[string][]byte) {
-	var buf bytes.Buffer
-	err := binary.Write(&buf, binary.LittleEndian, &privateKey)
+	b, err := json.Marshal(privateKey)
 	if err != nil {
 		return err, nil
 	}
 
 	return nil, map[string][]byte{
 		keyNameForCert:       cert,
-		keyNameForPrivateKey: buf.Bytes(),
+		keyNameForPrivateKey: b,
 	}
 }
 
 func (r *BtpOperatorReconciler) BuildSecretWithData(name string, data map[string][]byte) *corev1.Secret {
 	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: "kyma-system",
@@ -1233,6 +1269,119 @@ func (r *BtpOperatorReconciler) BuildSecretWithData(name string, data map[string
 		},
 		Data: data,
 	}
+}
+
+func (r *BtpOperatorReconciler) GenereateSelfSignedCertAndAddToResources(resourcesToApply *[]*unstructured.Unstructured) ([]byte, *rsa.PrivateKey, error) {
+	CA, CAPrivateKey, err := certs.GenerateSelfSignedCert(RootCertExpiration)
+	if err != nil {
+		return []byte{}, nil, err
+	}
+	err = r.applyUnstructuredCertAsSecret(resourcesToApply, CaCertSecretName, CA, CAPrivateKey, "CA")
+	if err != nil {
+		return []byte{}, nil, err
+	}
+	return CA, CAPrivateKey, nil
+}
+
+func (r *BtpOperatorReconciler) GenereateSignedCertAndAddToResources(resourcesToApply *[]*unstructured.Unstructured, CA []byte, CAPrivateKey *rsa.PrivateKey) error {
+	cert, certPk, err := r.GenerateSignedCert(WebhookCertExpriation, CA, CAPrivateKey)
+	if err != nil {
+		return err
+	}
+	err = r.applyUnstructuredCertAsSecret(resourcesToApply, WebhookCertSecretName, cert, certPk, "tls")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) GenerateSignedCert(expiration time.Time, ca []byte, pk *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
+	if ca == nil || pk == nil {
+		data, err := r.GetDataFromSecret(CaCertSecretName)
+		if err != nil {
+			return []byte{}, nil, err
+		}
+
+		ca, err = r.GetValueByKey("ca.crt", data)
+		if err != nil {
+			return []byte{}, nil, err
+		}
+
+		pkb, err := r.GetValueByKey("ca.key", data)
+		if err != nil {
+			return []byte{}, nil, err
+		}
+
+		err = binary.Read(bytes.NewReader(pkb), binary.LittleEndian, &pk)
+		if err != nil {
+			return []byte{}, nil, err
+		}
+	}
+
+	cert, certPk, err := certs.GenerateSignedCert(expiration, ca, pk)
+	if err != nil {
+		return []byte{}, nil, err
+	}
+
+	return cert, certPk, err
+}
+
+func (r *BtpOperatorReconciler) GetDataFromSecret(name string) (map[string][]byte, error) {
+	secret := &corev1.Secret{}
+	if err := r.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret); err != nil {
+		return nil, err
+	}
+	return secret.Data, nil
+}
+
+func (r *BtpOperatorReconciler) GetValueByKey(key string, m map[string][]byte) ([]byte, error) {
+	value, ok := m[key]
+	if !ok {
+		return nil, fmt.Errorf("")
+	}
+	return value, nil
+}
+
+func (r *BtpOperatorReconciler) IsResourceWebhook(kind string) bool {
+	if kind == "MutatingWebhookConfiguration" || kind == "ValidatingWebhookConfiguration" {
+		return true
+	}
+	return false
+}
+
+func (r *BtpOperatorReconciler) applyUnstructuredCertAsSecret(us *[]*unstructured.Unstructured, certName string, cert []byte, pk *rsa.PrivateKey, prefix string) error {
+	certSecretExists, err := r.doSecretExists(certName)
+	if err != nil {
+		return err
+	} else if certSecretExists {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+	err, data := r.MapCertToSecretData(cert, pk, fmt.Sprintf("%s.crt", prefix), fmt.Sprintf("%s.key", prefix))
+	if err != nil {
+		return err
+	}
+	secret := r.BuildSecretWithData(certName, data)
+
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
+	if err != nil {
+		return err
+	}
+	*us = append(*us, &unstructured.Unstructured{Object: unstructuredObj})
+	return nil
+}
+
+func (r *BtpOperatorReconciler) doSecretExists(name string) (bool, error) {
+	ca := &corev1.Secret{}
+	err := r.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, ca)
+	if err != nil {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 /*
@@ -1285,48 +1434,6 @@ func (r *BtpOperatorReconciler) reconcileAllWebhooksCABundles() error {
 
 	if err := r.reconcileWebhookCABundles(&mutatingWebhookGvk, &currentCa); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) reconcileWebhookCABundles(gvk *schema.GroupVersionKind, value *string) error {
-	ensureGvkIsWebhook := func(gvk *schema.GroupVersionKind) error {
-		if !reflect.DeepEqual(gvk, mutatingWebhookGvk) || !reflect.DeepEqual(gvk, validatingWebhookGvk) {
-			return fmt.Errorf("kind %s not supported", gvk.Kind)
-		}
-		return nil
-	}
-
-	if err := ensureGvkIsWebhook(gvk); err != nil {
-		return err
-	}
-
-	us := &unstructured.UnstructuredList{}
-	us.SetGroupVersionKind(*gvk)
-	if err := r.List(context.TODO(), us, managedByLabelFilter); err != nil {
-		return err
-	}
-
-	for _, webhook := range us.Items {
-		webhookValue := reflect.ValueOf(webhook)
-		attachedWebhooks := webhookValue.FieldByName("Webhooks")
-		updateWebhook := false
-		for i := 0; i < attachedWebhooks.NumField(); i++ {
-			admissionReviewVersion := reflect.ValueOf(attachedWebhooks.Field(i).Interface())
-			clientConfig := admissionReviewVersion.FieldByName("clientConfig")
-			caBundle := clientConfig.FieldByName("caBundle")
-			if caBundle.String() != *value {
-				caBundle.SetString(*value)
-				updateWebhook = true
-			}
-		}
-
-		if updateWebhook {
-			if err := r.Update(context.TODO(), &webhook); err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
