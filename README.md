@@ -31,11 +31,7 @@ Use the following command to download and install BTP manager from OCI Image in 
 
 ### Install BTP Manager with `template.yaml`
 
-<<<<<<< HEAD
 To install BTP Manager using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command) in your cluster, use the following command:
-=======
-To install btp-operator module using a template file (the output of the [kyma alpha certtifactGenerator module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command), use the following commands:
->>>>>>> f94eb6d (wip - early impl)
 
 ```shell
 ./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/download/0.2.3/template.yaml

@@ -341,7 +341,7 @@ func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) err
 	resourcesToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
-		return fmt.Errorf("Failed to certtifactGenerator deletable objects from manifests: %w", err)
+		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d outdated module resources to delete", len(resourcesToDelete)))
 
@@ -400,7 +400,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	resourcesToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while creating applicable objects from manifests")
-		return fmt.Errorf("Failed to certtifactGenerator applicable objects from manifests: %w", err)
+		return fmt.Errorf("Failed to create applicable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply", len(resourcesToApply)))
 

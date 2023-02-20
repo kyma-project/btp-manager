@@ -8,21 +8,21 @@ import (
 )
 
 func TestNewConditionForReason(t *testing.T) {
-	t.Run("should certtifactGenerator new condition for given predefined Reason with status True", func(t *testing.T) {
+	t.Run("should create new condition for given predefined Reason with status True", func(t *testing.T) {
 		condition := ConditionFromExistingReason("ReconcileSucceeded", "Ready to process")
 		assert.Equal(t, "Ready", condition.Type)
 		assert.Equal(t, metav1.ConditionTrue, condition.Status)
 		assert.Equal(t, "Ready to process", condition.Message)
 		assert.Equal(t, "ReconcileSucceeded", condition.Reason)
 	})
-	t.Run("should certtifactGenerator new condition for given predefined Reason with status False", func(t *testing.T) {
+	t.Run("should create new condition for given predefined Reason with status False", func(t *testing.T) {
 		condition := ConditionFromExistingReason("OlderCRExists", "Other CR is elected a leader")
 		assert.Equal(t, "Ready", condition.Type)
 		assert.Equal(t, metav1.ConditionFalse, condition.Status)
 		assert.Equal(t, "Other CR is elected a leader", condition.Message)
 		assert.Equal(t, "OlderCRExists", condition.Reason)
 	})
-	t.Run("should not certtifactGenerator new condition for not predefined Reason", func(t *testing.T) {
+	t.Run("should not create new condition for not predefined Reason", func(t *testing.T) {
 		condition := ConditionFromExistingReason("non-existing-reason", "Ready to process")
 		assert.Nil(t, condition)
 	})

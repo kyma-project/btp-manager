@@ -21,7 +21,7 @@ The prerequisites for SAP BTP Service Operator provisioning are:
 - Secret `sap-btp-manager` with data for SAP BTP Service Operator
 
 The Namespace and PriorityClass resources are created during Kyma installation. The Secret is injected into the cluster
-by Kyma Environment Broker. If you want to provision SAP BTP Service Operator on a cluster without Kyma, you must certtifactGenerator
+by Kyma Environment Broker. If you want to provision SAP BTP Service Operator on a cluster without Kyma, you must create
 the prerequisites yourself.
 
 ### Process
@@ -107,8 +107,8 @@ Only one Condition of type `Ready` is used.
 | 8   | Deleting   | Ready          | False             | HardDeleting                      | Trying to hard delete                                                          |
 | 9   | Deleting   | Ready          | False             | SoftDeleting                      | Trying to soft delete after hard delete failed                                 |
 | 10  | Error      | Ready          | False             | OlderCRExists                     | This CR is not the oldest one so does not represent the module status          |
-| 11  | Error      | Ready          | False             | MissingSecret                     | `sap-btp-manager` secret was not found - certtifactGenerator proper secret                  |
-| 12  | Error      | Ready          | False             | InvalidSecret                     | `sap-btp-manager` secret does not contain required data - certtifactGenerator proper secret |
+| 11  | Error      | Ready          | False             | MissingSecret                     | `sap-btp-manager` secret was not found - create proper secret                  |
+| 12  | Error      | Ready          | False             | InvalidSecret                     | `sap-btp-manager` secret does not contain required data - create proper secret |
 | 13  | Error      | Ready          | False             | ResourceRemovalFailed             | Some resources can still be present due to errors while deprovisioning         |
 | 14  | Error      | Ready          | False             | ChartInstallFailed                | Failure during chart installation                                              |
 | 15  | Error      | Ready          | False             | ConsistencyCheckFailed            | Failure during consistency check                                               |
