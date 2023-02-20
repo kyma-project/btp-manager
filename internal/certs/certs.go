@@ -37,7 +37,7 @@ func GenerateSelfSignedCert(expiration time.Time) ([]byte, *rsa.PrivateKey, erro
 	return caCert, caPrivateKey, nil
 }
 
-func GenerateSignedCert(expiration time.Time, caCert []byte, caPrivateKey *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
+func GenerateSignedCert(expiration time.Time, rootCert []byte, rootPrivateKey *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
 	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
 		Subject: pkix.Name{
@@ -55,12 +55,12 @@ func GenerateSignedCert(expiration time.Time, caCert []byte, caPrivateKey *rsa.P
 		return []byte{}, nil, err
 	}
 
-	structuredCaCert, err := x509.ParseCertificate(caCert)
+	structuredCaCert, err := x509.ParseCertificate(rootCert)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	cert, err := x509.CreateCertificate(rand.Reader, certTemplate, structuredCaCert, &certPrivateKey.PublicKey, caPrivateKey)
+	cert, err := x509.CreateCertificate(rand.Reader, certTemplate, structuredCaCert, &certPrivateKey.PublicKey, rootPrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
 	}

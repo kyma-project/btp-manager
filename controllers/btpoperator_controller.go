@@ -425,6 +425,10 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	return nil
 }
 
+func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
+	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
+}
+
 func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
