@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This script has the following argument: a link to a module image, for example:
-# ./run_e2e_module_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.32
+# ./run_e2e_module_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.0-PR-999
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
