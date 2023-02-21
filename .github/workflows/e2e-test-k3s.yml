@@ -70,7 +70,4 @@ jobs:
 
       - name: Run tests
         run: |
-          kubectl apply -f ./deployments/prerequisites.yaml
-          kubectl apply -f ./examples/btp-manager-secret.yaml
-          ./hack/run_module_image.sh ${IMAGE_NAME}
-          helm uninstall btp-manager
+          ./hack/run_e2e_module_tests.sh ${IMAGE_NAME}
