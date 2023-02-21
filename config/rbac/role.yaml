@@ -16,7 +16,9 @@ rules:
   resources:
   - namespaces
   verbs:
+  - get
   - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -87,5 +89,12 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - roles
+  verbs:
+  - '*'
+- apiGroups:
+  - services.cloud.sap.com
+  resources:
+  - servicebindings
+  - serviceinstances
   verbs:
   - '*'
