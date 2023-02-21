@@ -118,7 +118,17 @@ func TestAPIs(t *testing.T) {
 
 	suiteCfg, reporterCfg := GinkgoConfiguration()
 	ReconfigureGinkgo(&reporterCfg, &suiteCfg)
-	SetDefaultEventuallyTimeout(time.Second * 5)
+	singleTestTimeout := os.Getenv("SINGLE_TEST_TIMEOUT")
+	if singleTestTimeout != "" {
+		timeout, err := time.ParseDuration(singleTestTimeout)
+		if err != nil {
+			SetDefaultEventuallyTimeout(time.Second * 5)
+		} else {
+			SetDefaultEventuallyTimeout(timeout)
+		}
+	} else {
+		SetDefaultEventuallyTimeout(time.Second * 5)
+	}
 	reporterCfg.Verbose = true
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
