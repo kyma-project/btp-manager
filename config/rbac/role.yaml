@@ -91,3 +91,10 @@ rules:
   - roles
   verbs:
   - '*'
+- apiGroups:
+  - services.cloud.sap.com
+  resources:
+  - servicebindings
+  - serviceinstances
+  verbs:
+  - '*'
