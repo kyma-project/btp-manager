@@ -43,19 +43,25 @@ jobs:
             ${{ runner.os }}-go-
         
       - name: Prepare k3s cluster
+        id: prepare_k3s_cluster
         run: |
-            chmod +x ./testing/k3s-setup.sh
             ./testing/k3s-setup.sh
             while [[ $(kubectl get nodes -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
             do echo "Waiting for cluster nodes to be ready"; sleep 1; done
 
-      - name: Wait for the module image
-        id: wait_for_module_image
+      - name: Prepare environment variables
+        id: prepare_envs
         run: |
           PR_NAME=PR-${{ github.event.number }}
           TAG_NAME=${TAG_PREFIX}-${PR_NAME}
           IMAGE_NAME=${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}
+          echo "PR_NAME=$PR_NAME" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+
+      - name: Wait for the module image
+        id: wait_for_module_image
+        run: |
           while [ ! $(skopeo list-tags ${PROTOCOL}${BTP_OPERATOR_DEV_REPO} | jq '.Tags|any(. == env.TAG_NAME)') ]
           do
             echo "Waiting for btp-operator image: ${IMAGE_NAME}"
