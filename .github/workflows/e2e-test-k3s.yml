@@ -70,4 +70,4 @@ jobs:
 
       - name: Run tests
         run: |
-          ./hack/run_e2e_module_tests.sh ${IMAGE_NAME}
+          ./testing/run_e2e_module_tests.sh ${IMAGE_NAME}
