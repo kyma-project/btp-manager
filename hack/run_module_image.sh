@@ -12,6 +12,7 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+
 TLS_OPTIONS=
 DOWNLOADED_DIR=downloaded_module
 
@@ -20,7 +21,8 @@ rm -rf ${DOWNLOADED_DIR}
 mkdir ${DOWNLOADED_DIR}
 
 # tls setting to allow local access over http
-if [ -z "$2" ]
+TLS_OPTIONS=
+if [ $# -lt 2 ]
 then
   TLS_OPTIONS=--tls-verify=false
 fi
