@@ -87,7 +87,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: test
 test: manifests kustomize generate fmt vet envtest ## Run tests.
-	. ./testing/set-env-vars.sh; if [[ -z "$${SUITE_TIMEOUT}" ]]; then go test ./... -timeout ${SUITE_TIMEOUT} -coverprofile cover.out -v; else go test ./... -timeout $${SUITE_TIMEOUT} -coverprofile cover.out -v; fi
+	. ./testing/set-env-vars.sh; go test ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v
 
 ##@ Build
 
