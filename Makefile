@@ -18,7 +18,7 @@ OS_ARCH ?= $(shell uname -m)
 OS_TYPE ?= $(shell uname)
 
 # This value is used only if SUITE_TIMEOUT is not exported in set-env-vars.sh and is not specified by the user during the make execution
-SUITE_TIMEOUT ?= 30s
+SUITE_TIMEOUT ?= $${SUITE_TIMEOUT:-30s}
 
 # Credentials used for authenticating into the module registry
 # see `kyma alpha mod create --help for more info`
