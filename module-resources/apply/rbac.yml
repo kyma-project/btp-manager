@@ -121,7 +121,7 @@ roleRef:
   name: sap-btp-operator-proxy-role
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: sap-btp-operator
     namespace: kyma-system
 ---
 # Source: sap-btp-operator/templates/rbac.yml
@@ -136,7 +136,7 @@ roleRef:
   name: sap-btp-operator-manager-role
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: sap-btp-operator
     namespace: kyma-system
 ---
 # Source: sap-btp-operator/templates/rbac.yml
@@ -185,5 +185,5 @@ roleRef:
   name: sap-btp-operator-leader-election-role
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: sap-btp-operator
     namespace: kyma-system
