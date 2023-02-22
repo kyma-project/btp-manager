@@ -18,3 +18,8 @@ kubectl apply -f ./examples/btp-manager-secret.yaml
 
 # uninstall btp-manager
 helm uninstall btp-manager
+
+#clean up and ignore errors
+kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
+kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
+kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
