@@ -17,6 +17,9 @@ OS_ARCH ?= $(shell uname -m)
 # Operating system type
 OS_TYPE ?= $(shell uname)
 
+# This value is used only if SUITE_TIMEOUT is not exported in set-env-vars.sh and is not specified by the user during the make execution
+SUITE_TIMEOUT ?= $${SUITE_TIMEOUT:-30s}
+
 # Credentials used for authenticating into the module registry
 # see `kyma alpha mod create --help for more info`
 # MODULE_CREDENTIALS ?= testuser:testpw
@@ -84,7 +87,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: test
 test: manifests kustomize generate fmt vet envtest ## Run tests.
-	. ./testing/set-env-vars.sh; go test ./... -timeout 30s -coverprofile cover.out -v
+	. ./testing/set-env-vars.sh; go test ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v
 
 ##@ Build
 
