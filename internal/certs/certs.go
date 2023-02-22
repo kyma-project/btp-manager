@@ -5,6 +5,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net"
 	"time"
@@ -14,8 +16,12 @@ func GenerateSelfSignedCert(expiration time.Time) ([]byte, *rsa.PrivateKey, erro
 	caTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
-			Organization: []string{"SAP"},
-		},
+			Organization:  []string{"Company, INC."},
+			Country:       []string{"US"},
+			Province:      []string{""},
+			Locality:      []string{"San Francisco"},
+			StreetAddress: []string{"Golden Gate Bridge"},
+			PostalCode:    []string{"94016"}},
 		NotBefore:             time.Now(),
 		NotAfter:              expiration,
 		IsCA:                  true,
@@ -41,7 +47,12 @@ func GenerateSignedCert(expiration time.Time, rootCert []byte, rootPrivateKey *r
 	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
 		Subject: pkix.Name{
-			Organization: []string{"SAP"},
+			Organization:  []string{"Company, INC."},
+			Country:       []string{"US"},
+			Province:      []string{""},
+			Locality:      []string{"San Francisco"},
+			StreetAddress: []string{"Golden Gate Bridge"},
+			PostalCode:    []string{"94016"},
 		},
 		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		NotBefore:    time.Now(),
@@ -66,4 +77,40 @@ func GenerateSignedCert(expiration time.Time, rootCert []byte, rootPrivateKey *r
 	}
 
 	return cert, certPrivateKey, nil
+}
+
+func VerifyIfFirstIsSignedBySecond(first, second []byte) (bool, error) {
+	firstTemplate, err := x509.ParseCertificate(first)
+	if err != nil {
+		return false, err
+	}
+	if !firstTemplate.IsCA {
+		return false, fmt.Errorf("secret %s is not CA", "")
+	}
+
+	roots := x509.NewCertPool()
+	firstPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: firstTemplate.Raw})
+	ok := roots.AppendCertsFromPEM(firstPem)
+	if !ok {
+		return false, fmt.Errorf("pem fail")
+	}
+	verifyOpts := x509.VerifyOptions{
+		Roots: roots,
+	}
+
+	secondTemplate, err := x509.ParseCertificate(second)
+	if err != nil {
+		return false, err
+	}
+
+	if secondTemplate.IsCA {
+		return false, fmt.Errorf("secret %s is CA", "")
+	}
+
+	_, err = secondTemplate.Verify(verifyOpts)
+	if err != nil {
+		return false, fmt.Errorf("verify error: %w", err)
+	}
+
+	return true, nil
 }
