@@ -600,7 +600,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
-			if err := r.cleanUpAllBtpOperatorResources(ctx); err != nil {
+			if err := r.deleteBtpOperatorResources(ctx); err != nil {
 				logger.Error(err, "failed to remove chart resources")
 				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
 					logger.Error(updateStatusErr, "failed to update status")
@@ -766,29 +766,42 @@ func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *
 	return false, nil
 }
 
-func (r *BtpOperatorReconciler) cleanUpAllBtpOperatorResources(ctx context.Context) error {
-	gvks, err := ymlutils.GatherChartGvks(ChartPath)
-	if err != nil {
-		return err
-	}
+func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) error {
+	logger := log.FromContext(ctx)
 
-	if err := r.deleteAllInstalledResources(ctx, gvks); err != nil {
-		return err
+	logger.Info("getting module resources to delete")
+	resourcesToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
+	if err != nil {
+		logger.Error(err, "while getting objects to delete from manifests")
+		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+	}
+	logger.Info(fmt.Sprintf("got at least %d module resources to delete", len(resourcesToDelete)))
+
+	if err = r.deleteAllOfResourcesTypes(ctx, resourcesToDelete...); err != nil {
+		logger.Error(err, "while deleting module resources")
+		return fmt.Errorf("Failed to delete module resources: %w", err)
 	}
 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) deleteAllInstalledResources(ctx context.Context, gvks []schema.GroupVersionKind) error {
-	for _, gvk := range gvks {
-		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(gvk)
-		if err := r.DeleteAllOf(ctx, obj, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
+func (r *BtpOperatorReconciler) deleteAllOfResourcesTypes(ctx context.Context, resourcesToDelete ...*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
+	deletedGvks := make(map[string]struct{}, 0)
+	for _, u := range resourcesToDelete {
+		if _, exists := deletedGvks[u.GroupVersionKind().String()]; exists {
+			continue
+		}
+		logger.Info(fmt.Sprintf("deleting all of %s/%s module resources in %s namespace",
+			u.GroupVersionKind().GroupVersion(), u.GetKind(), ChartNamespace))
+		if err := r.DeleteAllOf(ctx, u, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
 			if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 				return err
 			}
 		}
+		deletedGvks[u.GroupVersionKind().String()] = struct{}{}
 	}
+
 	return nil
 }
 
@@ -839,7 +852,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 	}
 
 	logger.Info("Deleting chart resources")
-	if err := r.cleanUpAllBtpOperatorResources(ctx); err != nil {
+	if err := r.deleteBtpOperatorResources(ctx); err != nil {
 		logger.Error(err, "failed to remove chart resources")
 		return err
 	}
