@@ -14,7 +14,7 @@ kubectl apply -f ./deployments/prerequisites.yaml
 kubectl apply -f ./examples/btp-manager-secret.yaml
 
 # fetch OCI module image and install btp-manager in current cluster
-./hack/run_module_image.sh ${IMAGE_NAME}
+./hack/run_module_image.sh "${IMAGE_NAME}"
 
 # uninstall btp-manager
 helm uninstall btp-manager
