@@ -12,6 +12,7 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+TLS_OPTIONS=
 DOWNLOADED_DIR=downloaded_module
 
 echo -e "\n--- Downloading module image"
