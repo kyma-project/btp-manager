@@ -15,7 +15,6 @@ name: Run E2E tests on k3s cluster
 
 env:
   BTP_OPERATOR_DEV_REPO: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
-  PROTOCOL: docker://
   TAG_PREFIX: 0.0.0
 
 on:
@@ -59,9 +58,9 @@ jobs:
 
       - name: Wait for the module image
         run: |
-          while [ ! $(skopeo list-tags ${PROTOCOL}${BTP_OPERATOR_DEV_REPO} | jq '.Tags|any(. == env.TAG_NAME)') ]
+          while [ ! $(skopeo list-tags docker://${BTP_OPERATOR_DEV_REPO} | jq '.Tags|any(. == env.TAG_NAME)') ]
           do
-            echo "Waiting for btp-operator image: ${IMAGE_NAME}"
+            echo "Waiting for btp-operator image: ${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}"
             sleep 10
           done
           echo "BTP-operator module image found"
