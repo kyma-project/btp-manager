@@ -29,6 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -121,11 +122,8 @@ func TestAPIs(t *testing.T) {
 	singleTestTimeout := os.Getenv("SINGLE_TEST_TIMEOUT")
 	if singleTestTimeout != "" {
 		timeout, err := time.ParseDuration(singleTestTimeout)
-		if err != nil {
-			SetDefaultEventuallyTimeout(time.Second * 5)
-		} else {
-			SetDefaultEventuallyTimeout(timeout)
-		}
+		require.NoError(t, err)
+		SetDefaultEventuallyTimeout(timeout)
 	} else {
 		SetDefaultEventuallyTimeout(time.Second * 5)
 	}
