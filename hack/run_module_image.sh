@@ -12,13 +12,16 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+# for local runs
+rm -rf ${TARGET_DIRECTORY}
 
 TLS_OPTIONS=
+TARGET_DIRECTORY=${TARGET_DIRECTORY:=downloaded_module}
 DOWNLOADED_DIR=downloaded_module
 
 echo -e "\n--- Downloading module image"
-rm -rf ${DOWNLOADED_DIR}
-mkdir ${DOWNLOADED_DIR}
+
+mkdir ${TARGET_DIRECTORY}
 
 # tls setting to allow local access over http
 TLS_OPTIONS=
@@ -27,16 +30,16 @@ then
   TLS_OPTIONS=--tls-verify=false
 fi
 
-skopeo copy ${TLS_OPTIONS} docker://$1 dir:${DOWNLOADED_DIR}
+skopeo copy ${TLS_OPTIONS} docker://$1 dir:${TARGET_DIRECTORY}
 
-FILENAME=$(cat ${DOWNLOADED_DIR}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
+FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
 
 echo -e "\n--- Extracting resources from file:" ${FILENAME}
 
-mkdir ${DOWNLOADED_DIR}/chart
-tar -xzf ${DOWNLOADED_DIR}/${FILENAME} -C ${DOWNLOADED_DIR}/chart
+mkdir ${TARGET_DIRECTORY}/chart
+tar -xzf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/chart
 
 echo -e "\n--- Installing BTP Manager"
 
 # install by helm
-helm upgrade --install btp-manager ${DOWNLOADED_DIR}/chart -n kyma-system --create-namespace
+helm upgrade --install btp-manager ${TARGET_DIRECTORY}/chart -n kyma-system --create-namespace
