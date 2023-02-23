@@ -17,7 +17,6 @@ set -o pipefail # prevents errors in a pipeline from being masked
 IMAGE_NAME=$1
 TARGET_DIRECTORY=${TARGET_DIRECTORY:=downloaded_module}
 CHART_DIRECTORY=${CHART_DIRECTORY:=chart}
-TLS_OPTIONS=
 
 # for local runs
 rm -rf ${TARGET_DIRECTORY}
@@ -26,7 +25,7 @@ echo -e "\n--- Downloading module image"
 
 mkdir ${TARGET_DIRECTORY}
 
-# tls setting to allow local access over http, when invoked from CI HTTPS is used
+# tls setting to allow local access over http, when invoked from CI https is used
 TLS_OPTIONS=
 if [ -z "${CI}" ]
 then
