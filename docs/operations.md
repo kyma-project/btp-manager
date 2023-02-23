@@ -74,21 +74,19 @@ condition which allows the reconciler to set the CR in `Ready` state.
 To start the deprovisioning process, use the following command:
 
 ```
-kubectl delete btpoperator your-btpoperator
+kubectl delete btpoperator {BTPOPERATOR_CR_NAME}
 ```
 
-The command triggers deletion of all service bindings, service instances and `your-btpoperator` on your cluster.
+The command triggers deletion of all Service Bindings, Service Instances and module resources in the cluster.
 
-After the deletion of deployment and webhooks which `your-btpoperator` manages, the deprovisioning flow tries to perform
-deletion in hard delete mode. When it finds all service bindings and their secrets, and service instances across all
-namespaces, it tries to delete them.
-The time limit for this operation is 20 minutes.
-After this time, or in case of an error in hard deletion, the system goes into soft delete mode, which runs deletion of
-finalizers from service instances and bindings.
-Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the "managed-by:btp-operator"
-label are deleted.
-If the process runs successfully, the finalizer on `your-btpoperator` itself is removed and the resource is deleted.
-If an error occurs during deprovisioning, `your-btpoperator` is set to `Error`.
+At first, the deprovisioning process tries to perform the deletion in a hard delete mode. It tries to delete all 
+Service Bindings and Service Instances across all namespaces. The time limit for the hard delete is 20 minutes. 
+After this time, or in case of an error, the process goes into soft delete mode, which runs deletion of finalizers from Service Instances and Service Bindings.
+In order to delete finalizers the reconciler deletes module deployment and webhooks.
+Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager`
+label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../module-resources/apply).
+If the process succeeds, the finalizer on BtpOperator CR itself is removed and the resource is deleted.
+If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`.
 
 ![Deprovisioning diagram](./assets/deprovisioning.svg)
 
