@@ -80,7 +80,7 @@ kubectl delete btpoperator {BTPOPERATOR_CR_NAME}
 The command triggers deletion of all Service Bindings, Service Instances and module resources in the cluster.
 
 At first, the deprovisioning process tries to perform the deletion in a hard delete mode. It tries to delete all 
-Service Bindings and Service Instances across all namespaces. The time limit for the hard delete is 20 minutes. 
+Service Bindings and Service Instances across all Namespaces. The time limit for the hard delete is 20 minutes. 
 After this time, or in case of an error, the process goes into soft delete mode, which runs deletion of finalizers from Service Instances and Service Bindings.
 In order to delete finalizers the reconciler deletes module deployment and webhooks.
 Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager`
