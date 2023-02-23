@@ -27,7 +27,7 @@ mkdir ${TARGET_DIRECTORY}
 TLS_OPTIONS=
 if [ $# -lt 2 ]
 then
-  TLS_OPTIONS=--tls-verify=false
+  TLS_OPTIONS=--src-tls-verify=false
 fi
 
 skopeo copy ${TLS_OPTIONS} docker://$1 dir:${TARGET_DIRECTORY}
