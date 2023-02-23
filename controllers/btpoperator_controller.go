@@ -599,9 +599,9 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	select {
 	case hardDeleteOk := <-hardDeleteChannel:
 		if hardDeleteOk {
-			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing chart resources")
+			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
 			if err := r.deleteBtpOperatorResources(ctx); err != nil {
-				logger.Error(err, "failed to remove chart resources")
+				logger.Error(err, "failed to remove module resources")
 				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
 					logger.Error(updateStatusErr, "failed to update status")
 					return updateStatusErr
@@ -851,9 +851,9 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 		}
 	}
 
-	logger.Info("Deleting chart resources")
+	logger.Info("Deleting module resources")
 	if err := r.deleteBtpOperatorResources(ctx); err != nil {
-		logger.Error(err, "failed to remove chart resources")
+		logger.Error(err, "failed to delete module resources")
 		return err
 	}
 
