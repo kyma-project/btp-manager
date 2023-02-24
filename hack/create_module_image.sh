@@ -11,9 +11,9 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 # Expected variables passed e.g. from CI:
-#   PULL_NUMBER - number of the PR
+#   PULL_NUMBER     - number of the PR
 #   MODULE_REGISTRY - docker registry to push the module to
-#   IMAGE_REGISTRY -  docker registry to push the image to
+#   IMG_REGISTRY    -  docker registry to push the image to
 
 echo "PULL_NUMBER ${PULL_NUMBER}"
 
@@ -24,7 +24,7 @@ HARD_WIRED_RELEASE="0.0.0"
 MODULE_VERSION=${HARD_WIRED_RELEASE}-${PULL_REQUEST_NAME}
 
 IMAGE_NAME=/btp-manager
-IMAGE_REFERENCE=${IMAGE_REGISTRY}${IMAGE_NAME}:${PULL_REQUEST_NAME}
+IMAGE_REFERENCE=${IMG_REGISTRY}${IMAGE_NAME}:${PULL_REQUEST_NAME}
 
 echo "MODULE_VERSION ${MODULE_VERSION}"
 echo "IMAGE_REFERENCE ${IMAGE_REFERENCE}"
