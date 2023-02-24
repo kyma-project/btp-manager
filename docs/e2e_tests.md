@@ -23,7 +23,7 @@ Registry url and component name are predefined.
 > The image tag has form 0.0.0-PR-<PR number> due to component description requirements imposed by used tooling.
  
 Test are executed by Github Actions workflow (`e2e-test-k3s.yaml`). The k3s cluster is created, sources are checked out.
-Worflow waits till OCI module image is available for fetching.
+The workflow waits till the OCI module image is available for fetching.
 The OCI module image is fetched from registry by `./testing/run_e2e_module_tests.sh` script. This scripts creates required prerequisites, installs helm chart and uninstalls it.
 
 ### Run E2E tests locally
