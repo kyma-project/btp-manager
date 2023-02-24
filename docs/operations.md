@@ -1,4 +1,4 @@
----
+    ---
 title: BTP Manager operations 
 ---
 
@@ -77,11 +77,18 @@ To start the deprovisioning process, use the following command:
 kubectl delete btpoperator {BTPOPERATOR_CR_NAME}
 ```
 
-The command triggers deletion of all Service Bindings, Service Instances and module resources in the cluster.
+The command triggers deletion of module resources in the cluster. By default, existing Service Instances or Service Bindings blocks the deletion. To unblock it you need to remove existing Service Instances and Service Bindings. Then, after reconciliation time (at most 15 min) BTP Operator resource will be gone.
+
+You can force the deletion by adding a label to the BTP Operator resource:
+```
+force-delete: "true"
+```
+If the label exists, all existing Service Instance and Service Bindings will be deleted automatically.
 
 At first, the deprovisioning process tries to perform the deletion in a hard delete mode. It tries to delete all 
 Service Bindings and Service Instances across all Namespaces. The time limit for the hard delete is 20 minutes. 
 After this time, or in case of an error, the process goes into soft delete mode, which runs deletion of finalizers from Service Instances and Service Bindings.
+
 In order to delete finalizers the reconciler deletes module deployment and webhooks.
 Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager`
 label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../module-resources).

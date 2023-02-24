@@ -78,6 +78,7 @@ const (
 	btpServiceOperatorSecret    = "sap-btp-service-operator"
 	mutatingWebhookName         = "sap-btp-operator-mutating-webhook-configuration"
 	validatingWebhookName       = "sap-btp-operator-validating-webhook-configuration"
+	forceDeleteLabelKey         = "force-delete"
 )
 
 const (
@@ -194,7 +195,11 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
-		return ctrl.Result{}, r.HandleDeletingState(ctx, cr)
+		err := r.HandleDeletingState(ctx, cr)
+		if r.reasonExists(cr, ServiceInstancesAndBindingsNotCleaned) {
+			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
+		}
+		return ctrl.Result{}, err
 	case types.StateReady:
 		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
 	}
@@ -550,6 +555,15 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "CR has been updated")
 }
 
+func (r *BtpOperatorReconciler) reasonExists(cr *v1alpha1.BtpOperator, reason Reason) bool {
+	for _, c := range cr.Status.Conditions {
+		if c.Reason == string(reason) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
@@ -562,6 +576,10 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	if err := r.handleDeprovisioning(ctx, cr); err != nil {
 		logger.Error(err, "deprovisioning failed")
 		return err
+	}
+	if r.reasonExists(cr, ServiceInstancesAndBindingsNotCleaned) {
+		logger.Info("leaving deletion")
+		return nil
 	}
 	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
@@ -592,6 +610,38 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
 		return err
+	}
+
+	if !r.IsForceDelete(cr) {
+		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
+		if err != nil {
+			return err
+		}
+		numberOfInstances, err := r.numberOfResources(ctx, instanceGvk)
+		if err != nil {
+			return err
+		}
+
+		if numberOfBindings > 0 || numberOfInstances > 0 {
+			logger.Info("Existing resources (%d instances and %d bindings) blocks btp operator deletion.", numberOfInstances, numberOfBindings)
+			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
+			logger.Info(msg)
+			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
+				types.StateDeleting, ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
+				return updateStatusErr
+			}
+			logger.Info(fmt.Sprintf("%v", cr.Status))
+			return nil
+		} else {
+			if r.reasonExists(cr, ServiceInstancesAndBindingsNotCleaned) {
+				// go to a state which starts deleting process
+				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
+					types.StateDeleting, HardDeleting,
+					"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
+					return updateStatusErr
+				}
+			}
+		}
 	}
 
 	hardDeleteChannel := make(chan bool)
@@ -766,6 +816,24 @@ func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *
 	}
 
 	return false, nil
+}
+
+func (r *BtpOperatorReconciler) numberOfResources(ctx context.Context, gvk schema.GroupVersionKind) (int, error) {
+	exists, err := r.crdExists(ctx, gvk)
+	if err != nil {
+		return 0, err
+	}
+	if !exists {
+		return 0, nil
+	}
+
+	list := &unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(gvk)
+	err = r.List(ctx, list, client.InNamespace(corev1.NamespaceAll))
+	if err != nil {
+		return 0, err
+	}
+	return len(list.Items), nil
 }
 
 func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) error {
@@ -988,6 +1056,10 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
+	instance := &unstructured.Unstructured{}
+	instance.SetGroupVersionKind(instanceGvk)
+	binding := unstructured.Unstructured{}
+	binding.SetGroupVersionKind(bindingGvk)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
@@ -1130,4 +1202,11 @@ func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
 		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
 		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
 	}
+}
+
+func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
+	if _, exists := cr.Labels[forceDeleteLabelKey]; !exists {
+		return false
+	}
+	return cr.Labels[forceDeleteLabelKey] == "true"
 }

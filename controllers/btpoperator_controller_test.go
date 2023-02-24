@@ -118,6 +118,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	Describe("Provisioning", func() {
 		BeforeEach(func() {
 			cr = createBtpOperator()
+			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 		})
 
@@ -189,7 +190,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 
-	Describe("Deprovisioning", func() {
+	Describe("Deprovisioning without forceDelete label", func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
 		BeforeEach(func() {
@@ -197,6 +198,54 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			btpServiceOperatorDeployment := &appsv1.Deployment{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
+		})
+
+		AfterEach(func() {
+			deleteSecret := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			//Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+			k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)
+			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
+			k8sClient.Update(ctx, cr)
+			time.Sleep(time.Second)
+			//Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+		})
+
+		It("Delete should fail because of existing instances and bindings", func() {
+			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
+			ensureResourceExists(instanceGvk)
+
+			sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
+			ensureResourceExists(bindingGvk)
+
+			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
+			setFinalizers(siUnstructured)
+			setFinalizers(sbUnstructured)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
+
+			Expect(k8sClient.Delete(ctx, sbUnstructured)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, siUnstructured)).To(Succeed())
+		})
+
+	})
+
+	Describe("Deprovisioning with forceDelete label", func() {
+		var siUnstructured, sbUnstructured *unstructured.Unstructured
+
+		BeforeEach(func() {
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			cr = createBtpOperator()
+			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
