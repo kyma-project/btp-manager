@@ -10,7 +10,7 @@ The flow is as follows:
 - push the image to the registry
 - create a Kubernetes cluster
 - wait for the OCI module image to be available in the registry
-- fetch OCI module image
+- fetch the OCI module image
 - helm install btp-manager chart
 - helm uninstall btp-manager 
 
