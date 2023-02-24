@@ -52,7 +52,7 @@ jobs:
           TAG_NAME=${TAG_PREFIX}-${PR_NAME}
           echo "PR_NAME=${PR_NAME}" >> $GITHUB_ENV
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
-          echo "IMAGE_NAME=${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}" >> $GITHUB_ENV
+          echo "MODULE_IMAGE_NAME=${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}" >> $GITHUB_ENV
 
       - name: Wait for the btp-manager binary image
         run: |
@@ -72,4 +72,4 @@ jobs:
           check-latest: true
 
       - name: Run tests
-        run: ./testing/run_e2e_module_tests.sh ${IMAGE_NAME} ci
+        run: ./testing/run_e2e_module_tests.sh ${MODULE_IMAGE_NAME} ci
