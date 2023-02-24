@@ -12,7 +12,8 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 # Expected variables passed e.g. from CI:
 #   PULL_NUMBER - number of the PR
-#   MODULE_REGISTRY - docker registry to push the image to
+#   MODULE_REGISTRY - docker registry to push the module to
+#   IMAGE_REGISTRY -  docker registry to push the image to
 
 echo "PULL_NUMBER ${PULL_NUMBER}"
 
@@ -21,9 +22,11 @@ PULL_REQUEST_NAME="PR-${PULL_NUMBER}"
 # To satisfy component name validation
 HARD_WIRED_RELEASE="0.0.0"
 MODULE_VERSION=${HARD_WIRED_RELEASE}-${PULL_REQUEST_NAME}
+
+IMAGE_NAME=/btp-manager
+IMAGE_REFERENCE=${IMAGE_REGISTRY}${IMAGE_NAME}:${PULL_REQUEST_NAME}
+
 echo "MODULE_VERSION ${MODULE_VERSION}"
+echo "IMAGE_REFERENCE ${IMAGE_REFERENCE}"
 
-COMPONENT_NAME="/component-descriptors/kyma.project.io/module/btp-operator"
-
-IMAGE_REFERENCE=${MODULE_REGISTRY}${COMPONENT_NAME}:$MODULE_VERSION
 MODULE_VERSION=${MODULE_VERSION} IMG=${IMAGE_REFERENCE} make module-build

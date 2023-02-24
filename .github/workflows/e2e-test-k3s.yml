@@ -13,6 +13,7 @@ name: Run E2E tests on k3s cluster
 
 env:
   BTP_OPERATOR_DEV_REPO: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+  BTP_MANAGER_DEV_REPO: europe-docker.pkg.dev/kyma-project/dev/btp-manager
   TAG_PREFIX: 0.0.0
 
 on:
@@ -53,7 +54,13 @@ jobs:
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}" >> $GITHUB_ENV
 
-      - name: Wait for the module image
+      - name: Wait for the btp-manager binary image
+        run: |
+          while [ ! $(skopeo list-tags docker://${BTP_MANAGER_DEV_REPO} | jq '.Tags|any(. == env.PR_NAME)') ]
+          do echo "Waiting for btp-operator image: ${BTP_MANAGER_DEV_REPO}:${PR_NAME}"; sleep 10; done
+          echo "BTP-manager binary image found"
+
+      - name: Wait for the btp-operator module image
         run: |
           while [ ! $(skopeo list-tags docker://${BTP_OPERATOR_DEV_REPO} | jq '.Tags|any(. == env.TAG_NAME)') ]
           do echo "Waiting for btp-operator image: ${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}"; sleep 10; done
