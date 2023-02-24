@@ -34,7 +34,7 @@ For example, to create an OCI module based on current sources and push it to the
 make module-build IMG=component-descriptors/kyma.project.io/module/btp-operator:0.0.5-PR-176 MODULE_REGISTRY=localhost:5001/unsigned MODULE_VERSION=0.0.5-PR-176
 ```
 
-Then you can run E2E test by issuing:
+Then you can run the E2E tests by issuing:
 ```shell
 ./testing/run_e2e_module_tests.sh localhost:5001/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.5-PR-176
 ```
