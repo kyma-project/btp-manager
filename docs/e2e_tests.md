@@ -8,7 +8,7 @@ End-to-end (E2E) tests currently check if you can install and then uninstall btp
 The flow is as follows:
 - create OCI module image
 - push the image to the registry
-- create k3s cluster
+- create a Kubernetes cluster
 - wait for OCI module image to be available in registry
 - fetch OCI module image
 - helm install btp-manager chart
