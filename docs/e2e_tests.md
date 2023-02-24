@@ -24,7 +24,7 @@ Registry url and component name are predefined.
  
 Test are executed by Github Actions workflow (`e2e-test-k3s.yaml`). The k3s cluster is created, sources are checked out.
 The workflow waits till the OCI module image is available for fetching.
-The OCI module image is fetched from registry by `./testing/run_e2e_module_tests.sh` script. This scripts creates required prerequisites, installs helm chart and uninstalls it.
+The OCI module image is fetched from the registry by the `./testing/run_e2e_module_tests.sh` script. This script creates the required prerequisites, installs the Helm chart, and uninstalls it.
 
 ### Run E2E tests locally
 
