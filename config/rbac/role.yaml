@@ -28,6 +28,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - serviceaccounts
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
   - services
   verbs:
   - '*'
@@ -53,6 +59,12 @@ rules:
   - apps
   resources:
   - deployments
+  verbs:
+  - '*'
+- apiGroups:
+  - batch
+  resources:
+  - jobs
   verbs:
   - '*'
 - apiGroups:
