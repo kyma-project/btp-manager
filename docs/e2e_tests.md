@@ -32,7 +32,7 @@ The OCI module image is fetched from the registry by the `./testing/run_e2e_modu
 
 For local tests, you can use the OCI module image from the official registry (that is, the module image created by the Prow presubmit job) 
 or you can use the local Docker registry.
-For example, to create an OCI module based on binary image from official registry (signed image) and push it to the local Docker registry, you can use the following command (adjusting the tag appropriately):
+For example, to create an OCI module based on a binary image from the official registry (signed image) and push it to the local Docker registry, you can use the following command  after adjusting the tag appropriately:
 
 ```shell
 make module-build IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-176 MODULE_REGISTRY=localhost:5001/unsigned MODULE_VERSION=0.0.7-PR-176
