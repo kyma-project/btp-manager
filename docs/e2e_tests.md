@@ -6,7 +6,7 @@ title: E2E tests of btp-manager installation from OCI module image
 
 End-to-end (E2E) tests currently check if you can install and then uninstall btp-manager using OCI module image and Helm.
 The flow is as follows:
-- create OCI module image
+- create an OCI module image
 - push the image to the registry
 - create a Kubernetes cluster
 - wait for the btp-operator OCI module image to be available in the registry
