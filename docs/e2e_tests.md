@@ -22,7 +22,7 @@ This script sets appropriate environment variables and invokes `make module-buil
 The registry URL and component name are predefined. 
 
 > **NOTE:**
-> The module image tag has form 0.0.0-PR-<PR number> due to component description requirements imposed by tooling used.
+> The module image tag has the form 0.0.0-PR-<PR number> due to component description requirements imposed by the tooling used.
  
 The tests are executed by Github Actions workflow (`e2e-test-k3s.yaml`). The Kubernetes cluster is created, and sources are checked out.
 The workflow waits till the OCI module image is available for fetching.
