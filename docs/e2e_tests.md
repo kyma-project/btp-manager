@@ -17,7 +17,7 @@ The flow is as follows:
 - Helm uninstall btp-manager 
 
 ### CI pipelines
-The OCI module image is created by prow presubmit job named 'pull-btp-manager-module-build'. Actual execution is done by `./hack/create_module_image.sh` script.
+The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./hack/create_module_image.sh` script.
 This script sets appropriate environment variables and invokes `make module-build`. In effect the module is built and OCI module image is pushed to the registry. 
 Registry url and component name are predefined. 
 
