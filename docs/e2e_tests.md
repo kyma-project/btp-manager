@@ -13,7 +13,7 @@ The flow is as follows:
 5. wait for the btp-manager image to be available in the registry
 6. fetch the btp-operator OCI module image
 7. Helm install btp-manager from the chart
-8. Verification if deployment is in Available state
+8. verify if deployment is in the state `Available`
 9. Helm uninstall btp-manager 
 
 ### CI pipelines
