@@ -14,7 +14,7 @@ The flow is as follows:
 - fetch the btp-operator OCI module image
 - Helm install btp-manager from the chart
 - Verification if deployment is in Available state
-- helm uninstall btp-manager 
+- Helm uninstall btp-manager 
 
 ### CI pipelines
 The OCI module image is created by prow presubmit job named 'pull-btp-manager-module-build'. Actual execution is done by `./hack/create_module_image.sh` script.
