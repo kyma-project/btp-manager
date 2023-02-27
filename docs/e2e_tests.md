@@ -6,15 +6,15 @@ title: E2E tests of btp-manager installation from OCI module image
 
 End-to-end (E2E) tests currently check if you can install and then uninstall btp-manager using OCI module image and Helm.
 The flow is as follows:
-- create an OCI module image
-- push the image to the registry
-- create a Kubernetes cluster
-- wait for the btp-operator OCI module image to be available in the registry
-- wait for the btp-manager image to be available in the registry
-- fetch the btp-operator OCI module image
-- Helm install btp-manager from the chart
-- Verification if deployment is in Available state
-- Helm uninstall btp-manager 
+1. create an OCI module image
+2. push the image to the registry
+3. create a Kubernetes cluster
+4. wait for the btp-operator OCI module image to be available in the registry
+5. wait for the btp-manager image to be available in the registry
+6. fetch the btp-operator OCI module image
+7. Helm install btp-manager from the chart
+8. Verification if deployment is in Available state
+9. Helm uninstall btp-manager 
 
 ### CI pipelines
 The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./hack/create_module_image.sh` script.
