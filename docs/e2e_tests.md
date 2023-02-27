@@ -48,7 +48,7 @@ If you want to use the locally created (unsigned) binary image stored in the loc
 make module-image IMG_REGISTRY=localhost:5001 IMG=localhost:5001/btp-manager-local:PR-176
 ```
 
-Then you create locally OCI module image referencing binary image you just created and run the tests.
+Next create an OCI module image locally referencing the binary image you just created. Run the tests.
 ```shell
 make module-build IMG=localhost:5001/btp-manager-local:PR-176 MODULE_REGISTRY=localhost:5001/unsigned MODULE_VERSION=0.0.8-PR-176
 ./testing/run_e2e_module_tests.sh localhost:5001/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.8-PR-176
