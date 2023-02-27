@@ -43,7 +43,7 @@ Then you can run the E2E tests by issuing:
 ./testing/run_e2e_module_tests.sh localhost:5001/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.7-PR-176
 ```
 
-If you want to use locally created (unsigned) binary image, stored in local docker registry, you need to build it first.
+If you want to use the locally created (unsigned) binary image stored in the local docker registry, you must build it first.
 ```shell
 make module-image IMG_REGISTRY=localhost:5001 IMG=localhost:5001/btp-manager-local:PR-176
 ```
