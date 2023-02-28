@@ -3,18 +3,24 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
 	utils "github.com/kyma-project/btp-manager/internal"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	"io/fs"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"strings"
 	"sync"
@@ -42,7 +48,7 @@ const (
 	btpOperatorKind       = "BtpOperator"
 	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
 	btpOperatorName       = "btp-operator-test"
-	defaultNamespace      = "default"
+	defaultNamespace      = "kyma-system"
 	kymaNamespace         = "kyma-system"
 	instanceName          = "my-service-instance"
 	bindingName           = "my-service-binding"
@@ -111,8 +117,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
-		os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "false")
-
 		err := createPrereqs()
 		Expect(err).To(BeNil())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
@@ -130,7 +134,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		ctx = context.Background()
 	})
 
-	/*Describe("Provisioning", func() {
+	Describe("Provisioning", Pending, func() {
+
 		BeforeEach(func() {
 			cr = createBtpOperator()
 			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
@@ -193,9 +198,485 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		})
 	})
-	*/
 
-	Describe("Provisioning - Certs", func() {
+	type timeOpts struct {
+		CaCertificateExpiration time.Duration
+		WebhookCertExpiration   time.Duration
+		ExpirationBoundary      time.Duration
+	}
+
+	Describe("Certification management", func() {
+		orgCaCertificateExpiration := CaCertificateExpiration
+		orgWebhookCertExpiration := WebhookCertExpiration
+		orgExpirationBoundary := ExpirationBoundary
+		var actualWorkqueueSize func() int
+
+		BeforeAll(func() {
+
+			err := createPrereqs()
+			Expect(err).To(BeNil())
+
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+
+			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
+		})
+
+		AfterAll(func() {
+			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "false")
+		})
+
+		setOrgTimes := func() {
+			CaCertificateExpiration = orgCaCertificateExpiration
+			WebhookCertExpiration = orgWebhookCertExpiration
+			ExpirationBoundary = orgExpirationBoundary
+		}
+
+		certBeforeEach := func(opts *timeOpts) {
+			if opts != nil {
+				CaCertificateExpiration = opts.CaCertificateExpiration
+				WebhookCertExpiration = opts.WebhookCertExpiration
+				ExpirationBoundary = opts.ExpirationBoundary
+			} else {
+				setOrgTimes()
+			}
+
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+		}
+
+		certAfterEach := func() {
+			cr = &v1alpha1.BtpOperator{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			Expect(isCrNotFound()).To(BeTrue())
+			setOrgTimes()
+		}
+
+		ensureQueueIsEmpty := func() {
+			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+		}
+
+		ensureCorrectState := func() {
+			ok, err := reconciler.IsWebhookSecretCertSignedByCaSecretCert()
+			Expect(err).To(BeNil())
+			Expect(ok).To(BeTrue())
+			EnsureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(nil)
+		}
+
+		When("doing provisioning", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should generate correct certs pair", func() {
+				ensureQueueIsEmpty()
+				ensureCorrectState()
+			})
+		})
+
+		When("ca cert changes", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should regenerate CA and webhook certs", func() {
+				//fake data
+				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
+				newCaPrivateKeyStructured, err := structToByteArray(newCaPrivateKey)
+				Expect(err).To(BeNil())
+
+				caSecret := getSecret(CaSecret)
+				orgCaSecret := caSecret
+				replaceData(caSecret, utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), newCaCertificate, utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix), newCaPrivateKeyStructured)
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				time.Sleep(time.Second * 5)
+				updatedCaSecret := getSecret(CaSecret)
+
+				caCertificateAfterUpdate, ok := updatedCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue())
+
+				caCertificateOriginal, ok := orgCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeTrue())
+
+				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeTrue())
+
+				caPrivateKeyOriginal, ok := orgCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeTrue())
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook cert changes, signed by same CA", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("CA certificate stay same, but Webhook certificate is change (signed by same CA)", func() {
+				beforeCaSecret := getSecret(CaSecret)
+
+				currentCa, err := reconciler.getDataFromSecret(CaSecret)
+				Expect(err).To(BeNil())
+				ca, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), currentCa, "x")
+				Expect(err).To(BeNil())
+				pk, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix), currentCa, "x")
+				Expect(err).To(BeNil())
+				var myStruct rsa.PrivateKey
+				err = json.Unmarshal(pk, &myStruct)
+				Expect(err).To(BeNil())
+				currentWebhookSecret := getSecret(WebhookSecret)
+				originalWebhookSecret := currentWebhookSecret
+
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), ca, &myStruct)
+				Expect(err).To(BeNil())
+				newWebhookPrivateKeyStructured, err := structToByteArray(newWebhookPrivateKey)
+				Expect(err).To(BeNil())
+
+				webhookCert := getSecret(CaSecret)
+				replaceData(webhookCert, utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx), newWebhookCertificate, utils.BuildFilenameWithExtension(WebhookPrefix, KeyPostfix), newWebhookPrivateKeyStructured)
+
+				originalWebhookCert, ok := originalWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				Expect(!bytes.Equal(originalWebhookCert, newWebhookCertificate))
+
+				currentWebhookSecret = getSecret(WebhookSecret)
+				currentWebhookCert, ok := currentWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				Expect(ok).To(BeTrue())
+				Expect(bytes.Equal(currentWebhookCert, newWebhookCertificate))
+
+				afterCaSecret := getSecret(CaSecret)
+				afterCaSecretCert, ok := afterCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				beforeCaSecretCert, ok := beforeCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				Expect(bytes.Equal(afterCaSecretCert, beforeCaSecretCert))
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook cert changes, signed by different CA", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("CA and Webhook certificate is regenerated", func() {
+				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
+				Expect(err).To(BeNil())
+
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), newCaCertificate, newCaPrivateKey)
+				newWebhookCertificateStructured, err := structToByteArray(newWebhookPrivateKey)
+				Expect(err).To(BeNil())
+
+				beforeCaSecret := getSecret(CaSecret)
+				beforeWebhookSecret := getSecret(WebhookSecret)
+
+				webhookCertSecret := getSecret(WebhookSecret)
+				replaceData(webhookCertSecret, utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx), newWebhookCertificate, utils.BuildFilenameWithExtension(WebhookPrefix, KeyPostfix), newWebhookCertificateStructured)
+				time.Sleep(time.Second * 5)
+				currentCaSecret := getSecret(CaSecret)
+				currentCaCert, ok := currentCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				Expect(ok).To(BeTrue())
+				beforeCaCert, ok := beforeCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(currentCaCert, beforeCaCert))
+
+				currentWebhookSecret := getSecret(WebhookSecret)
+				currentWebhookCert, ok := currentWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				Expect(ok).To(BeTrue())
+				beforeWebhookCert, ok := beforeWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(currentWebhookCert, beforeWebhookCert))
+				Expect(!bytes.Equal(currentWebhookCert, newWebhookCertificate))
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook expired", func() {
+			n := time.Second * 30
+			BeforeAll(func() {
+				timeOpts := &timeOpts{
+					CaCertificateExpiration: CaCertificateExpiration,
+					WebhookCertExpiration:   n,
+					ExpirationBoundary:      time.Second * 10,
+				}
+				certBeforeEach(timeOpts)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+
+			It("should generate new webhook cert, CA should stay as is", func() {
+				caSecretBeforeExpiration := getSecret(CaSecret)
+				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
+				Expect(checkHowManySecondsToExpiration(WebhookSecret) <= 30).To(BeTrue())
+				time.Sleep(time.Second * 10)
+				Expect(checkHowManySecondsToExpiration(WebhookSecret) <= 30).To(BeTrue())
+				setOrgTimes()
+				fmt.Println("Before fake reconcile")
+				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				fmt.Println("After fake reconcile")
+				Expect(err).To(BeNil())
+				time.Sleep(time.Second * 5)
+				caSecretAfterExpiration := getSecret(CaSecret)
+				webhookSecretAfterExpiration := getSecret(WebhookSecret)
+				Expect(reflect.DeepEqual(caSecretBeforeExpiration.Data, caSecretAfterExpiration.Data)).To(BeTrue())
+				Expect(reflect.DeepEqual(webhookSecretBeforeExpiration.Data, webhookSecretAfterExpiration.Data)).To(BeFalse())
+				Expect(checkHowManySecondsToExpiration(WebhookSecret) >= 30).To(BeTrue())
+
+				ensureCorrectState()
+			})
+		})
+
+		When("ca expired", func() {
+			n := time.Second * 30
+			BeforeAll(func() {
+				timeOpts := &timeOpts{
+					CaCertificateExpiration: n,
+					WebhookCertExpiration:   orgWebhookCertExpiration,
+					ExpirationBoundary:      time.Second * 10,
+				}
+				certBeforeEach(timeOpts)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+
+			It("should generate new webhook cert, CA should stay as is", func() {
+				caSecretBeforeExpiration := getSecret(CaSecret)
+				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
+				Expect(checkHowManySecondsToExpiration(CaSecret) <= 30).To(BeTrue())
+				time.Sleep(time.Second * 10)
+				Expect(checkHowManySecondsToExpiration(CaSecret) <= 30).To(BeTrue())
+				setOrgTimes()
+				fmt.Println("Before fake reconcile")
+				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				fmt.Println("After fake reconcile")
+				Expect(err).To(BeNil())
+				time.Sleep(time.Second * 5)
+				caSecretAfterExpiration := getSecret(CaSecret)
+				webhookSecretAfterExpiration := getSecret(WebhookSecret)
+				Expect(reflect.DeepEqual(caSecretBeforeExpiration.Data, caSecretAfterExpiration.Data)).To(BeFalse())
+				Expect(reflect.DeepEqual(webhookSecretBeforeExpiration.Data, webhookSecretAfterExpiration.Data)).To(BeFalse())
+				Expect(checkHowManySecondsToExpiration(WebhookSecret) >= 30).To(BeTrue())
+				Expect(checkHowManySecondsToExpiration(CaSecret) >= 30).To(BeTrue())
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook cabundle modified, from different CA", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should be restored to existing CA", func() {
+				newCaCertificate, _, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
+				Expect(err).To(BeNil())
+
+				vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
+				err = k8sClient.List(context.TODO(), vw, managedByLabelFilter)
+				u := false
+				Expect(err).To(BeNil())
+				Expect(len(vw.Items) > 0).To(BeTrue())
+				if len(vw.Items) > 0 {
+					w := vw.Items[0]
+					if len(w.Webhooks) > 0 {
+						w.Webhooks[0].ClientConfig.CABundle = newCaCertificate
+						fmt.Println("trigger update")
+						err := k8sClient.Update(ctx, &w)
+						Expect(err).To(BeNil())
+						u = true
+					}
+				}
+
+				if !u {
+					mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+					err = k8sClient.List(context.TODO(), mw, managedByLabelFilter)
+					Expect(err).To(BeNil())
+					Expect(len(mw.Items) > 0).To(BeTrue())
+					if len(mw.Items) > 0 {
+						w := mw.Items[0]
+						if len(w.Webhooks) > 0 {
+							w.Webhooks[0].ClientConfig.CABundle = newCaCertificate
+							fmt.Println("trigger update")
+							err := k8sClient.Update(ctx, &w)
+							Expect(err).To(BeNil())
+						}
+					}
+				}
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+				time.Sleep(time.Second * 5)
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook cabundle modified, with some dummy text", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should be restored to existing CA", func() {
+				dummy := []byte("dummy")
+
+				vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
+				err := k8sClient.List(context.TODO(), vw, managedByLabelFilter)
+				u := false
+				Expect(err).To(BeNil())
+				Expect(len(vw.Items) > 0).To(BeTrue())
+				if len(vw.Items) > 0 {
+					w := vw.Items[0]
+					if len(w.Webhooks) > 0 {
+						w.Webhooks[0].ClientConfig.CABundle = dummy
+						fmt.Println("trigger update")
+						err := k8sClient.Update(ctx, &w)
+						Expect(err).To(BeNil())
+						u = true
+					}
+				}
+
+				if !u {
+					mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+					err = k8sClient.List(context.TODO(), mw, managedByLabelFilter)
+					Expect(err).To(BeNil())
+					Expect(len(mw.Items) > 0).To(BeTrue())
+					if len(mw.Items) > 0 {
+						w := mw.Items[0]
+						if len(w.Webhooks) > 0 {
+							w.Webhooks[0].ClientConfig.CABundle = dummy
+							fmt.Println("trigger update")
+							err := k8sClient.Update(ctx, &w)
+							Expect(err).To(BeNil())
+						}
+					}
+				}
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+				time.Sleep(time.Second * 5)
+
+				ensureCorrectState()
+			})
+		})
+
+	})
+
+	Describe("Configurability", Pending, func() {
+		Context("When the ConfigMap is present", func() {
+			It("should adjust configuration settings in the operator accordingly", func() {
+				cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
+				reconciler.reconcileConfig(cm)
+				Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
+			})
+		})
+	})
+
+	Describe("Deprovisioning", Pending, func() {
+		var siUnstructured, sbUnstructured *unstructured.Unstructured
+
+		BeforeEach(func() {
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			btpServiceOperatorDeployment := &appsv1.Deployment{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
+
+			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
+			ensureResourceExists(instanceGvk)
+
+			sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
+			ensureResourceExists(bindingGvk)
+		})
+
+		AfterEach(func() {
+			deleteSecret := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+		})
+
+		It("soft delete (after timeout) should succeed", func() {
+			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
+			setFinalizers(siUnstructured)
+			setFinalizers(sbUnstructured)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			doChecks()
+		})
+
+		It("soft delete (after hard deletion fail) should succeed", func() {
+			reconciler.Client = newErrorK8sClient(reconciler.Client)
+			setFinalizers(siUnstructured)
+			setFinalizers(sbUnstructured)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			doChecks()
+		})
+
+		It("hard delete should succeed", func() {
+			reconciler.Client = k8sClientFromManager
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			doChecks()
+		})
+	})
+
+	Describe("Update", Pending, func() {
+		var initChartVersion string
+		var manifestHandler *manifest.Handler
+		var initApplyObjs []runtime.Object
+		var gvks []schema.GroupVersionKind
+		var initResourcesNum int
+		var actualWorkqueueSize func() int
+		var err error
+
 		BeforeAll(func() {
 			err := createPrereqs()
 			Expect(err).To(BeNil())
@@ -203,6 +684,19 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+
+			manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
+			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
+		})
+
+		AfterAll(func() {
+			err := os.RemoveAll(chartUpdatePath)
+			Expect(err).To(BeNil())
+			err = os.RemoveAll(resourcesUpdatePath)
+			Expect(err).To(BeNil())
+
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
 		})
 
 		BeforeEach(func() {
@@ -210,6 +704,23 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
 			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+
+			initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+			Expect(err).To(BeNil())
+			_ = initChartVersion
+
+			initApplyObjs, err = manifestHandler.CollectObjectsFromDir(getApplyPath())
+			Expect(err).To(BeNil())
+
+			gvks = getUniqueGvksFromObjects(initApplyObjs)
+
+			initResourcesNum, err = countResourcesForGivenChartVer(gvks, initChartVersion)
+			Expect(err).To(BeNil())
+
+			copyDirRecursively(ChartPath, chartUpdatePath)
+			copyDirRecursively(ResourcesPath, resourcesUpdatePath)
+			ChartPath = chartUpdatePath
+			ResourcesPath = resourcesUpdatePath
 		})
 
 		AfterEach(func() {
@@ -219,468 +730,208 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
 			Expect(isCrNotFound()).To(BeTrue())
+
+			err := os.RemoveAll(chartUpdatePath)
+			Expect(err).To(BeNil())
+			err = os.RemoveAll(resourcesUpdatePath)
+			Expect(err).To(BeNil())
+
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
 		})
 
-		When("", func() {
-			It("", func() {
-				time.Sleep(time.Second * 5)
-
-				/*ca := &corev1.Secret{}
-				err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaCertSecretName}, ca)
+		When("update all resources names and bump chart version", Label("test-update"), func() {
+			It("new resources (with new names) should be created and old ones removed", func() {
+				err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(getApplyPath(), getToDeleteYamlPath())
 				Expect(err).To(BeNil())
-				caData := GetDataFromSecret(CaCertSecretName)
-				caCrt := GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), caData)
-				_ = GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), caData)
-				caTemplate, err := x509.ParseCertificate(caCrt)
-				Expect(err).To(BeNil())
-				Expect(caTemplate).To(Not(BeNil()))
-				Expect(caTemplate.IsCA).To(BeTrue())
-				caPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caTemplate.Raw})
-				caRoots := x509.NewCertPool()
-				ok := caRoots.AppendCertsFromPEM(caPem)
-				Expect(ok).To(BeTrue())
-				verifyOptions := x509.VerifyOptions{
-					Roots: caRoots,
-				}
-				caTemplate.Verify(verifyOptions)
 
-				cert := &corev1.Secret{}
-				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: WebhookCertSecretName}, cert)
+				err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
 				Expect(err).To(BeNil())
-				certData := GetDataFromSecret(WebhookCertSecretName)
-				certCrt := GetValueByKey(utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx), certData)
-				_ = GetValueByKey(utils.BuildFilenameWithExtension(WebhookPrefix, KeyPostfix), certData)
-				certTemplate, err := x509.ParseCertificate(certCrt)
+
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
-				Expect(certTemplate).To(Not(BeNil()))
-				Expect(certTemplate.IsCA).To(BeFalse())
-				certRoots := x509.NewCertPool()
-				ok = certRoots.AppendCertsFromPEM(caPem)
-				Expect(ok).To(BeTrue())
-				certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certTemplate.Raw})
-				ok = certRoots.AppendCertsFromPEM(certPem)
-				Expect(ok).To(BeTrue())
-				verifyOptions2 := x509.VerifyOptions{
-					Roots: certRoots,
-				}
 
-				certTemplate.Verify(verifyOptions2)
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
 
-				EnsureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(caCrt)*/
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
 			})
 		})
 
-		When("", func() {
-			/*It("CA changed, but webcert not", func() {
-				ca := &corev1.Secret{}
-				err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaCertSecretName}, ca)
-				Expect(err).To(BeNil())
-				cca, _, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
-				Expect(err).To(BeNil())
-				ca.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)] = cca
-				err = k8sClient.Update(ctx, ca)
-				Expect(err).To(BeNil())
-				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaCertSecretName}, ca)
-				Expect(err).To(BeNil())
-				updated, ok := ca.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
-				Expect(ok).To(BeTrue())
-				Expect(bytes.Equal(updated, cca)).To(BeTrue())
-				cert := &corev1.Secret{}
-				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: WebhookCertSecretName}, cert)
-
-				caCert, err := reconciler.GetCertificateFromSecret(CaCertSecretName)
-				Expect(err).To(BeNil())
-				whCert, err := reconciler.GetCertificateFromSecret(WebhookCertSecretName)
+		When("update some resources names and bump chart version", Label("test-update"), func() {
+			It("all applied resources should receive new chart version, resources with new names should replace the ones with old names", func() {
+				updateManifestsNum := 3
+				err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, getApplyPath(), getTempPath())
 				Expect(err).To(BeNil())
 
-				ok, err = certs.VerifyIfFirstIsSignedBySecond(caCert, whCert)
-				Expect(err).ToNot(BeNil())
-				Expect(ok).To(BeFalse())
+				oldObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
+				Expect(err).To(BeNil())
+				oldUns, err := manifestHandler.ObjectsToUnstructured(oldObjs)
+				Expect(err).To(BeNil())
 
+				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
+				Expect(err).To(BeNil())
+
+				err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix)
+				Expect(err).To(BeNil())
+
+				err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
+				Expect(err).To(BeNil())
+
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
 
-				caCert, err = reconciler.GetCertificateFromSecret(CaCertSecretName)
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
 				Expect(err).To(BeNil())
-				whCert, err = reconciler.GetCertificateFromSecret(WebhookCertSecretName)
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
+				assertResourcesRemoval(oldUns...)
+			})
+		})
+
+		When("remove some manifests and bump chart version", Label("test-update"), func() {
+			It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
+				allManifests, err := manifestHandler.GetManifestsFromDir(getApplyPath())
+				Expect(err).To(BeNil())
+				err = moveOrCopyNFilesFromDirToDir(len(allManifests), true, getApplyPath(), getTempPath())
 				Expect(err).To(BeNil())
 
-				ok, err = certs.VerifyIfFirstIsSignedBySecond(caCert, whCert)
-				Expect(err).To(BeNil())
-				Expect(ok).To(BeTrue())
-			})*/
-
-			/*It("CA stay same, but webcert is changed, from same CA", func() {
-				currentCa, err := reconciler.getDataFromSecret(CaCertSecretName)
-				Expect(err).To(BeNil())
-				ca, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), currentCa)
-				Expect(err).To(BeNil())
-				pk, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix), currentCa)
+				remainingManifestsNum := 4
+				err = moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, getTempPath(), getApplyPath())
 				Expect(err).To(BeNil())
 
-				var myStruct rsa.PrivateKey
-				err = json.Unmarshal(pk, &myStruct)
+				expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
 				Expect(err).To(BeNil())
-				newWhb, newWhpk, err := certs.GenerateSignedCert(time.Now().Add(time.Minute*10), ca, &myStruct)
-				Expect(err).To(BeNil())
-
-				err, data := reconciler.MapCertToSecretData(newWhb, newWhpk, utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx), utils.BuildFilenameWithExtension(WebhookPrefix, KeyPostfix))
-				Expect(err).To(BeNil())
-				currentWh := &corev1.Secret{}
-				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: WebhookCertSecretName}, currentWh)
-				Expect(err).To(BeNil())
-				currentWh.Data = data
-				err = k8sClient.Update(ctx, currentWh)
+				unexpectedUns, err := manifestHandler.ObjectsToUnstructured(expectedDeleteObjs)
 				Expect(err).To(BeNil())
 
-				caCert, err := reconciler.GetCertificateFromSecret(CaCertSecretName)
+				expectedApplyObjs, err := manifestHandler.CollectObjectsFromDir(getApplyPath())
 				Expect(err).To(BeNil())
-				whCert, err := reconciler.GetCertificateFromSecret(WebhookCertSecretName)
+				expectedUns, err := manifestHandler.ObjectsToUnstructured(expectedApplyObjs)
 				Expect(err).To(BeNil())
 
-				ok, err := certs.VerifyIfFirstIsSignedBySecond(caCert, whCert)
+				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
 				Expect(err).To(BeNil())
-				Expect(ok).To(BeTrue())
 
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
 
-				caCert, err = reconciler.GetCertificateFromSecret(CaCertSecretName)
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
 				Expect(err).To(BeNil())
-				whCert, err = reconciler.GetCertificateFromSecret(WebhookCertSecretName)
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(len(expectedApplyObjs)))
+				assertResourcesExistence(expectedUns...)
+				assertResourcesRemoval(unexpectedUns...)
+			})
+		})
+
+		When("bump chart version only", Label("test-update"), func() {
+			It("resources should stay and receive new chart version", func() {
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
 				Expect(err).To(BeNil())
 
-				ok, err = certs.VerifyIfFirstIsSignedBySecond(caCert, whCert)
-				Expect(err).To(BeNil())
-				Expect(ok).To(BeTrue())
-			})*/
-
-			It("CA stay same, but webcert is deleted", func() {
-				time.Sleep(time.Second * 5)
-
-				currentCa, err := reconciler.getDataFromSecret(CaCertSecretName)
-				Expect(err).To(BeNil())
-				ca, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), currentCa)
-				Expect(err).To(BeNil())
-
-				currentWh := &corev1.Secret{}
-				err = k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: WebhookCertSecretName}, currentWh)
-				Expect(err).To(BeNil())
-				currentWh.Data = map[string][]byte{}
-				err = k8sClient.Update(ctx, currentWh)
-				Expect(err).To(BeNil())
-				a, err := reconciler.getDataFromSecret(WebhookCertSecretName)
-				Expect(err).To(BeNil())
-				wh, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx), a)
-				//Expect(err).ToNot(BeNil())
-
-				Expect(wh).To(BeEmpty())
-
-				ok, err := certs.VerifyIfFirstIsSignedBySecond(ca, wh)
-				Expect(err).ToNot(BeNil())
-				Expect(ok).To(BeFalse())
-
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
 
-				caCert, err := reconciler.GetCertificateFromSecret(CaCertSecretName)
+				actualNumOfResourcesWithOldChartVer, err := countResourcesForGivenChartVer(gvks, initChartVersion)
 				Expect(err).To(BeNil())
-				whCert, err := reconciler.GetCertificateFromSecret(WebhookCertSecretName)
+				Expect(actualNumOfResourcesWithOldChartVer).To(Equal(0))
+				actualNumOfResourcesWithNewChartVer, err := countResourcesForGivenChartVer(gvks, newChartVersion)
 				Expect(err).To(BeNil())
-
-				ok, err = certs.VerifyIfFirstIsSignedBySecond(caCert, whCert)
-				Expect(err).To(BeNil())
-				Expect(ok).To(BeTrue())
+				Expect(actualNumOfResourcesWithNewChartVer).To(Equal(initResourcesNum))
 			})
 		})
 	})
-
-	/*
-		Describe("Configurability", func() {
-			Context("When the ConfigMap is present", func() {
-				It("should adjust configuration settings in the operator accordingly", func() {
-					cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
-					reconciler.reconcileConfig(cm)
-					Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
-				})
-			})
-		})
-
-		Describe("Deprovisioning", func() {
-			var siUnstructured, sbUnstructured *unstructured.Unstructured
-
-			BeforeEach(func() {
-				secret, err := createCorrectSecretFromYaml()
-				Expect(err).To(BeNil())
-				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				cr = createBtpOperator()
-				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
-				btpServiceOperatorDeployment := &appsv1.Deployment{}
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
-
-				siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
-				ensureResourceExists(instanceGvk)
-
-				sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
-				ensureResourceExists(bindingGvk)
-			})
-
-			AfterEach(func() {
-				deleteSecret := &corev1.Secret{}
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
-				Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
-			})
-
-			It("soft delete (after timeout) should succeed", func() {
-				reconciler.Client = newTimeoutK8sClient(reconciler.Client)
-				setFinalizers(siUnstructured)
-				setFinalizers(sbUnstructured)
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-				Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
-				Eventually(updateCh).Should(Receive(matchDeleted()))
-				doChecks()
-			})
-
-			It("soft delete (after hard deletion fail) should succeed", func() {
-				reconciler.Client = newErrorK8sClient(reconciler.Client)
-				setFinalizers(siUnstructured)
-				setFinalizers(sbUnstructured)
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-				Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
-				Eventually(updateCh).Should(Receive(matchDeleted()))
-				doChecks()
-			})
-
-			It("hard delete should succeed", func() {
-				reconciler.Client = k8sClientFromManager
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-				Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
-				Eventually(updateCh).Should(Receive(matchDeleted()))
-				doChecks()
-			})
-		})
-
-		Describe("Update", func() {
-			var initChartVersion string
-			var manifestHandler *manifest.Handler
-			var initApplyObjs []runtime.Object
-			var gvks []schema.GroupVersionKind
-			var initResourcesNum int
-			var actualWorkqueueSize func() int
-			var err error
-
-			BeforeAll(func() {
-				err := createPrereqs()
-				Expect(err).To(BeNil())
-
-				secret, err := createCorrectSecretFromYaml()
-				Expect(err).To(BeNil())
-				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-
-				manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
-				actualWorkqueueSize = func() int { return reconciler.workqueueSize }
-			})
-
-			AfterAll(func() {
-				err := os.RemoveAll(chartUpdatePath)
-				Expect(err).To(BeNil())
-				err = os.RemoveAll(resourcesUpdatePath)
-				Expect(err).To(BeNil())
-
-				ChartPath = defaultChartPath
-				ResourcesPath = defaultResourcesPath
-			})
-
-			BeforeEach(func() {
-				cr = createBtpOperator()
-				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
-				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
-
-				initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
-				Expect(err).To(BeNil())
-				_ = initChartVersion
-
-				initApplyObjs, err = manifestHandler.CollectObjectsFromDir(getApplyPath())
-				Expect(err).To(BeNil())
-
-				gvks = getUniqueGvksFromObjects(initApplyObjs)
-
-				initResourcesNum, err = countResourcesForGivenChartVer(gvks, initChartVersion)
-				Expect(err).To(BeNil())
-
-				copyDirRecursively(ChartPath, chartUpdatePath)
-				copyDirRecursively(ResourcesPath, resourcesUpdatePath)
-				ChartPath = chartUpdatePath
-				ResourcesPath = resourcesUpdatePath
-			})
-
-			AfterEach(func() {
-				cr = &v1alpha1.BtpOperator{}
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
-				Eventually(updateCh).Should(Receive(matchDeleted()))
-				Expect(isCrNotFound()).To(BeTrue())
-
-				err := os.RemoveAll(chartUpdatePath)
-				Expect(err).To(BeNil())
-				err = os.RemoveAll(resourcesUpdatePath)
-				Expect(err).To(BeNil())
-
-				ChartPath = defaultChartPath
-				ResourcesPath = defaultResourcesPath
-			})
-
-			When("update all resources names and bump chart version", Label("test-update"), func() {
-				It("new resources (with new names) should be created and old ones removed", func() {
-					err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(getApplyPath(), getToDeleteYamlPath())
-					Expect(err).To(BeNil())
-
-					err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
-					Expect(err).To(BeNil())
-
-					err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-					Expect(err).To(BeNil())
-
-					Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-					_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-						Namespace: cr.Namespace,
-						Name:      cr.Name,
-					}})
-					Expect(err).To(BeNil())
-
-					actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfOldResources).To(Equal(0))
-					actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
-				})
-			})
-
-			When("update some resources names and bump chart version", Label("test-update"), func() {
-				It("all applied resources should receive new chart version, resources with new names should replace the ones with old names", func() {
-					updateManifestsNum := 3
-					err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, getApplyPath(), getTempPath())
-					Expect(err).To(BeNil())
-
-					oldObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
-					Expect(err).To(BeNil())
-					oldUns, err := manifestHandler.ObjectsToUnstructured(oldObjs)
-					Expect(err).To(BeNil())
-
-					err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
-					Expect(err).To(BeNil())
-
-					err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix)
-					Expect(err).To(BeNil())
-
-					err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
-					Expect(err).To(BeNil())
-
-					err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-					Expect(err).To(BeNil())
-
-					Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-					_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-						Namespace: cr.Namespace,
-						Name:      cr.Name,
-					}})
-					Expect(err).To(BeNil())
-
-					actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfOldResources).To(Equal(0))
-					actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
-					assertResourcesRemoval(oldUns...)
-				})
-			})
-
-			When("remove some manifests and bump chart version", Label("test-update"), func() {
-				It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
-					allManifests, err := manifestHandler.GetManifestsFromDir(getApplyPath())
-					Expect(err).To(BeNil())
-					err = moveOrCopyNFilesFromDirToDir(len(allManifests), true, getApplyPath(), getTempPath())
-					Expect(err).To(BeNil())
-
-					remainingManifestsNum := 4
-					err = moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, getTempPath(), getApplyPath())
-					Expect(err).To(BeNil())
-
-					expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
-					Expect(err).To(BeNil())
-					unexpectedUns, err := manifestHandler.ObjectsToUnstructured(expectedDeleteObjs)
-					Expect(err).To(BeNil())
-
-					expectedApplyObjs, err := manifestHandler.CollectObjectsFromDir(getApplyPath())
-					Expect(err).To(BeNil())
-					expectedUns, err := manifestHandler.ObjectsToUnstructured(expectedApplyObjs)
-					Expect(err).To(BeNil())
-
-					err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
-					Expect(err).To(BeNil())
-
-					err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-					Expect(err).To(BeNil())
-
-					Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-					_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-						Namespace: cr.Namespace,
-						Name:      cr.Name,
-					}})
-					Expect(err).To(BeNil())
-
-					actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfOldResources).To(Equal(0))
-					actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfNewResources).To(Equal(len(expectedApplyObjs)))
-					assertResourcesExistence(expectedUns...)
-					assertResourcesRemoval(unexpectedUns...)
-				})
-			})
-
-			When("bump chart version only", Label("test-update"), func() {
-				It("resources should stay and receive new chart version", func() {
-					err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-					Expect(err).To(BeNil())
-
-					Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-					_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-						Namespace: cr.Namespace,
-						Name:      cr.Name,
-					}})
-					Expect(err).To(BeNil())
-
-					actualNumOfResourcesWithOldChartVer, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfResourcesWithOldChartVer).To(Equal(0))
-					actualNumOfResourcesWithNewChartVer, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-					Expect(err).To(BeNil())
-					Expect(actualNumOfResourcesWithNewChartVer).To(Equal(initResourcesNum))
-				})
-			})
-		})
-	*/
 })
+
+func replaceData(s *corev1.Secret, key string, value []byte, key2 string, value2 []byte) {
+	d := s.Data
+	if key != "" && value != nil {
+		d[key] = value
+	}
+
+	if key2 != "" && value2 != nil {
+		d[key2] = value2
+	}
+	s.Data = d
+	err := k8sClient.Update(ctx, s)
+	Expect(err).To(BeNil())
+}
+
+func assignMap(s *corev1.Secret, m map[string][]byte) {
+	s.Data = make(map[string][]byte)
+	for k, v := range m {
+		s.Data[k] = v
+	}
+}
+
+func structToByteArray(s any) ([]byte, error) {
+	var b bytes.Buffer
+	enc := gob.NewEncoder(&b)
+	err := enc.Encode(s)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return b.Bytes(), nil
+}
+
+func getSecret(name string) *corev1.Secret {
+	s := &corev1.Secret{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, s)
+	Expect(err).To(BeNil())
+	return s
+}
+
+func deleteSecret(name string) {
+	s := getSecret(name)
+	err := k8sClient.Delete(ctx, s)
+	Expect(err).To(BeNil())
+}
+
+func checkHowManySecondsToExpiration(name string) float64 {
+	d := GetDataFromSecret(name)
+	k, err := reconciler.mapSecretNameToSecretDataKey(name)
+	Expect(err).To(BeNil())
+	v := GetValueByKey(utils.BuildFilenameWithExtension(k, CertPostifx), d)
+	cert, err := x509.ParseCertificate(v)
+	Expect(err).To(BeNil())
+	fmt.Println(fmt.Sprintf("NotAfter %s", cert.NotAfter))
+	diff := cert.NotAfter.Sub(time.Now())
+	//Number of seconds from expiration date to now
+	return diff.Seconds()
+}
 
 func EnsureCACertWithWebhookCertMatch() {
 
@@ -710,22 +961,33 @@ func GetValueByKey(key string, m map[string][]byte) []byte {
 }
 
 func EnsureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(expectedCACert []byte) {
+	if expectedCACert == nil {
+		secret := getSecret(CaSecret)
+		cert, ok := secret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+		Expect(ok).To(BeTrue())
+		expectedCACert = cert
+	}
+	Expect(expectedCACert).To(Not(BeNil()))
 	vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
-	err := k8sClient.List(context.TODO(), vw, managedByLabelFilter)
+	err := k8sClient.List(ctx, vw, managedByLabelFilter)
+	fmt.Println(fmt.Sprintf("Validation webhooks len: %d", len(vw.Items)))
 	Expect(err).To(BeNil())
 	for _, w := range vw.Items {
 		for _, n := range w.Webhooks {
 			areEqual := bytes.Equal(n.ClientConfig.CABundle, expectedCACert)
-			Expect(areEqual).To(BeZero())
+			Expect(areEqual).To(BeTrue())
+			fmt.Println("cabundle ok")
 		}
 	}
 	mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
-	err = k8sClient.List(context.TODO(), mw, managedByLabelFilter)
+	err = k8sClient.List(ctx, mw, managedByLabelFilter)
+	fmt.Println(fmt.Sprintf("Mutating webhooks len: %d", len(mw.Items)))
 	Expect(err).To(BeNil())
 	for _, w := range vw.Items {
 		for _, n := range w.Webhooks {
 			areEqual := bytes.Equal(n.ClientConfig.CABundle, expectedCACert)
-			Expect(areEqual).To(BeZero())
+			Expect(areEqual).To(BeTrue())
+			fmt.Println("cabundle ok")
 		}
 	}
 }

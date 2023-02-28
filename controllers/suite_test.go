@@ -147,13 +147,7 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 }
 
 var _ = BeforeSuite(func() {
-	/*cmd := exec.Command("/bin/sh", "prepare.sh")
-	if err := cmd.Run(); err != nil {
-		panic(err)
-	}
-	Expect(os.Setenv("USE_EXISTING_CLUSTER", "true")).To(Succeed())*/
 	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
-
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
 		o.Development = true
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder

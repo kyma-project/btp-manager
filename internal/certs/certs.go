@@ -79,7 +79,7 @@ func GenerateSignedCert(expiration time.Time, rootCert []byte, rootPrivateKey *r
 	return cert, certPrivateKey, nil
 }
 
-func VerifyIfFirstIsSignedBySecond(first, second []byte) (bool, error) {
+func VerifyIfSecondIsSignedByFirst(first, second []byte) (bool, error) {
 	firstTemplate, err := x509.ParseCertificate(first)
 	if err != nil {
 		return false, err
