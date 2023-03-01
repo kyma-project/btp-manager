@@ -46,7 +46,7 @@ const (
 	btpOperatorKind       = "BtpOperator"
 	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
 	btpOperatorName       = "btp-operator-test"
-	defaultNamespace      = "kyma-system"
+	defaultNamespace      = "default"
 	kymaNamespace         = "kyma-system"
 	instanceName          = "my-service-instance"
 	bindingName           = "my-service-binding"
@@ -115,6 +115,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
+		os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
+
 		err := createPrereqs()
 		Expect(err).To(BeNil())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
@@ -261,7 +263,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		}
 
 		ensureCorrectState := func() {
-			ok, err := reconciler.IsWebhookSecretCertSignedByCaSecretCert()
+			ok, err := reconciler.isWebhookSecretCertSignedByCaSecretCert(ctx)
 			Expect(err).To(BeNil())
 			Expect(ok).To(BeTrue())
 			ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(nil)
@@ -330,11 +332,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("CA certificate stay same, but Webhook certificate is change (signed by same CA)", func() {
 				beforeCaSecret := getSecret(CaSecret)
 
-				currentCa, err := reconciler.GetDataFromSecret(CaSecret)
+				currentCa, err := reconciler.getDataFromSecret(ctx, CaSecret)
 				Expect(err).To(BeNil())
-				ca, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), currentCa)
+				ca, err := utils.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), currentCa)
 				Expect(err).To(BeNil())
-				pk, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), currentCa)
+				pk, err := utils.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), currentCa)
 				Expect(err).To(BeNil())
 				var myStruct rsa.PrivateKey
 				err = json.Unmarshal(pk, &myStruct)
@@ -496,47 +498,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("should be restored to existing CA", func() {
 				newCaCertificate, _, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
 				Expect(err).To(BeNil())
-
-				vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
-				err = k8sClient.List(context.TODO(), vw, managedByLabelFilter)
-				u := false
-				Expect(err).To(BeNil())
-				Expect(len(vw.Items) > 0).To(BeTrue())
-				if len(vw.Items) > 0 {
-					w := vw.Items[0]
-					if len(w.Webhooks) > 0 {
-						w.Webhooks[0].ClientConfig.CABundle = newCaCertificate
-						fmt.Println("trigger update")
-						err := k8sClient.Update(ctx, &w)
-						Expect(err).To(BeNil())
-						u = true
-					}
-				}
-
-				if !u {
-					mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
-					err = k8sClient.List(context.TODO(), mw, managedByLabelFilter)
-					Expect(err).To(BeNil())
-					Expect(len(mw.Items) > 0).To(BeTrue())
-					if len(mw.Items) > 0 {
-						w := mw.Items[0]
-						if len(w.Webhooks) > 0 {
-							w.Webhooks[0].ClientConfig.CABundle = newCaCertificate
-							fmt.Println("trigger update")
-							err := k8sClient.Update(ctx, &w)
-							Expect(err).To(BeNil())
-						}
-					}
-				}
-
-				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-					Namespace: cr.Namespace,
-					Name:      cr.Name,
-				}})
-				Expect(err).To(BeNil())
-				time.Sleep(time.Second * 5)
-
+				updated := replaceCaBundleInWebhookW(newCaCertificate)
+				updated = !updated && replaceCaBundleInWebhookV(newCaCertificate)
 				ensureCorrectState()
 			})
 		})
@@ -550,47 +513,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 			It("should be restored to existing CA", func() {
 				dummy := []byte("dummy")
-
-				vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
-				err := k8sClient.List(context.TODO(), vw, managedByLabelFilter)
-				u := false
-				Expect(err).To(BeNil())
-				Expect(len(vw.Items) > 0).To(BeTrue())
-				if len(vw.Items) > 0 {
-					w := vw.Items[0]
-					if len(w.Webhooks) > 0 {
-						w.Webhooks[0].ClientConfig.CABundle = dummy
-						fmt.Println("trigger update")
-						err := k8sClient.Update(ctx, &w)
-						Expect(err).To(BeNil())
-						u = true
-					}
-				}
-
-				if !u {
-					mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
-					err = k8sClient.List(context.TODO(), mw, managedByLabelFilter)
-					Expect(err).To(BeNil())
-					Expect(len(mw.Items) > 0).To(BeTrue())
-					if len(mw.Items) > 0 {
-						w := mw.Items[0]
-						if len(w.Webhooks) > 0 {
-							w.Webhooks[0].ClientConfig.CABundle = dummy
-							fmt.Println("trigger update")
-							err := k8sClient.Update(ctx, &w)
-							Expect(err).To(BeNil())
-						}
-					}
-				}
-
-				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-					Namespace: cr.Namespace,
-					Name:      cr.Name,
-				}})
-				Expect(err).To(BeNil())
-				time.Sleep(time.Second * 5)
-
+				updated := replaceCaBundleInWebhookW(dummy)
+				updated = !updated && replaceCaBundleInWebhookV(dummy)
 				ensureCorrectState()
 			})
 		})
@@ -873,6 +797,44 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 })
 
+func replaceCaBundleInWebhookV(i []byte) bool {
+	vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
+	err := k8sClient.List(context.TODO(), vw, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	Expect(len(vw.Items) > 0).To(BeTrue())
+	if len(vw.Items) > 0 {
+		w := vw.Items[0]
+		if len(w.Webhooks) > 0 {
+			w.Webhooks[0].ClientConfig.CABundle = i
+			fmt.Println("trigger update")
+			err := k8sClient.Update(ctx, &w)
+			Expect(err).To(BeNil())
+			time.Sleep(time.Second * 10)
+			return true
+		}
+	}
+	return false
+}
+
+func replaceCaBundleInWebhookW(i []byte) bool {
+	mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+	err := k8sClient.List(context.TODO(), mw, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	Expect(len(mw.Items) > 0).To(BeTrue())
+	if len(mw.Items) > 0 {
+		w := mw.Items[0]
+		if len(w.Webhooks) > 0 {
+			w.Webhooks[0].ClientConfig.CABundle = i
+			fmt.Println("trigger update")
+			err := k8sClient.Update(ctx, &w)
+			Expect(err).To(BeNil())
+			time.Sleep(time.Second * 10)
+			return true
+		}
+	}
+	return false
+}
+
 func replaceSecretData(s *corev1.Secret, key string, value []byte, key2 string, value2 []byte) {
 	d := s.Data
 	if key != "" && value != nil {
@@ -895,12 +857,12 @@ func getSecret(name string) *corev1.Secret {
 }
 
 func checkHowManySecondsToExpiration(name string) float64 {
-	d, e := reconciler.GetDataFromSecret(name)
-	Expect(e).To(BeTrue())
+	d, e := reconciler.getDataFromSecret(ctx, name)
+	Expect(e).To(BeNil())
 	k, err := reconciler.mapSecretNameToSecretDataKey(name)
 	Expect(err).To(BeNil())
-	v, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(k, CertificatePostfix), d)
-	Expect(err).To(BeTrue())
+	v, err := utils.GetValueByKey(utils.BuildKeyNameWithExtension(k, CertificatePostfix), d)
+	Expect(err).To(BeNil())
 	cert, err := x509.ParseCertificate(v)
 	Expect(err).To(BeNil())
 	fmt.Println(fmt.Sprintf("NotAfter %s", cert.NotAfter))

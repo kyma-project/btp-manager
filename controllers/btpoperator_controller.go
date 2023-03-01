@@ -168,6 +168,7 @@ func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme) *Btp
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	fmt.Println("reconcile")
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
 	logger := log.FromContext(ctx)
@@ -1023,9 +1024,16 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
 			builder.WithPredicates(r.watchConfigPredicates()),
 		).
-		Owns(&corev1.Secret{}).
-		Owns(&admissionregistrationv1.MutatingWebhookConfiguration{}).
-		Owns(&admissionregistrationv1.ValidatingWebhookConfiguration{}).
+		Watches(
+			&source.Kind{Type: &admissionregistrationv1.MutatingWebhookConfiguration{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			builder.WithPredicates(r.watchWebhooksPredicates()),
+		).
+		Watches(
+			&source.Kind{Type: &admissionregistrationv1.ValidatingWebhookConfiguration{}},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			builder.WithPredicates(r.watchWebhooksPredicates()),
+		).
 		Complete(r)
 }
 
@@ -1045,6 +1053,7 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 			if newBtpOperator.GetStatus().State == types.StateError && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
 				return false
 			}
+
 			return true
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
@@ -1080,12 +1089,25 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 			if !ok {
 				return false
 			}
+
+			if secret.Name == CaSecret && secret.Namespace == ChartNamespace {
+				return true
+			}
+			if secret.Name == WebhookSecret && secret.Namespace == ChartNamespace {
+				return true
+			}
 			return secret.Name == SecretName && secret.Namespace == ChartNamespace
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
 				return false
+			}
+			if secret.Name == CaSecret && secret.Namespace == ChartNamespace {
+				return true
+			}
+			if secret.Name == WebhookSecret && secret.Namespace == ChartNamespace {
+				return true
 			}
 			return secret.Name == SecretName && secret.Namespace == ChartNamespace
 		},
@@ -1095,6 +1117,12 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 				return false
 			}
 			if oldSecret.Name == SecretName && oldSecret.Namespace == ChartNamespace {
+				return true
+			}
+			if oldSecret.Name == CaSecret && oldSecret.Namespace == ChartNamespace {
+				return true
+			}
+			if oldSecret.Name == WebhookSecret && oldSecret.Namespace == ChartNamespace {
 				return true
 			}
 			return false
@@ -1162,6 +1190,35 @@ func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
 	}
 }
 
+func (r *BtpOperatorReconciler) watchWebhooksPredicates() predicate.Funcs {
+	certPredicate := func(obj client.Object) bool {
+		switch v := obj.(type) {
+		case *admissionregistrationv1.ValidatingWebhookConfiguration:
+			{
+				return v.Name == validatingWebhookName
+			}
+		case *admissionregistrationv1.MutatingWebhookConfiguration:
+			{
+				return v.Name == mutatingWebhookName
+			}
+		default:
+			return false
+		}
+	}
+
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return certPredicate(e.Object)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return certPredicate(e.Object)
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return certPredicate(e.ObjectOld)
+		},
+	}
+}
+
 func (r *BtpOperatorReconciler) reconcileCertificates(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("checking certifications started")
@@ -1195,7 +1252,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(cr *v1alpha1.BtpOperator, 
 	}
 	logger.Info("webhooks ca bundles are ok")
 
-	signOk, err := r.IsWebhookSecretCertSignedByCaSecretCert(ctx)
+	signOk, err := r.isWebhookSecretCertSignedByCaSecretCert(ctx)
 	if err != nil || !signOk {
 		logger.Info(fmt.Sprintf("webhook cert is not signed by correct ca %s", err))
 		if _, err := r.doFullyCertificatesRegenerate(cr, ctx, resourcesToApply); err != nil {
@@ -1205,7 +1262,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(cr *v1alpha1.BtpOperator, 
 	}
 	logger.Info("webhook certificate is signed by correct root")
 
-	caCertificateValid, err := r.checkIfCertIsValid(ctx, CaSecret)
+	caCertificateValid, err := r.checkIfCertificateIsValid(ctx, CaSecret)
 	if err != nil {
 		logger.Error(err, "ca cert is invalid")
 		return err
@@ -1219,7 +1276,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(cr *v1alpha1.BtpOperator, 
 	}
 	logger.Info("ca certificate is valid")
 
-	webhookCertificateValid, err := r.checkIfCertIsValid(ctx, WebhookSecret)
+	webhookCertificateValid, err := r.checkIfCertificateIsValid(ctx, WebhookSecret)
 	if err != nil {
 		logger.Error(err, "webhook cert is invalid")
 		return err
@@ -1233,6 +1290,16 @@ func (r *BtpOperatorReconciler) reconcileCertificates(cr *v1alpha1.BtpOperator, 
 	logger.Info("webhook certofocate is valid")
 
 	return nil
+}
+
+func (r *BtpOperatorReconciler) doSecretExists(ctx context.Context, name string) (bool, error) {
+	secret := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret)
+	if err != nil {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (r *BtpOperatorReconciler) doFullyCertificatesRegenerate(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, error) {
@@ -1296,7 +1363,7 @@ func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(cr *v1alpha1
 
 func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expiration time.Time, ca []byte, caPk *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
 	if ca == nil || caPk == nil {
-		data, err := r.GetDataFromSecret(ctx, CaSecret)
+		data, err := r.getDataFromSecret(ctx, CaSecret)
 		if err != nil {
 			return []byte{}, nil, err
 		}
@@ -1329,15 +1396,15 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 }
 
 func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(cr *v1alpha1.BtpOperator, us *[]*unstructured.Unstructured, certName string, cert []byte, pk *rsa.PrivateKey, prefix string) error {
-	err, data := r.MapCertToSecretData(cert, pk, utils.BuildKeyNameWithExtension(prefix, CertificatePostfix), utils.BuildKeyNameWithExtension(prefix, RSAKeyPostfix))
+	err, data := r.mapCertToSecretData(cert, pk, utils.BuildKeyNameWithExtension(prefix, CertificatePostfix), utils.BuildKeyNameWithExtension(prefix, RSAKeyPostfix))
 	if err != nil {
 		return err
 	}
-	secret := r.BuildSecretWithData(certName, data)
+	secret := r.buildSecretWithData(certName, data)
 
-	if err := ctrl.SetControllerReference(cr, secret, r.Scheme); err != nil {
+	/*if err := ctrl.SetControllerReference(cr, secret, r.Scheme); err != nil {
 		return err
-	}
+	}*/
 
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
 	if err != nil {
@@ -1345,6 +1412,35 @@ func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(cr *v1alph
 	}
 	*us = append(*us, &unstructured.Unstructured{Object: unstructuredObj})
 	return nil
+}
+
+func (r *BtpOperatorReconciler) mapCertToSecretData(cert []byte, privateKey *rsa.PrivateKey, keyNameForCert, keyNameForPrivateKey string) (error, map[string][]byte) {
+	b, err := json.Marshal(privateKey)
+	if err != nil {
+		return err, nil
+	}
+
+	return nil, map[string][]byte{
+		keyNameForCert:       cert,
+		keyNameForPrivateKey: b,
+	}
+}
+
+func (r *BtpOperatorReconciler) buildSecretWithData(name string, data map[string][]byte) *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ChartNamespace,
+			Labels: map[string]string{
+				managedByLabelKey: operatorName,
+			},
+		},
+		Data: data,
+	}
 }
 
 func (r *BtpOperatorReconciler) reconcileWebhooksCaBundles(cr *v1alpha1.BtpOperator, ctx context.Context, us *[]*unstructured.Unstructured, expectedCa []byte) error {
@@ -1479,8 +1575,31 @@ func (r *BtpOperatorReconciler) reconcileWebhooksCaBundles(cr *v1alpha1.BtpOpera
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkIfCertIsValid(ctx context.Context, secretName string) (bool, error) {
-	caSecretData, err := r.GetDataFromSecret(ctx, secretName)
+func (r *BtpOperatorReconciler) a(unstructured unstructured.Unstructured) {
+
+}
+
+func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
+	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
+	if err != nil {
+		return false, err
+	}
+
+	webhookCertificate, err := r.getCertificateFromSecret(ctx, WebhookSecret)
+	if err != nil {
+		return false, err
+	}
+
+	ok, err := certs.VerifyIfSecondIsSignedByFirst(caCertificate, webhookCertificate)
+	if err != nil {
+		return false, err
+	}
+
+	return ok, nil
+}
+
+func (r *BtpOperatorReconciler) checkIfCertificateIsValid(ctx context.Context, secretName string) (bool, error) {
+	caSecretData, err := r.getDataFromSecret(ctx, secretName)
 	if err != nil {
 		return false, err
 	}
@@ -1504,26 +1623,7 @@ func (r *BtpOperatorReconciler) checkIfCertIsValid(ctx context.Context, secretNa
 	return !expiresSoon, nil
 }
 
-func (r *BtpOperatorReconciler) IsWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
-	caCertificate, err := r.GetCertificateFromSecret(ctx, CaSecret)
-	if err != nil {
-		return false, err
-	}
-
-	webhookCertificate, err := r.GetCertificateFromSecret(ctx, WebhookSecret)
-	if err != nil {
-		return false, err
-	}
-
-	ok, err := certs.VerifyIfSecondIsSignedByFirst(caCertificate, webhookCertificate)
-	if err != nil {
-		return false, err
-	}
-
-	return ok, nil
-}
-
-func (r *BtpOperatorReconciler) GetDataFromSecret(ctx context.Context, name string) (map[string][]byte, error) {
+func (r *BtpOperatorReconciler) getDataFromSecret(ctx context.Context, name string) (map[string][]byte, error) {
 	secret := &corev1.Secret{}
 	if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret); err != nil {
 		return nil, err
@@ -1531,18 +1631,8 @@ func (r *BtpOperatorReconciler) GetDataFromSecret(ctx context.Context, name stri
 	return secret.Data, nil
 }
 
-func (r *BtpOperatorReconciler) doSecretExists(ctx context.Context, name string) (bool, error) {
-	secret := &corev1.Secret{}
-	err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret)
-	if err != nil {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (r *BtpOperatorReconciler) GetCertificateFromSecret(ctx context.Context, secretName string) ([]byte, error) {
-	data, err := r.GetDataFromSecret(ctx, secretName)
+func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, secretName string) ([]byte, error) {
+	data, err := r.getDataFromSecret(ctx, secretName)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -1565,34 +1655,5 @@ func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) 
 		return WebhookSecretDataPrefix, nil
 	default:
 		return "", fmt.Errorf("not found secret data key for secret name: %s", secretName)
-	}
-}
-
-func (r *BtpOperatorReconciler) MapCertToSecretData(cert []byte, privateKey *rsa.PrivateKey, keyNameForCert, keyNameForPrivateKey string) (error, map[string][]byte) {
-	b, err := json.Marshal(privateKey)
-	if err != nil {
-		return err, nil
-	}
-
-	return nil, map[string][]byte{
-		keyNameForCert:       cert,
-		keyNameForPrivateKey: b,
-	}
-}
-
-func (r *BtpOperatorReconciler) BuildSecretWithData(name string, data map[string][]byte) *corev1.Secret {
-	return &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: ChartNamespace,
-			Labels: map[string]string{
-				managedByLabelKey: operatorName,
-			},
-		},
-		Data: data,
 	}
 }
