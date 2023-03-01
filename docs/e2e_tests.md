@@ -12,9 +12,9 @@ The flow is as follows:
 4. wait for the btp-operator OCI module image to be available in the registry
 5. wait for the btp-manager image to be available in the registry
 6. download the btp-operator OCI module image
-7. execute `helm install btp-manager chart`
-8. verify if deployment is in the state `Available`
-9. execute `helm uninstall btp-manager` 
+7. run `helm install btp-manager chart`
+8. verify if deployment is in the `Available` state
+9. run `helm uninstall btp-manager` 
 
 ### CI pipelines
 The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./hack/create_module_image.sh` script.
