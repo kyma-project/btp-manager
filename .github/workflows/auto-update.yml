@@ -88,6 +88,8 @@ jobs:
     - name: Create PR
       if: env.CONTINUE_JOB == 'true'
       run: |
+        set -euo pipefail
+
         git checkout -B $BRANCH_NAME
         git stash apply
         git add module-chart/* 
@@ -97,6 +99,45 @@ jobs:
         git commit -m "$MSG"
         git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
         git push --set-upstream origin $BRANCH_NAME -f
-        gh pr create -B main --title "$MSG" --body ""
+        pr_link=$(gh pr create -B main --title "$MSG" --body "" | tail -n 1)
+        echo "received PR link ${pr_link}"
+
+        # link the PR from ^^ to gopher project board
+        pr_number=$(echo "$pr_link" | awk -F '/' '{print($NF)}')
+        pr_id=$(gh api repos/kyma-project/btp-manager/pulls/"$pr_number" | jq -r '.node_id')
+
+        # gopher board node_id 
+        project_board_id=PVT_kwDOAlVvc84AEv0v
+        # todo column on gopher board node_id 
+        todo_column_id=834c7033
+        # order in todo column on gopher board node_id
+        status_field=PVTSSF_lADOAlVvc84AEv0vzgCvCtY
+
+        # insert projectv2 item (card on the gopher board)
+        resp=$(gh api graphql -f query='mutation{ addProjectV2ItemById(input:{projectId: "'${project_board_id}'" contentId: "'${pr_id}'"}){ item{id} }}' )
+        echo "response from insterting projectv2 item: $resp"
+        card_id=$(echo "$resp" | jq -r '.data.addProjectV2ItemById.item.id')
+
+        # move projectv2 item (card on the gopher board) to the top of the "todo" column
+        # due to GitHub internal GraphQL limitation, adding item and update has to be two separate calls
+        # https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects#updating-projects
+        gh api graphql -f query="$(cat << EOF
+          mutation {
+            set_status: updateProjectV2ItemFieldValue(input: {
+              projectId: "$project_board_id"
+              itemId: "$card_id"
+              fieldId: "$status_field"
+              value: {
+                singleSelectOptionId: "$todo_column_id"
+              }
+            }){projectV2Item {id}}
+            set_position: updateProjectV2ItemPosition(input: {
+              projectId: "$project_board_id"
+              itemId: "$card_id"
+            }){items {totalCount}}
+          }
+        EOF
+        )"
+
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
