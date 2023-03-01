@@ -772,12 +772,23 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to delete")
-	resourcesToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
+	resourcesToDeleteFromApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got at least %d module resources to delete", len(resourcesToDelete)))
+	logger.Info(fmt.Sprintf("got %d module resources to delete from \"apply\" dir", len(resourcesToDeleteFromApply)))
+
+	resourcesToDeleteFromDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
+	if err != nil {
+		logger.Error(err, "while getting objects to delete from manifests")
+		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+	}
+	logger.Info(fmt.Sprintf("got %d module resources to delete from \"delete\" dir", len(resourcesToDeleteFromDelete)))
+
+	resourcesToDelete := make([]*unstructured.Unstructured, 0)
+	resourcesToDelete = append(resourcesToDelete, resourcesToDeleteFromApply...)
+	resourcesToDelete = append(resourcesToDelete, resourcesToDeleteFromDelete...)
 
 	if err = r.deleteAllOfResourcesTypes(ctx, resourcesToDelete...); err != nil {
 		logger.Error(err, "while deleting module resources")
