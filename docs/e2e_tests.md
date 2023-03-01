@@ -11,10 +11,10 @@ The flow is as follows:
 3. create a Kubernetes cluster
 4. wait for the btp-operator OCI module image to be available in the registry
 5. wait for the btp-manager image to be available in the registry
-6. fetch the btp-operator OCI module image
-7. Helm install btp-manager from the chart
+6. download the btp-operator OCI module image
+7. execute `helm install btp-manager chart`
 8. verify if deployment is in the state `Available`
-9. Helm uninstall btp-manager 
+9. execute `helm uninstall btp-manager` 
 
 ### CI pipelines
 The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./hack/create_module_image.sh` script.
@@ -26,31 +26,31 @@ The registry URL and component name are predefined.
  
 The tests are executed by Github Actions workflow (`e2e-test-k3s.yaml`). The Kubernetes cluster is created, and sources are checked out.
 The workflow waits till the OCI module image is available for fetching.
-The OCI module image is fetched from the registry by the `./testing/run_e2e_module_tests.sh` script. This script creates the required prerequisites, installs the Helm chart, and uninstalls it.
+The OCI module image is fetched from the registry by the `./scripts/testing/run_e2e_module_tests.sh` script. This script creates the required prerequisites, installs the Helm chart, and uninstalls it.
 
-### Run E2E tests locally
+### Run E2E tests locally on k3d cluster
 
 For local tests, you can use the OCI module image from the official registry (that is, the module image created by the Prow presubmit job) 
-or you can use the local Docker registry.
-For example, to create an OCI module based on a binary image from the official registry (signed image) and push it to the local Docker registry, you can use the following command  after adjusting the tag appropriately:
+or you can use the local registry.
+The easiest way is to create k3d cluster and local registry issuing following command:
 
 ```shell
-make module-build IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-176 MODULE_REGISTRY=localhost:5001/unsigned MODULE_VERSION=0.0.7-PR-176
+kyma provision k3d
 ```
 
-Then you can run the E2E tests by issuing:
+The `k3d-kyma` cluster will be created along with k3d registry `k3d-kyma-registry:5001`.
+
+Now you can run E2E test. Setting PR_NAME allows you to control the image tag.
+If you want to tag the images with `PR-234` you and run the script with as follows:
+
 ```shell
-./testing/run_e2e_module_tests.sh localhost:5001/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.7-PR-176
+PR_NAME=PR-234 ./scripts/testing/run_e2e_on_k3d.sh
 ```
 
-If you want to use the locally created (unsigned) binary image stored in the local docker registry, you must build it first.
-```shell
-make module-image IMG_REGISTRY=localhost:5001 IMG=localhost:5001/btp-manager-local:PR-176
-```
-
-Next create an OCI module image locally referencing the binary image you just created. Run the tests.
-```shell
-make module-build IMG=localhost:5001/btp-manager-local:PR-176 MODULE_REGISTRY=localhost:5001/unsigned MODULE_VERSION=0.0.8-PR-176
-./testing/run_e2e_module_tests.sh localhost:5001/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.8-PR-176
-```
-
+The script:
+1. creates binary image `btp-manager:${PR_NAME}` and pushes the image to the k3d registry.
+2. creates OCI module image `component-descriptors/kyma.project.io/module/btp-operator:0.0.0-${PR_NAME}` and pushes the module to the k3d registry.
+3. downloads the btp-operator OCI module image from k3d registry
+4. executes `helm install btp-manager chart`
+5. verifies if deployment is in the state `Available`
+6. executes `helm uninstall btp-manager`
