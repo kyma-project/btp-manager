@@ -32,7 +32,7 @@ The OCI module image is fetched from the registry by the `./scripts/testing/run_
 
 For local tests, you can use the OCI module image from the official registry (that is, the module image created by the Prow presubmit job) 
 or you can use the local registry.
-The easiest way is to create k3d cluster and local registry issuing following command:
+The easiest way is to create a k3d cluster and a local registry by running the following command:
 
 ```shell
 kyma provision k3d
