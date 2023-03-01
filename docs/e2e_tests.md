@@ -38,7 +38,7 @@ The easiest way is to create a k3d cluster and a local registry by running the f
 kyma provision k3d
 ```
 
-The `k3d-kyma` cluster will be created along with k3d registry `k3d-kyma-registry:5001`.
+The `k3d-kyma` cluster will be created along with the k3d registry `k3d-kyma-registry:5001`.
 
 Now you can run E2E test. Setting PR_NAME allows you to control the image tag.
 If you want to tag the images with `PR-234` you and run the script with as follows:
