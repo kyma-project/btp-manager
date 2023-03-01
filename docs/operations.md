@@ -84,7 +84,7 @@ Service Bindings and Service Instances across all Namespaces. The time limit for
 After this time, or in case of an error, the process goes into soft delete mode, which runs deletion of finalizers from Service Instances and Service Bindings.
 In order to delete finalizers the reconciler deletes module deployment and webhooks.
 Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager`
-label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../module-resources/apply).
+label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../module-resources).
 If the process succeeds, the finalizer on BtpOperator CR itself is removed and the resource is deleted.
 If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`.
 
