@@ -332,9 +332,9 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				currentCa, err := reconciler.GetDataFromSecret(CaSecret)
 				Expect(err).To(BeNil())
-				ca, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), currentCa, "x")
+				ca, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), currentCa)
 				Expect(err).To(BeNil())
-				pk, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), currentCa, "x")
+				pk, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), currentCa)
 				Expect(err).To(BeNil())
 				var myStruct rsa.PrivateKey
 				err = json.Unmarshal(pk, &myStruct)

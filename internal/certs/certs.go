@@ -14,14 +14,8 @@ import (
 
 func GenerateSelfSignedCert(expiration time.Time) ([]byte, *rsa.PrivateKey, error) {
 	caTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
-		Subject: pkix.Name{
-			Organization:  []string{"Company, INC."},
-			Country:       []string{"US"},
-			Province:      []string{""},
-			Locality:      []string{"San Francisco"},
-			StreetAddress: []string{"Golden Gate Bridge"},
-			PostalCode:    []string{"94016"}},
+		SerialNumber:          big.NewInt(2019),
+		Subject:               *getSubject(),
 		NotBefore:             time.Now(),
 		NotAfter:              expiration,
 		IsCA:                  true,
@@ -46,14 +40,7 @@ func GenerateSelfSignedCert(expiration time.Time) ([]byte, *rsa.PrivateKey, erro
 func GenerateSignedCert(expiration time.Time, rootCert []byte, rootPrivateKey *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
 	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
-		Subject: pkix.Name{
-			Organization:  []string{"Company, INC."},
-			Country:       []string{"US"},
-			Province:      []string{""},
-			Locality:      []string{"San Francisco"},
-			StreetAddress: []string{"Golden Gate Bridge"},
-			PostalCode:    []string{"94016"},
-		},
+		Subject:      *getSubject(),
 		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		NotBefore:    time.Now(),
 		NotAfter:     expiration,
@@ -113,4 +100,15 @@ func VerifyIfSecondIsSignedByFirst(first, second []byte) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func getSubject() *pkix.Name {
+	return &pkix.Name{
+		Organization:  []string{"SAP, INC."},
+		Country:       []string{"US"},
+		Province:      []string{""},
+		Locality:      []string{"San Francisco"},
+		StreetAddress: []string{"Golden Gate Bridge"},
+		PostalCode:    []string{"94016"},
+	}
 }
