@@ -53,4 +53,4 @@ The script:
 3. downloads the btp-operator OCI module image from k3d registry
 4. runs `helm install btp-manager chart`
 5. verifies if deployment is in the state `Available`
-6. executes `helm uninstall btp-manager`
+6. runs `helm uninstall btp-manager`
