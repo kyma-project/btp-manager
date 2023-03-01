@@ -362,7 +362,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				afterCaSecretCert, ok := afterCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				beforeCaSecretCert, ok := beforeCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(bytes.Equal(afterCaSecretCert, beforeCaSecretCert))
-
+				//t
 				ensureCorrectState()
 			})
 		})
