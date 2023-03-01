@@ -1,0 +1,15 @@
+name: Run unit tests
+
+on:
+  push:
+    branches: [ "main" ]
+    # Trigger for release
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    # Trigger for Pull Request
+    branches: [ "main" ]
+
+jobs:
+  run-unit-tests:
+    name: Run unit tests workflow
+    uses: "./.github/workflows/run-unit-tests-reusable.yaml"

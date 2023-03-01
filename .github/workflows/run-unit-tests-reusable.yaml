@@ -1,18 +1,19 @@
-name: make-test
+# This workflow is supposed to be called from other jobs to execute unit tests in current context
+
+name: Run unit tests (reusable)
 
 on:
- push:
-   branches: [ "main" ]
-   # Publish semver tags as releases.
-   tags: [ 'v*.*.*' ]
- pull_request:
-    branches: [ main ]
+  workflow_call:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up cache
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cache/go-build
@@ -21,12 +22,12 @@ jobs:
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
-    - name: Set up Go
+
+    - name: Set up go environment
       uses: actions/setup-go@v3
       with:
         go-version: 1.19
 
-    - name: Unit tests
-      run: |
-        make test
+    - name: Run make test
+      run: make test
       

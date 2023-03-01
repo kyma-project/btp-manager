@@ -1,0 +1,19 @@
+#  This GitHub action is designed to run end-to-end (e2e) tests on a Kubernetes cluster using the k3s distribution.
+#  The action is triggered on pull requests to the main branch of the repository.
+
+name: Run E2E tests on the cluster
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  run-e2e-tests:
+    uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
+    with:
+      image-tag: PR-${{ github.event.number }}
+      module-tag: v0.0.0-PR-${{ github.event.number }}
+      image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
+      module-repo: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+      skip-templates: --skip-templates

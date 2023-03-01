@@ -23,3 +23,50 @@ kept in sync with `make manifests` just like any standard [kubebuilder operator]
 Both scripts are run from the workflow but can also be triggered manually from the developer's computer. They are placed under `hack/update/`.
 
 To keep `module-chart/chart` in sync with the [upstream](https://github.com/SAP/sap-btp-service-operator), you must not apply any manual changes there.
+
+## Release pipeline
+
+See [BTP Manager release pipeline](release.md)
+
+## Run E2E tests
+
+Triggered by pull requests on `main` branch calls reusable workflow 'Run E2E tests (reusable)' (`run-e2e-tests-reusable.yaml`). 
+Uses DEV artifact registry and tags binary and image with PR-number. 
+
+## Run unit tests
+
+Triggered by pull requests on `main` branch and for releases (tag creation on 'main' branch) calls reusable workflow 'Run unit tests (reusable)' (`run-unit-tests-reusable.yaml`).
+
+## Reusable workflows
+
+There are reusable workflows created. Anyone with access to the reusable workflow can call the reusable workflow from another workflow.
+
+### Run E2E tests
+
+This workflow runs the E2E tests on the k3a cluster. 
+From the calling workflow you pass the following parameters:
+
+| Parameter name  | Required | Description |
+| ------------- | ------------- | ------------- |
+| image-repo  | yes  | Binary image registry reference |
+| module-repo  | yes  |  OCI module image registry reference |
+| image-tag  | yes  |  Binary image tag |
+| module-tag  | yes  |  OCI module image tag |
+| skip-templates  | no  |  wait for images only, skip other artifacts |
+
+Pipeline:
+- prepares k3s cluster and the docker registry,
+- waits for the artifacts to be ready in the registry,
+- runs the E2E tests on the cluster.
+
+
+### Run unit tests
+
+This workflow runs the unit tests.
+No parameters are passed from calling pipeline (callee).
+
+Pipeline:
+- checkouts code and sets up the cache,
+- sets up go environment,
+- invokes `make test`.
+

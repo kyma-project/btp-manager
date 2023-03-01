@@ -1,3 +1,4 @@
+
 ---
 title: BTP Manager release pipeline
 ---
@@ -25,7 +26,34 @@ To create a release, follow these steps:
 5. `post-btp-manager-module-build` runs the `kyma alpha create module` command, which creates a Kyma module, and pushes the image to the registry. Finally, the job uploads the `template.yaml` file to the btp-manager release as a release asset.
 6. The GitHub action waits for the `template.yaml` asset in the GitHub release and for images in the Docker registry.
 
-![Release diagram](./assets/release.svg)
+```mermaid
+   sequenceDiagram
+      actor Gopher
+      participant Github Actions 
+      participant Github Repository
+      participant post btp manager build
+      participant post btp manager module build
+      participant docker Registry
+      Gopher->>Github Actions: Executes
+      activate Github Actions   
+      Github Actions->>Github Repository: creates the tag and the release
+      Github Repository->>post btp manager build: triggers
+      activate post btp manager build
+      Note over post btp manager build: builds binary image
+      Github Repository->>post btp manager module build: triggers
+      activate post btp manager module build
+      Note over post btp manager module build: builds OCI module image
+      post btp manager build->>docker Registry: uploads docker image 
+      deactivate post btp manager build
+      post btp manager module build->>docker Registry: uploads OCI module image
+      post btp manager module build->>Github Repository: uploads template.yaml
+      deactivate post btp manager module build
+      loop Every 10s
+        Github Actions-->docker Registry: are images available?
+      end
+      docker Registry->>Github Actions: fetches binary image, module image
+      deactivate Github Actions
+```
 
 ### Replace an existing release
 

@@ -87,7 +87,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: test
 test: manifests kustomize generate fmt vet envtest ## Run tests.
-	. ./testing/set-env-vars.sh; go test ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v
+	. ./scripts/testing/set-env-vars.sh; go test ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v
 
 ##@ Build
 
