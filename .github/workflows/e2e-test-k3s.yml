@@ -5,7 +5,7 @@
 #    - Checkout the repository code.
 #    - Cache the ~/.cache/go-build and ~/go/pkg/mod directories to improve performance.
 #    - Set up a docker registry and k3s cluster using a script called k3s-setup.sh.
-#    - Set the pull request number, OCI module image name as an environment variables.
+#    - Set the pull request number, OCI module image name as environment variables.
 #    - Wait until the registry contains OCI module image for current PR (pushed by prow-job)
 #    - Run test script located in the testing directory
 
