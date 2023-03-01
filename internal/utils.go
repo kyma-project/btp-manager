@@ -20,3 +20,14 @@ func StructToByteArray(s any) ([]byte, error) {
 
 	return buffer.Bytes(), nil
 }
+
+func GetValueByKey(key string, data map[string][]byte) ([]byte, error) {
+	value, ok := data[key]
+	if !ok {
+		return nil, fmt.Errorf("while getting data for key: %s", key)
+	}
+	if value == nil || bytes.Equal(value, []byte{}) {
+		return nil, fmt.Errorf("empty data for key: %s", key)
+	}
+	return value, nil
+}
