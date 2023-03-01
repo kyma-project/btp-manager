@@ -51,6 +51,6 @@ The script:
 1. creates binary image `btp-manager:${PR_NAME}` and pushes the image to the k3d registry.
 2. creates the OCI module image `component-descriptors/kyma.project.io/module/btp-operator:0.0.0-${PR_NAME}`, and pushes the module to the k3d registry.
 3. downloads the btp-operator OCI module image from k3d registry
-4. executes `helm install btp-manager chart`
+4. runs `helm install btp-manager chart`
 5. verifies if deployment is in the state `Available`
 6. executes `helm uninstall btp-manager`
