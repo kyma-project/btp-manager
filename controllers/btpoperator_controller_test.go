@@ -5,8 +5,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -207,7 +205,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	Describe("Certification management", func() {
 		orgCaCertificateExpiration := CaCertificateExpiration
-		orgWebhookCertExpiration := WebhookCertExpiration
+		orgWebhookCertExpiration := WebhookCertificateExpiration
 		orgExpirationBoundary := ExpirationBoundary
 		var actualWorkqueueSize func() int
 
@@ -229,14 +227,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		setOrgTimes := func() {
 			CaCertificateExpiration = orgCaCertificateExpiration
-			WebhookCertExpiration = orgWebhookCertExpiration
+			WebhookCertificateExpiration = orgWebhookCertExpiration
 			ExpirationBoundary = orgExpirationBoundary
 		}
 
 		certBeforeEach := func(opts *timeOpts) {
 			if opts != nil {
 				CaCertificateExpiration = opts.CaCertificateExpiration
-				WebhookCertExpiration = opts.WebhookCertExpiration
+				WebhookCertificateExpiration = opts.WebhookCertExpiration
 				ExpirationBoundary = opts.ExpirationBoundary
 			} else {
 				setOrgTimes()
@@ -266,7 +264,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			ok, err := reconciler.IsWebhookSecretCertSignedByCaSecretCert()
 			Expect(err).To(BeNil())
 			Expect(ok).To(BeTrue())
-			EnsureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(nil)
+			ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(nil)
 		}
 
 		When("doing provisioning", func() {
@@ -292,29 +290,29 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("should regenerate CA and webhook certs", func() {
 				//fake data
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
-				newCaPrivateKeyStructured, err := structToByteArray(newCaPrivateKey)
+				newCaPrivateKeyStructured, err := utils.StructToByteArray(newCaPrivateKey)
 				Expect(err).To(BeNil())
 
 				caSecret := getSecret(CaSecret)
 				orgCaSecret := caSecret
-				replaceData(caSecret, utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), newCaCertificate, utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix), newCaPrivateKeyStructured)
+				replaceSecretData(caSecret, utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), newCaCertificate, utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), newCaPrivateKeyStructured)
 				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				time.Sleep(time.Second * 5)
 				updatedCaSecret := getSecret(CaSecret)
 
-				caCertificateAfterUpdate, ok := updatedCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				caCertificateAfterUpdate, ok := updatedCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue())
 
-				caCertificateOriginal, ok := orgCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				caCertificateOriginal, ok := orgCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeTrue())
 
-				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix)]
+				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeTrue())
 
-				caPrivateKeyOriginal, ok := orgCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix)]
+				caPrivateKeyOriginal, ok := orgCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeTrue())
 
@@ -332,11 +330,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("CA certificate stay same, but Webhook certificate is change (signed by same CA)", func() {
 				beforeCaSecret := getSecret(CaSecret)
 
-				currentCa, err := reconciler.getDataFromSecret(CaSecret)
+				currentCa, err := reconciler.GetDataFromSecret(CaSecret)
 				Expect(err).To(BeNil())
-				ca, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), currentCa, "x")
+				ca, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), currentCa, "x")
 				Expect(err).To(BeNil())
-				pk, err := reconciler.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix), currentCa, "x")
+				pk, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), currentCa, "x")
 				Expect(err).To(BeNil())
 				var myStruct rsa.PrivateKey
 				err = json.Unmarshal(pk, &myStruct)
@@ -346,23 +344,23 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), ca, &myStruct)
 				Expect(err).To(BeNil())
-				newWebhookPrivateKeyStructured, err := structToByteArray(newWebhookPrivateKey)
+				newWebhookPrivateKeyStructured, err := utils.StructToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
 				webhookCert := getSecret(CaSecret)
-				replaceData(webhookCert, utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx), newWebhookCertificate, utils.BuildFilenameWithExtension(WebhookPrefix, KeyPostfix), newWebhookPrivateKeyStructured)
+				replaceSecretData(webhookCert, utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, RSAKeyPostfix), newWebhookPrivateKeyStructured)
 
-				originalWebhookCert, ok := originalWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				originalWebhookCert, ok := originalWebhookSecret.Data[utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(!bytes.Equal(originalWebhookCert, newWebhookCertificate))
 
 				currentWebhookSecret = getSecret(WebhookSecret)
-				currentWebhookCert, ok := currentWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				currentWebhookCert, ok := currentWebhookSecret.Data[utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(bytes.Equal(currentWebhookCert, newWebhookCertificate))
 
 				afterCaSecret := getSecret(CaSecret)
-				afterCaSecretCert, ok := afterCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
-				beforeCaSecretCert, ok := beforeCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				afterCaSecretCert, ok := afterCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+				beforeCaSecretCert, ok := beforeCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(bytes.Equal(afterCaSecretCert, beforeCaSecretCert))
 
 				ensureCorrectState()
@@ -381,26 +379,26 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(err).To(BeNil())
 
 				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), newCaCertificate, newCaPrivateKey)
-				newWebhookCertificateStructured, err := structToByteArray(newWebhookPrivateKey)
+				newWebhookCertificateStructured, err := utils.StructToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
 				beforeCaSecret := getSecret(CaSecret)
 				beforeWebhookSecret := getSecret(WebhookSecret)
 
 				webhookCertSecret := getSecret(WebhookSecret)
-				replaceData(webhookCertSecret, utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx), newWebhookCertificate, utils.BuildFilenameWithExtension(WebhookPrefix, KeyPostfix), newWebhookCertificateStructured)
+				replaceSecretData(webhookCertSecret, utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, RSAKeyPostfix), newWebhookCertificateStructured)
 				time.Sleep(time.Second * 5)
 				currentCaSecret := getSecret(CaSecret)
-				currentCaCert, ok := currentCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				currentCaCert, ok := currentCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
-				beforeCaCert, ok := beforeCaSecret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+				beforeCaCert, ok := beforeCaSecret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(currentCaCert, beforeCaCert))
 
 				currentWebhookSecret := getSecret(WebhookSecret)
-				currentWebhookCert, ok := currentWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				currentWebhookCert, ok := currentWebhookSecret.Data[utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
-				beforeWebhookCert, ok := beforeWebhookSecret.Data[utils.BuildFilenameWithExtension(WebhookPrefix, CertPostifx)]
+				beforeWebhookCert, ok := beforeWebhookSecret.Data[utils.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(currentWebhookCert, beforeWebhookCert))
 				Expect(!bytes.Equal(currentWebhookCert, newWebhookCertificate))
@@ -875,7 +873,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 })
 
-func replaceData(s *corev1.Secret, key string, value []byte, key2 string, value2 []byte) {
+func replaceSecretData(s *corev1.Secret, key string, value []byte, key2 string, value2 []byte) {
 	d := s.Data
 	if key != "" && value != nil {
 		d[key] = value
@@ -889,24 +887,6 @@ func replaceData(s *corev1.Secret, key string, value []byte, key2 string, value2
 	Expect(err).To(BeNil())
 }
 
-func assignMap(s *corev1.Secret, m map[string][]byte) {
-	s.Data = make(map[string][]byte)
-	for k, v := range m {
-		s.Data[k] = v
-	}
-}
-
-func structToByteArray(s any) ([]byte, error) {
-	var b bytes.Buffer
-	enc := gob.NewEncoder(&b)
-	err := enc.Encode(s)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return b.Bytes(), nil
-}
-
 func getSecret(name string) *corev1.Secret {
 	s := &corev1.Secret{}
 	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, s)
@@ -914,56 +894,24 @@ func getSecret(name string) *corev1.Secret {
 	return s
 }
 
-func deleteSecret(name string) {
-	s := getSecret(name)
-	err := k8sClient.Delete(ctx, s)
-	Expect(err).To(BeNil())
-}
-
 func checkHowManySecondsToExpiration(name string) float64 {
-	d := GetDataFromSecret(name)
+	d, e := reconciler.GetDataFromSecret(name)
+	Expect(e).To(BeTrue())
 	k, err := reconciler.mapSecretNameToSecretDataKey(name)
 	Expect(err).To(BeNil())
-	v := GetValueByKey(utils.BuildFilenameWithExtension(k, CertPostifx), d)
+	v, err := reconciler.GetValueByKey(utils.BuildKeyNameWithExtension(k, CertificatePostfix), d)
+	Expect(err).To(BeTrue())
 	cert, err := x509.ParseCertificate(v)
 	Expect(err).To(BeNil())
 	fmt.Println(fmt.Sprintf("NotAfter %s", cert.NotAfter))
 	diff := cert.NotAfter.Sub(time.Now())
-	//Number of seconds from expiration date to now
 	return diff.Seconds()
 }
 
-func EnsureCACertWithWebhookCertMatch() {
-
-}
-
-func DecodeBase64(src []byte) []byte {
-	var dst []byte
-	_, err := base64.StdEncoding.Decode(dst, src)
-	Expect(err).To(BeNil())
-	return dst
-}
-
-func GetDataFromSecret(name string) map[string][]byte {
-	secret := &corev1.Secret{}
-	err := k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret)
-	Expect(err).To(BeNil())
-	return secret.Data
-}
-
-func GetValueByKey(key string, m map[string][]byte) []byte {
-	value, ok := m[key]
-	if !ok {
-		logger.Info("Key is %s", "key", key)
-	}
-	Expect(ok).To(BeTrue())
-	return value
-}
-
-func EnsureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(expectedCACert []byte) {
+func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles(expectedCACert []byte) {
 	if expectedCACert == nil {
 		secret := getSecret(CaSecret)
-		cert, ok := secret.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+		cert, ok := secret.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 		Expect(ok).To(BeTrue())
 		expectedCACert = cert
 	}

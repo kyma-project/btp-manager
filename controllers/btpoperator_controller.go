@@ -73,13 +73,6 @@ var (
 	ChartPath                      = "./module-chart/chart"
 	HardDeleteCheckInterval        = time.Second * 10
 	ResourcesPath                  = "./module-resources"
-	CaCertificateExpiration        = time.Hour * 1
-	WebhookCertExpiration          = time.Minute * 30
-	ExpirationBoundary             = time.Minute * -10
-	CAPrefix                       = "ca"
-	WebhookPrefix                  = "tls"
-	CertPostifx                    = "crt"
-	KeyPostfix                     = "key"
 )
 
 const (
@@ -125,10 +118,15 @@ var (
 )
 
 var (
-	CaSecret             = "ca-server-cert"
-	WebhookSecret        = "webhook-server-cert"
-	validatingWebhookGvk = (&admissionregistrationv1.ValidatingWebhookConfiguration{}).GroupVersionKind()
-	mutatingWebhookGvk   = (&admissionregistrationv1.MutatingWebhookConfigurationList{}).GroupVersionKind()
+	CaSecret                     = "ca-server-cert"
+	WebhookSecret                = "webhook-server-cert"
+	CaCertificateExpiration      = time.Hour * 1
+	WebhookCertificateExpiration = time.Minute * 30
+	ExpirationBoundary           = time.Minute * -10
+	CASecretDataPrefix           = "ca"
+	WebhookSecretDataPrefix      = "tls"
+	CertificatePostfix           = "crt"
+	RSAKeyPostfix                = "key"
 )
 
 // BtpOperatorReconciler reconciles a BtpOperator object
@@ -173,7 +171,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
 	logger := log.FromContext(ctx)
-	logger.Info("reconcile")
 	cr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -464,7 +461,7 @@ func (r *BtpOperatorReconciler) prepareModuleResources(cr *v1alpha1.BtpOperator,
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
 
-	if err := r.checkWebhooksCertifications(cr, ctx, resourcesToApply); err != nil {
+	if err := r.checkCertificates(cr, ctx, resourcesToApply); err != nil {
 		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
 	}
 
@@ -1090,10 +1087,7 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 			if !ok {
 				return false
 			}
-			if secret.Name == SecretName && secret.Namespace == ChartNamespace {
-				return true
-			}
-			return false
+			return secret.Name == SecretName && secret.Namespace == ChartNamespace
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
@@ -1144,8 +1138,8 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			ReadyCheckInterval, err = time.ParseDuration(v)
 		case "CaCertificateExpiration":
 			CaCertificateExpiration, err = time.ParseDuration(v)
-		case "WebhookCertExpiration":
-			WebhookCertExpiration, err = time.ParseDuration(v)
+		case "WebhookCertificateExpiration":
+			WebhookCertificateExpiration, err = time.ParseDuration(v)
 		case "ExpirationBoundary":
 			ExpirationBoundary, err = time.ParseDuration(v)
 		default:
@@ -1168,21 +1162,19 @@ func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
 	}
 }
 
-func (r *BtpOperatorReconciler) checkWebhooksCertifications(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) checkCertificates(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("checking certifications")
 	rootCertExists, err := r.doSecretExists(CaSecret)
-	var correctCa []byte
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 	if !rootCertExists {
 		logger.Info("ca secret with root cert dosent exists.")
-		c, err := r.fullyRegenerate(cr, ctx, resourcesToApply)
+		_, err := r.fullyCertificatesRegenerate(cr, ctx, resourcesToApply)
 		if err != nil {
 			return err
 		}
-		correctCa = c
 		return nil
 	}
 
@@ -1191,17 +1183,18 @@ func (r *BtpOperatorReconciler) checkWebhooksCertifications(cr *v1alpha1.BtpOper
 		return err
 	}
 	if !webhookCertExists {
-		if err := r.partialRegenerate(cr, ctx, resourcesToApply); err != nil {
+		if err := r.partiallyCertificatesRegenerate(cr, ctx, resourcesToApply); err != nil {
 			return err
 		}
 	}
 
+	var correctCa []byte
 	if rootCertExists {
 		s := &corev1.Secret{}
 		if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecret}, s); err != nil {
 			return err
 		}
-		c, ok := s.Data[utils.BuildFilenameWithExtension(CAPrefix, CertPostifx)]
+		c, ok := s.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 		if !ok {
 			return fmt.Errorf("!ok")
 		}
@@ -1214,7 +1207,7 @@ func (r *BtpOperatorReconciler) checkWebhooksCertifications(cr *v1alpha1.BtpOper
 	signOk, err := r.IsWebhookSecretCertSignedByCaSecretCert()
 	if err != nil || !signOk {
 		logger.Info(fmt.Sprintf("webhook cert is not signed by correct ca from ca secret %s", err))
-		if _, err := r.fullyRegenerate(cr, ctx, resourcesToApply); err != nil {
+		if _, err := r.fullyCertificatesRegenerate(cr, ctx, resourcesToApply); err != nil {
 			return err
 		}
 		return nil
@@ -1228,7 +1221,7 @@ func (r *BtpOperatorReconciler) checkWebhooksCertifications(cr *v1alpha1.BtpOper
 	}
 	if !rootCertValid {
 		logger.Error(err, "ca cert is invalid")
-		if _, err := r.fullyRegenerate(cr, ctx, resourcesToApply); err != nil {
+		if _, err := r.fullyCertificatesRegenerate(cr, ctx, resourcesToApply); err != nil {
 			return err
 		}
 		return nil
@@ -1242,7 +1235,7 @@ func (r *BtpOperatorReconciler) checkWebhooksCertifications(cr *v1alpha1.BtpOper
 	}
 	if !webhookCertificateValid {
 		logger.Error(err, "webhook cert is invalid")
-		if err := r.partialRegenerate(cr, ctx, resourcesToApply); err != nil {
+		if err := r.partiallyCertificatesRegenerate(cr, ctx, resourcesToApply); err != nil {
 			return err
 		}
 	}
@@ -1271,7 +1264,7 @@ func (r *BtpOperatorReconciler) BuildSecretWithData(name string, data map[string
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: "kyma-system",
+			Namespace: ChartNamespace,
 			Labels: map[string]string{
 				managedByLabelKey: operatorName,
 			},
@@ -1280,14 +1273,14 @@ func (r *BtpOperatorReconciler) BuildSecretWithData(name string, data map[string
 	}
 }
 
-func (r *BtpOperatorReconciler) genereateSelfSignedCertAndAddToResources(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, *rsa.PrivateKey, error) {
+func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, *rsa.PrivateKey, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("generation of self signed cert started")
 	CA, CAPrivateKey, err := certs.GenerateSelfSignedCert(time.Now().Add(CaCertificateExpiration))
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
-	err = r.appendCertificationDataToUnstructured(cr, resourcesToApply, CaSecret, CA, CAPrivateKey, CAPrefix)
+	err = r.appendCertificationDataToUnstructured(cr, resourcesToApply, CaSecret, CA, CAPrivateKey, CASecretDataPrefix)
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while adding newly generated self signed cert to resoruces to apply: %w", err)
 	}
@@ -1295,14 +1288,14 @@ func (r *BtpOperatorReconciler) genereateSelfSignedCertAndAddToResources(cr *v1a
 	return CA, CAPrivateKey, nil
 }
 
-func (r *BtpOperatorReconciler) genereateSignedCertAndAddToResources(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, CA []byte, CAPrivateKey *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
+func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, CA []byte, CAPrivateKey *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("generation of signed cert started")
-	cert, certPk, err := r.generateSignedCert(time.Now().Add(WebhookCertExpiration), CA, CAPrivateKey)
+	cert, certPk, err := r.generateSignedCert(time.Now().Add(WebhookCertificateExpiration), CA, CAPrivateKey)
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while generating signed cert: %w", err)
 	}
-	err = r.appendCertificationDataToUnstructured(cr, resourcesToApply, WebhookSecret, cert, certPk, WebhookPrefix)
+	err = r.appendCertificationDataToUnstructured(cr, resourcesToApply, WebhookSecret, cert, certPk, WebhookSecretDataPrefix)
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while adding newly generated signed cert to resoruces to apply: %w", err)
 	}
@@ -1312,28 +1305,28 @@ func (r *BtpOperatorReconciler) genereateSignedCertAndAddToResources(cr *v1alpha
 
 func (r *BtpOperatorReconciler) generateSignedCert(expiration time.Time, ca []byte, caPk *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
 	if ca == nil || caPk == nil {
-		data, err := r.getDataFromSecret(CaSecret)
+		data, err := r.GetDataFromSecret(CaSecret)
 		if err != nil {
 			return []byte{}, nil, err
 		}
 
-		ca, err = r.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, CertPostifx), data, "gen signed cert")
+		ca, err = r.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), data)
 		if err != nil {
 			return []byte{}, nil, err
 		}
 
-		pkb, err := r.GetValueByKey(utils.BuildFilenameWithExtension(CAPrefix, KeyPostfix), data, "gen signed cert")
+		pkb, err := r.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), data)
 		if err != nil {
 			return []byte{}, nil, err
 		}
 
-		var myStruct rsa.PrivateKey
-		err = json.Unmarshal(pkb, &myStruct)
+		var tempPk rsa.PrivateKey
+		err = json.Unmarshal(pkb, &tempPk)
 		if err != nil {
 			return []byte{}, nil, err
 		}
 
-		caPk = &myStruct
+		caPk = &tempPk
 	}
 
 	cert, certPk, err := certs.GenerateSignedCert(expiration, ca, caPk)
@@ -1344,7 +1337,7 @@ func (r *BtpOperatorReconciler) generateSignedCert(expiration time.Time, ca []by
 	return cert, certPk, err
 }
 
-func (r *BtpOperatorReconciler) getDataFromSecret(name string) (map[string][]byte, error) {
+func (r *BtpOperatorReconciler) GetDataFromSecret(name string) (map[string][]byte, error) {
 	secret := &corev1.Secret{}
 	if err := r.Get(context.TODO(), client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret); err != nil {
 		return nil, err
@@ -1352,8 +1345,7 @@ func (r *BtpOperatorReconciler) getDataFromSecret(name string) (map[string][]byt
 	return secret.Data, nil
 }
 
-func (r *BtpOperatorReconciler) GetValueByKey(key string, secretData map[string][]byte, src string) ([]byte, error) {
-	fmt.Println(src)
+func (r *BtpOperatorReconciler) GetValueByKey(key string, secretData map[string][]byte) ([]byte, error) {
 	value, ok := secretData[key]
 	if !ok {
 		return nil, fmt.Errorf("while getting data for key: %s", key)
@@ -1365,7 +1357,7 @@ func (r *BtpOperatorReconciler) GetValueByKey(key string, secretData map[string]
 }
 
 func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(cr *v1alpha1.BtpOperator, us *[]*unstructured.Unstructured, certName string, cert []byte, pk *rsa.PrivateKey, prefix string) error {
-	err, data := r.MapCertToSecretData(cert, pk, utils.BuildFilenameWithExtension(prefix, CertPostifx), utils.BuildFilenameWithExtension(prefix, KeyPostfix))
+	err, data := r.MapCertToSecretData(cert, pk, utils.BuildKeyNameWithExtension(prefix, CertificatePostfix), utils.BuildKeyNameWithExtension(prefix, RSAKeyPostfix))
 	if err != nil {
 		return err
 	}
@@ -1394,7 +1386,7 @@ func (r *BtpOperatorReconciler) doSecretExists(name string) (bool, error) {
 }
 
 func (r *BtpOperatorReconciler) checkIfCertIsValid(secretName string) (bool, error) {
-	caData, err := r.getDataFromSecret(secretName)
+	caData, err := r.GetDataFromSecret(secretName)
 	if err != nil {
 		return false, err
 	}
@@ -1404,7 +1396,7 @@ func (r *BtpOperatorReconciler) checkIfCertIsValid(secretName string) (bool, err
 		return false, err
 	}
 
-	rr, err := r.GetValueByKey(utils.BuildFilenameWithExtension(prefix, CertPostifx), caData, "check if valid")
+	rr, err := r.GetValueByKey(utils.BuildKeyNameWithExtension(prefix, CertificatePostfix), caData)
 	if err != nil {
 		return false, err
 	}
@@ -1424,12 +1416,12 @@ func (r *BtpOperatorReconciler) checkIfCertIsValid(secretName string) (bool, err
 }
 
 func (r *BtpOperatorReconciler) IsWebhookSecretCertSignedByCaSecretCert() (bool, error) {
-	caCrt, err := r.GetCertificateFromSecret(CaSecret, "is1")
+	caCrt, err := r.GetCertificateFromSecret(CaSecret)
 	if err != nil {
 		return false, err
 	}
 
-	whCrt, err := r.GetCertificateFromSecret(WebhookSecret, "is2")
+	whCrt, err := r.GetCertificateFromSecret(WebhookSecret)
 	if err != nil {
 		return false, err
 	}
@@ -1442,9 +1434,8 @@ func (r *BtpOperatorReconciler) IsWebhookSecretCertSignedByCaSecretCert() (bool,
 	return ok, nil
 }
 
-func (r *BtpOperatorReconciler) GetCertificateFromSecret(secretName string, src string) ([]byte, error) {
-	fmt.Println(src)
-	caData, err := r.getDataFromSecret(secretName)
+func (r *BtpOperatorReconciler) GetCertificateFromSecret(secretName string) ([]byte, error) {
+	data, err := r.GetDataFromSecret(secretName)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -1452,21 +1443,21 @@ func (r *BtpOperatorReconciler) GetCertificateFromSecret(secretName string, src 
 	if err != nil {
 		return []byte{}, err
 	}
-	caCrt, err := r.GetValueByKey(utils.BuildFilenameWithExtension(key, CertPostifx), caData, "getcertfromsecret")
+	cert, err := r.GetValueByKey(utils.BuildKeyNameWithExtension(key, CertificatePostfix), data)
 	if err != nil {
 		return []byte{}, err
 	}
-	return caCrt, nil
+	return cert, nil
 }
 
-func (r *BtpOperatorReconciler) fullyRegenerate(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, error) {
+func (r *BtpOperatorReconciler) fullyCertificatesRegenerate(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("full regeneration started")
-	ca, caPk, err := r.genereateSelfSignedCertAndAddToResources(cr, ctx, resourcesToApply)
+	ca, caPk, err := r.generateSelfSignedCertAndAddToApplyList(cr, ctx, resourcesToApply)
 	if err != nil {
 		return []byte{}, fmt.Errorf("error while generating self signed cert in full regeneration proccess. %w", err)
 	}
-	_, _, err = r.genereateSignedCertAndAddToResources(cr, ctx, resourcesToApply, ca, caPk)
+	_, _, err = r.generateSignedCertAndAddToApplyList(cr, ctx, resourcesToApply, ca, caPk)
 	if err != nil {
 		return []byte{}, fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
 	}
@@ -1477,10 +1468,10 @@ func (r *BtpOperatorReconciler) fullyRegenerate(cr *v1alpha1.BtpOperator, ctx co
 	return ca, nil
 }
 
-func (r *BtpOperatorReconciler) partialRegenerate(cr *v1alpha1.BtpOperator, ctx context.Context, resourceToApply *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) partiallyCertificatesRegenerate(cr *v1alpha1.BtpOperator, ctx context.Context, resourceToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("partial regeneration started")
-	_, _, err := r.genereateSignedCertAndAddToResources(cr, ctx, resourceToApply, nil, nil)
+	_, _, err := r.generateSignedCertAndAddToApplyList(cr, ctx, resourceToApply, nil, nil)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in partial regeneration proccess. %w", err)
 	}
@@ -1491,9 +1482,9 @@ func (r *BtpOperatorReconciler) partialRegenerate(cr *v1alpha1.BtpOperator, ctx 
 func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) (string, error) {
 	switch secretName {
 	case CaSecret:
-		return CAPrefix, nil
+		return CASecretDataPrefix, nil
 	case WebhookSecret:
-		return WebhookPrefix, nil
+		return WebhookSecretDataPrefix, nil
 	default:
 		return "", fmt.Errorf("not found secret data key for secret name: %s", secretName)
 	}
@@ -1524,7 +1515,7 @@ func (r *BtpOperatorReconciler) reconcileWebhookCABundles(cr *v1alpha1.BtpOperat
 						obj.Webhooks[i] = w
 					}
 					obj.ObjectMeta.ManagedFields = nil
- 
+
 					unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 					if err != nil {
 						return err
