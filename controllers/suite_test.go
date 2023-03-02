@@ -127,7 +127,6 @@ func TestAPIs(t *testing.T) {
 	} else {
 		SetDefaultEventuallyTimeout(time.Second * 5)
 	}
-	reporterCfg.Verbose = true
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
 
