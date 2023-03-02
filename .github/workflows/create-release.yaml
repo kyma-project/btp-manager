@@ -88,7 +88,7 @@ jobs:
         run: |
           found=$(skopeo list-tags $BTP_OPERATOR_REPO | jq '.Tags|any(. == "v${{ github.event.inputs.name }}")')
           if [ $found == "false" ]; then
-            echo "Module Image $BTP_OPERATOR_REPO:${{ github.event.inputs.name }} not found"
+            echo "Module Image $BTP_OPERATOR_REPO:v${{ github.event.inputs.name }} not found"
             exit 1
           else
             echo "Image found"
