@@ -47,11 +47,11 @@ SHELL = /usr/bin/env bash -o pipefail
 # Otherwise we will assume http-based local registries without authentication (e.g. for k3d)
 ifneq (,$(PROW_JOB_ID))
 GCP_ACCESS_TOKEN=$(shell gcloud auth application-default print-access-token)
-MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) -w -c oauth2accesstoken:$(GCP_ACCESS_TOKEN)
+MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) -c oauth2accesstoken:$(GCP_ACCESS_TOKEN)
 else ifeq (,$(MODULE_CREDENTIALS))
-MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) -w --insecure
+MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) --insecure
 else
-MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) -w -c $(MODULE_CREDENTIALS)
+MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) -c $(MODULE_CREDENTIALS)
 endif
 
 
