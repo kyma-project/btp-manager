@@ -1,8 +1,10 @@
 name: Auto update chart/resources
 
 env:
-  ORG: kyma-project
+  KYMA_ORG: kyma-project
+  SAP_ORG: SAP
   BTP_MANAGER_REPO: btp-manager
+  SAP_BTP_SERVICE_OPERATOR_REPO: sap-btp-service-operator
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
 on:
@@ -97,9 +99,9 @@ jobs:
         git add controllers/btpoperator_controller.go
         git add config/rbac/role.yaml 
         git commit -m "$MSG"
-        git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
+        git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$KYMA_ORG/$BTP_MANAGER_REPO.git
         git push --set-upstream origin $BRANCH_NAME -f
-        pr_link=$(gh pr create -B main --title "$MSG" --body "" | tail -n 1)
+        pr_link=$(gh pr create -B main --title "$MSG" --body "https://github.com/$SAP_ORG/$SAP_BTP_SERVICE_OPERATOR_REPO/releases/tag/$TAG" | tail -n 1)
         echo "received PR link ${pr_link}"
 
         # link the PR from ^^ to gopher project board
