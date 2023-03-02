@@ -54,9 +54,9 @@ jobs:
       - name: Wait for btp-operator module
         # Prow job which uploads the template.yaml also pushes the OCI module image to the registry, so there is no need to make retries for btp-operator module image. It must exist.
         run: |
-          found=$(skopeo list-tags $BTP_OPERATOR_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
+          found=$(skopeo list-tags $BTP_OPERATOR_REPO | jq '.Tags|any(. == "v${{ github.event.inputs.name }}")')
           if [ $found == "false" ]; then
-            echo "Image $BTP_OPERATOR_REPO:${{ github.event.inputs.name }} not found"
+            echo "Module Image $BTP_OPERATOR_REPO:v${{ github.event.inputs.name }} not found"
             exit 1
           else
             echo "Image found"
@@ -67,7 +67,7 @@ jobs:
           while [ $found == "false" ]
           do
             found=$(skopeo list-tags $BTP_MANAGER_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
-            echo "Waiting for btp-operator image: $BTP_MANAGER_REPO:${{ github.event.inputs.name }}"
+            echo "Waiting for BTP Manager image: $BTP_MANAGER_REPO:${{ github.event.inputs.name }}"
             sleep 10
           done
           echo "BTP-manager image found"
