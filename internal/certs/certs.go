@@ -1,6 +1,7 @@
 package certs
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -12,10 +13,12 @@ import (
 	"time"
 )
 
-func GenerateSelfSignedCert(expiration time.Time) ([]byte, *rsa.PrivateKey, error) {
+func GenerateSelfSignedCert(expiration time.Time) ([]byte, []byte, error) {
+	DNS := []string{"sap-btp-operator-webhook-service.kyma-system.svc", "sap-btp-operator-webhook-service.kyma-system"}
+
 	caTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(2019),
-		Subject:               *getSubject(),
+		DNSNames:              DNS,
 		NotBefore:             time.Now(),
 		NotAfter:              expiration,
 		IsCA:                  true,
@@ -34,13 +37,26 @@ func GenerateSelfSignedCert(expiration time.Time) ([]byte, *rsa.PrivateKey, erro
 		return []byte{}, nil, err
 	}
 
-	return caCert, caPrivateKey, nil
+	caPEM := new(bytes.Buffer)
+	pem.Encode(caPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCert,
+	})
+
+	caPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(caPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
+	})
+	return caPEM.Bytes(), caPrivKeyPEM.Bytes(), nil
 }
 
-func GenerateSignedCert(expiration time.Time, rootCert []byte, rootPrivateKey *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
+func GenerateSignedCert(expiration time.Time, rootCert, rootPrivateKey []byte) ([]byte, []byte, error) {
+	DNS := []string{"sap-btp-operator-webhook-service.kyma-system.svc", "sap-btp-operator-webhook-service.kyma-system"}
+
 	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
-		Subject:      *getSubject(),
+		DNSNames:     DNS,
 		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		NotBefore:    time.Now(),
 		NotAfter:     expiration,
@@ -53,21 +69,38 @@ func GenerateSignedCert(expiration time.Time, rootCert []byte, rootPrivateKey *r
 		return []byte{}, nil, err
 	}
 
-	structuredCaCert, err := x509.ParseCertificate(rootCert)
+	p, _ := pem.Decode(rootCert)
+	structuredCaCert, err := x509.ParseCertificate(p.Bytes)
+	if err != nil {
+		return []byte{}, nil, err
+	}
+	pk, _ := pem.Decode(rootPrivateKey)
+	priv, err := x509.ParsePKCS1PrivateKey(pk.Bytes)
+	cert, err := x509.CreateCertificate(rand.Reader, certTemplate, structuredCaCert, &certPrivateKey.PublicKey, priv)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	cert, err := x509.CreateCertificate(rand.Reader, certTemplate, structuredCaCert, &certPrivateKey.PublicKey, rootPrivateKey)
-	if err != nil {
-		return []byte{}, nil, err
-	}
+	certPEM := new(bytes.Buffer)
+	pem.Encode(certPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert,
+	})
 
-	return cert, certPrivateKey, nil
+	certPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(certPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(certPrivateKey),
+	})
+
+	return certPEM.Bytes(), certPrivKeyPEM.Bytes(), nil
 }
 
 func VerifyIfSecondIsSignedByFirst(first, second []byte) (bool, error) {
-	firstTemplate, err := x509.ParseCertificate(first)
+	fd, _ := pem.Decode(first)
+	sd, _ := pem.Decode(second)
+
+	firstTemplate, err := x509.ParseCertificate(fd.Bytes)
 	if err != nil {
 		return false, err
 	}
@@ -85,7 +118,8 @@ func VerifyIfSecondIsSignedByFirst(first, second []byte) (bool, error) {
 		Roots: roots,
 	}
 
-	secondTemplate, err := x509.ParseCertificate(second)
+	fmt.Errorf("Aaaa")
+	secondTemplate, err := x509.ParseCertificate(sd.Bytes)
 	if err != nil {
 		return false, err
 	}
@@ -104,11 +138,6 @@ func VerifyIfSecondIsSignedByFirst(first, second []byte) (bool, error) {
 
 func getSubject() *pkix.Name {
 	return &pkix.Name{
-		Organization:  []string{"SAP, INC."},
-		Country:       []string{"US"},
-		Province:      []string{""},
-		Locality:      []string{"San Francisco"},
-		StreetAddress: []string{"Golden Gate Bridge"},
-		PostalCode:    []string{"94016"},
+		CommonName: "sap-btp-operator-webhook-service-ca",
 	}
 }
