@@ -34,3 +34,4 @@ Dockerfile.cross
 /module-chart/chart/manifest/
 /controllers/testdata/test-module-chart/
 /controllers/testdata/test-module-resources/
+/downloaded_module/
