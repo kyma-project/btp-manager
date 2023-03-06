@@ -278,29 +278,29 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("should regenerate CA and webhook certs", func() {
 				//fake data
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
-				newCaPrivateKeyStructured, err := reconciler.StructToByteArray(newCaPrivateKey)
+				newCaPrivateKeyStructured, err := reconciler.structToByteArray(newCaPrivateKey)
 				Expect(err).To(BeNil())
 
 				caSecret := getSecret(CaSecret)
 				orgCaSecret := caSecret
-				replaceSecretData(caSecret, reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), newCaCertificate, reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), newCaPrivateKeyStructured)
+				replaceSecretData(caSecret, reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), newCaCertificate, reconciler.buildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), newCaPrivateKeyStructured)
 				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 				time.Sleep(time.Second * 5)
 				updatedCaSecret := getSecret(CaSecret)
 
-				caCertificateAfterUpdate, ok := updatedCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+				caCertificateAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue())
 
-				caCertificateOriginal, ok := orgCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+				caCertificateOriginal, ok := orgCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeTrue())
 
-				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix)]
+				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeTrue())
 
-				caPrivateKeyOriginal, ok := orgCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix)]
+				caPrivateKeyOriginal, ok := orgCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeTrue())
 
@@ -320,32 +320,32 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				currentCa, err := reconciler.getDataFromSecret(ctx, CaSecret)
 				Expect(err).To(BeNil())
-				ca, err := reconciler.GetValueByKey(reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), currentCa)
+				ca, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), currentCa)
 				Expect(err).To(BeNil())
-				pk, err := reconciler.GetValueByKey(reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), currentCa)
+				pk, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), currentCa)
 				Expect(err).To(BeNil())
 				currentWebhookSecret := getSecret(WebhookSecret)
 				originalWebhookSecret := currentWebhookSecret
 
 				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), ca, pk)
 				Expect(err).To(BeNil())
-				newWebhookPrivateKeyStructured, err := reconciler.StructToByteArray(newWebhookPrivateKey)
+				newWebhookPrivateKeyStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
 				webhookCert := getSecret(CaSecret)
-				replaceSecretData(webhookCert, reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, RSAKeyPostfix), newWebhookPrivateKeyStructured)
+				replaceSecretData(webhookCert, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, RSAKeyPostfix), newWebhookPrivateKeyStructured)
 
-				originalWebhookCert, ok := originalWebhookSecret.Data[reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				originalWebhookCert, ok := originalWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(!bytes.Equal(originalWebhookCert, newWebhookCertificate))
 
 				currentWebhookSecret = getSecret(WebhookSecret)
-				currentWebhookCert, ok := currentWebhookSecret.Data[reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				currentWebhookCert, ok := currentWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(bytes.Equal(currentWebhookCert, newWebhookCertificate))
 
 				afterCaSecret := getSecret(CaSecret)
-				afterCaSecretCert, ok := afterCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
-				beforeCaSecretCert, ok := beforeCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+				afterCaSecretCert, ok := afterCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+				beforeCaSecretCert, ok := beforeCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(bytes.Equal(afterCaSecretCert, beforeCaSecretCert))
 				//t
 				ensureCorrectState()
@@ -364,26 +364,26 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(err).To(BeNil())
 
 				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), newCaCertificate, newCaPrivateKey)
-				newWebhookCertificateStructured, err := reconciler.StructToByteArray(newWebhookPrivateKey)
+				newWebhookCertificateStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
 				beforeCaSecret := getSecret(CaSecret)
 				beforeWebhookSecret := getSecret(WebhookSecret)
 
 				webhookCertSecret := getSecret(WebhookSecret)
-				replaceSecretData(webhookCertSecret, reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, RSAKeyPostfix), newWebhookCertificateStructured)
+				replaceSecretData(webhookCertSecret, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, RSAKeyPostfix), newWebhookCertificateStructured)
 				time.Sleep(time.Second * 5)
 				currentCaSecret := getSecret(CaSecret)
-				currentCaCert, ok := currentCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+				currentCaCert, ok := currentCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
-				beforeCaCert, ok := beforeCaSecret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+				beforeCaCert, ok := beforeCaSecret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(currentCaCert, beforeCaCert))
 
 				currentWebhookSecret := getSecret(WebhookSecret)
-				currentWebhookCert, ok := currentWebhookSecret.Data[reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				currentWebhookCert, ok := currentWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
-				beforeWebhookCert, ok := beforeWebhookSecret.Data[reconciler.BuildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				beforeWebhookCert, ok := beforeWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(currentWebhookCert, beforeWebhookCert))
 				Expect(!bytes.Equal(currentWebhookCert, newWebhookCertificate))
@@ -1256,7 +1256,7 @@ func checkHowManySecondsToExpiration(name string) float64 {
 	Expect(err).To(BeNil())
 	key, err := reconciler.mapSecretNameToSecretDataKey(name)
 	Expect(err).To(BeNil())
-	value, err := reconciler.GetValueByKey(reconciler.BuildKeyNameWithExtension(key, CertificatePostfix), data)
+	value, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(key, CertificatePostfix), data)
 	Expect(err).To(BeNil())
 	decoded, _ := pem.Decode(value)
 	cert, err := x509.ParseCertificate(decoded.Bytes)
@@ -1267,7 +1267,7 @@ func checkHowManySecondsToExpiration(name string) float64 {
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
 	secret := getSecret(CaSecret)
-	ca, ok := secret.Data[reconciler.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+	ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 	Expect(ok).To(BeTrue())
 	Expect(ca).To(Not(BeNil()))
 	vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
