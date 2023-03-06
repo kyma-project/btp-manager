@@ -21,11 +21,11 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/gob"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	utils "github.com/kyma-project/btp-manager/internal"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
@@ -66,7 +66,7 @@ var (
 	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Minute * 15
+	ReadyStateRequeueInterval      = time.Second * 15
 	ReadyTimeout                   = time.Minute * 1
 	ReadyCheckInterval             = time.Second * 2
 	HardDeleteTimeout              = time.Minute * 20
@@ -121,8 +121,8 @@ var (
 	CaSecret                     = "ca-server-cert"
 	WebhookSecret                = "webhook-server-cert"
 	CaCertificateExpiration      = time.Hour * 1
-	WebhookCertificateExpiration = time.Minute * 30
-	ExpirationBoundary           = time.Minute * -10
+	WebhookCertificateExpiration = time.Second * 30
+	ExpirationBoundary           = time.Second * -5
 	CASecretDataPrefix           = "ca"
 	WebhookSecretDataPrefix      = "tls"
 	CertificatePostfix           = "crt"
@@ -1373,12 +1373,12 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 			return []byte{}, nil, err
 		}
 
-		ca, err = utils.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), data)
+		ca, err = r.GetValueByKey(r.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix), data)
 		if err != nil {
 			return []byte{}, nil, err
 		}
 
-		caPk, err = utils.GetValueByKey(utils.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), data)
+		caPk, err = r.GetValueByKey(r.BuildKeyNameWithExtension(CASecretDataPrefix, RSAKeyPostfix), data)
 		if err != nil {
 			return []byte{}, nil, err
 		}
@@ -1393,15 +1393,11 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 }
 
 func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(cr *v1alpha1.BtpOperator, us *[]*unstructured.Unstructured, certName string, cert, pk []byte, prefix string) error {
-	err, data := r.mapCertToSecretData(cert, pk, utils.BuildKeyNameWithExtension(prefix, CertificatePostfix), utils.BuildKeyNameWithExtension(prefix, RSAKeyPostfix))
+	err, data := r.mapCertToSecretData(cert, pk, r.BuildKeyNameWithExtension(prefix, CertificatePostfix), r.BuildKeyNameWithExtension(prefix, RSAKeyPostfix))
 	if err != nil {
 		return err
 	}
-	secret := r.buildSecretWithData(certName, data)
-
-	/*if err := ctrl.SetControllerReference(cr, secret, r.Scheme); err != nil {
-		return err
-	}*/
+	secret := r.BuildSecretWithData(certName, data, map[string]string{managedByLabelKey: operatorName})
 
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
 	if err != nil {
@@ -1418,23 +1414,6 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(cert, privateKey []byte, key
 	}
 }
 
-func (r *BtpOperatorReconciler) buildSecretWithData(name string, data map[string][]byte) *corev1.Secret {
-	return &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: ChartNamespace,
-			Labels: map[string]string{
-				managedByLabelKey: operatorName,
-			},
-		},
-		Data: data,
-	}
-}
-
 func (r *BtpOperatorReconciler) reconcileWebhooks(cr *v1alpha1.BtpOperator, ctx context.Context, us *[]*unstructured.Unstructured, expectedCa []byte) error {
 	logger := log.FromContext(ctx)
 	logger.Info("starting reconcilation of webhooks")
@@ -1443,7 +1422,7 @@ func (r *BtpOperatorReconciler) reconcileWebhooks(cr *v1alpha1.BtpOperator, ctx 
 		if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecret}, s); err != nil {
 			return err
 		}
-		c, ok := s.Data[utils.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
+		c, ok := s.Data[r.BuildKeyNameWithExtension(CASecretDataPrefix, CertificatePostfix)]
 		if !ok {
 			return fmt.Errorf("!ok")
 		}
@@ -1568,7 +1547,7 @@ func (r *BtpOperatorReconciler) checkIfCertificateIsValid(ctx context.Context, s
 		return false, err
 	}
 
-	caCertificate, err := utils.GetValueByKey(utils.BuildKeyNameWithExtension(dataKey, CertificatePostfix), caSecretData)
+	caCertificate, err := r.GetValueByKey(r.BuildKeyNameWithExtension(dataKey, CertificatePostfix), caSecretData)
 	if err != nil {
 		return false, err
 	}
@@ -1600,7 +1579,7 @@ func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, se
 	if err != nil {
 		return []byte{}, err
 	}
-	cert, err := utils.GetValueByKey(utils.BuildKeyNameWithExtension(key, CertificatePostfix), data)
+	cert, err := r.GetValueByKey(r.BuildKeyNameWithExtension(key, CertificatePostfix), data)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -1615,5 +1594,46 @@ func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) 
 		return WebhookSecretDataPrefix, nil
 	default:
 		return "", fmt.Errorf("not found secret data key for secret name: %s", secretName)
+	}
+}
+
+func (r *BtpOperatorReconciler) BuildKeyNameWithExtension(filename, extension string) string {
+	return fmt.Sprintf("%s.%s", filename, extension)
+}
+
+func (r *BtpOperatorReconciler) StructToByteArray(s any) ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	err := encoder.Encode(s)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (r *BtpOperatorReconciler) GetValueByKey(key string, data map[string][]byte) ([]byte, error) {
+	value, ok := data[key]
+	if !ok {
+		return nil, fmt.Errorf("while getting data for key: %s", key)
+	}
+	if value == nil || bytes.Equal(value, []byte{}) {
+		return nil, fmt.Errorf("empty data for key: %s", key)
+	}
+	return value, nil
+}
+
+func (r *BtpOperatorReconciler) BuildSecretWithData(name string, data map[string][]byte, labels map[string]string) *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ChartNamespace,
+			Labels:    labels,
+		},
+		Data: data,
 	}
 }
