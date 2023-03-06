@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# This script has the following argument: a link to a module image, for example:
-# ./run_module_image.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.32
+# This script has the following argument: a link to a template file, for example:
+# ./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/download/0.2.3/template.yaml
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
