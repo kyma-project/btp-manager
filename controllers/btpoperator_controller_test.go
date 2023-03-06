@@ -413,12 +413,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				time.Sleep(time.Second * 10)
 				Expect(checkHowManySecondsToExpiration(WebhookSecret) <= 30).To(BeTrue())
 				setOrgTimes()
-				fmt.Println("Before fake reconcile")
 				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
 				}})
-				fmt.Println("After fake reconcile")
 				Expect(err).To(BeNil())
 				time.Sleep(time.Second * 5)
 				caSecretAfterExpiration := getSecret(CaSecret)
@@ -452,12 +450,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				time.Sleep(time.Second * 10)
 				Expect(checkHowManySecondsToExpiration(CaSecret) <= 30).To(BeTrue())
 				setOrgTimes()
-				fmt.Println("Before fake reconcile")
 				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
 				}})
-				fmt.Println("After fake reconcile")
 				Expect(err).To(BeNil())
 				time.Sleep(time.Second * 5)
 				caSecretAfterExpiration := getSecret(CaSecret)

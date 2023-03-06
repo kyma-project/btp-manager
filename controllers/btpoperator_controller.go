@@ -1266,8 +1266,15 @@ func (r *BtpOperatorReconciler) reconcileCertificates(cr *v1alpha1.BtpOperator, 
 	logger.Info("webhooks ca bundles are ok")
 
 	signOk, err := r.isWebhookSecretCertSignedByCaSecretCert(ctx)
-	if err != nil || !signOk {
+	if err != nil {
 		logger.Error(err, fmt.Sprintf("webhook cert is not signed by correct ca %s", err))
+		if _, err := r.doFullyCertificatesRegenerate(cr, ctx, resourcesToApply); err != nil {
+			return err
+		}
+		return nil
+	}
+	if !signOk {
+		logger.Error(nil, "sign is not ok")
 		if _, err := r.doFullyCertificatesRegenerate(cr, ctx, resourcesToApply); err != nil {
 			return err
 		}
