@@ -9,44 +9,42 @@ BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
-## Installation
-Use the following commands to run BTP Manager locally. All `make` commands refer to [Makefile](./Makefile) in the `operator` directory.
+## Local installation
+Use the following commands to run BTP Manager controller from your host. All `make` commands refer to [Makefile](./Makefile) in the `operator` directory.
 
 ```sh
 make install
 make run
 ```
 
-## Installation with btp-operator module image
+## Installation in your cluster
 
-Use the following command to download and run btp-manager from OCI Image.
+Below you can find two ways how to install BTP Manager in your cluster.
+
+### Installation with btp-operator module image
+Use the following command to download and install BTP manager from OCI Image in your cluster.
 
 ```shell
-./hack/run_module_image.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.32
+./hack/run_module_image.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.2.3
 ```
-> **NOTE:** Before using the script, you must install [skopeo](https://github.com/containers/skopeo) and [jq](https://github.com/stedolan/jq).
+> **NOTE:** Before using the script, you must install [helm](https://github.com/helm/helm#install), [skopeo](https://github.com/containers/skopeo) and [jq](https://github.com/stedolan/jq).
 
-## Installation with `template.yaml`
+### Installation with `template.yaml`
 
-To install btp-operator module using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command), use the following commands:
+To install BTP Manager using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command) in your cluster, use the following command:
 
-1. Download the template file, for example:
 ```shell
-wget https://github.com/kyma-project/btp-manager/releases/download/0.0.32/template.yaml
+./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/download/0.2.3/template.yaml
 ```
 
-2. Deploy the module:
+> **NOTE:** Before using the script, you must install [helm](https://github.com/helm/helm#install), [skopeo](https://github.com/containers/skopeo), [jq](https://github.com/stedolan/jq) and [yq](https://github.com/mikefarah/yq).
+
+### Uninstallation
+
+Use the following command to uninstall BTP Manager from your cluster.
 ```shell
-component_name=$(cat template.yaml | yq '.spec.descriptor.component.name')
-base_url=$(cat template.yaml | yq '.spec.descriptor.component.repositoryContexts[0].baseUrl')
-version=$(cat template.yaml | yq '.spec.descriptor.component.version')
-
-url="$base_url/component-descriptors/$component_name:$version"
-
-./hack/run_module_image.sh $url
+helm uninstall btp-manager -n kyma-system
 ```
-
-> **NOTE:** Before using the script, you must install [skopeo](https://github.com/containers/skopeo), [jq](https://github.com/stedolan/jq) and [yq](https://github.com/mikefarah/yq).
 
 ## Usage
 
