@@ -550,7 +550,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				certAfterEach()
 			})
 			It("should regenerate CA and webhook certs", func() {
-				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(time.Second * 100))
+				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				newCaPrivateKeyStructured, err := reconciler.structToByteArray(newCaPrivateKey)
 				Expect(err).To(BeNil())
 
@@ -599,7 +599,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				currentWebhookSecret := getSecret(WebhookSecret)
 				originalWebhookSecret := currentWebhookSecret
 
-				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(time.Second*100), ca, pk)
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), ca, pk)
 				Expect(err).To(BeNil())
 				newWebhookPrivateKeyStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
@@ -632,10 +632,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				certAfterEach()
 			})
 			It("CA and Webhook certificate is regenerated", func() {
-				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(time.Second * 100))
+				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
 
-				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(time.Second*100), newCaCertificate, newCaPrivateKey)
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), newCaCertificate, newCaPrivateKey)
 				newWebhookCertificateStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
@@ -750,7 +750,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				certAfterEach()
 			})
 			It("should be restored to existing CA", func() {
-				newCaCertificate, _, err := certs.GenerateSelfSignedCertificate(time.Now().Add(time.Second * 100))
+				newCaCertificate, _, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
 				updated := replaceCaBundleInMutatingWebhooks(newCaCertificate)
 				updated = !updated && replaceCaBundleInValidatingWebhooks(newCaCertificate)
