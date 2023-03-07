@@ -12,7 +12,7 @@ export KUBEBUILDER_ASSETS="$(${ENVTEST} use ${ENVTEST_K8S_VERSION} --bin-dir ${L
 export USE_EXISTING_CLUSTER=${USE_EXISTING_CLUSTER:="false"}
 
 # if you plan to debug or run on existing cluster increase the timeout (30 seconds should be ok)
-export SINGLE_TEST_TIMEOUT=${SINGLE_TEST_TIMEOUT:="5s"}
+export SINGLE_TEST_TIMEOUT=${SINGLE_TEST_TIMEOUT:="10s"}
 
 # if you plan to debug or run on existing cluster increase the timeout (180 seconds should be ok)
 export SUITE_TIMEOUT=${SUITE_TIMEOUT:=45s}
