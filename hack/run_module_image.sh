@@ -10,7 +10,7 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 echo -e "\n--- Downloading module image"
-rm -r downloaded_module
+rm -rf downloaded_module
 mkdir downloaded_module
 
 downloaded_dir=downloaded_module
