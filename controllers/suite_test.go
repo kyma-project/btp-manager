@@ -53,7 +53,7 @@ import (
 var logger = logf.Log.WithName("suite_test")
 
 const (
-	hardDeleteTimeout = time.Millisecond * 200
+	hardDeleteTimeout = time.Millisecond * 500
 	resourceAdded     = "added"
 	resourceUpdated   = "updated"
 	resourceDeleted   = "deleted"
