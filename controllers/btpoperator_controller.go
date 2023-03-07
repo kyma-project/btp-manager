@@ -1486,26 +1486,26 @@ func (r *BtpOperatorReconciler) reconcileCaBundle(u *unstructured.Unstructured, 
 
 	webhooksValue, ok := u.Object[WebhooksKey]
 	if !ok {
-		return fmt.Errorf("")
+		return fmt.Errorf("while geting webhooks in reconcileCaBundle")
 	}
 	webhooks, ok := webhooksValue.([]interface{})
 	if !ok {
-		return fmt.Errorf("")
+		return fmt.Errorf("while casting webhooks in reconcileCaBundle")
 	}
 	u.SetManagedFields(nil)
 
-	for i, v := range webhooks {
-		webhookAsMap, ok := v.(map[string]interface{})
+	for i, w := range webhooks {
+		webhookAsMap, ok := w.(map[string]interface{})
 		if !ok {
 			return fmt.Errorf("could not get webhookAsMap from unstructured")
 		}
 		clientConfigValue, ok := webhookAsMap[ClientConfigKey]
 		if !ok {
-			return fmt.Errorf("")
+			return fmt.Errorf("while geting client config in reconcileCaBundle")
 		}
 		clientConfigAsMap, ok := clientConfigValue.(map[string]interface{})
 		if !ok {
-			return fmt.Errorf("could not get clientConfig from unstructured")
+			return fmt.Errorf("while casting client config in reconcileCaBundle")
 		}
 		caBundleValue, _ := clientConfigAsMap[CaBundleKey]
 		caBundleBytes, err := json.Marshal(caBundleValue)
