@@ -17,6 +17,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 IMAGE_NAME=$1
 TARGET_DIRECTORY=${TARGET_DIRECTORY:=downloaded_module}
 CHART_DIRECTORY=${CHART_DIRECTORY:=chart}
+NAMESPACE=kyma-system
 
 # for local runs
 rm -rf ${TARGET_DIRECTORY}
@@ -40,8 +41,7 @@ echo -e "\n--- Extracting resources from file:" ${FILENAME}
 mkdir ${TARGET_DIRECTORY}/$CHART_DIRECTORY
 tar xzvf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
 
-echo -e "\n--- Installing BTP Manager"
+echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace"
 
 # install by helm
-
-helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n kyma-system --create-namespace
+helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n ${NAMESPACE} --create-namespace
