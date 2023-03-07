@@ -39,6 +39,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		Type:  "CERTIFICATE",
 		Bytes: newCertificate,
 	})
+
 	newCertificatePrivateKeyPem := new(bytes.Buffer)
 	pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
@@ -59,6 +60,7 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
+
 	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return []byte{}, nil, err
@@ -74,6 +76,7 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	if err != nil {
 		return []byte{}, nil, err
 	}
+
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, parsedSourceCertificate, &newCertificatePrivateKey.PublicKey, parsedSourcePrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
