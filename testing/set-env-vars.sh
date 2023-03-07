@@ -15,7 +15,7 @@ export USE_EXISTING_CLUSTER=${USE_EXISTING_CLUSTER:="false"}
 export SINGLE_TEST_TIMEOUT=${SINGLE_TEST_TIMEOUT:="10s"}
 
 # if you plan to debug or run on existing cluster increase the timeout (180 seconds should be ok)
-export SUITE_TIMEOUT=${SUITE_TIMEOUT:=45s}
+export SUITE_TIMEOUT=${SUITE_TIMEOUT:=60s}
 
 # setting verbose output for ginkgo
 # for very verbose set "ginkgo.vv"
