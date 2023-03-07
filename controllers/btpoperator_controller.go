@@ -1398,7 +1398,7 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 		}
 	}
 
-	cert, certPk, err := certs.GenerateSignedCert(expiration, ca, caPk)
+	cert, certPk, err := certs.GenerateSignedCertificate(expiration, ca, caPk)
 	if err != nil {
 		return []byte{}, nil, err
 	}
@@ -1552,7 +1552,7 @@ func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx cont
 		return false, err
 	}
 
-	ok, err := certs.VerifyIfSecondIsSignedByFirst(caCertificate, webhookCertificate)
+	ok, err := certs.VerifyIfSecondCertificateIsSignedByFirstCertificate(caCertificate, webhookCertificate)
 	if err != nil {
 		return false, err
 	}

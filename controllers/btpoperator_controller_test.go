@@ -597,7 +597,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				currentWebhookSecret := getSecret(WebhookSecret)
 				originalWebhookSecret := currentWebhookSecret
 
-				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), ca, pk)
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(time.Second*100), ca, pk)
 				Expect(err).To(BeNil())
 				newWebhookPrivateKeyStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
@@ -633,7 +633,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCert(time.Now().Add(time.Second * 100))
 				Expect(err).To(BeNil())
 
-				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCert(time.Now().Add(time.Second*100), newCaCertificate, newCaPrivateKey)
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(time.Second*100), newCaCertificate, newCaPrivateKey)
 				newWebhookCertificateStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 

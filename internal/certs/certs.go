@@ -29,27 +29,27 @@ func GenerateSelfSignedCert(expiration time.Time) ([]byte, []byte, error) {
 		return []byte{}, nil, err
 	}
 
-	caCert, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caPrivateKey.PublicKey, caPrivateKey)
+	caCertificate, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caPrivateKey.PublicKey, caPrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	caPEM := new(bytes.Buffer)
-	pem.Encode(caPEM, &pem.Block{
+	caCertificatePem := new(bytes.Buffer)
+	pem.Encode(caCertificatePem, &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: caCert,
+		Bytes: caCertificate,
 	})
-	caPrivateKeyPEM := new(bytes.Buffer)
-	pem.Encode(caPrivateKeyPEM, &pem.Block{
+	caPrivateKeyPem := new(bytes.Buffer)
+	pem.Encode(caPrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
 	})
 
-	return caPEM.Bytes(), caPrivateKeyPEM.Bytes(), nil
+	return caCertificatePem.Bytes(), caPrivateKeyPem.Bytes(), nil
 }
 
-func GenerateSignedCert(expiration time.Time, rootCert, rootPrivateKey []byte) ([]byte, []byte, error) {
-	certTemplate := &x509.Certificate{
+func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePrivateKey []byte) ([]byte, []byte, error) {
+	certificateTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
 		DNSNames:     getDns(),
 		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
@@ -59,75 +59,75 @@ func GenerateSignedCert(expiration time.Time, rootCert, rootPrivateKey []byte) (
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
-	certPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	certificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	decodedRootCertificate, _ := pem.Decode(rootCert)
-	structuredCaCert, err := x509.ParseCertificate(decodedRootCertificate.Bytes)
+	decodedSourceCertificate, _ := pem.Decode(sourceCertificate)
+	structuredCaCert, err := x509.ParseCertificate(decodedSourceCertificate.Bytes)
 	if err != nil {
 		return []byte{}, nil, err
 	}
-	decodedRootPrivateKey, _ := pem.Decode(rootPrivateKey)
-	parsedRootPrivateKey, err := x509.ParsePKCS1PrivateKey(decodedRootPrivateKey.Bytes)
+	decodedSourcePrivateKey, _ := pem.Decode(sourcePrivateKey)
+	parsedSourcePrivateKey, err := x509.ParsePKCS1PrivateKey(decodedSourcePrivateKey.Bytes)
 	if err != nil {
 		return []byte{}, nil, err
 	}
-	cert, err := x509.CreateCertificate(rand.Reader, certTemplate, structuredCaCert, &certPrivateKey.PublicKey, parsedRootPrivateKey)
+	certificate, err := x509.CreateCertificate(rand.Reader, certificateTemplate, structuredCaCert, &certificatePrivateKey.PublicKey, parsedSourcePrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	certPEM := new(bytes.Buffer)
-	pem.Encode(certPEM, &pem.Block{
+	certificatePem := new(bytes.Buffer)
+	pem.Encode(certificatePem, &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: cert,
+		Bytes: certificate,
 	})
 
-	certPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivKeyPEM, &pem.Block{
+	certificatePrivateKeyPem := new(bytes.Buffer)
+	pem.Encode(certificatePrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(certPrivateKey),
+		Bytes: x509.MarshalPKCS1PrivateKey(certificatePrivateKey),
 	})
 
-	return certPEM.Bytes(), certPrivKeyPEM.Bytes(), nil
+	return certificatePem.Bytes(), certificatePrivateKeyPem.Bytes(), nil
 }
 
-func VerifyIfSecondIsSignedByFirst(first, second []byte) (bool, error) {
-	firstCertDecoded, _ := pem.Decode(first)
-	secondCertDecoded, _ := pem.Decode(second)
+func VerifyIfSecondCertificateIsSignedByFirstCertificate(first, second []byte) (bool, error) {
+	firstCertificateDecoded, _ := pem.Decode(first)
+	secondCertificateDecoded, _ := pem.Decode(second)
 
-	firstTemplate, err := x509.ParseCertificate(firstCertDecoded.Bytes)
+	firstCertificateTemplate, err := x509.ParseCertificate(firstCertificateDecoded.Bytes)
 	if err != nil {
 		return false, err
 	}
-	if !firstTemplate.IsCA {
-		return false, fmt.Errorf("secret %s is not CA", "")
+	if !firstCertificateTemplate.IsCA {
+		return false, fmt.Errorf("certificate given as first is not CA")
 	}
 
 	roots := x509.NewCertPool()
-	firstPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: firstTemplate.Raw})
-	ok := roots.AppendCertsFromPEM(firstPem)
+	firstCertificatePem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: firstCertificateTemplate.Raw})
+	ok := roots.AppendCertsFromPEM(firstCertificatePem)
 	if !ok {
-		return false, fmt.Errorf("pem fail")
+		return false, fmt.Errorf("appending first pem to root fail")
 	}
 	verifyOpts := x509.VerifyOptions{
 		Roots: roots,
 	}
 
-	secondTemplate, err := x509.ParseCertificate(secondCertDecoded.Bytes)
+	secondCertificateTemplate, err := x509.ParseCertificate(secondCertificateDecoded.Bytes)
 	if err != nil {
 		return false, err
 	}
 
-	if secondTemplate.IsCA {
-		return false, fmt.Errorf("secret %s is CA", "")
+	if secondCertificateTemplate.IsCA {
+		return false, fmt.Errorf("certificate given as second is CA")
 	}
 
-	_, err = secondTemplate.Verify(verifyOpts)
+	_, err = secondCertificateTemplate.Verify(verifyOpts)
 	if err != nil {
-		return false, fmt.Errorf("verify error: %w", err)
+		return false, fmt.Errorf("verify of second certificate from first certificate error: %w", err)
 	}
 
 	return true, nil
