@@ -43,4 +43,6 @@ tar -xzf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTOR
 echo -e "\n--- Installing BTP Manager"
 
 # install by helm
-helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n kyma-system --create-namespace
+# TODO remove temporary code
+helm install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
+#helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n kyma-system --create-namespace

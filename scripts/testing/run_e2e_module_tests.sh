@@ -24,15 +24,16 @@ kubectl apply -f ./examples/btp-manager-secret.yaml || echo "ignoring failure du
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
-do echo "Waiting for deployment to be available"; sleep 5; done
+do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
 
-echo "Deployment available"
+echo -e "\n---Deployment available"
 
-echo "Uninstalling..."
-
-# uninstall btp-manager
 #TODO remove this temporary code
 helm list -a
+
+echo -e "\n---Uninstalling..."
+
+# uninstall btp-manager
 
 helm uninstall btp-manager
 
