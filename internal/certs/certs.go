@@ -8,7 +8,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	"net"
 	"time"
 )
 
@@ -53,10 +52,8 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
 		DNSNames:     getDns(),
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		NotBefore:    time.Now(),
 		NotAfter:     expiration,
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
