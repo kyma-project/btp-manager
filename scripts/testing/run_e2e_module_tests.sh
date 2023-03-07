@@ -31,6 +31,9 @@ echo "Deployment available"
 echo "Uninstalling..."
 
 # uninstall btp-manager
+#TODO remove this temporary code
+helm list -a
+
 helm uninstall btp-manager
 
 #clean up and ignore errors
