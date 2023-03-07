@@ -13,7 +13,7 @@ import (
 )
 
 func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error) {
-	caTemplate := &x509.Certificate{
+	newCertificateTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(2019),
 		DNSNames:              getDns(),
 		NotBefore:             time.Now(),
@@ -24,32 +24,32 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		BasicConstraintsValid: true,
 	}
 
-	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	caCertificate, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caPrivateKey.PublicKey, caPrivateKey)
+	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, newCertificateTemplate, &newCertificatePrivateKey.PublicKey, newCertificatePrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	caCertificatePem := new(bytes.Buffer)
-	pem.Encode(caCertificatePem, &pem.Block{
+	newCertificatePem := new(bytes.Buffer)
+	pem.Encode(newCertificatePem, &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: caCertificate,
+		Bytes: newCertificate,
 	})
-	caPrivateKeyPem := new(bytes.Buffer)
-	pem.Encode(caPrivateKeyPem, &pem.Block{
+	newCertificatePrivateKeyPem := new(bytes.Buffer)
+	pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
+		Bytes: x509.MarshalPKCS1PrivateKey(newCertificatePrivateKey),
 	})
 
-	return caCertificatePem.Bytes(), caPrivateKeyPem.Bytes(), nil
+	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
 
 func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePrivateKey []byte) ([]byte, []byte, error) {
-	certificateTemplate := &x509.Certificate{
+	newCertificateTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
 		DNSNames:     getDns(),
 		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
@@ -59,13 +59,13 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
-	certificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
 	decodedSourceCertificate, _ := pem.Decode(sourceCertificate)
-	structuredCaCert, err := x509.ParseCertificate(decodedSourceCertificate.Bytes)
+	parsedSourceCertificate, err := x509.ParseCertificate(decodedSourceCertificate.Bytes)
 	if err != nil {
 		return []byte{}, nil, err
 	}
@@ -74,24 +74,24 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	if err != nil {
 		return []byte{}, nil, err
 	}
-	certificate, err := x509.CreateCertificate(rand.Reader, certificateTemplate, structuredCaCert, &certificatePrivateKey.PublicKey, parsedSourcePrivateKey)
+	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, parsedSourceCertificate, &newCertificatePrivateKey.PublicKey, parsedSourcePrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
 	}
 
-	certificatePem := new(bytes.Buffer)
-	pem.Encode(certificatePem, &pem.Block{
+	newCertificatePem := new(bytes.Buffer)
+	pem.Encode(newCertificatePem, &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: certificate,
+		Bytes: newCertificate,
 	})
 
-	certificatePrivateKeyPem := new(bytes.Buffer)
-	pem.Encode(certificatePrivateKeyPem, &pem.Block{
+	newCertificatePrivateKeyPem := new(bytes.Buffer)
+	pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(certificatePrivateKey),
+		Bytes: x509.MarshalPKCS1PrivateKey(newCertificatePrivateKey),
 	})
 
-	return certificatePem.Bytes(), certificatePrivateKeyPem.Bytes(), nil
+	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
 
 func VerifyIfSecondCertificateIsSignedByFirstCertificate(firstCertificate, secondCertificate []byte) (bool, error) {
