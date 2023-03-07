@@ -110,8 +110,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
-		os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
-
 		err := createPrereqs()
 		Expect(err).To(BeNil())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
@@ -129,7 +127,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		ctx = context.Background()
 	})
 
-	Describe("Provisioning", Pending, func() {
+	Describe("Provisioning", func() {
 
 		BeforeEach(func() {
 			cr = createBtpOperator()
@@ -194,6 +192,281 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 
+	Describe("Configurability", func() {
+		Context("When the ConfigMap is present", func() {
+			It("should adjust configuration settings in the operator accordingly", func() {
+				cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
+				reconciler.reconcileConfig(cm)
+				Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
+			})
+		})
+	})
+
+	Describe("Deprovisioning", func() {
+		var siUnstructured, sbUnstructured *unstructured.Unstructured
+
+		BeforeEach(func() {
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			btpServiceOperatorDeployment := &appsv1.Deployment{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
+
+			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
+			ensureResourceExists(instanceGvk)
+
+			sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
+			ensureResourceExists(bindingGvk)
+		})
+
+		AfterEach(func() {
+			deleteSecret := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+		})
+
+		It("soft delete (after timeout) should succeed", func() {
+			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
+			setFinalizers(siUnstructured)
+			setFinalizers(sbUnstructured)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			doChecks()
+		})
+
+		It("soft delete (after hard deletion fail) should succeed", func() {
+			reconciler.Client = newErrorK8sClient(reconciler.Client)
+			setFinalizers(siUnstructured)
+			setFinalizers(sbUnstructured)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			doChecks()
+		})
+
+		It("hard delete should succeed", func() {
+			reconciler.Client = k8sClientFromManager
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			doChecks()
+		})
+	})
+
+	Describe("Update", func() {
+		var initChartVersion string
+		var manifestHandler *manifest.Handler
+		var initApplyObjs []runtime.Object
+		var gvks []schema.GroupVersionKind
+		var initResourcesNum int
+		var actualWorkqueueSize func() int
+		var err error
+
+		BeforeAll(func() {
+			err := createPrereqs()
+			Expect(err).To(BeNil())
+
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+
+			manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
+			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
+		})
+
+		AfterAll(func() {
+			err := os.RemoveAll(chartUpdatePath)
+			Expect(err).To(BeNil())
+			err = os.RemoveAll(resourcesUpdatePath)
+			Expect(err).To(BeNil())
+
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
+		})
+
+		BeforeEach(func() {
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+
+			initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+			Expect(err).To(BeNil())
+			_ = initChartVersion
+
+			initApplyObjs, err = manifestHandler.CollectObjectsFromDir(getApplyPath())
+			Expect(err).To(BeNil())
+
+			gvks = getUniqueGvksFromObjects(initApplyObjs)
+
+			initResourcesNum, err = countResourcesForGivenChartVer(gvks, initChartVersion)
+			Expect(err).To(BeNil())
+
+			copyDirRecursively(ChartPath, chartUpdatePath)
+			copyDirRecursively(ResourcesPath, resourcesUpdatePath)
+			ChartPath = chartUpdatePath
+			ResourcesPath = resourcesUpdatePath
+		})
+
+		AfterEach(func() {
+			cr = &v1alpha1.BtpOperator{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			Expect(isCrNotFound()).To(BeTrue())
+
+			err := os.RemoveAll(chartUpdatePath)
+			Expect(err).To(BeNil())
+			err = os.RemoveAll(resourcesUpdatePath)
+			Expect(err).To(BeNil())
+
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
+		})
+
+		When("update all resources names and bump chart version", Label("test-update"), func() {
+			It("new resources (with new names) should be created and old ones removed", func() {
+				err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(getApplyPath(), getToDeleteYamlPath())
+				Expect(err).To(BeNil())
+
+				err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
+				Expect(err).To(BeNil())
+
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
+			})
+		})
+
+		When("update some resources names and bump chart version", Label("test-update"), func() {
+			It("all applied resources should receive new chart version, resources with new names should replace the ones with old names", func() {
+				updateManifestsNum := 3
+				err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, getApplyPath(), getTempPath())
+				Expect(err).To(BeNil())
+
+				oldObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
+				Expect(err).To(BeNil())
+				oldUns, err := manifestHandler.ObjectsToUnstructured(oldObjs)
+				Expect(err).To(BeNil())
+
+				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
+				Expect(err).To(BeNil())
+
+				err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix)
+				Expect(err).To(BeNil())
+
+				err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
+				Expect(err).To(BeNil())
+
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
+				assertResourcesRemoval(oldUns...)
+			})
+		})
+
+		When("remove some manifests and bump chart version", Label("test-update"), func() {
+			It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
+				allManifests, err := manifestHandler.GetManifestsFromDir(getApplyPath())
+				Expect(err).To(BeNil())
+				err = moveOrCopyNFilesFromDirToDir(len(allManifests), true, getApplyPath(), getTempPath())
+				Expect(err).To(BeNil())
+
+				remainingManifestsNum := 4
+				err = moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, getTempPath(), getApplyPath())
+				Expect(err).To(BeNil())
+
+				expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
+				Expect(err).To(BeNil())
+				unexpectedUns, err := manifestHandler.ObjectsToUnstructured(expectedDeleteObjs)
+				Expect(err).To(BeNil())
+
+				expectedApplyObjs, err := manifestHandler.CollectObjectsFromDir(getApplyPath())
+				Expect(err).To(BeNil())
+				expectedUns, err := manifestHandler.ObjectsToUnstructured(expectedApplyObjs)
+				Expect(err).To(BeNil())
+
+				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
+				Expect(err).To(BeNil())
+
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfOldResources).To(Equal(0))
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfNewResources).To(Equal(len(expectedApplyObjs)))
+				assertResourcesExistence(expectedUns...)
+				assertResourcesRemoval(unexpectedUns...)
+			})
+		})
+
+		When("bump chart version only", Label("test-update"), func() {
+			It("resources should stay and receive new chart version", func() {
+				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+				Expect(err).To(BeNil())
+
+				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+
+				actualNumOfResourcesWithOldChartVer, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfResourcesWithOldChartVer).To(Equal(0))
+				actualNumOfResourcesWithNewChartVer, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				Expect(actualNumOfResourcesWithNewChartVer).To(Equal(initResourcesNum))
+			})
+		})
+	})
+
 	Describe("Certification management", func() {
 		orgCaCertificateExpiration := CaCertificateExpiration
 		orgWebhookCertExpiration := WebhookCertificateExpiration
@@ -202,19 +475,30 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 		BeforeAll(func() {
 
-			err := createPrereqs()
+			/*err := createPrereqs()
 			Expect(err).To(BeNil())
 
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
-			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())*/
+
+			Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
+			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
+
+			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
+			Expect(createChartOrResourcesCopyWithoutWebhooks("/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/module-chart/chart", defaultChartPath)).To(Succeed())
+			Expect(createChartOrResourcesCopyWithoutWebhooks("/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/module-resources", defaultResourcesPath)).To(Succeed())
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
 
 			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
 		})
 
-		AfterAll(func() {
+		/*AfterAll(func() {
 			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "false")
-		})
+			Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
+			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
+		})*/
 
 		setOrgTimes := func() {
 			CaCertificateExpiration = orgCaCertificateExpiration
@@ -500,280 +784,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	})
 
-	Describe("Configurability", Pending, func() {
-		Context("When the ConfigMap is present", func() {
-			It("should adjust configuration settings in the operator accordingly", func() {
-				cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
-				reconciler.reconcileConfig(cm)
-				Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
-			})
-		})
-	})
-
-	Describe("Deprovisioning", Pending, func() {
-		var siUnstructured, sbUnstructured *unstructured.Unstructured
-
-		BeforeEach(func() {
-			secret, err := createCorrectSecretFromYaml()
-			Expect(err).To(BeNil())
-			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-			cr = createBtpOperator()
-			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
-			btpServiceOperatorDeployment := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
-
-			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
-			ensureResourceExists(instanceGvk)
-
-			sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
-			ensureResourceExists(bindingGvk)
-		})
-
-		AfterEach(func() {
-			deleteSecret := &corev1.Secret{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
-		})
-
-		It("soft delete (after timeout) should succeed", func() {
-			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
-			setFinalizers(siUnstructured)
-			setFinalizers(sbUnstructured)
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
-			Eventually(updateCh).Should(Receive(matchDeleted()))
-			doChecks()
-		})
-
-		It("soft delete (after hard deletion fail) should succeed", func() {
-			reconciler.Client = newErrorK8sClient(reconciler.Client)
-			setFinalizers(siUnstructured)
-			setFinalizers(sbUnstructured)
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, SoftDeleting)))
-			Eventually(updateCh).Should(Receive(matchDeleted()))
-			doChecks()
-		})
-
-		It("hard delete should succeed", func() {
-			reconciler.Client = k8sClientFromManager
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, HardDeleting)))
-			Eventually(updateCh).Should(Receive(matchDeleted()))
-			doChecks()
-		})
-	})
-
-	Describe("Update", Pending, func() {
-		var initChartVersion string
-		var manifestHandler *manifest.Handler
-		var initApplyObjs []runtime.Object
-		var gvks []schema.GroupVersionKind
-		var initResourcesNum int
-		var actualWorkqueueSize func() int
-		var err error
-
-		BeforeAll(func() {
-			err := createPrereqs()
-			Expect(err).To(BeNil())
-
-			secret, err := createCorrectSecretFromYaml()
-			Expect(err).To(BeNil())
-			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-
-			manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
-			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
-		})
-
-		AfterAll(func() {
-			err := os.RemoveAll(chartUpdatePath)
-			Expect(err).To(BeNil())
-			err = os.RemoveAll(resourcesUpdatePath)
-			Expect(err).To(BeNil())
-
-			ChartPath = defaultChartPath
-			ResourcesPath = defaultResourcesPath
-		})
-
-		BeforeEach(func() {
-			cr = createBtpOperator()
-			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
-			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
-
-			initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
-			Expect(err).To(BeNil())
-			_ = initChartVersion
-
-			initApplyObjs, err = manifestHandler.CollectObjectsFromDir(getApplyPath())
-			Expect(err).To(BeNil())
-
-			gvks = getUniqueGvksFromObjects(initApplyObjs)
-
-			initResourcesNum, err = countResourcesForGivenChartVer(gvks, initChartVersion)
-			Expect(err).To(BeNil())
-
-			copyDirRecursively(ChartPath, chartUpdatePath)
-			copyDirRecursively(ResourcesPath, resourcesUpdatePath)
-			ChartPath = chartUpdatePath
-			ResourcesPath = resourcesUpdatePath
-		})
-
-		AfterEach(func() {
-			cr = &v1alpha1.BtpOperator{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
-			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
-			Eventually(updateCh).Should(Receive(matchDeleted()))
-			Expect(isCrNotFound()).To(BeTrue())
-
-			err := os.RemoveAll(chartUpdatePath)
-			Expect(err).To(BeNil())
-			err = os.RemoveAll(resourcesUpdatePath)
-			Expect(err).To(BeNil())
-
-			ChartPath = defaultChartPath
-			ResourcesPath = defaultResourcesPath
-		})
-
-		When("update all resources names and bump chart version", Label("test-update"), func() {
-			It("new resources (with new names) should be created and old ones removed", func() {
-				err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(getApplyPath(), getToDeleteYamlPath())
-				Expect(err).To(BeNil())
-
-				err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
-				Expect(err).To(BeNil())
-
-				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-				Expect(err).To(BeNil())
-
-				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-					Namespace: cr.Namespace,
-					Name:      cr.Name,
-				}})
-				Expect(err).To(BeNil())
-
-				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfOldResources).To(Equal(0))
-				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
-			})
-		})
-
-		When("update some resources names and bump chart version", Label("test-update"), func() {
-			It("all applied resources should receive new chart version, resources with new names should replace the ones with old names", func() {
-				updateManifestsNum := 3
-				err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, getApplyPath(), getTempPath())
-				Expect(err).To(BeNil())
-
-				oldObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
-				Expect(err).To(BeNil())
-				oldUns, err := manifestHandler.ObjectsToUnstructured(oldObjs)
-				Expect(err).To(BeNil())
-
-				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
-				Expect(err).To(BeNil())
-
-				err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix)
-				Expect(err).To(BeNil())
-
-				err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
-				Expect(err).To(BeNil())
-
-				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-				Expect(err).To(BeNil())
-
-				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-					Namespace: cr.Namespace,
-					Name:      cr.Name,
-				}})
-				Expect(err).To(BeNil())
-
-				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfOldResources).To(Equal(0))
-				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
-				assertResourcesRemoval(oldUns...)
-			})
-		})
-
-		When("remove some manifests and bump chart version", Label("test-update"), func() {
-			It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
-				allManifests, err := manifestHandler.GetManifestsFromDir(getApplyPath())
-				Expect(err).To(BeNil())
-				err = moveOrCopyNFilesFromDirToDir(len(allManifests), true, getApplyPath(), getTempPath())
-				Expect(err).To(BeNil())
-
-				remainingManifestsNum := 4
-				err = moveOrCopyNFilesFromDirToDir(remainingManifestsNum, true, getTempPath(), getApplyPath())
-				Expect(err).To(BeNil())
-
-				expectedDeleteObjs, err := manifestHandler.CollectObjectsFromDir(getTempPath())
-				Expect(err).To(BeNil())
-				unexpectedUns, err := manifestHandler.ObjectsToUnstructured(expectedDeleteObjs)
-				Expect(err).To(BeNil())
-
-				expectedApplyObjs, err := manifestHandler.CollectObjectsFromDir(getApplyPath())
-				Expect(err).To(BeNil())
-				expectedUns, err := manifestHandler.ObjectsToUnstructured(expectedApplyObjs)
-				Expect(err).To(BeNil())
-
-				err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
-				Expect(err).To(BeNil())
-
-				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-				Expect(err).To(BeNil())
-
-				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-					Namespace: cr.Namespace,
-					Name:      cr.Name,
-				}})
-				Expect(err).To(BeNil())
-
-				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfOldResources).To(Equal(0))
-				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfNewResources).To(Equal(len(expectedApplyObjs)))
-				assertResourcesExistence(expectedUns...)
-				assertResourcesRemoval(unexpectedUns...)
-			})
-		})
-
-		When("bump chart version only", Label("test-update"), func() {
-			It("resources should stay and receive new chart version", func() {
-				err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
-				Expect(err).To(BeNil())
-
-				Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
-				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-					Namespace: cr.Namespace,
-					Name:      cr.Name,
-				}})
-				Expect(err).To(BeNil())
-
-				actualNumOfResourcesWithOldChartVer, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfResourcesWithOldChartVer).To(Equal(0))
-				actualNumOfResourcesWithNewChartVer, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-				Expect(err).To(BeNil())
-				Expect(actualNumOfResourcesWithNewChartVer).To(Equal(initResourcesNum))
-			})
-		})
-	})
 })
 
 func getApplyPath() string {

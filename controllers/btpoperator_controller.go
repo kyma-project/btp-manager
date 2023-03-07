@@ -71,8 +71,10 @@ var (
 	ReadyCheckInterval             = time.Second * 2
 	HardDeleteTimeout              = time.Minute * 20
 	ChartPath                      = "./module-chart/chart"
+	ChartPathO                     = "../../module-chart/chart"
 	HardDeleteCheckInterval        = time.Second * 10
 	ResourcesPath                  = "./module-resources"
+	ResourcesPathO                 = "../../module-resources"
 )
 
 const (
@@ -1365,16 +1367,16 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 
 func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, CA, CAPrivateKey []byte) error {
 	logger := log.FromContext(ctx)
-	logger.Info("generation of signed cert started")
-	cert, certPk, err := r.generateSignedCert(ctx, time.Now().Add(WebhookCertificateExpiration), CA, CAPrivateKey)
+	logger.Info("generation of signed webhookCertificate started")
+	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().Add(WebhookCertificateExpiration), CA, CAPrivateKey)
 	if err != nil {
-		return fmt.Errorf("while generating signed cert: %w", err)
+		return fmt.Errorf("while generating signed webhookCertificate: %w", err)
 	}
-	err = r.appendCertificationDataToUnstructured(resourcesToApply, WebhookSecret, cert, certPk, WebhookSecretDataPrefix)
+	err = r.appendCertificationDataToUnstructured(resourcesToApply, WebhookSecret, webhookCertificate, webhookPrivateKey, WebhookSecretDataPrefix)
 	if err != nil {
-		return fmt.Errorf("while adding newly generated signed cert to resoruces to apply: %w", err)
+		return fmt.Errorf("while adding newly generated signed webhookCertificate to resoruces to apply: %w", err)
 	}
-	logger.Info("generation of signed cert ok")
+	logger.Info("generation of signed webhookCertificate ok")
 	return nil
 }
 
