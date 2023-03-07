@@ -19,7 +19,7 @@ LOCAL_REGISTRY=${LOCAL_REGISTRY:-localhost:5001}
 #registry access from k3d cluster
 K3D_REGISTRY=${K3D_REGISTRY:-k3d-kyma-registry:5000}
 
-PR_NAME=${PR_NAME:-PR-176}
+PR_NAME=${PR_NAME:-PR-undefined}
 IMG_NAME=btp-manager:${PR_NAME}
 
 MODULE_PREFIX=${MODULE_PREFIX:-0.0.0}
