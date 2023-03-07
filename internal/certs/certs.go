@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func GenerateSelfSignedCert(expiration time.Time) ([]byte, []byte, error) {
+func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error) {
 	caTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(2019),
 		DNSNames:              getDns(),
@@ -94,9 +94,9 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	return certificatePem.Bytes(), certificatePrivateKeyPem.Bytes(), nil
 }
 
-func VerifyIfSecondCertificateIsSignedByFirstCertificate(first, second []byte) (bool, error) {
-	firstCertificateDecoded, _ := pem.Decode(first)
-	secondCertificateDecoded, _ := pem.Decode(second)
+func VerifyIfSecondCertificateIsSignedByFirstCertificate(firstCertificate, secondCertificate []byte) (bool, error) {
+	firstCertificateDecoded, _ := pem.Decode(firstCertificate)
+	secondCertificateDecoded, _ := pem.Decode(secondCertificate)
 
 	firstCertificateTemplate, err := x509.ParseCertificate(firstCertificateDecoded.Bytes)
 	if err != nil {

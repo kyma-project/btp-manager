@@ -1353,7 +1353,7 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegenerate(ctx context.Cont
 func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, []byte, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("generation of self signed cert started")
-	ca, caPk, err := certs.GenerateSelfSignedCert(time.Now().Add(CaCertificateExpiration))
+	ca, caPk, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
