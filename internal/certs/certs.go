@@ -116,7 +116,6 @@ func VerifyIfSecondIsSignedByFirst(first, second []byte) (bool, error) {
 		Roots: roots,
 	}
 
-	fmt.Errorf("Aaaa")
 	secondTemplate, err := x509.ParseCertificate(secondCertDecoded.Bytes)
 	if err != nil {
 		return false, err
