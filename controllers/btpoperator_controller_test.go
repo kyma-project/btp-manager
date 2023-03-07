@@ -57,6 +57,7 @@ const (
 	defaultChartPath      = "./testdata/test-module-chart"
 	newChartVersion       = "9.9.9"
 	defaultResourcesPath  = "./testdata/test-module-resources"
+	testRsaKeyBits        = 512
 )
 
 type certificationsTimeOpts struct {
@@ -110,6 +111,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
+		certs.SetRsaKeyBits(testRsaKeyBits)
 		err := createPrereqs()
 		Expect(err).To(BeNil())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())

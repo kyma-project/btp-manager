@@ -29,6 +29,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/certs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1177,6 +1178,10 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			WebhookCertificateExpiration, err = time.ParseDuration(v)
 		case "ExpirationBoundary":
 			ExpirationBoundary, err = time.ParseDuration(v)
+		case "rsaKeyBits":
+			var bits int
+			bits, err = strconv.Atoi(v)
+			certs.SetRsaKeyBits(bits)
 		default:
 			logger.Info("unknown config update key", k, v)
 		}

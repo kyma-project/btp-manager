@@ -7,11 +7,31 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"math/big"
+	mathrand "math/rand"
 	"time"
 )
 
+var (
+	rsaKeyBits = 512
+	randMax    = 10000
+)
+
+func RsaKeyBits() int {
+	return rsaKeyBits
+}
+
+func SetRsaKeyBits(newValue int) {
+	rsaKeyBits = newValue
+}
+
+func getRandomInt() *big.Int {
+	return big.NewInt(int64(mathrand.Intn(randMax)))
+}
+
 func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error) {
 	newCertificateTemplate := &x509.Certificate{
+		SerialNumber:          getRandomInt(),
 		DNSNames:              getDns(),
 		NotBefore:             time.Now(),
 		NotAfter:              expiration,
@@ -21,7 +41,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		BasicConstraintsValid: true,
 	}
 
-	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 512)
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
 	if err != nil {
 		return []byte{}, nil, err
 	}
@@ -48,14 +68,15 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 
 func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePrivateKey []byte) ([]byte, []byte, error) {
 	newCertificateTemplate := &x509.Certificate{
-		DNSNames:    getDns(),
-		NotBefore:   time.Now(),
-		NotAfter:    expiration,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:    x509.KeyUsageDigitalSignature,
+		SerialNumber: getRandomInt(),
+		DNSNames:     getDns(),
+		NotBefore:    time.Now(),
+		NotAfter:     expiration,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
 
-	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 512)
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
 	if err != nil {
 		return []byte{}, nil, err
 	}
