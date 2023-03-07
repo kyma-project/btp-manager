@@ -15,9 +15,9 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 IMAGE_NAME=$1
-TARGET_DIRECTORY=${TARGET_DIRECTORY:=downloaded_module}
-CHART_DIRECTORY=${CHART_DIRECTORY:=chart}
-NAMESPACE=kyma-system
+TARGET_DIRECTORY=${TARGET_DIRECTORY:-downloaded_module}
+CHART_DIRECTORY=${CHART_DIRECTORY:-chart}
+NAMESPACE=${NAMESPACE:-kyma-system}
 
 # for local runs
 rm -rf ${TARGET_DIRECTORY}
