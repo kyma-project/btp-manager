@@ -1456,19 +1456,19 @@ func (r *BtpOperatorReconciler) reconcileWebhooks(ctx context.Context, us *[]*un
 		switch kind := u.GetKind(); kind {
 		case MutatingWebhookConfiguration:
 			{
-				aa, err := r.reconcileWebhook(ctx, u, expectedCa, MutatingWebhookConfiguration)
+				err := r.reconcileWebhook(ctx, &u, expectedCa, MutatingWebhookConfiguration)
 				if err != nil {
 					return err
 				}
-				(*us)[i] = aa
+				(*us)[i] = u
 			}
 		case ValidatingWebhookConfiguration:
 			{
-				aa, err := r.reconcileWebhook(ctx, u, expectedCa, ValidatingWebhookConfiguration)
+				err := r.reconcileWebhook(ctx, &u, expectedCa, ValidatingWebhookConfiguration)
 				if err != nil {
 					return err
 				}
-				(*us)[i] = aa
+				(*us)[i] = u
 			}
 		default:
 		}
@@ -1477,14 +1477,14 @@ func (r *BtpOperatorReconciler) reconcileWebhooks(ctx context.Context, us *[]*un
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileCaBundle(u *unstructured.Unstructured, expectedCaBundle []byte) error {
+func (r *BtpOperatorReconciler) reconcileCaBundle(u **unstructured.Unstructured, expectedCaBundle []byte) error {
 	const (
 		WebhooksKey     = "webhooks"
 		ClientConfigKey = "clientConfig"
 		CaBundleKey     = "caBundle"
 	)
 
-	webhooksValue, ok := u.Object[WebhooksKey]
+	webhooksValue, ok := (*u).Object[WebhooksKey]
 	if !ok {
 		return fmt.Errorf("while geting webhooks in reconcileCaBundle")
 	}
@@ -1492,7 +1492,7 @@ func (r *BtpOperatorReconciler) reconcileCaBundle(u *unstructured.Unstructured, 
 	if !ok {
 		return fmt.Errorf("while casting webhooks in reconcileCaBundle")
 	}
-	u.SetManagedFields(nil)
+	(*u).SetManagedFields(nil)
 
 	for i, w := range webhooks {
 		webhookAsMap, ok := w.(map[string]interface{})
@@ -1519,35 +1519,30 @@ func (r *BtpOperatorReconciler) reconcileCaBundle(u *unstructured.Unstructured, 
 		}
 	}
 
-	u.Object[WebhooksKey] = webhooks
+	(*u).Object[WebhooksKey] = webhooks
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, u *unstructured.Unstructured, expectedCa []byte, kind string) (*unstructured.Unstructured, error) {
+func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, u **unstructured.Unstructured, expectedCa []byte, kind string) error {
 	utemp := &unstructured.Unstructured{}
 	utemp.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "admissionregistration.k8s.io",
 		Version: "v1",
 		Kind:    kind,
 	})
-	err := r.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, utemp)
+	err := r.Get(ctx, client.ObjectKey{Name: (*u).GetName(), Namespace: (*u).GetNamespace()}, utemp)
 	notFound := k8serrors.IsNotFound(err)
 	if err != nil && !notFound {
-		return nil, err
+		return err
 	}
 	if !notFound {
-		err = r.reconcileCaBundle(utemp, expectedCa)
-		if err != nil {
-			return nil, err
-		}
-		return utemp, err
-	} else {
-		err = r.reconcileCaBundle(u, expectedCa)
-		if err != nil {
-			return nil, err
-		}
-		return u, err
+		*u = utemp
 	}
+	err = r.reconcileCaBundle(u, expectedCa)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
