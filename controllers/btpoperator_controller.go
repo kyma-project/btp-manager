@@ -269,7 +269,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(cr, ctx, secret); err != nil {
+	if err := r.reconcileResources(ctx, secret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, err.Error())
 	}
 
@@ -397,7 +397,7 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileResources(cr *v1alpha1.BtpOperator, ctx context.Context, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to apply")
@@ -409,7 +409,7 @@ func (r *BtpOperatorReconciler) reconcileResources(cr *v1alpha1.BtpOperator, ctx
 	logger.Info(fmt.Sprintf("got %d module resources to apply", len(resourcesToApply)))
 
 	logger.Info("preparing module resources to apply")
-	if err = r.prepareModuleResources(cr, ctx, &resourcesToApply, s); err != nil {
+	if err = r.prepareModuleResources(ctx, &resourcesToApply, s); err != nil {
 		logger.Error(err, "while preparing objects to apply")
 		return fmt.Errorf("Failed to prepare objects to apply: %w", err)
 	}
@@ -433,7 +433,7 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
 }
 
-func (r *BtpOperatorReconciler) prepareModuleResources(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	var configMapIndex, secretIndex int
@@ -464,12 +464,10 @@ func (r *BtpOperatorReconciler) prepareModuleResources(cr *v1alpha1.BtpOperator,
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
 
-	now := time.Now()
-	if err := r.reconcileCertificates(cr, ctx, resourcesToApply); err != nil {
+	if err := r.reconcileCertificates(ctx, resourcesToApply); err != nil {
 		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
 	}
-	a := time.Since(now)
-	fmt.Println(fmt.Printf("Reconcilation took : %f", a.Seconds()))
+
 	return nil
 }
 
@@ -1004,7 +1002,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ReconcileFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(cr, ctx, secret); err != nil {
+	if err := r.reconcileResources(ctx, secret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ReconcileFailed, err.Error())
 	}
 
@@ -1228,7 +1226,7 @@ func (r *BtpOperatorReconciler) watchWebhooksPredicates() predicate.Funcs {
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileCertificates(cr *v1alpha1.BtpOperator, ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("checking certifications started")
 
@@ -1326,25 +1324,20 @@ func (r *BtpOperatorReconciler) doFullyCertificatesRegenerate(ctx context.Contex
 	logger := log.FromContext(ctx)
 	logger.Info("full regeneration started")
 
-	t1 := time.Now()
 	ca, caPk, err := r.generateSelfSignedCertAndAddToApplyList(ctx, resourcesToApply)
 	if err != nil {
 		return fmt.Errorf("error while generating self signed cert in full regeneration proccess. %w", err)
 	}
-	fmt.Println(fmt.Sprintf("took1: %f", time.Since(t1).Seconds()))
 
-	t2 := time.Now()
 	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, ca, caPk)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
 	}
-	fmt.Println(fmt.Sprintf("took2: %f", time.Since(t2).Seconds()))
 
-	t3 := time.Now()
 	if err := r.reconcileWebhooks(ctx, resourcesToApply, ca); err != nil {
 		return fmt.Errorf("error while reconciling webhooks. %w", err)
 	}
-	fmt.Println(fmt.Sprintf("took3: %f", time.Since(t3).Seconds()))
+
 	logger.Info("full regeneration success")
 	return nil
 }
@@ -1365,19 +1358,16 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 	logger := log.FromContext(ctx)
 	logger.Info("generation of self signed cert started")
 
-	t1 := time.Now()
 	ca, caPk, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
-	fmt.Println(fmt.Sprintf("gen of self signed took %f", time.Since(t1).Seconds()))
 
-	t2 := time.Now()
 	err = r.appendCertificationDataToUnstructured(resourcesToApply, CaSecret, ca, caPk, CaSecretDataPrefix)
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while adding newly generated self signed cert to resoruces to apply: %w", err)
 	}
-	fmt.Println(fmt.Sprintf("appending after gen of self signed took %f", time.Since(t2).Seconds()))
+
 	logger.Info("generation of self signed cert ok")
 	return ca, caPk, nil
 }
