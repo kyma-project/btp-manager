@@ -34,9 +34,8 @@ helm list -a
 echo -e "\n---Uninstalling..."
 
 # uninstall btp-manager
-
 helm uninstall btp-manager
 
 #clean up and ignore errors
-kubectl delete -f ./examples/btp-manager-secret.yaml || echo -e "\n----ignoring failure during secret removal"
-kubectl delete -f ./deployments/prerequisites.yaml || echo -e "\n----ignoring failure during prerequisites removal"
+kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
+kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
