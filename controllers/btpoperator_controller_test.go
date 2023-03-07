@@ -1329,7 +1329,7 @@ func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
 	mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
 	err = k8sClient.List(ctx, mw, managedByLabelFilter)
 	Expect(err).To(BeNil())
-	for _, w := range vw.Items {
+	for _, w := range mw.Items {
 		for _, n := range w.Webhooks {
 			Expect(bytes.Equal(n.ClientConfig.CABundle, ca)).To(BeTrue())
 		}
