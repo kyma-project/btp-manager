@@ -7,13 +7,11 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"math/big"
 	"time"
 )
 
 func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error) {
 	newCertificateTemplate := &x509.Certificate{
-		SerialNumber:          big.NewInt(2019),
 		DNSNames:              getDns(),
 		NotBefore:             time.Now(),
 		NotAfter:              expiration,
@@ -50,12 +48,11 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 
 func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePrivateKey []byte) ([]byte, []byte, error) {
 	newCertificateTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(1658),
-		DNSNames:     getDns(),
-		NotBefore:    time.Now(),
-		NotAfter:     expiration,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
+		DNSNames:    getDns(),
+		NotBefore:   time.Now(),
+		NotAfter:    expiration,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:    x509.KeyUsageDigitalSignature,
 	}
 
 	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 512)
