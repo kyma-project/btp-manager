@@ -623,7 +623,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 
 		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info("Existing resources (%d instances and %d bindings) blocks btp operator deletion.", numberOfInstances, numberOfBindings)
+			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) blocks btp operator deletion.", numberOfInstances, numberOfBindings))
 			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
 			logger.Info(msg)
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
