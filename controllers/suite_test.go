@@ -152,7 +152,7 @@ var _ = BeforeSuite(func() {
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
 	}))
 
-	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
+	//Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
