@@ -13,6 +13,7 @@ import (
 )
 
 func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error) {
+	t1 := time.Now()
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(2019),
 		DNSNames:              getDns(),
@@ -23,16 +24,23 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
 	}
+	fmt.Println(fmt.Sprintf("GenerateSelfSignedCertificate t1 %f", time.Since(t1).Seconds()))
 
-	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	t2 := time.Now()
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
 		return []byte{}, nil, err
 	}
+	fmt.Println(fmt.Sprintf("GenerateSelfSignedCertificate t2 %f", time.Since(t2).Seconds()))
 
+	t3 := time.Now()
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, newCertificateTemplate, &newCertificatePrivateKey.PublicKey, newCertificatePrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
 	}
+	fmt.Println(fmt.Sprintf("GenerateSelfSignedCertificate t3 %f", time.Since(t3).Seconds()))
+
+	t4 := time.Now()
 
 	newCertificatePem := new(bytes.Buffer)
 	pem.Encode(newCertificatePem, &pem.Block{
@@ -45,6 +53,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(newCertificatePrivateKey),
 	})
+	fmt.Println(fmt.Sprintf("GenerateSelfSignedCertificate t4 %f", time.Since(t4).Seconds()))
 
 	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
@@ -61,7 +70,7 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
 
-	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
 		return []byte{}, nil, err
 	}

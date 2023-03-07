@@ -464,10 +464,12 @@ func (r *BtpOperatorReconciler) prepareModuleResources(cr *v1alpha1.BtpOperator,
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
 
+	now := time.Now()
 	if err := r.reconcileCertificates(cr, ctx, resourcesToApply); err != nil {
 		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
 	}
-
+	a := time.Since(now)
+	fmt.Println(fmt.Printf("Reconcilation took : %f", a.Seconds()))
 	return nil
 }
 
@@ -1324,17 +1326,25 @@ func (r *BtpOperatorReconciler) doFullyCertificatesRegenerate(ctx context.Contex
 	logger := log.FromContext(ctx)
 	logger.Info("full regeneration started")
 
+	t1 := time.Now()
 	ca, caPk, err := r.generateSelfSignedCertAndAddToApplyList(ctx, resourcesToApply)
 	if err != nil {
 		return fmt.Errorf("error while generating self signed cert in full regeneration proccess. %w", err)
 	}
+	fmt.Println(fmt.Sprintf("took1: %f", time.Since(t1).Seconds()))
+
+	t2 := time.Now()
 	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, ca, caPk)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
 	}
+	fmt.Println(fmt.Sprintf("took2: %f", time.Since(t2).Seconds()))
+
+	t3 := time.Now()
 	if err := r.reconcileWebhooks(ctx, resourcesToApply, ca); err != nil {
 		return fmt.Errorf("error while reconciling webhooks. %w", err)
 	}
+	fmt.Println(fmt.Sprintf("took3: %f", time.Since(t3).Seconds()))
 	logger.Info("full regeneration success")
 	return nil
 }
@@ -1355,14 +1365,19 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 	logger := log.FromContext(ctx)
 	logger.Info("generation of self signed cert started")
 
+	t1 := time.Now()
 	ca, caPk, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
+	fmt.Println(fmt.Sprintf("gen of self signed took %f", time.Since(t1).Seconds()))
+
+	t2 := time.Now()
 	err = r.appendCertificationDataToUnstructured(resourcesToApply, CaSecret, ca, caPk, CaSecretDataPrefix)
 	if err != nil {
 		return []byte{}, nil, fmt.Errorf("while adding newly generated self signed cert to resoruces to apply: %w", err)
 	}
+	fmt.Println(fmt.Sprintf("appending after gen of self signed took %f", time.Since(t2).Seconds()))
 	logger.Info("generation of self signed cert ok")
 	return ca, caPk, nil
 }

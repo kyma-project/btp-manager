@@ -478,8 +478,8 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
 
 			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
-			Expect(createChartOrResourcesCopyWithoutWebhooks("../../module-chart/chart", defaultChartPath)).To(Succeed())
-			Expect(createChartOrResourcesCopyWithoutWebhooks("../../module-resources", defaultResourcesPath)).To(Succeed())
+			Expect(createChartOrResourcesCopyWithoutWebhooks("/Users/lj/Go/src/github.com/kyma-project/modularization/module-chart/chart", defaultChartPath)).To(Succeed())
+			Expect(createChartOrResourcesCopyWithoutWebhooks("/Users/lj/Go/src/github.com/kyma-project/modularization/module-resources", defaultResourcesPath)).To(Succeed())
 			ChartPath = defaultChartPath
 			ResourcesPath = defaultResourcesPath
 
