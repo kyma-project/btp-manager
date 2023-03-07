@@ -1,1 +1,0 @@
-	//Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
