@@ -29,12 +29,12 @@ do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
 echo -e "\n---Deployment available"
 
 echo -e "\n---Listing helm releases"
-helm list -a
+helm list -A
 
 echo -e "\n---Uninstalling..."
 
 # uninstall btp-manager
-helm uninstall btp-manager
+helm uninstall btp-manager -n kyma-system
 
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
