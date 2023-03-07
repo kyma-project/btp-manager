@@ -1478,6 +1478,10 @@ func (r *BtpOperatorReconciler) reconcileWebhooks(ctx context.Context, us *[]*un
 }
 
 func (r *BtpOperatorReconciler) reconcileCaBundle(u **unstructured.Unstructured, expectedCaBundle []byte) error {
+	if u == nil {
+		return fmt.Errorf("empty u param to reconcileCaBundle")
+	}
+
 	const (
 		WebhooksKey     = "webhooks"
 		ClientConfigKey = "clientConfig"
@@ -1524,19 +1528,23 @@ func (r *BtpOperatorReconciler) reconcileCaBundle(u **unstructured.Unstructured,
 }
 
 func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, u **unstructured.Unstructured, expectedCa []byte, kind string) error {
-	utemp := &unstructured.Unstructured{}
-	utemp.SetGroupVersionKind(schema.GroupVersionKind{
+	if u == nil {
+		return fmt.Errorf("empty u param to reconcileCaBundle")
+	}
+
+	uu := &unstructured.Unstructured{}
+	uu.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "admissionregistration.k8s.io",
 		Version: "v1",
 		Kind:    kind,
 	})
-	err := r.Get(ctx, client.ObjectKey{Name: (*u).GetName(), Namespace: (*u).GetNamespace()}, utemp)
+	err := r.Get(ctx, client.ObjectKey{Name: (*u).GetName(), Namespace: (*u).GetNamespace()}, uu)
 	notFound := k8serrors.IsNotFound(err)
 	if err != nil && !notFound {
 		return err
 	}
 	if !notFound {
-		*u = utemp
+		*u = uu
 	}
 	err = r.reconcileCaBundle(u, expectedCa)
 	if err != nil {
