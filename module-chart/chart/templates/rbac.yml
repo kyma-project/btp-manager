@@ -167,6 +167,7 @@ subjects:
     name: sap-btp-operator
     namespace: {{.Release.Namespace}}
 ---
+-
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.manager.allow_cluster_access }}
 kind: ClusterRoleBinding
