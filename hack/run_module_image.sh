@@ -38,11 +38,10 @@ FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.m
 echo -e "\n--- Extracting resources from file:" ${FILENAME}
 
 mkdir ${TARGET_DIRECTORY}/$CHART_DIRECTORY
-tar -xzf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
+tar xzvf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
 
 echo -e "\n--- Installing BTP Manager"
 
 # install by helm
-# TODO remove temporary code
-helm install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
-#helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n kyma-system --create-namespace
+
+helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n kyma-system --create-namespace
