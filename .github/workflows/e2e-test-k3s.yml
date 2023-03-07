@@ -65,4 +65,4 @@ jobs:
           check-latest: true
 
       - name: Run tests
-        run: ./testing/run_e2e_module_tests.sh ${IMAGE_NAME}
+        run: ./testing/run_e2e_module_tests.sh ${IMAGE_NAME} ci

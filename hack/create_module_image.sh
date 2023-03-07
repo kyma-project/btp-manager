@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# This script has the following argument: ci to indicate call from CI pipeline
+# This script has the following argument:
+#     optional ci to indicate call from CI pipeline
 # ./create_module_image.sh ci
 
 # standard bash error handling
