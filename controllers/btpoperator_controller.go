@@ -1578,7 +1578,7 @@ func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx cont
 }
 
 func (r *BtpOperatorReconciler) doesCertificateExpireSoon(ctx context.Context, secretName string) (bool, error) {
-	caSecretData, err := r.getDataFromSecret(ctx, secretName)
+	secretData, err := r.getDataFromSecret(ctx, secretName)
 	if err != nil {
 		return false, err
 	}
@@ -1588,17 +1588,17 @@ func (r *BtpOperatorReconciler) doesCertificateExpireSoon(ctx context.Context, s
 		return false, err
 	}
 
-	caCertificate, err := r.getValueByKey(r.buildKeyNameWithExtension(dataKey, CertificatePostfix), caSecretData)
+	certificate, err := r.getValueByKey(r.buildKeyNameWithExtension(dataKey, CertificatePostfix), secretData)
 	if err != nil {
 		return false, err
 	}
-	caCertificateDecoded, _ := pem.Decode(caCertificate)
-	caTemplate, err := x509.ParseCertificate(caCertificateDecoded.Bytes)
+	certificateDecoded, _ := pem.Decode(certificate)
+	certificateTemplate, err := x509.ParseCertificate(certificateDecoded.Bytes)
 	if err != nil {
 		return false, err
 	}
 
-	expirationTriggerBound := caTemplate.NotAfter.Add(ExpirationBoundary)
+	expirationTriggerBound := certificateTemplate.NotAfter.Add(ExpirationBoundary)
 	expiresSoon := time.Now().UTC().After(expirationTriggerBound)
 	return !expiresSoon, nil
 }
