@@ -53,7 +53,7 @@ import (
 var logger = logf.Log.WithName("suite_test")
 
 const (
-	hardDeleteTimeout = time.Millisecond * 500
+	hardDeleteTimeout = time.Millisecond * 200
 	resourceAdded     = "added"
 	resourceUpdated   = "updated"
 	resourceDeleted   = "deleted"
@@ -151,8 +151,6 @@ var _ = BeforeSuite(func() {
 		o.Development = true
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
 	}))
-
-	//Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
