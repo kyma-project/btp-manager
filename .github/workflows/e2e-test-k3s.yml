@@ -49,7 +49,7 @@ jobs:
       - name: Prepare environment variables
         run: |
           PR_NAME=PR-${{ github.event.number }}
-          TAG_NAME=${TAG_PREFIX}-${PR_NAME}
+          TAG_NAME=v${TAG_PREFIX}-${PR_NAME}
           echo "PR_NAME=${PR_NAME}" >> $GITHUB_ENV
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
           echo "MODULE_IMAGE_NAME=${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}" >> $GITHUB_ENV
@@ -63,7 +63,7 @@ jobs:
       - name: Wait for the btp-operator module image
         run: |
           while [ ! $(skopeo list-tags docker://${BTP_OPERATOR_DEV_REPO} | jq '.Tags|any(. == env.TAG_NAME)') ]
-          do echo "Waiting for btp-operator image: ${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}"; sleep 10; done
+          do echo "Waiting for btp-operator module image: ${BTP_OPERATOR_DEV_REPO}:${TAG_NAME}"; sleep 10; done
           echo "BTP-operator module image found"
 
       - uses: actions/setup-go@v3

@@ -24,6 +24,7 @@ IMG_NAME=btp-manager:${PR_NAME}
 
 MODULE_PREFIX=${MODULE_PREFIX:-0.0.0}
 MODULE_VERSION=${MODULE_PREFIX}-${PR_NAME}
+EXTENDED_MODULE_VERSION=v{MODULE_VERSION}
 MODULE_NAME=component-descriptors/kyma.project.io/module/btp-operator
 
 echo "Creating binary image and pushing to registry: ${LOCAL_REGISTRY}"
@@ -33,5 +34,5 @@ echo "Creating OCI module image and pushing to registry: ${LOCAL_REGISTRY}"
 make module-build IMG=${K3D_REGISTRY}/${IMG_NAME} MODULE_REGISTRY=${LOCAL_REGISTRY} MODULE_VERSION=${MODULE_VERSION}
 
 echo "Running E2E tests"
-./scripts/testing/run_e2e_module_tests.sh ${LOCAL_REGISTRY}/${MODULE_NAME}:${MODULE_VERSION}
+./scripts/testing/run_e2e_module_tests.sh ${LOCAL_REGISTRY}/${MODULE_NAME}:${EXTENDED_MODULE_VERSION}
 

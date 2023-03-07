@@ -3,7 +3,7 @@
 # This script has the following arguments:
 #     the mandatory link to a module image,
 #     optional ci to indicate call from CI pipeline
-# ./run_e2e_module_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:0.0.0-PR-999 ci
+# ./run_e2e_module_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-PR-999 ci
 
 CI=$2
 
