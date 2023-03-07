@@ -474,31 +474,17 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		var actualWorkqueueSize func() int
 
 		BeforeAll(func() {
-
-			/*err := createPrereqs()
-			Expect(err).To(BeNil())
-
-			secret, err := createCorrectSecretFromYaml()
-			Expect(err).To(BeNil())
-			Expect(k8sClient.Create(ctx, secret)).To(Succeed())*/
-
 			Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
 			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
 
 			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
-			Expect(createChartOrResourcesCopyWithoutWebhooks("/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/module-chart/chart", defaultChartPath)).To(Succeed())
-			Expect(createChartOrResourcesCopyWithoutWebhooks("/Users/lj/Go/src/github.com/kyma-project/modularization/btp-manager/module-resources", defaultResourcesPath)).To(Succeed())
+			Expect(createChartOrResourcesCopyWithoutWebhooks("../../module-chart/chart", defaultChartPath)).To(Succeed())
+			Expect(createChartOrResourcesCopyWithoutWebhooks("../../module-resources", defaultResourcesPath)).To(Succeed())
 			ChartPath = defaultChartPath
 			ResourcesPath = defaultResourcesPath
 
 			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
 		})
-
-		/*AfterAll(func() {
-			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "false")
-			Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
-			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
-		})*/
 
 		setOrgTimes := func() {
 			CaCertificateExpiration = orgCaCertificateExpiration
