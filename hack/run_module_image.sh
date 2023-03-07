@@ -22,7 +22,6 @@ CHART_DIRECTORY=${CHART_DIRECTORY:=chart}
 rm -rf ${TARGET_DIRECTORY}
 
 echo -e "\n--- Downloading module image"
-
 mkdir ${TARGET_DIRECTORY}
 
 # tls setting to allow local access over http, when invoked from CI https is used
@@ -38,10 +37,10 @@ FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.m
 
 echo -e "\n--- Extracting resources from file:" ${FILENAME}
 
-mkdir ${TARGET_DIRECTORY}/chart
-tar -xzf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/chart
+mkdir ${TARGET_DIRECTORY}/$CHART_DIRECTORY
+tar -xzf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
 
 echo -e "\n--- Installing BTP Manager"
 
 # install by helm
-helm upgrade --install btp-manager ${TARGET_DIRECTORY}/chart -n kyma-system --create-namespace
+helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n kyma-system --create-namespace
