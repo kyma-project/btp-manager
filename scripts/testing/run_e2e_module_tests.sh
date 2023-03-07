@@ -28,7 +28,7 @@ do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
 
 echo -e "\n---Deployment available"
 
-#TODO remove this temporary code
+echo -e "\n---Listing helm releases"
 helm list -a
 
 echo -e "\n---Uninstalling..."
@@ -38,5 +38,5 @@ echo -e "\n---Uninstalling..."
 helm uninstall btp-manager
 
 #clean up and ignore errors
-kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
-kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
+kubectl delete -f ./examples/btp-manager-secret.yaml || echo -e "\n----ignoring failure during secret removal"
+kubectl delete -f ./deployments/prerequisites.yaml || echo -e "\n----ignoring failure during prerequisites removal"
