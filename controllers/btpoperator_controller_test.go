@@ -772,9 +772,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				ensureCorrectState()
 			})
 		})
-
 	})
-
 })
 
 func getApplyPath() string {
