@@ -1,24 +1,31 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	"io/fs"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apimachienerytypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -51,7 +57,14 @@ const (
 	defaultChartPath      = "./testdata/test-module-chart"
 	newChartVersion       = "9.9.9"
 	defaultResourcesPath  = "./testdata/test-module-resources"
+	testRsaKeyBits        = 512
 )
+
+type certificationsTimeOpts struct {
+	CaCertificateExpiration time.Duration
+	WebhookCertExpiration   time.Duration
+	ExpirationBoundary      time.Duration
+}
 
 type timeoutK8sClient struct {
 	client.Client
@@ -98,6 +111,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
+		certs.SetRsaKeyBits(testRsaKeyBits)
 		err := createPrereqs()
 		Expect(err).To(BeNil())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
@@ -116,6 +130,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Provisioning", func() {
+
 		BeforeEach(func() {
 			cr = createBtpOperator()
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
@@ -497,6 +512,313 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				actualNumOfResourcesWithNewChartVer, err := countResourcesForGivenChartVer(gvks, newChartVersion)
 				Expect(err).To(BeNil())
 				Expect(actualNumOfResourcesWithNewChartVer).To(Equal(initResourcesNum))
+			})
+		})
+	})
+
+	Describe("Certification management", func() {
+		orgCaCertificateExpiration := CaCertificateExpiration
+		orgWebhookCertExpiration := WebhookCertificateExpiration
+		orgExpirationBoundary := ExpirationBoundary
+
+		var actualWorkqueueSize func() int
+
+		BeforeAll(func() {
+			Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
+			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
+
+			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
+			Expect(createChartOrResourcesCopyWithoutWebhooks("../module-chart/chart", defaultChartPath)).To(Succeed())
+			Expect(createChartOrResourcesCopyWithoutWebhooks("../module-resources", defaultResourcesPath)).To(Succeed())
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
+
+			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
+		})
+
+		restoreOriginalCertificateTiems := func() {
+			CaCertificateExpiration = orgCaCertificateExpiration
+			WebhookCertificateExpiration = orgWebhookCertExpiration
+			ExpirationBoundary = orgExpirationBoundary
+		}
+
+		certBeforeEach := func(opts *certificationsTimeOpts) {
+			if opts != nil {
+				CaCertificateExpiration = opts.CaCertificateExpiration
+				WebhookCertificateExpiration = opts.WebhookCertExpiration
+				ExpirationBoundary = opts.ExpirationBoundary
+			} else {
+				restoreOriginalCertificateTiems()
+			}
+
+			cr = createBtpOperator()
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+		}
+
+		certAfterEach := func() {
+			cr = &v1alpha1.BtpOperator{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			Expect(isCrNotFound()).To(BeTrue())
+			restoreOriginalCertificateTiems()
+		}
+
+		ensureReconcilationQueueIsEmpty := func() {
+			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+		}
+
+		ensureCorrectState := func() {
+			ensureReconcilationQueueIsEmpty()
+			ok, err := reconciler.isWebhookSecretCertSignedByCaSecretCert(ctx)
+			Expect(err).To(BeNil())
+			Expect(ok).To(BeTrue())
+			ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles()
+		}
+
+		When("doing provisioning", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should generate correct certs pair", func() {
+				ensureCorrectState()
+			})
+		})
+
+		When("ca cert changes", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should regenerate CA and webhook certs", func() {
+				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				newCaPrivateKeyStructured, err := reconciler.structToByteArray(newCaPrivateKey)
+				Expect(err).To(BeNil())
+
+				caSecret := getSecret(CaSecret)
+				orgCaSecret := caSecret
+				replaceSecretData(caSecret, reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix), newCaCertificate, reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix), newCaPrivateKeyStructured)
+				ensureReconcilationQueueIsEmpty()
+				updatedCaSecret := getSecret(CaSecret)
+
+				caCertificateAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue())
+
+				caCertificateOriginal, ok := orgCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeTrue())
+
+				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeTrue())
+
+				caPrivateKeyOriginal, ok := orgCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeTrue())
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook cert changes, signed by same CA", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("CA certificate stay same, but Webhook certificate is change (signed by same CA)", func() {
+				beforeCaSecret := getSecret(CaSecret)
+
+				currentCa, err := reconciler.getDataFromSecret(ctx, CaSecret)
+				Expect(err).To(BeNil())
+				ca, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix), currentCa)
+				Expect(err).To(BeNil())
+				pk, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix), currentCa)
+				Expect(err).To(BeNil())
+				currentWebhookSecret := getSecret(WebhookSecret)
+				originalWebhookSecret := currentWebhookSecret
+
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), ca, pk)
+				Expect(err).To(BeNil())
+				newWebhookPrivateKeyStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
+				Expect(err).To(BeNil())
+
+				webhookCert := getSecret(CaSecret)
+				replaceSecretData(webhookCert, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, RsaKeyPostfix), newWebhookPrivateKeyStructured)
+				ensureReconcilationQueueIsEmpty()
+
+				originalWebhookCert, ok := originalWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				Expect(!bytes.Equal(originalWebhookCert, newWebhookCertificate))
+
+				currentWebhookSecret = getSecret(WebhookSecret)
+				currentWebhookCert, ok := currentWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(bytes.Equal(currentWebhookCert, newWebhookCertificate))
+
+				afterCaSecret := getSecret(CaSecret)
+				afterCaSecretCert, ok := afterCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				beforeCaSecretCert, ok := beforeCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				Expect(bytes.Equal(afterCaSecretCert, beforeCaSecretCert))
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook cert changes, signed by different CA", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("CA and Webhook certificate is regenerated", func() {
+				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				Expect(err).To(BeNil())
+
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), newCaCertificate, newCaPrivateKey)
+				newWebhookCertificateStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
+				Expect(err).To(BeNil())
+
+				beforeCaSecret := getSecret(CaSecret)
+				beforeWebhookSecret := getSecret(WebhookSecret)
+
+				webhookCertSecret := getSecret(WebhookSecret)
+				replaceSecretData(webhookCertSecret, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, RsaKeyPostfix), newWebhookCertificateStructured)
+				ensureReconcilationQueueIsEmpty()
+
+				currentCaSecret := getSecret(CaSecret)
+				currentCaCert, ok := currentCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				Expect(ok).To(BeTrue())
+				beforeCaCert, ok := beforeCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(currentCaCert, beforeCaCert))
+
+				currentWebhookSecret := getSecret(WebhookSecret)
+				currentWebhookCert, ok := currentWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				Expect(ok).To(BeTrue())
+				beforeWebhookCert, ok := beforeWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
+				Expect(ok).To(BeTrue())
+				Expect(!bytes.Equal(currentWebhookCert, beforeWebhookCert))
+				Expect(!bytes.Equal(currentWebhookCert, newWebhookCertificate))
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook expired", func() {
+			fakeTime := 30.0
+			fakeExpiration := 10.0
+			BeforeAll(func() {
+				timeOpts := &certificationsTimeOpts{
+					CaCertificateExpiration: CaCertificateExpiration,
+					WebhookCertExpiration:   time.Second * time.Duration(fakeTime),
+					ExpirationBoundary:      time.Second * time.Duration(fakeExpiration),
+				}
+				certBeforeEach(timeOpts)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+
+			It("should generate new webhook cert, CA should stay as is", func() {
+				caSecretBeforeExpiration := getSecret(CaSecret)
+				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
+				Expect(checkHowManySecondsToExpiration(WebhookSecret) <= fakeTime).To(BeTrue())
+				restoreOriginalCertificateTiems()
+				ensureReconcilationQueueIsEmpty()
+				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+				ensureReconcilationQueueIsEmpty()
+				caSecretAfterExpiration := getSecret(CaSecret)
+				webhookSecretAfterExpiration := getSecret(WebhookSecret)
+				Expect(reflect.DeepEqual(caSecretBeforeExpiration.Data, caSecretAfterExpiration.Data)).To(BeTrue())
+				Expect(reflect.DeepEqual(webhookSecretBeforeExpiration.Data, webhookSecretAfterExpiration.Data)).To(BeFalse())
+				Expect(checkHowManySecondsToExpiration(WebhookSecret) >= fakeTime).To(BeTrue())
+
+				ensureCorrectState()
+			})
+		})
+
+		When("ca expired", func() {
+			fakeSeconds := 30.0
+			fakeExpiration := 10.0
+			BeforeAll(func() {
+				timeOpts := &certificationsTimeOpts{
+					CaCertificateExpiration: time.Second * time.Duration(fakeSeconds),
+					WebhookCertExpiration:   orgWebhookCertExpiration,
+					ExpirationBoundary:      time.Second * time.Duration(fakeExpiration),
+				}
+				certBeforeEach(timeOpts)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+
+			It("should generate new webhook cert, CA should stay as is", func() {
+				caSecretBeforeExpiration := getSecret(CaSecret)
+				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
+				Expect(checkHowManySecondsToExpiration(CaSecret) <= fakeSeconds).To(BeTrue())
+				time.Sleep(time.Second * 10)
+				Expect(checkHowManySecondsToExpiration(CaSecret) <= fakeSeconds).To(BeTrue())
+				restoreOriginalCertificateTiems()
+				ensureReconcilationQueueIsEmpty()
+				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
+				Expect(err).To(BeNil())
+				ensureReconcilationQueueIsEmpty()
+				caSecretAfterExpiration := getSecret(CaSecret)
+				webhookSecretAfterExpiration := getSecret(WebhookSecret)
+				Expect(reflect.DeepEqual(caSecretBeforeExpiration.Data, caSecretAfterExpiration.Data)).To(BeFalse())
+				Expect(reflect.DeepEqual(webhookSecretBeforeExpiration.Data, webhookSecretAfterExpiration.Data)).To(BeFalse())
+				Expect(checkHowManySecondsToExpiration(WebhookSecret) >= fakeSeconds).To(BeTrue())
+				Expect(checkHowManySecondsToExpiration(CaSecret) >= fakeSeconds).To(BeTrue())
+
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook ca bundle modified, from different CA", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should be restored to existing CA", func() {
+				newCaCertificate, _, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				Expect(err).To(BeNil())
+				updated := replaceCaBundleInMutatingWebhooks(newCaCertificate)
+				updated = !updated && replaceCaBundleInValidatingWebhooks(newCaCertificate)
+				ensureCorrectState()
+			})
+		})
+
+		When("webhook ca bundle modified, with some dummy text", func() {
+			BeforeAll(func() {
+				certBeforeEach(nil)
+			})
+			AfterAll(func() {
+				certAfterEach()
+			})
+			It("should be restored to existing CA", func() {
+				dummy := []byte("dummy")
+				updated := replaceCaBundleInMutatingWebhooks(dummy)
+				updated = !updated && replaceCaBundleInValidatingWebhooks(dummy)
+				ensureCorrectState()
 			})
 		})
 	})
@@ -918,4 +1240,98 @@ func checkIfNoBtpResourceExists() {
 
 func canIgnoreErr(err error) bool {
 	return k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
+}
+
+func replaceCaBundleInValidatingWebhooks(i []byte) bool {
+	webhookConfig := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
+	err := k8sClient.List(ctx, webhookConfig, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	Expect(len(webhookConfig.Items) > 0).To(BeTrue())
+	if len(webhookConfig.Items) > 0 {
+		webhook := webhookConfig.Items[0]
+		if len(webhook.Webhooks) > 0 {
+			webhook.Webhooks[0].ClientConfig.CABundle = i
+			err := k8sClient.Update(ctx, &webhook)
+			Expect(err).To(BeNil())
+			//time.Sleep(time.Second * 10)
+			return true
+		}
+	}
+	return false
+}
+
+func replaceCaBundleInMutatingWebhooks(i []byte) bool {
+	webhookConfig := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+	err := k8sClient.List(ctx, webhookConfig, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	Expect(len(webhookConfig.Items) > 0).To(BeTrue())
+	if len(webhookConfig.Items) > 0 {
+		webhook := webhookConfig.Items[0]
+		if len(webhook.Webhooks) > 0 {
+			webhook.Webhooks[0].ClientConfig.CABundle = i
+			err := k8sClient.Update(ctx, &webhook)
+			Expect(err).To(BeNil())
+			//time.Sleep(time.Second * 10)
+			return true
+		}
+	}
+	return false
+}
+
+func replaceSecretData(secret *corev1.Secret, key string, value []byte, key2 string, value2 []byte) {
+	data := secret.Data
+	if key != "" && value != nil {
+		data[key] = value
+	}
+
+	if key2 != "" && value2 != nil {
+		data[key2] = value2
+	}
+	secret.Data = data
+	err := k8sClient.Update(ctx, secret)
+	Expect(err).To(BeNil())
+}
+
+func getSecret(name string) *corev1.Secret {
+	secret := &corev1.Secret{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret)
+	Expect(err).To(BeNil())
+	return secret
+}
+
+func checkHowManySecondsToExpiration(name string) float64 {
+	data, err := reconciler.getDataFromSecret(ctx, name)
+	Expect(err).To(BeNil())
+	key, err := reconciler.mapSecretNameToSecretDataKey(name)
+	Expect(err).To(BeNil())
+	value, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(key, CertificatePostfix), data)
+	Expect(err).To(BeNil())
+	decoded, _ := pem.Decode(value)
+	cert, err := x509.ParseCertificate(decoded.Bytes)
+	Expect(err).To(BeNil())
+	diff := cert.NotAfter.Sub(time.Now())
+	return diff.Seconds()
+}
+
+func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
+	secret := getSecret(CaSecret)
+	ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+	Expect(ok).To(BeTrue())
+	Expect(ca).To(Not(BeNil()))
+	vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
+	err := k8sClient.List(ctx, vw, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	for _, w := range vw.Items {
+		for _, n := range w.Webhooks {
+			Expect(bytes.Equal(n.ClientConfig.CABundle, ca)).To(BeTrue())
+		}
+	}
+	mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+	err = k8sClient.List(ctx, mw, managedByLabelFilter)
+	Expect(err).To(BeNil())
+	for _, w := range vw.Items {
+		for _, n := range w.Webhooks {
+			Expect(bytes.Equal(n.ClientConfig.CABundle, ca)).To(BeTrue())
+		}
+	}
 }
