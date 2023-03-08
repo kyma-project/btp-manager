@@ -1424,17 +1424,17 @@ func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Conte
 	logger := log.FromContext(ctx)
 	logger.Info("full regeneration  of certificates started")
 
-	ca, caPk, err := r.generateSelfSignedCertAndAddToApplyList(ctx, resourcesToApply)
+	caCertifcate, caPrivateKey, err := r.generateSelfSignedCertAndAddToApplyList(ctx, resourcesToApply)
 	if err != nil {
 		return fmt.Errorf("error while generating self signed cert in full regeneration proccess. %w", err)
 	}
 
-	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, ca, caPk)
+	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, caCertifcate, caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
 	}
 
-	if err := r.reconcileWebhooks(ctx, resourcesToApply, ca); err != nil {
+	if err := r.reconcileWebhooks(ctx, resourcesToApply, caCertifcate); err != nil {
 		return fmt.Errorf("error while reconciling webhooks. %w", err)
 	}
 
