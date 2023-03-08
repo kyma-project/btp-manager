@@ -1303,7 +1303,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 	if err := r.reconcileWebhooks(ctx, resourcesToApply, nil); err != nil {
 		return err
 	}
-	logger.Info("webhooks checkIfCertificatesExists bundles are ok")
+	logger.Info("webhooks checkIfCertificatesExists bundles check success")
 
 	breakFlow, err = r.checkIfCertificateSignsAreCorrect(ctx, resourcesToApply)
 	if err != nil {
@@ -1484,7 +1484,7 @@ func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.
 	if err != nil {
 		return fmt.Errorf("while adding newly generated signed webhookCertificate to resoruces to apply: %w", err)
 	}
-	logger.Info("generation of signed webhookCertificate ok")
+	logger.Info("generation of signed webhookCertificate success")
 	return nil
 }
 
