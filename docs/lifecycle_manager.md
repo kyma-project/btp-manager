@@ -13,16 +13,18 @@ This is an experimental way of installing BTP Manager in the cluster.
 
 ## Quick-Start - Install script
 
-Use the following command to run the BTP Manager via Lifecycle Manager. In a nutshell, that is what it does:
-- downloads and uses Kyma CLI to provision the k3d cluster,
-- deploys Lifecycle Manager,
-- applies BTP Manager template.yaml provided by the user,
-- enables BTP Operator module,
-- displays BTP Manager and BTP Operator status
+Use the following command to run the BTP Manager via Lifecycle Manager. 
 
 ```shell
 ./hack/run_lifecycle_manager.sh https://github.com/kyma-project/btp-manager/releases/download/0.2.3/template.yaml
 ```
+
+It results in:
+- downloading and using Kyma CLI to provision the k3d cluster,
+- deploying Lifecycle Manager,
+- applying BTP Manager template.yaml provided by the user,
+- enabling the BTP Operator module,
+- displaying the BTP Manager and BTP Operator status.
 
 ## Delete k3d cluster
 

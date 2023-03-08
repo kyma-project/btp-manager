@@ -9,8 +9,6 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-echo -e "\n--- Download template.yaml"
-wget -nv -O template.yaml $1
 
 echo -e "\n--- Download latest kyma CLI"
 curl -Lo kyma https://storage.googleapis.com/kyma-cli-unstable/kyma-darwin
@@ -19,13 +17,13 @@ mv kyma temp
 echo -e "\n--- kyma CLI usage: ./temp/kyma --help"
 
 echo -e "\n--- Create k3d cluster"
-kyma provision k3d
+kyma provision k3d --ci
 
 echo -e "\n--- Deploy Lifecycle Manager"
 kyma alpha deploy --ci
 
 echo -e "\n--- Apply BTP Manager template.yaml"
-kubectl apply -f template.yaml
+kubectl apply -f $1
 
 echo -e "\n--- List Kyma modules template.yaml"
 kyma alpha list module -n kcp-system
