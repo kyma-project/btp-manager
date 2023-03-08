@@ -1,13 +1,17 @@
-## Configuration
+---
+title: Configuration
+---
 
-The btp-manager internal settings can be configured using CLI arguments or `ConfigMap`.
+The BTP Manager internal settings can be configured using CLI arguments or `ConfigMap`.
 
 To configure them using CLI arguments, follow this example:
 ```
 $ manager --help
 Usage of ./manager:
   -chart-path string
-    	Path to the root directory inside the chart. (default "./module-chart")
+    	Path to the root directory inside the chart. (default "./module-chart/chart")
+  -resources-path string
+    Path to the directory with module resources to apply/delete. (default "./module-resources")
   -chart-namespace string
     	Namespace to install chart resources. (default "kyma-system")
   -config-name string
@@ -32,6 +36,8 @@ Usage of ./manager:
     	Helm chart timeout. (default 1m0s)
   -hard-delete-check-interval duration
     	Hard delete retry interval. (default 10s)
+  -ready-check-interval duration
+    	Ready check retry interval. (default 2s)
   -secret-name string
     	Secret name with input values for sap-btp-operator chart templating. (default "sap-btp-manager")
   -zap-devel
@@ -46,7 +52,7 @@ Usage of ./manager:
     	Zap time encoding (one of 'epoch', 'millis', 'nano', 'iso8601', 'rfc3339' or 'rfc3339nano'). Defaults to 'epoch'.
 ```
 
-Configuration with `ConfigMap` [example](../examples/btp-operator-configmap.yaml).
+Here is an [example](../examples/btp-operator-configmap.yaml) of configuration with `ConfigMap`.
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -54,7 +60,7 @@ metadata:
   name: sap-btp-manager
   namespace: kyma-system
 data:
-  ChartPath: ./module-chart
+  ChartPath: ./module-chart/chart
   ChartNamespace: kyma-system
   SecretName: sap-btp-manager
   DeploymentName: sap-btp-operator-controller-manager

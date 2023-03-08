@@ -10,26 +10,28 @@ aliases:
     - grego952
     - NHingerl
     - mmitoraj
+    - nataliasitko
   documentation-approvers:
     - IwonaLanger
     - grego952
     - NHingerl
     - mmitoraj
+    - nataliasitko
   code-reviewers:
     - PK85
     - jaroslaw-pieszka
     - piotrmiskiewicz
     - ralikio
     - szwedm
-    - tillknuesting
     - ukff
     - wozniakjan
+    - MarekMichali
   code-approvers:
     - PK85
     - jaroslaw-pieszka
     - piotrmiskiewicz
     - ralikio
     - szwedm
-    - tillknuesting
     - ukff
     - wozniakjan
+    - MarekMichali

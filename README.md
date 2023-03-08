@@ -9,13 +9,41 @@ BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
-## Installation
-Use the following commands to run BTP Manager locally. All `make` commands refer to [Makefile](./operator/Makefile) in the `operator` directory.
+## Install BTP Manager locally
+Use the following commands to run the BTP Manager controller from your host. All the `make` commands refer to [Makefile](./Makefile) in the `operator` directory.
 
 ```sh
-cd operator
 make install
 make run
+```
+
+## Install BTP Manager in your cluster
+
+There are two ways to install BTP Manager in your cluster.
+
+### Installation with btp-operator module image
+Use the following command to download and install BTP manager from OCI Image in your cluster.
+
+```shell
+./hack/run_module_image.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.2.3
+```
+> **NOTE:** Before using the script, you must install [Helm](https://github.com/helm/helm#install), [skopeo](https://github.com/containers/skopeo) and [jq](https://github.com/stedolan/jq).
+
+### Install BTP Manager with `template.yaml`
+
+To install BTP Manager using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command) in your cluster, use the following command:
+
+```shell
+./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/download/0.2.3/template.yaml
+```
+
+> **NOTE:** Before using the script, you must install [Helm](https://github.com/helm/helm#install), [skopeo](https://github.com/containers/skopeo), [jq](https://github.com/stedolan/jq) and [yq](https://github.com/mikefarah/yq).
+
+### Uninstall BTP Manager from your cluster
+
+Use the following command to uninstall BTP Manager from your cluster.
+```shell
+helm uninstall btp-manager -n kyma-system
 ```
 
 ## Usage

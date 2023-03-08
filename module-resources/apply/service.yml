@@ -1,0 +1,36 @@
+---
+# Source: sap-btp-operator/templates/service.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sap-btp-operator-webhook-service
+  namespace: kyma-system
+spec:
+  ports:
+    - name: webhook-server
+      port: 443
+      targetPort: webhook-server
+  selector:
+    control-plane: controller-manager
+    app.kubernetes.io/instance: sap-btp-operator
+    app.kubernetes.io/name: sap-btp-operator
+---
+# Source: sap-btp-operator/templates/service.yml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/instance: sap-btp-operator
+    app.kubernetes.io/name: sap-btp-operator
+  name: sap-btp-operator-controller-manager-metrics-service
+  namespace: kyma-system
+spec:
+  ports:
+    - name: https
+      port: 8443
+      targetPort: https
+  selector:
+    control-plane: controller-manager
+    app.kubernetes.io/instance: sap-btp-operator
+    app.kubernetes.io/name: sap-btp-operator
