@@ -1242,7 +1242,7 @@ func canIgnoreErr(err error) bool {
 	return k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) || k8serrors.IsMethodNotSupported(err)
 }
 
-func replaceCaBundleInValidatingWebhooks(i []byte) bool {
+func replaceCaBundleInValidatingWebhooks(newCaBundle []byte) bool {
 	webhookConfig := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
 	err := k8sClient.List(ctx, webhookConfig, managedByLabelFilter)
 	Expect(err).To(BeNil())
@@ -1250,7 +1250,7 @@ func replaceCaBundleInValidatingWebhooks(i []byte) bool {
 	if len(webhookConfig.Items) > 0 {
 		webhook := webhookConfig.Items[0]
 		if len(webhook.Webhooks) > 0 {
-			webhook.Webhooks[0].ClientConfig.CABundle = i
+			webhook.Webhooks[0].ClientConfig.CABundle = newCaBundle
 			err := k8sClient.Update(ctx, &webhook)
 			Expect(err).To(BeNil())
 			//time.Sleep(time.Second * 10)
@@ -1260,7 +1260,7 @@ func replaceCaBundleInValidatingWebhooks(i []byte) bool {
 	return false
 }
 
-func replaceCaBundleInMutatingWebhooks(i []byte) bool {
+func replaceCaBundleInMutatingWebhooks(newCaBundle []byte) bool {
 	webhookConfig := &admissionregistrationv1.MutatingWebhookConfigurationList{}
 	err := k8sClient.List(ctx, webhookConfig, managedByLabelFilter)
 	Expect(err).To(BeNil())
@@ -1268,7 +1268,7 @@ func replaceCaBundleInMutatingWebhooks(i []byte) bool {
 	if len(webhookConfig.Items) > 0 {
 		webhook := webhookConfig.Items[0]
 		if len(webhook.Webhooks) > 0 {
-			webhook.Webhooks[0].ClientConfig.CABundle = i
+			webhook.Webhooks[0].ClientConfig.CABundle = newCaBundle
 			err := k8sClient.Update(ctx, &webhook)
 			Expect(err).To(BeNil())
 			//time.Sleep(time.Second * 10)

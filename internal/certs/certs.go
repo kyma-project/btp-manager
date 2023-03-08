@@ -112,21 +112,21 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
 
-func VerifyIfSecondCertificateIsSignedByFirstCertificate(firstCertificate, secondCertificate []byte) (bool, error) {
-	firstCertificateDecoded, _ := pem.Decode(firstCertificate)
-	secondCertificateDecoded, _ := pem.Decode(secondCertificate)
+func VerifyIfLeafSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, error) {
+	caCertificateDecoded, _ := pem.Decode(caCertificate)
+	leafCertificateDecoded, _ := pem.Decode(leafCertificate)
 
-	firstCertificateTemplate, err := x509.ParseCertificate(firstCertificateDecoded.Bytes)
+	caCertificateTemplate, err := x509.ParseCertificate(caCertificateDecoded.Bytes)
 	if err != nil {
 		return false, err
 	}
-	if !firstCertificateTemplate.IsCA {
+	if !caCertificateTemplate.IsCA {
 		return false, fmt.Errorf("certificate given as first is not CA")
 	}
 
 	roots := x509.NewCertPool()
-	firstCertificatePem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: firstCertificateTemplate.Raw})
-	ok := roots.AppendCertsFromPEM(firstCertificatePem)
+	caCertificatePem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCertificateTemplate.Raw})
+	ok := roots.AppendCertsFromPEM(caCertificatePem)
 	if !ok {
 		return false, fmt.Errorf("appending first pem to root fail")
 	}
@@ -134,18 +134,18 @@ func VerifyIfSecondCertificateIsSignedByFirstCertificate(firstCertificate, secon
 		Roots: roots,
 	}
 
-	secondCertificateTemplate, err := x509.ParseCertificate(secondCertificateDecoded.Bytes)
+	leafCertificateTemplate, err := x509.ParseCertificate(leafCertificateDecoded.Bytes)
 	if err != nil {
 		return false, err
 	}
 
-	if secondCertificateTemplate.IsCA {
-		return false, fmt.Errorf("certificate given as second is CA")
+	if leafCertificateTemplate.IsCA {
+		return false, fmt.Errorf("certificate given as second is a CA one but it is expected to be leaf")
 	}
 
-	_, err = secondCertificateTemplate.Verify(verifyOpts)
+	_, err = leafCertificateTemplate.Verify(verifyOpts)
 	if err != nil {
-		return false, fmt.Errorf("verify of second certificate from first certificate error: %w", err)
+		return false, fmt.Errorf("while verifying certificate: %w", err)
 	}
 
 	return true, nil
