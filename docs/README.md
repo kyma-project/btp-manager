@@ -10,4 +10,6 @@ For general information on BTP Manager, see the overarching [documentation](../R
 - [BTP Manager operations](operations.md)
 - [BTP Manager release pipeline](release.md)
 - [Run unit tests](testing.md)
+- [Run E2E tests](e2e_tests.md)
 - [GitHub Actions workflow](workflows.md)
+- [Run with Lifecycle Manager](lifecycle_manager.md)
