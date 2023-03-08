@@ -1056,10 +1056,6 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
-	instance := &unstructured.Unstructured{}
-	instance.SetGroupVersionKind(instanceGvk)
-	binding := unstructured.Unstructured{}
-	binding.SetGroupVersionKind(bindingGvk)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
