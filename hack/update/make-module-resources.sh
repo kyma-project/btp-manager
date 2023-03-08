@@ -67,6 +67,13 @@ runActionForEachYaml() {
 actionForNewResource() {
   local yaml=${1}
 
+  yq -i '. | select(.metadata.annotations."helm.sh/hook" != "pre-delete")' $yaml
+  if [ ! -s $yaml ]; then
+    echo "Removing $yaml because of helm hook"
+    rm $yaml
+    exit
+  fi
+
   local gvk=$(yq '.apiVersion' "$yaml")/$(yq '.kind' "$yaml")
   local r=$(resource "$yaml")
   local g=$(group "$yaml")
@@ -111,3 +118,6 @@ mkdir $EXISTING_RESOURCES_DELETE_PATH
 mv $NEW_RESOURCES_PATH/* $EXISTING_RESOURCES_APPLY_PATH
 mv to-delete.yml $EXISTING_RESOURCES_DELETE_PATH
 rm -r $HELM_OUTPUT_PATH
+
+
+echo "Filtering out forbidden resources in $HELM_OUTPUT_PATH"
