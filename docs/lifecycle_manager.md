@@ -1,10 +1,10 @@
 ---
-title: Run BTP Manager installation via Lifecycle Manager
+title: Install BTP Manager using Lifecycle Manager
 ---
 
 ## Overview
 
-This is an experimental way of installing BTM Manager in the cluster. 
+This is an experimental way of installing BTP Manager in the cluster. 
 
 ## Prerequisites
 
