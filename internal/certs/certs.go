@@ -121,7 +121,7 @@ func VerifyIfLeafSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, e
 		return false, err
 	}
 	if !caCertificateTemplate.IsCA {
-		return false, fmt.Errorf("certificate given as first is not CA")
+		return false, fmt.Errorf("CA certificate is not CA")
 	}
 
 	roots := x509.NewCertPool()
@@ -140,7 +140,7 @@ func VerifyIfLeafSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, e
 	}
 
 	if leafCertificateTemplate.IsCA {
-		return false, fmt.Errorf("certificate given as second is a CA one but it is expected to be leaf")
+		return false, fmt.Errorf("leaf certificate is a CA one but it is expected to be leaf")
 	}
 
 	_, err = leafCertificateTemplate.Verify(verifyOpts)
