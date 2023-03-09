@@ -1331,7 +1331,7 @@ func (r *BtpOperatorReconciler) checkIfCertificatesExists(ctx context.Context, r
 		return false, err
 	}
 	if !caSecretExists {
-		logger.Info("checkIfCertificatesExists secret with cert dosent exists.")
+		logger.Info("ca secret with cert dosent exists.")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
