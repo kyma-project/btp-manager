@@ -1,4 +1,4 @@
-    ---
+---
 title: BTP Manager operations 
 ---
 
@@ -77,13 +77,13 @@ To start the deprovisioning process, use the following command:
 kubectl delete btpoperator {BTPOPERATOR_CR_NAME}
 ```
 
-The command triggers deletion of module resources in the cluster. By default, existing Service Instances or Service Bindings blocks the deletion. To unblock it you need to remove existing Service Instances and Service Bindings. Then, after reconciliation time (at most 15 min) BTP Operator resource will be gone.
+The command triggers the deletion of the module resources in the cluster. By default, the existing Service Instances or Service Bindings block the deletion. To unblock it, you must remove the existing Service Instances and Service Bindings. Then, after a maximum of 15-minute reconciliation time, the BTP Operator resource is gone.
 
-You can force the deletion by adding a label to the BTP Operator resource:
+You can force the deletion by adding this label to the BTP Operator resource:
 ```
 force-delete: "true"
 ```
-If the label exists, all existing Service Instance and Service Bindings will be deleted automatically.
+If you use the label, all the existing Service Instances and Service Bindings are deleted automatically.
 
 At first, the deprovisioning process tries to perform the deletion in a hard delete mode. It tries to delete all 
 Service Bindings and Service Instances across all Namespaces. The time limit for the hard delete is 20 minutes. 
