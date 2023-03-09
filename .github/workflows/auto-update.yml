@@ -103,7 +103,6 @@ jobs:
         git push --set-upstream origin $BRANCH_NAME -f
         pr_link=$(gh pr create -B main --title "$MSG" --body "https://github.com/$SAP_ORG/$SAP_BTP_SERVICE_OPERATOR_REPO/releases/tag/$TAG" | tail -n 1)
         echo "received PR link ${pr_link}"
-        exit 0
 
         # link the PR from ^^ to gopher project board
         pr_number=$(echo "$pr_link" | awk -F '/' '{print($NF)}')
