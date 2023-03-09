@@ -30,3 +30,6 @@ echo "MODULE_VERSION ${MODULE_VERSION}"
 echo "IMAGE_REFERENCE ${IMAGE_REFERENCE}"
 
 MODULE_VERSION=${MODULE_VERSION} IMG=${IMAGE_REFERENCE} make module-build
+
+echo "Generated template.yaml:"
+cat template.yaml
