@@ -1303,7 +1303,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 	if err := r.reconcileWebhooks(ctx, resourcesToApply, nil); err != nil {
 		return err
 	}
-	logger.Info("webhooks checkIfCertificatesExists bundles check success")
+	logger.Info("webhooks cert bundles check success")
 
 	breakFlow, err = r.checkIfCertificateSignsAreCorrect(ctx, resourcesToApply)
 	if err != nil {
