@@ -122,9 +122,9 @@ var (
 var (
 	CaSecret                       = "ca-server-cert"
 	WebhookSecret                  = "webhook-server-cert"
-	CaCertificateExpiration        = time.Hour * 12
-	WebhookCertificateExpiration   = time.Hour * 6
-	ExpirationBoundary             = time.Minute * -30
+	CaCertificateExpiration        = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration   = time.Hour * 8760  // 1 year
+	ExpirationBoundary             = time.Hour * -168  // 1 week
 	CaSecretDataPrefix             = "ca"
 	WebhookSecretDataPrefix        = "tls"
 	CertificatePostfix             = "crt"
