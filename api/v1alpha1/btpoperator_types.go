@@ -57,11 +57,12 @@ func (o *BtpOperator) SetStatus(status types.Status) {
 }
 
 func (o *BtpOperator) IsReasonStringEqual(reason string) bool {
-	var condition *metav1.Condition
-	if len(o.Status.Conditions) > 0 {
-		condition = o.Status.Conditions[0]
+	for _, cnd := range o.Status.Conditions {
+		if cnd != nil && cnd.Reason == reason {
+			return true
+		}
 	}
-	return condition != nil && condition.Reason == reason
+	return false
 }
 
 //+kubebuilder:object:root=true

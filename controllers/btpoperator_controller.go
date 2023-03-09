@@ -196,7 +196,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
 		err := r.HandleDeletingState(ctx, cr)
-		if r.reasonExists(cr, ServiceInstancesAndBindingsNotCleaned) {
+		if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
 			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
 		}
 		return ctrl.Result{}, err
@@ -555,15 +555,6 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "CR has been updated")
 }
 
-func (r *BtpOperatorReconciler) reasonExists(cr *v1alpha1.BtpOperator, reason Reason) bool {
-	for _, c := range cr.Status.Conditions {
-		if c.Reason == string(reason) {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
@@ -577,9 +568,19 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		logger.Error(err, "deprovisioning failed")
 		return err
 	}
-	if r.reasonExists(cr, ServiceInstancesAndBindingsNotCleaned) {
-		logger.Info("leaving deletion")
-		return nil
+	if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
+		if err != nil {
+			return err
+		}
+		numberOfInstances, err := r.numberOfResources(ctx, instanceGvk)
+		if err != nil {
+			return err
+		}
+		if numberOfBindings > 0 || numberOfInstances > 0 {
+			logger.Info(fmt.Sprintf("%d instances, %d bindings - leaving deletion", numberOfInstances, numberOfBindings))
+			return nil
+		}
 	}
 	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
@@ -633,7 +634,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			logger.Info(fmt.Sprintf("%v", cr.Status))
 			return nil
 		} else {
-			if r.reasonExists(cr, ServiceInstancesAndBindingsNotCleaned) {
+			if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
 				// go to a state which starts deleting process
 				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 					types.StateDeleting, HardDeleting,
