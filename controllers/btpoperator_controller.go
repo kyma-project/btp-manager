@@ -1395,7 +1395,7 @@ func (r *BtpOperatorReconciler) checkCertificatesExpiration(ctx context.Context,
 		}
 		return true, nil
 	}
-	logger.Info("checkIfCertificatesExists certificate is valid")
+	logger.Info("CA certificate is valid")
 
 	doWebhookCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, WebhookSecret)
 	if err != nil {
@@ -1549,7 +1549,7 @@ func (r *BtpOperatorReconciler) reconcileWebhooks(ctx context.Context, resources
 		}
 		ca, ok := secret.Data[r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 		if !ok || ca == nil {
-			return fmt.Errorf("while receiving certificate data from checkIfCertificatesExists secret in reconcilation webhook")
+			return fmt.Errorf("while receiving certificate data from CA secret in reconcilation webhook")
 		}
 		expectedCa = ca
 	}
