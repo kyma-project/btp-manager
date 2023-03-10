@@ -81,12 +81,18 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 		return []byte{}, nil, err
 	}
 
-	decodedSourceCertificate, _ := pem.Decode(sourceCertificate)
+	decodedSourceCertificate, err := TryDecode(sourceCertificate)
+	if err != nil {
+		return []byte{}, nil, err
+	}
 	parsedSourceCertificate, err := x509.ParseCertificate(decodedSourceCertificate.Bytes)
 	if err != nil {
 		return []byte{}, nil, err
 	}
-	decodedSourcePrivateKey, _ := pem.Decode(sourcePrivateKey)
+	decodedSourcePrivateKey, err := TryDecode(sourcePrivateKey)
+	if err != nil {
+		return []byte{}, nil, err
+	}
 	parsedSourcePrivateKey, err := x509.ParsePKCS1PrivateKey(decodedSourcePrivateKey.Bytes)
 	if err != nil {
 		return []byte{}, nil, err
@@ -113,9 +119,14 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 }
 
 func VerifyIfLeafSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, error) {
-	caCertificateDecoded, _ := pem.Decode(caCertificate)
-	leafCertificateDecoded, _ := pem.Decode(leafCertificate)
-
+	caCertificateDecoded, err := TryDecode(caCertificate)
+	if err != nil {
+		return true, err
+	}
+	leafCertificateDecoded, _ := TryDecode(leafCertificate)
+	if err != nil {
+		return true, err
+	}
 	caCertificateTemplate, err := x509.ParseCertificate(caCertificateDecoded.Bytes)
 	if err != nil {
 		return false, err
@@ -153,4 +164,12 @@ func VerifyIfLeafSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, e
 
 func getDns() []string {
 	return []string{"sap-btp-operator-webhook-service.kyma-system.svc", "sap-btp-operator-webhook-service.kyma-system"}
+}
+
+func TryDecode(cert []byte) (*pem.Block, error) {
+	decoded, _ := pem.Decode(cert)
+	if decoded == nil {
+		return nil, fmt.Errorf("while decoding cert to pem")
+	}
+	return decoded, nil
 }
