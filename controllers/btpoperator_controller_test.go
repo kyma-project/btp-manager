@@ -591,14 +591,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("ca cert changes", func() {
+		When("CA certificate changes", func() {
 			BeforeAll(func() {
 				certBeforeEach(nil)
 			})
 			AfterAll(func() {
 				certAfterEach()
 			})
-			It("should regenerate CA and webhook certs", func() {
+			It("should do fully regenerate of CA certificate and webhook certificate", func() {
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				newCaPrivateKeyStructured, err := reconciler.structToByteArray(newCaPrivateKey)
 				Expect(err).To(BeNil())
@@ -629,14 +629,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("webhook cert changes, signed by same CA", func() {
+		When("webhook certificate changes and is signed by same CA certificate", func() {
 			BeforeAll(func() {
 				certBeforeEach(nil)
 			})
 			AfterAll(func() {
 				certAfterEach()
 			})
-			It("CA certificate stay same, but Webhook certificate is change (signed by same CA)", func() {
+			It("CA certificate is not changed, webhook certificate is regenerated", func() {
 				beforeCaSecret := getSecret(CaSecret)
 
 				currentCa, err := reconciler.getDataFromSecret(ctx, CaSecret)
@@ -673,14 +673,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("webhook cert changes, signed by different CA", func() {
+		When("webhook certificate and is signed by different CA certificate", func() {
 			BeforeAll(func() {
 				certBeforeEach(nil)
 			})
 			AfterAll(func() {
 				certAfterEach()
 			})
-			It("CA and Webhook certificate is regenerated", func() {
+			It("CA certificate and webhook certificate are fully regenerated", func() {
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
 
@@ -714,7 +714,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("webhook expired", func() {
+		When("webhook certificate expires", func() {
 			fakeTime := 30.0
 			fakeExpiration := 10.0
 			BeforeAll(func() {
@@ -729,7 +729,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				certAfterEach()
 			})
 
-			It("should generate new webhook cert, CA should stay as is", func() {
+			It("CA certificate is not changed, webhook certificate is regenerated", func() {
 				caSecretBeforeExpiration := getSecret(CaSecret)
 				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
 				Expect(checkHowManySecondsToExpiration(WebhookSecret) <= fakeTime).To(BeTrue())
@@ -751,7 +751,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("ca expired", func() {
+		When("CA certificate expires", func() {
 			fakeSeconds := 30.0
 			fakeExpiration := 10.0
 			BeforeAll(func() {
@@ -766,7 +766,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				certAfterEach()
 			})
 
-			It("should generate new webhook cert, CA should stay as is", func() {
+			It("fully regenerate of CA certificate and webhook certificate", func() {
 				caSecretBeforeExpiration := getSecret(CaSecret)
 				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
 				Expect(checkHowManySecondsToExpiration(CaSecret) <= fakeSeconds).To(BeTrue())
@@ -791,14 +791,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("webhook ca bundle modified, from different CA", func() {
+		When("webhook caBundle modified with new CA certificate", func() {
 			BeforeAll(func() {
 				certBeforeEach(nil)
 			})
 			AfterAll(func() {
 				certAfterEach()
 			})
-			It("should be restored to existing CA", func() {
+			It("should be reconciled to existing CA certificate", func() {
 				newCaCertificate, _, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
 				updated := replaceCaBundleInMutatingWebhooks(newCaCertificate)
@@ -807,14 +807,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("webhook ca bundle modified, with some dummy text", func() {
+		When("webhook caBundle modified with some dummy text", func() {
 			BeforeAll(func() {
 				certBeforeEach(nil)
 			})
 			AfterAll(func() {
 				certAfterEach()
 			})
-			It("should be restored to existing CA", func() {
+			It("should be reconciled to existing CA certificate", func() {
 				dummy := []byte("dummy")
 				updated := replaceCaBundleInMutatingWebhooks(dummy)
 				updated = !updated && replaceCaBundleInValidatingWebhooks(dummy)
