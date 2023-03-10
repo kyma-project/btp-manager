@@ -1425,7 +1425,7 @@ func (r *BtpOperatorReconciler) checkIfCertificatesExist(ctx context.Context, re
 		return false, err
 	}
 	if !caSecretExists {
-		logger.Info("ca secret with cert dosent exists.")
+		logger.Info("CA secret with cert dosent exists.")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
@@ -1438,7 +1438,7 @@ func (r *BtpOperatorReconciler) checkIfCertificatesExist(ctx context.Context, re
 		return false, err
 	}
 	if !webhookSecretExists {
-		logger.Info("web secret secret with cert does not exists.")
+		logger.Info("webhook secret with cert does not exists.")
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
@@ -1568,17 +1568,17 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 
 func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, CA, CAPrivateKey []byte) error {
 	logger := log.FromContext(ctx)
-	logger.Info("generation of signed webhookCertificate started")
+	logger.Info("generation of signed webhook certificate started")
 
 	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().Add(WebhookCertificateExpiration), CA, CAPrivateKey)
 	if err != nil {
-		return fmt.Errorf("while generating signed webhookCertificate: %w", err)
+		return fmt.Errorf("while generating signed webhook certificate: %w", err)
 	}
 	err = r.appendCertificationDataToUnstructured(resourcesToApply, WebhookSecret, webhookCertificate, webhookPrivateKey, WebhookSecretDataPrefix)
 	if err != nil {
-		return fmt.Errorf("while adding newly generated signed webhookCertificate to resoruces to apply: %w", err)
+		return fmt.Errorf("while adding newly generated signed webhook certificate to resoruces to apply: %w", err)
 	}
-	logger.Info("generation of signed webhookCertificate success")
+	logger.Info("generation of signed webhook certificate success")
 	return nil
 }
 
