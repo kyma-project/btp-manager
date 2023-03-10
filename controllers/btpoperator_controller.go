@@ -1287,6 +1287,10 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 			switch v := e.ObjectOld.(type) {
 			case *admissionregistrationv1.ValidatingWebhookConfiguration:
 				{
+					if v.Name != validatingWebhookName {
+						return false
+					}
+
 					existingCaBundles := make([][]byte, 0)
 					for _, w := range v.Webhooks {
 						existingCaBundles = append(existingCaBundles, w.ClientConfig.CABundle)
@@ -1306,6 +1310,10 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 				}
 			case *admissionregistrationv1.MutatingWebhookConfiguration:
 				{
+					if v.Name != mutatingWebhookName {
+						return false
+					}
+
 					existingCaBundles := make([][]byte, 0)
 					for _, w := range v.Webhooks {
 						existingCaBundles = append(existingCaBundles, w.ClientConfig.CABundle)
