@@ -1719,7 +1719,7 @@ func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx cont
 		return false, err
 	}
 
-	ok, err := certs.VerifyIfLeafSignedByGivenCA(caCertificate, webhookCertificate)
+	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCertificate, webhookCertificate)
 	if err != nil {
 		return false, err
 	}
