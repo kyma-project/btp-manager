@@ -81,7 +81,7 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 		return []byte{}, nil, err
 	}
 
-	decodedSourceCertificate, err := TryDecode(sourceCertificate)
+	decodedSourceCertificate, err := TryDecodeCertificate(sourceCertificate)
 	if err != nil {
 		return []byte{}, nil, err
 	}
@@ -89,7 +89,7 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	if err != nil {
 		return []byte{}, nil, err
 	}
-	decodedSourcePrivateKey, err := TryDecode(sourcePrivateKey)
+	decodedSourcePrivateKey, err := TryDecodeCertificate(sourcePrivateKey)
 	if err != nil {
 		return []byte{}, nil, err
 	}
@@ -119,11 +119,11 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 }
 
 func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, error) {
-	caCertificateDecoded, err := TryDecode(caCertificate)
+	caCertificateDecoded, err := TryDecodeCertificate(caCertificate)
 	if err != nil {
 		return true, err
 	}
-	leafCertificateDecoded, _ := TryDecode(leafCertificate)
+	leafCertificateDecoded, _ := TryDecodeCertificate(leafCertificate)
 	if err != nil {
 		return true, err
 	}
@@ -166,7 +166,7 @@ func getDns() []string {
 	return []string{"sap-btp-operator-webhook-service.kyma-system.svc", "sap-btp-operator-webhook-service.kyma-system"}
 }
 
-func TryDecode(cert []byte) (*pem.Block, error) {
+func TryDecodeCertificate(cert []byte) (*pem.Block, error) {
 	decoded, _ := pem.Decode(cert)
 	if decoded == nil {
 		return nil, fmt.Errorf("while decoding cert to pem")

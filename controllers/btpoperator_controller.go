@@ -1346,7 +1346,7 @@ func (r *BtpOperatorReconciler) checkIfCertificatesStructureIsCorrect(ctx contex
 	if err != nil {
 		return false, err
 	}
-	_, err = certs.TryDecode(caCertificate)
+	_, err = certs.TryDecodeCertificate(caCertificate)
 	if err != nil {
 		logger.Info("CA cert is structured incorrectly")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
@@ -1360,7 +1360,7 @@ func (r *BtpOperatorReconciler) checkIfCertificatesStructureIsCorrect(ctx contex
 	if err != nil {
 		return false, err
 	}
-	_, err = certs.TryDecode(webhookCertificate)
+	_, err = certs.TryDecodeCertificate(webhookCertificate)
 	if err != nil {
 		logger.Info("webhook cert is structured incorrectly")
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
@@ -1733,7 +1733,7 @@ func (r *BtpOperatorReconciler) doesCertificateExpireSoon(ctx context.Context, s
 	if err != nil {
 		return false, err
 	}
-	certificateDecoded, err := certs.TryDecode(certificate)
+	certificateDecoded, err := certs.TryDecodeCertificate(certificate)
 	if err != nil {
 		return true, err
 	}
