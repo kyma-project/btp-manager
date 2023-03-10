@@ -19,8 +19,6 @@ package main
 import (
 	"flag"
 	"os"
-	"os/exec"
-
 	//test
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -53,10 +51,6 @@ func init() {
 }
 
 func main() {
-	cmd := exec.Command("/bin/sh", "preparemain.sh")
-	if err := cmd.Run(); err != nil {
-		panic(err)
-	}
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
