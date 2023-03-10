@@ -35,6 +35,7 @@ type BtpOperator struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	//+nullable
 	Spec   BtpOperatorSpec `json:"spec,omitempty"`
 	Status types.Status    `json:"status,omitempty"`
 }

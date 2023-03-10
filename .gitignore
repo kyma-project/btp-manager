@@ -36,3 +36,4 @@ Dockerfile.cross
 /controllers/testdata/test-module-resources/
 /downloaded_module/
 /temp/
+/charts/
