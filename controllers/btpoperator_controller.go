@@ -1284,15 +1284,15 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 			return predicateForCertificates(e.Object)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			switch v := e.ObjectOld.(type) {
+			switch objectOld := e.ObjectOld.(type) {
 			case *admissionregistrationv1.ValidatingWebhookConfiguration:
 				{
-					if v.Name != validatingWebhookName {
+					if objectOld.Name != validatingWebhookName {
 						return false
 					}
 
 					existingCaBundles := make([][]byte, 0)
-					for _, w := range v.Webhooks {
+					for _, w := range objectOld.Webhooks {
 						existingCaBundles = append(existingCaBundles, w.ClientConfig.CABundle)
 					}
 
@@ -1310,17 +1310,18 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 				}
 			case *admissionregistrationv1.MutatingWebhookConfiguration:
 				{
-					if v.Name != mutatingWebhookName {
+					objectNew := e.ObjectNew.(*admissionregistrationv1.MutatingWebhookConfiguration)
+
+					if objectNew.Name != mutatingWebhookName {
 						return false
 					}
 
 					existingCaBundles := make([][]byte, 0)
-					for _, w := range v.Webhooks {
+					for _, w := range objectNew.Webhooks {
 						existingCaBundles = append(existingCaBundles, w.ClientConfig.CABundle)
 					}
 
 					newCaBundles := make([][]byte, 0)
-					objectNew := e.ObjectNew.(*admissionregistrationv1.MutatingWebhookConfiguration)
 					for _, w := range objectNew.Webhooks {
 						newCaBundles = append(newCaBundles, w.ClientConfig.CABundle)
 					}
