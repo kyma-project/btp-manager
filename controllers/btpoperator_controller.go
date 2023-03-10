@@ -1334,8 +1334,6 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 			default:
 				return false
 			}
-
-			return predicateForCertificates(e.ObjectOld)
 		},
 	}
 }
@@ -1380,7 +1378,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 	logger := log.FromContext(ctx)
 	logger.Info("certificates reconciliation started")
 
-	breakFlow, err := r.checkIfCertificatesExists(ctx, resourcesToApply)
+	breakFlow, err := r.checkIfCertificatesExist(ctx, resourcesToApply)
 	if err != nil {
 		return err
 	}
@@ -1420,7 +1418,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkIfCertificatesExists(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
+func (r *BtpOperatorReconciler) checkIfCertificatesExist(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
 	caSecretExists, err := r.checkIfSecretExists(ctx, CaSecret)
 	if err != nil {
