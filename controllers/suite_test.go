@@ -147,6 +147,7 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 }
 
 var _ = BeforeSuite(func() {
+
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
 		o.Development = true
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder

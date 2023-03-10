@@ -1,5 +1,4 @@
 #! /bin/bash
-
 FILE=creds.json
 if [ ! -f "$FILE" ];
 then
