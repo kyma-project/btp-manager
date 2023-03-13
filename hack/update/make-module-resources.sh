@@ -60,7 +60,7 @@ filterProhibitedFiles() {
 
       done
     else
-      echo "$directory is Empty"
+      echo "$directory is empty"
     fi
 }
 
