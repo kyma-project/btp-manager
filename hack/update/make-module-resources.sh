@@ -50,11 +50,11 @@ filterProhibitedFiles() {
   if [ "$(ls -A $directory)" ]; then
       for yaml in $directory/*
       do
-          yq '. | select(.metadata.annotations."helm.sh/hook" == "pre-delete")' $yaml >> to-exclude.yml
+          yq '. | select(.metadata.annotations."helm.sh/hook" == "*pre-delete*")' $yaml >> to-exclude.yml
 
-          yq -i '. | select(.metadata.annotations."helm.sh/hook" != "pre-delete")' $yaml
+          yq -i '. | select(.metadata.annotations."helm.sh/hook" != "*pre-delete*")' $yaml
           if [ ! -s $yaml ]; then
-              echo "Removing $yaml because of pre-delete  helm hook"
+              echo "Removing $yaml because of pre-delete helm hook"
               rm $yaml
           fi
 
