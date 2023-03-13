@@ -627,6 +627,12 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) blocks btp operator deletion.", numberOfInstances, numberOfBindings))
 			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
 			logger.Info(msg)
+
+			// if the reason is already set, do nothing
+			if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+				return nil
+			}
+
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 				types.StateDeleting, ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
 				return updateStatusErr
