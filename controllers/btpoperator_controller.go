@@ -631,7 +631,6 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 				types.StateDeleting, ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
 				return updateStatusErr
 			}
-			logger.Info(fmt.Sprintf("%v", cr.Status))
 			return nil
 		} else {
 			if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
