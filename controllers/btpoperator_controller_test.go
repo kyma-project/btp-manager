@@ -207,13 +207,11 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		AfterEach(func() {
 			deleteSecret := &corev1.Secret{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
-			//Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
 			k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			k8sClient.Update(ctx, cr)
 			time.Sleep(time.Second)
-			//Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 		})
 
 		It("Delete should fail because of existing instances and bindings", func() {
@@ -237,7 +235,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 	})
 
-	Describe("Deprovisioning with forceDelete label", func() {
+	Describe("Deprovisioning with force-delete label", func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
 		BeforeEach(func() {
