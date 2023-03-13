@@ -190,7 +190,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 	})
 
-	Describe("Deprovisioning without forceDelete label", func() {
+	Describe("Deprovisioning without force-delete label", func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
 		BeforeEach(func() {
