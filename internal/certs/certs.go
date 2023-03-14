@@ -43,12 +43,12 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 
 	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, newCertificateTemplate, &newCertificatePrivateKey.PublicKey, newCertificatePrivateKey)
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 
 	newCertificatePem := new(bytes.Buffer)
@@ -82,29 +82,29 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 
 	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 
 	decodedSourceCertificate, err := TryDecodeCertificate(sourceCertificate)
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 	parsedSourceCertificate, err := x509.ParseCertificate(decodedSourceCertificate.Bytes)
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 	decodedSourcePrivateKey, err := TryDecodeCertificate(sourcePrivateKey)
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 	parsedSourcePrivateKey, err := x509.ParsePKCS1PrivateKey(decodedSourcePrivateKey.Bytes)
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, parsedSourceCertificate, &newCertificatePrivateKey.PublicKey, parsedSourcePrivateKey)
 	if err != nil {
-		return []byte{}, nil, err
+		return nil, nil, err
 	}
 
 	newCertificatePem := new(bytes.Buffer)
