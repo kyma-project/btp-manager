@@ -52,16 +52,20 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 	}
 
 	newCertificatePem := new(bytes.Buffer)
-	pem.Encode(newCertificatePem, &pem.Block{
+	if err := pem.Encode(newCertificatePem, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: newCertificate,
-	})
+	}); err != nil {
+		return nil, nil, err
+	}
 
 	newCertificatePrivateKeyPem := new(bytes.Buffer)
-	pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
+	if err := pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(newCertificatePrivateKey),
-	})
+	}); err != nil {
+		return nil, nil, err
+	}
 
 	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
@@ -104,16 +108,20 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	}
 
 	newCertificatePem := new(bytes.Buffer)
-	pem.Encode(newCertificatePem, &pem.Block{
+	if err := pem.Encode(newCertificatePem, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: newCertificate,
-	})
+	}); err != nil {
+		return nil, nil, err
+	}
 
 	newCertificatePrivateKeyPem := new(bytes.Buffer)
-	pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
+	if err := pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(newCertificatePrivateKey),
-	})
+	}); err != nil {
+		return nil, nil, err
+	}
 
 	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
