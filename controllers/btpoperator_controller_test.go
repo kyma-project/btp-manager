@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"encoding/gob"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -600,7 +601,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 			It("should do fully regenerate of CA certificate and webhook certificate", func() {
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
-				newCaPrivateKeyStructured, err := reconciler.structToByteArray(newCaPrivateKey)
+				newCaPrivateKeyStructured, err := structToByteArray(newCaPrivateKey)
 				Expect(err).To(BeNil())
 
 				caSecret := getSecret(CaSecret)
@@ -650,7 +651,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), ca, pk)
 				Expect(err).To(BeNil())
-				newWebhookPrivateKeyStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
+				newWebhookPrivateKeyStructured, err := structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
 				webhookCert := getSecret(CaSecret)
@@ -685,7 +686,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(err).To(BeNil())
 
 				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), newCaCertificate, newCaPrivateKey)
-				newWebhookCertificateStructured, err := reconciler.structToByteArray(newWebhookPrivateKey)
+				newWebhookCertificateStructured, err := structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
 				beforeCaSecret := getSecret(CaSecret)
@@ -1334,4 +1335,15 @@ func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
 			Expect(bytes.Equal(n.ClientConfig.CABundle, ca)).To(BeTrue())
 		}
 	}
+}
+
+func structToByteArray(s any) ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	err := encoder.Encode(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }

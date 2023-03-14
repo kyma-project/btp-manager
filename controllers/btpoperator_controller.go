@@ -17,11 +17,9 @@ limitations under the License.
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -1341,42 +1339,6 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 	}
 }
 
-func (r *BtpOperatorReconciler) checkIfCertificatesStructureIsCorrect(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("checking structure of certificates")
-
-	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
-	if err != nil {
-		return false, err
-	}
-	_, err = certs.TryDecodeCertificate(caCertificate)
-	if err != nil {
-		logger.Info("CA cert is structured incorrectly")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		logger.Info("full regeneration done due to CA cert being structured incorrectly")
-		return true, nil
-	}
-
-	webhookCertificate, err := r.getCertificateFromSecret(ctx, WebhookSecret)
-	if err != nil {
-		return false, err
-	}
-	_, err = certs.TryDecodeCertificate(webhookCertificate)
-	if err != nil {
-		logger.Info("webhook cert is structured incorrectly")
-		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		logger.Info("partial regeneration done due to webhook cert being structured incorrectly")
-		return true, nil
-	}
-
-	logger.Info("checking structure of certificates succeeded. no work need to be done.")
-	return false, nil
-}
-
 func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("certificates reconciliation started")
@@ -1397,10 +1359,6 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 		return nil
 	}
 
-	if err := r.reconcileWebhooksConfigurations(ctx, resourcesToApply, nil); err != nil {
-		return err
-	}
-
 	breakFlow, err = r.checkCertificatesExpiration(ctx, resourcesToApply)
 	if err != nil {
 		return err
@@ -1415,6 +1373,10 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 	}
 	if breakFlow {
 		return nil
+	}
+
+	if err := r.reconcileWebhooksConfigurations(ctx, resourcesToApply, nil); err != nil {
+		return err
 	}
 
 	return nil
@@ -1450,6 +1412,42 @@ func (r *BtpOperatorReconciler) checkIfCertificatesExist(ctx context.Context, re
 		return true, nil
 	}
 	logger.Info("webhook secret exists")
+	return false, nil
+}
+
+func (r *BtpOperatorReconciler) checkIfCertificatesStructureIsCorrect(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("checking structure of certificates")
+
+	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
+	if err != nil {
+		return false, err
+	}
+	_, err = certs.TryDecodeCertificate(caCertificate)
+	if err != nil {
+		logger.Info("CA cert is structured incorrectly")
+		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+			return false, err
+		}
+		logger.Info("full regeneration done due to CA cert being structured incorrectly")
+		return true, nil
+	}
+
+	webhookCertificate, err := r.getCertificateFromSecret(ctx, WebhookSecret)
+	if err != nil {
+		return false, err
+	}
+	_, err = certs.TryDecodeCertificate(webhookCertificate)
+	if err != nil {
+		logger.Info("webhook cert is structured incorrectly")
+		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+			return false, err
+		}
+		logger.Info("partial regeneration done due to webhook cert being structured incorrectly")
+		return true, nil
+	}
+
+	logger.Info("checking structure of certificates succeeded. no work need to be done.")
 	return false, nil
 }
 
@@ -1548,6 +1546,9 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 	err := r.generateSignedCertAndAddToApplyList(ctx, resourceToApply, nil, nil)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in partial regeneration proccess. %w", err)
+	}
+	if err := r.reconcileWebhooksConfigurations(ctx, resourceToApply, nil); err != nil {
+		return err
 	}
 	logger.Info("partial regeneration succeeded")
 	return nil
@@ -1656,7 +1657,6 @@ func (r *BtpOperatorReconciler) reconcileWebhooksConfigurations(ctx context.Cont
 			if err != nil {
 				return err
 			}
-			//(*resourcesToApply)[i] = resource
 		}
 	}
 
@@ -1781,17 +1781,6 @@ func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) 
 
 func (r *BtpOperatorReconciler) buildKeyNameWithExtension(filename, extension string) string {
 	return fmt.Sprintf("%s.%s", filename, extension)
-}
-
-func (r *BtpOperatorReconciler) structToByteArray(s any) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
 }
 
 func (r *BtpOperatorReconciler) getValueByKey(key string, data map[string][]byte) ([]byte, error) {
