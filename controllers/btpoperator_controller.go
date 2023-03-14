@@ -1417,35 +1417,43 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 	logger := log.FromContext(ctx)
 	logger.Info("certificates reconciliation started")
 
-	breakFlow, err := r.checkIfCertificatesExist(ctx, resourcesToApply)
+	certificatesRegenerationDone, err := r.ensureCertificatesExists(ctx, resourcesToApply)
 	if err != nil {
 		return err
 	}
-	if breakFlow {
+	if certificatesRegenerationDone {
 		return nil
 	}
 
-	breakFlow, err = r.checkIfCertificatesStructureIsCorrect(ctx, resourcesToApply)
+	certificatesRegenerationDone, err = r.ensureSecretsDataIsSet(ctx, resourcesToApply)
 	if err != nil {
 		return err
 	}
-	if breakFlow {
+	if certificatesRegenerationDone {
 		return nil
 	}
 
-	breakFlow, err = r.checkCertificatesExpiration(ctx, resourcesToApply)
+	certificatesRegenerationDone, err = r.ensureCertificatesAreCorrectlyStructured(ctx, resourcesToApply)
 	if err != nil {
 		return err
 	}
-	if breakFlow {
+	if certificatesRegenerationDone {
 		return nil
 	}
 
-	breakFlow, err = r.checkIfCertificateSignsAreCorrect(ctx, resourcesToApply)
+	certificatesRegenerationDone, err = r.ensureCertificatesHaveValidExpiration(ctx, resourcesToApply)
 	if err != nil {
 		return err
 	}
-	if breakFlow {
+	if certificatesRegenerationDone {
+		return nil
+	}
+
+	certificatesRegenerationDone, err = r.ensureCertificatesAreCorrectSigned(ctx, resourcesToApply)
+	if err != nil {
+		return err
+	}
+	if certificatesRegenerationDone {
 		return nil
 	}
 
@@ -1456,7 +1464,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkIfCertificatesExist(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
+func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
 	caSecretExists, err := r.checkIfSecretExists(ctx, CaSecret)
 	if err != nil {
@@ -1486,7 +1494,47 @@ func (r *BtpOperatorReconciler) checkIfCertificatesExist(ctx context.Context, re
 	return false, nil
 }
 
-func (r *BtpOperatorReconciler) checkIfCertificatesStructureIsCorrect(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
+func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
+	caSecretData, err := r.getDataFromSecret(ctx, CaSecret)
+	caSecretDataIncorrect := false
+	_, err = r.getValueByKey(r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix), caSecretData)
+	if err != nil {
+		caSecretDataIncorrect = true
+	}
+	_, err = r.getValueByKey(r.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix), caSecretData)
+	if err != nil {
+		caSecretDataIncorrect = true
+	}
+
+	if caSecretDataIncorrect {
+		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	webhookSecretData, err := r.getDataFromSecret(ctx, WebhookSecret)
+	webhookSecretDataIncorrect := false
+	_, err = r.getValueByKey(r.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), webhookSecretData)
+	if err != nil {
+		webhookSecretDataIncorrect = true
+	}
+	_, err = r.getValueByKey(r.buildKeyNameWithExtension(WebhookSecretDataPrefix, RsaKeyPostfix), webhookSecretData)
+	if err != nil {
+		webhookSecretDataIncorrect = true
+	}
+
+	if webhookSecretDataIncorrect {
+		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("checking structure of certificates")
 
@@ -1522,29 +1570,7 @@ func (r *BtpOperatorReconciler) checkIfCertificatesStructureIsCorrect(ctx contex
 	return false, nil
 }
 
-func (r *BtpOperatorReconciler) checkIfCertificateSignsAreCorrect(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
-	signOk, err := r.isWebhookSecretCertSignedByCaSecretCert(ctx)
-	if err != nil {
-		logger.Error(err, "while checking if webhook is signed by correct CA")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-	if !signOk {
-		logger.Error(nil, "webhook cert is not signed by correct CA")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-	logger.Info("webhook certificate is signed by correct root CA")
-
-	return false, nil
-}
-
-func (r *BtpOperatorReconciler) checkCertificatesExpiration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
+func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
 	doCaCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, CaSecret)
 	if err != nil {
@@ -1573,6 +1599,28 @@ func (r *BtpOperatorReconciler) checkCertificatesExpiration(ctx context.Context,
 		return true, nil
 	}
 	logger.Info("webhook certificate is valid")
+	return false, nil
+}
+
+func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectSigned(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
+	logger := log.FromContext(ctx)
+	signOk, err := r.isWebhookSecretCertSignedByCaSecretCert(ctx)
+	if err != nil {
+		logger.Error(err, "while checking if webhook is signed by correct CA")
+		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	if !signOk {
+		logger.Error(nil, "webhook cert is not signed by correct CA")
+		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	logger.Info("webhook certificate is signed by correct root CA")
+
 	return false, nil
 }
 
