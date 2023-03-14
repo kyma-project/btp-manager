@@ -1103,12 +1103,12 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &admissionregistrationv1.MutatingWebhookConfiguration{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
-			builder.WithPredicates(r.watchWebhooksPredicates()),
+			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
 		).
 		Watches(
 			&source.Kind{Type: &admissionregistrationv1.ValidatingWebhookConfiguration{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
-			builder.WithPredicates(r.watchWebhooksPredicates()),
+			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
 		Complete(r)
 }
@@ -1188,6 +1188,80 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 	}
 }
 
+func (r *BtpOperatorReconciler) watchValidatingWebhooksPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			obj := e.Object.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+			return obj.Name == validatingWebhookName
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			obj := e.Object.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+			return obj.Name == validatingWebhookName
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			objectOld := e.ObjectOld.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+
+			if objectOld.Name != validatingWebhookName {
+				return false
+			}
+
+			existingCaBundles := make([][]byte, 0)
+			for _, w := range objectOld.Webhooks {
+				existingCaBundles = append(existingCaBundles, w.ClientConfig.CABundle)
+			}
+
+			objectNew := e.ObjectNew.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+			newCaBundles := make([][]byte, 0)
+			for _, w := range objectNew.Webhooks {
+				newCaBundles = append(newCaBundles, w.ClientConfig.CABundle)
+			}
+
+			if !reflect.DeepEqual(existingCaBundles, newCaBundles) {
+				return true
+			}
+
+			return false
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) watchMutatingWebhooksPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			obj := e.Object.(*admissionregistrationv1.MutatingWebhookConfiguration)
+			return obj.Name == mutatingWebhookName
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			obj := e.Object.(*admissionregistrationv1.MutatingWebhookConfiguration)
+			return obj.Name == mutatingWebhookName
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			objectOld := e.ObjectOld.(*admissionregistrationv1.MutatingWebhookConfiguration)
+
+			if objectOld.Name != mutatingWebhookName {
+				return false
+			}
+
+			existingCaBundles := make([][]byte, 0)
+			for _, w := range objectOld.Webhooks {
+				existingCaBundles = append(existingCaBundles, w.ClientConfig.CABundle)
+			}
+
+			objectNew := e.ObjectNew.(*admissionregistrationv1.MutatingWebhookConfiguration)
+			newCaBundles := make([][]byte, 0)
+			for _, w := range objectNew.Webhooks {
+				newCaBundles = append(newCaBundles, w.ClientConfig.CABundle)
+			}
+
+			if !reflect.DeepEqual(existingCaBundles, newCaBundles) {
+				return true
+			}
+
+			return false
+		},
+	}
+}
+
 func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcile.Request {
 	logger := log.FromContext(nil, "name", object.GetName(), "namespace", object.GetNamespace())
 	cm, ok := object.(*corev1.ConfigMap)
@@ -1260,7 +1334,7 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 	}
 	return cr.Labels[forceDeleteLabelKey] == "true"
 }
-	func (r *BtpOperatorReconciler) watchWebhooksPredicates() predicate.Funcs {
+func (r *BtpOperatorReconciler) watchWebhooksPredicates() predicate.Funcs {
 	predicateForCertificates := func(obj client.Object) bool {
 		switch v := obj.(type) {
 		case *admissionregistrationv1.ValidatingWebhookConfiguration:
@@ -1404,9 +1478,6 @@ func (r *BtpOperatorReconciler) checkIfCertificatesExist(ctx context.Context, re
 	if !webhookSecretExists {
 		logger.Info("webhook secret with cert does not exists")
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		if err := r.reconcileWebhooksConfigurations(ctx, resourcesToApply, nil); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -1807,5 +1878,4 @@ func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data m
 		},
 		Data: data,
 	}
->>>>>>> 49f299f (Handling Certs in btp manager)
 }
