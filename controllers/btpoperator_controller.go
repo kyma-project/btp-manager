@@ -644,7 +644,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		// go to a state which starts deleting process
 		if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 			types.StateDeleting, HardDeleting,
-			"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
+			"BtpOperator is to be deleted"); updateStatusErr != nil {
 			return updateStatusErr
 		}
 	}
