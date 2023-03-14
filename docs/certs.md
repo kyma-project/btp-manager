@@ -1,6 +1,6 @@
-![Certification management diagram](./assets/certs.svg)
-
 ## Certification management
+
+![Certification management diagram](./assets/certs.svg)
 
 BTP Manager maintain two secrets `ca-server-cert` and `webhook-server-cert` which are used to allow communication within BTP Operator webhooks, and in result allow to create resources like ServiceInstances and ServiceBindings
 During provisioning, first there is created `ca-server-cert` which is self sign CA certificate, then based on that, application create signed cert `webhook-server-cert`, which is mounted under the deployment.
