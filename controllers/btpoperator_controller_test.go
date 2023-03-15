@@ -522,22 +522,18 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		orgWebhookCertExpiration := WebhookCertificateExpiration
 		orgExpirationBoundary := ExpirationBoundary
 
-		var actualWorkqueueSize func() int
-
 		BeforeAll(func() {
 			Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
 			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
 
-			os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")
+			Expect(os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")).To(BeNil())
 			Expect(createChartOrResourcesCopyWithoutWebhooks("../module-chart/chart", defaultChartPath)).To(Succeed())
 			Expect(createChartOrResourcesCopyWithoutWebhooks("../module-resources", defaultResourcesPath)).To(Succeed())
 			ChartPath = defaultChartPath
 			ResourcesPath = defaultResourcesPath
-
-			actualWorkqueueSize = func() int { return reconciler.workqueueSize }
 		})
 
-		restoreOriginalCertificateTiems := func() {
+		restoreOriginalCertificateTimes := func() {
 			CaCertificateExpiration = orgCaCertificateExpiration
 			WebhookCertificateExpiration = orgWebhookCertExpiration
 			ExpirationBoundary = orgExpirationBoundary
@@ -549,7 +545,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				WebhookCertificateExpiration = opts.WebhookCertExpiration
 				ExpirationBoundary = opts.ExpirationBoundary
 			} else {
-				restoreOriginalCertificateTiems()
+				restoreOriginalCertificateTimes()
 			}
 
 			cr = createBtpOperator()
@@ -565,22 +561,22 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
 			Expect(isCrNotFound()).To(BeTrue())
-			restoreOriginalCertificateTiems()
+			restoreOriginalCertificateTimes()
 		}
 
-		ensureReconcilationQueueIsEmpty := func() {
-			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+		ensureReconciliationQueueIsEmpty := func() {
+			Eventually(func() int { return reconciler.workqueueSize }).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 		}
 
 		ensureCorrectState := func() {
-			ensureReconcilationQueueIsEmpty()
+			ensureReconciliationQueueIsEmpty()
 			ok, err := reconciler.isWebhookSecretCertSignedByCaSecretCert(ctx)
 			Expect(err).To(BeNil())
 			Expect(ok).To(BeTrue())
 			ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles()
 		}
 
-		When("doing provisioning", func() {
+		When("certs don't exist in the cluster prior provisioning", func() {
 			BeforeAll(func() {
 				certBeforeEach(nil)
 			})
@@ -605,16 +601,15 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(err).To(BeNil())
 
 				caSecret := getSecret(CaSecret)
-				orgCaSecret := caSecret
 				replaceSecretData(caSecret, reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix), newCaCertificate, reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix), newCaPrivateKeyStructured)
-				ensureReconcilationQueueIsEmpty()
+				ensureReconciliationQueueIsEmpty()
 				updatedCaSecret := getSecret(CaSecret)
 
 				caCertificateAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue())
 
-				caCertificateOriginal, ok := orgCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				caCertificateOriginal, ok := caSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeTrue())
 
@@ -622,7 +617,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeTrue())
 
-				caPrivateKeyOriginal, ok := orgCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix)]
+				caPrivateKeyOriginal, ok := caSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix)]
 				Expect(ok).To(BeTrue())
 				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeTrue())
 
@@ -654,9 +649,9 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				newWebhookPrivateKeyStructured, err := structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
-				webhookCert := getSecret(CaSecret)
+				webhookCert := getSecret(WebhookSecret)
 				replaceSecretData(webhookCert, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, RsaKeyPostfix), newWebhookPrivateKeyStructured)
-				ensureReconcilationQueueIsEmpty()
+				ensureReconciliationQueueIsEmpty()
 
 				originalWebhookCert, ok := originalWebhookSecret.Data[reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix)]
 				Expect(!bytes.Equal(originalWebhookCert, newWebhookCertificate))
@@ -674,7 +669,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 		})
 
-		When("webhook certificate and is signed by different CA certificate", func() {
+		When("webhook certificate is signed by different CA certificate", func() {
 			BeforeAll(func() {
 				certBeforeEach(nil)
 			})
@@ -694,7 +689,7 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 
 				webhookCertSecret := getSecret(WebhookSecret)
 				replaceSecretData(webhookCertSecret, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), newWebhookCertificate, reconciler.buildKeyNameWithExtension(WebhookSecretDataPrefix, RsaKeyPostfix), newWebhookCertificateStructured)
-				ensureReconcilationQueueIsEmpty()
+				ensureReconciliationQueueIsEmpty()
 
 				currentCaSecret := getSecret(CaSecret)
 				currentCaCert, ok := currentCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
@@ -733,20 +728,21 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("CA certificate is not changed, webhook certificate is regenerated", func() {
 				caSecretBeforeExpiration := getSecret(CaSecret)
 				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
-				Expect(checkHowManySecondsToExpiration(WebhookSecret) <= fakeTime).To(BeTrue())
-				restoreOriginalCertificateTiems()
-				ensureReconcilationQueueIsEmpty()
+				Expect(checkHowManySecondsToExpiration(WebhookSecret)).Should(BeNumerically("<=", fakeTime))
+
+				restoreOriginalCertificateTimes()
+				ensureReconciliationQueueIsEmpty()
 				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
-				ensureReconcilationQueueIsEmpty()
+				ensureReconciliationQueueIsEmpty()
 				caSecretAfterExpiration := getSecret(CaSecret)
 				webhookSecretAfterExpiration := getSecret(WebhookSecret)
 				Expect(reflect.DeepEqual(caSecretBeforeExpiration.Data, caSecretAfterExpiration.Data)).To(BeTrue())
 				Expect(reflect.DeepEqual(webhookSecretBeforeExpiration.Data, webhookSecretAfterExpiration.Data)).To(BeFalse())
-				Expect(checkHowManySecondsToExpiration(WebhookSecret) >= fakeTime).To(BeTrue())
+				Expect(checkHowManySecondsToExpiration(WebhookSecret)).Should(BeNumerically(">=", fakeTime))
 
 				ensureCorrectState()
 			})
@@ -770,24 +766,21 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("fully regenerate of CA certificate and webhook certificate", func() {
 				caSecretBeforeExpiration := getSecret(CaSecret)
 				webhookSecretBeforeExpiration := getSecret(WebhookSecret)
-				Expect(checkHowManySecondsToExpiration(CaSecret) <= fakeSeconds).To(BeTrue())
-				time.Sleep(time.Second * 10)
-				Expect(checkHowManySecondsToExpiration(CaSecret) <= fakeSeconds).To(BeTrue())
-				restoreOriginalCertificateTiems()
-				ensureReconcilationQueueIsEmpty()
+				Expect(checkHowManySecondsToExpiration(CaSecret)).Should(BeNumerically("<=", fakeSeconds))
+				restoreOriginalCertificateTimes()
+				ensureReconciliationQueueIsEmpty()
 				_, err := reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 					Namespace: cr.Namespace,
 					Name:      cr.Name,
 				}})
 				Expect(err).To(BeNil())
-				ensureReconcilationQueueIsEmpty()
+				ensureReconciliationQueueIsEmpty()
 				caSecretAfterExpiration := getSecret(CaSecret)
 				webhookSecretAfterExpiration := getSecret(WebhookSecret)
 				Expect(reflect.DeepEqual(caSecretBeforeExpiration.Data, caSecretAfterExpiration.Data)).To(BeFalse())
 				Expect(reflect.DeepEqual(webhookSecretBeforeExpiration.Data, webhookSecretAfterExpiration.Data)).To(BeFalse())
-				Expect(checkHowManySecondsToExpiration(WebhookSecret) >= fakeSeconds).To(BeTrue())
-				Expect(checkHowManySecondsToExpiration(CaSecret) >= fakeSeconds).To(BeTrue())
-
+				Expect(checkHowManySecondsToExpiration(WebhookSecret)).Should(BeNumerically(">=", fakeSeconds))
+				Expect(checkHowManySecondsToExpiration(CaSecret)).Should(BeNumerically(">=", fakeSeconds))
 				ensureCorrectState()
 			})
 		})
@@ -803,7 +796,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 				newCaCertificate, _, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
 				updated := replaceCaBundleInMutatingWebhooks(newCaCertificate)
-				updated = !updated && replaceCaBundleInValidatingWebhooks(newCaCertificate)
+				if !updated {
+					updated = replaceCaBundleInValidatingWebhooks(newCaCertificate)
+				}
+				Expect(updated).To(BeTrue())
 				ensureCorrectState()
 			})
 		})
@@ -818,7 +814,10 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			It("should be reconciled to existing CA certificate", func() {
 				dummy := []byte("dummy")
 				updated := replaceCaBundleInMutatingWebhooks(dummy)
-				updated = !updated && replaceCaBundleInValidatingWebhooks(dummy)
+				if !updated {
+					updated = replaceCaBundleInValidatingWebhooks(dummy)
+				}
+				Expect(updated).To(BeTrue())
 				ensureCorrectState()
 			})
 		})
@@ -1250,11 +1249,11 @@ func replaceCaBundleInValidatingWebhooks(newCaBundle []byte) bool {
 	Expect(len(webhookConfig.Items) > 0).To(BeTrue())
 	if len(webhookConfig.Items) > 0 {
 		webhook := webhookConfig.Items[0]
+		Expect(len(webhook.Webhooks) > 0).To(BeTrue())
 		if len(webhook.Webhooks) > 0 {
 			webhook.Webhooks[0].ClientConfig.CABundle = newCaBundle
 			err := k8sClient.Update(ctx, &webhook)
 			Expect(err).To(BeNil())
-			//time.Sleep(time.Second * 10)
 			return true
 		}
 	}
@@ -1268,11 +1267,11 @@ func replaceCaBundleInMutatingWebhooks(newCaBundle []byte) bool {
 	Expect(len(webhookConfig.Items) > 0).To(BeTrue())
 	if len(webhookConfig.Items) > 0 {
 		webhook := webhookConfig.Items[0]
+		Expect(len(webhook.Webhooks) > 0).To(BeTrue())
 		if len(webhook.Webhooks) > 0 {
 			webhook.Webhooks[0].ClientConfig.CABundle = newCaBundle
 			err := k8sClient.Update(ctx, &webhook)
 			Expect(err).To(BeNil())
-			//time.Sleep(time.Second * 10)
 			return true
 		}
 	}
