@@ -1,5 +1,5 @@
 ---
-Certification management
+title: Certification management
 ---
 
 ![Certification management diagram](./assets/certs.svg)
