@@ -74,6 +74,7 @@ var (
 )
 
 const (
+	chartVersionKey             = "chart-version"
 	secretKind                  = "Secret"
 	configMapKind               = "ConfigMap"
 	operatorName                = "btp-manager"
@@ -91,15 +92,6 @@ const (
 	btpOperatorApiVer          = "v1"
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
-)
-
-const (
-	chartVersionKey       = "chart-version"
-	btpManagerConfigMap   = "btp-manager-versions"
-	oldChartVersionKey    = "oldChartVersion"
-	oldGvksKey            = "oldGvks"
-	currentCharVersionKey = "currentChartVersion"
-	currentGvksKey        = "currentGvks"
 )
 
 var (
@@ -407,15 +399,21 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	resourcesToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while creating applicable objects from manifests")
-		return fmt.Errorf("Failed to create applicable objects from manifests: %w", err)
+		return fmt.Errorf("failed to create applicable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply", len(resourcesToApply)))
 
 	logger.Info("preparing module resources to apply")
-	if err = r.prepareModuleResources(ctx, &resourcesToApply, s); err != nil {
+	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
 		logger.Error(err, "while preparing objects to apply")
-		return fmt.Errorf("Failed to prepare objects to apply: %w", err)
+		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
+
+	if err := r.reconcileCertificates(ctx, &resourcesToApply); err != nil {
+		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
+	}
+
+	r.deleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info("applying module resources")
 	if err = r.applyResources(ctx, resourcesToApply); err != nil {
@@ -436,11 +434,11 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
 }
 
-func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	var configMapIndex, secretIndex int
-	for i, u := range *resourcesToApply {
+	for i, u := range resourcesToApply {
 		if u.GetName() == btpServiceOperatorConfigMap && u.GetKind() == configMapKind {
 			configMapIndex = i
 		}
@@ -455,23 +453,17 @@ func (r *BtpOperatorReconciler) prepareModuleResources(ctx context.Context, reso
 		return fmt.Errorf("failed to get module chart version: %w", err)
 	}
 
-	r.addLabels(chartVer, *resourcesToApply...)
-	r.setNamespace(*resourcesToApply...)
+	r.addLabels(chartVer, resourcesToApply...)
+	r.setNamespace(resourcesToApply...)
 
-	if err := r.setConfigMapValues(s, (*resourcesToApply)[configMapIndex]); err != nil {
+	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := r.setSecretValues(s, (*resourcesToApply)[secretIndex]); err != nil {
+	if err := r.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
 		logger.Error(err, "while setting Secret values")
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-
-	if err := r.reconcileCertificates(ctx, resourcesToApply); err != nil {
-		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
-	}
-
-	r.deleteCreationTimestamp(*resourcesToApply...)
 
 	return nil
 }
@@ -1413,6 +1405,7 @@ func (r *BtpOperatorReconciler) watchWebhooksPredicates() predicate.Funcs {
 	}
 }
 
+// *[]*unstructured.Unstructured is required for changing the length of slice in certificates regeneration
 func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("certificates reconciliation started")
@@ -1691,11 +1684,11 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 	return caCertificate, caPrivateKey, nil
 }
 
-func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, CA, CAPrivateKey []byte) error {
+func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, ca, caPrivateKey []byte) error {
 	logger := log.FromContext(ctx)
 	logger.Info("generation of signed webhook certificate started")
 
-	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().Add(WebhookCertificateExpiration), CA, CAPrivateKey)
+	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().Add(WebhookCertificateExpiration), ca, caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("while generating signed webhook certificate: %w", err)
 	}
@@ -1733,7 +1726,7 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 	return webhookCertificate, webhookPrivateKey, err
 }
 
-func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName string, certificate, privateKey []byte, prefix string, us *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName string, certificate, privateKey []byte, prefix string, resourcesToApply *[]*unstructured.Unstructured) error {
 	data := r.mapCertToSecretData(certificate, privateKey, r.buildKeyNameWithExtension(prefix, CertificatePostfix), r.buildKeyNameWithExtension(prefix, RsaKeyPostfix))
 
 	secret := r.buildSecretWithDataAndLabels(certName, data, map[string]string{managedByLabelKey: operatorName})
@@ -1742,7 +1735,7 @@ func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName s
 	if err != nil {
 		return err
 	}
-	*us = append(*us, &unstructured.Unstructured{Object: unstructuredObj})
+	*resourcesToApply = append(*resourcesToApply, &unstructured.Unstructured{Object: unstructuredObj})
 	return nil
 }
 
@@ -1756,7 +1749,6 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []by
 func (r *BtpOperatorReconciler) reconcileWebhooksConfigurations(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
 	logger := log.FromContext(ctx)
 	logger.Info("starting reconciliation of webhooks")
-
 	if expectedCa == nil {
 		secret := &corev1.Secret{}
 		if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecret}, secret); err != nil {
