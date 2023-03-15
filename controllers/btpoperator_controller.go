@@ -1705,7 +1705,7 @@ func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, webhook *u
 	)
 
 	logger := log.FromContext(ctx)
-	webhooksValue, ok := (*webhook).Object[WebhooksKey]
+	webhooksValue, ok := webhook.Object[WebhooksKey]
 	if !ok {
 		return fmt.Errorf("while geting webhooks in reconcileCaBundle")
 	}
@@ -1713,7 +1713,7 @@ func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, webhook *u
 	if !ok {
 		return fmt.Errorf("while casting webhooks in reconcileCaBundle")
 	}
-	(*webhook).SetManagedFields(nil)
+	webhook.SetManagedFields(nil)
 
 	for i, w := range webhooks {
 		webhookAsMap, ok := w.(map[string]interface{})
@@ -1734,7 +1734,7 @@ func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, webhook *u
 		webhooks[i] = webhookAsMap
 		logger.Info("CA bundle replaced with success")
 	}
-	(*webhook).Object[WebhooksKey] = webhooks
+	webhook.Object[WebhooksKey] = webhooks
 	return nil
 }
 
