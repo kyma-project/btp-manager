@@ -70,7 +70,6 @@ namespace/kyma-system created
 priorityclass.scheduling.k8s.io/kyma-system created
 secret/sap-btp-manager created
 btpoperator.operator.kyma-project.io/btpoperator created
-btpoperator.operator.kyma-project.io/btpoperator created
 ```
 
 Check `BtpOperator` CR status by running the following command:
