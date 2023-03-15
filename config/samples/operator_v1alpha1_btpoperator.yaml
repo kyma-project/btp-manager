@@ -3,7 +3,7 @@ kind: BtpOperator
 metadata:
   labels:
     app.kubernetes.io/name: btpoperator
-    app.kubernetes.io/instance: btpoperator-sample
+    app.kubernetes.io/instance: btpoperator
     app.kubernetes.io/part-of: btp-manager
     app.kubernetes.io/managed-by: btp-manager
     app.kubernetes.io/created-by: btp-manager
