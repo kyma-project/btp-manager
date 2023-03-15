@@ -195,6 +195,9 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case types.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
+		switch {
+
+		}
 		err := r.HandleDeletingState(ctx, cr)
 		if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
 			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
@@ -644,7 +647,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		// go to a state which starts deleting process
 		if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 			types.StateDeleting, HardDeleting,
-			"BtpOperator is to be deleted"); updateStatusErr != nil {
+			"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
 			return updateStatusErr
 		}
 	}
