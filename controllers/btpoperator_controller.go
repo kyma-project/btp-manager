@@ -72,7 +72,7 @@ const (
 	secretKind                  = "Secret"
 	configMapKind               = "ConfigMap"
 	operatorName                = "btp-manager"
-	deletionFinalizer           = "custom-deletion-finalizer"
+	deletionFinalizer           = "operator.kyma-project.io/btp-manager"
 	managedByLabelKey           = "app.kubernetes.io/managed-by"
 	btpServiceOperatorConfigMap = "sap-btp-operator-config"
 	btpServiceOperatorSecret    = "sap-btp-service-operator"

@@ -69,18 +69,18 @@ kubectl apply -f examples/btp-operator.yaml
 namespace/kyma-system created
 priorityclass.scheduling.k8s.io/kyma-system created
 secret/sap-btp-manager created
-btpoperator.operator.kyma-project.io/btpoperator-sample created
+btpoperator.operator.kyma-project.io/btpoperator created
 ```
 
 Check `BtpOperator` CR status by running the following command:
 ```sh
-kubectl get btpoperators btpoperator-sample
+kubectl get btpoperators btpoperator
 ```
 
 The expected result is:
 ```
 NAME                 STATE
-btpoperator-sample   Ready
+btpoperator   Ready
 ```
 
 ### Uninstall SAP BTP Service Operator
@@ -92,7 +92,7 @@ kubectl delete -f examples/btp-manager-secret.yaml
 kubectl delete -f deployments/prerequisites.yaml
 ```
 ```
-btpoperator.operator.kyma-project.io "btpoperator-sample" deleted
+btpoperator.operator.kyma-project.io "btpoperator" deleted
 secret "sap-btp-manager" deleted
 namespace "kyma-system" deleted
 priorityclass.scheduling.k8s.io "kyma-system" deleted
