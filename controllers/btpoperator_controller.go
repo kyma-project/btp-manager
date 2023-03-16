@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kyma-project/btp-manager/internal/certs"
-	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"reflect"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/manifest"
+	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -413,14 +413,6 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
 	}
 
-	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
-	if err != nil {
-		logger.Error(err, "while getting module chart version")
-		return fmt.Errorf("failed to get module chart version: %w", err)
-	}
-
-	r.addLabels(chartVer, resourcesToApply...)
-	r.setNamespace(resourcesToApply...)
 	r.deleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info("applying module resources")
@@ -454,6 +446,15 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 			secretIndex = i
 		}
 	}
+
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+	if err != nil {
+		logger.Error(err, "while getting module chart version")
+		return fmt.Errorf("failed to get module chart version: %w", err)
+	}
+
+	r.addLabels(chartVer, resourcesToApply...)
+	r.setNamespace(resourcesToApply...)
 
 	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
