@@ -1411,15 +1411,11 @@ func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, re
 
 func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	caSecretData, err := r.getDataFromSecret(ctx, CaSecret)
-	caSecretDataIncorrect := false
 	_, err = r.getValueByKey(r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix), caSecretData)
-	if err != nil {
-		caSecretDataIncorrect = true
-	}
+	caSecretDataIncorrect := err != nil
+
 	_, err = r.getValueByKey(r.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix), caSecretData)
-	if err != nil {
-		caSecretDataIncorrect = true
-	}
+	caSecretDataIncorrect = caSecretDataIncorrect || err != nil
 
 	if caSecretDataIncorrect {
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
@@ -1429,15 +1425,11 @@ func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, reso
 	}
 
 	webhookSecretData, err := r.getDataFromSecret(ctx, WebhookSecret)
-	webhookSecretDataIncorrect := false
 	_, err = r.getValueByKey(r.buildKeyNameWithExtension(WebhookSecretDataPrefix, CertificatePostfix), webhookSecretData)
-	if err != nil {
-		webhookSecretDataIncorrect = true
-	}
+	webhookSecretDataIncorrect := err != nil
+
 	_, err = r.getValueByKey(r.buildKeyNameWithExtension(WebhookSecretDataPrefix, RsaKeyPostfix), webhookSecretData)
-	if err != nil {
-		webhookSecretDataIncorrect = true
-	}
+	webhookSecretDataIncorrect = webhookSecretDataIncorrect || err != nil
 
 	if webhookSecretDataIncorrect {
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
