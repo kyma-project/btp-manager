@@ -108,8 +108,6 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
-	HardDeleteCheckInterval = 10 * time.Millisecond
-	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
 		certs.SetRsaKeyBits(testRsaKeyBits)

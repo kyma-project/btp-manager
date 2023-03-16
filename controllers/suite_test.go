@@ -53,10 +53,10 @@ import (
 var logger = logf.Log.WithName("suite_test")
 
 const (
-	hardDeleteTimeout = time.Millisecond * 200
-	resourceAdded     = "added"
-	resourceUpdated   = "updated"
-	resourceDeleted   = "deleted"
+	hardDeleteTimeoutForAllTests = time.Second * 1
+	resourceAdded                = "added"
+	resourceUpdated              = "updated"
+	resourceDeleted              = "deleted"
 )
 
 var (
@@ -183,8 +183,8 @@ var _ = BeforeSuite(func() {
 
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
 	k8sClientFromManager = k8sManager.GetClient()
-	HardDeleteTimeout = hardDeleteTimeout
-	HardDeleteCheckInterval = hardDeleteTimeout / 20
+	HardDeleteTimeout = hardDeleteTimeoutForAllTests
+	HardDeleteCheckInterval = hardDeleteTimeoutForAllTests / 20
 	ChartPath = "../module-chart/chart"
 	ResourcesPath = "../module-resources"
 
