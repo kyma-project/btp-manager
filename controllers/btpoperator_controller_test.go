@@ -722,9 +722,14 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 		})
 
 		Context("certs created with custom expiration times", func() {
+			fakeSeconds := 30.0
+			fakeExpiration := 10.0
+
+			AfterEach(func() {
+				certAfterEach()
+			})
+
 			When("webhook certificate expires", func() {
-				fakeSeconds := 30.0
-				fakeExpiration := 10.0
 				BeforeEach(func() {
 					timeOpts := &certificationsTimeOpts{
 						CaCertificateExpiration: CaCertificateExpiration,
@@ -732,10 +737,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 						ExpirationBoundary:      time.Second * time.Duration(fakeExpiration),
 					}
 					certBeforeEach(timeOpts)
-				})
-
-				AfterEach(func() {
-					certAfterEach()
 				})
 
 				It("CA certificate is not changed, webhook certificate is regenerated", func() {
@@ -762,8 +763,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			})
 
 			When("CA certificate expires", func() {
-				fakeSeconds := 30.0
-				fakeExpiration := 10.0
 				BeforeEach(func() {
 					timeOpts := &certificationsTimeOpts{
 						CaCertificateExpiration: time.Second * time.Duration(fakeSeconds),
@@ -771,9 +770,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 						ExpirationBoundary:      time.Second * time.Duration(fakeExpiration),
 					}
 					certBeforeEach(timeOpts)
-				})
-				AfterEach(func() {
-					certAfterEach()
 				})
 
 				It("fully regenerate of CA certificate and webhook certificate", func() {
