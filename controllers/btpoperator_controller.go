@@ -22,13 +22,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/kyma-project/btp-manager/internal/certs"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kyma-project/btp-manager/internal/certs"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/manifest"
@@ -68,8 +69,9 @@ var (
 	ReadyTimeout                   = time.Minute * 1
 	ReadyCheckInterval             = time.Second * 2
 	HardDeleteTimeout              = time.Minute * 20
-	ChartPath                      = "./module-chart/chart"
 	HardDeleteCheckInterval        = time.Second * 10
+	DeleteRequestTimeout           = time.Minute * 5
+	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
 )
 
@@ -666,8 +668,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 	}
 
-	hardDeleteChannel := make(chan bool)
-	timeoutChannel := make(chan bool)
+	hardDeleteChannel := make(chan bool, 1)
+	timeoutChannel := make(chan bool, 1)
 	go r.handleHardDelete(ctx, namespaces, hardDeleteChannel, timeoutChannel)
 
 	select {
@@ -802,7 +804,7 @@ func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupV
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
-	deleteCtx, cancel := context.WithTimeout(ctx, HardDeleteTimeout/2)
+	deleteCtx, cancel := context.WithTimeout(ctx, DeleteRequestTimeout)
 	defer cancel()
 
 	for _, namespace := range namespaces.Items {
@@ -1287,6 +1289,8 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			ResourcesPath = v
 		case "ReadyCheckInterval":
 			ReadyCheckInterval, err = time.ParseDuration(v)
+		case "DeleteRequestTimeout":
+			DeleteRequestTimeout, err = time.ParseDuration(v)
 		case "CaCertificateExpiration":
 			CaCertificateExpiration, err = time.ParseDuration(v)
 		case "WebhookCertificateExpiration":
