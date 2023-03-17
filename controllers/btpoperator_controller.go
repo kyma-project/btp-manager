@@ -638,15 +638,14 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 				return updateStatusErr
 			}
 			return nil
-		} else {
-			if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
-				// go to a state which starts deleting process
-				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
-					types.StateDeleting, HardDeleting,
-					"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
-					return updateStatusErr
-				}
-			}
+		}
+	}
+	if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+		// go to a state which starts deleting process
+		if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
+			types.StateDeleting, HardDeleting,
+			"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
+			return updateStatusErr
 		}
 	}
 
