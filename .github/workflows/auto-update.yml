@@ -1,7 +1,7 @@
 name: Auto update chart/resources
 
 env:
-  KYMA_ORG: kyma-project
+  KYMA_ORG: ${{ github.repository_owner }}
   SAP_ORG: SAP
   BTP_MANAGER_REPO: btp-manager
   SAP_BTP_SERVICE_OPERATOR_REPO: sap-btp-service-operator

@@ -9,6 +9,7 @@ readonly CHART_OVERRIDES_PATH="../../module-chart/overrides.yaml"
 readonly EXISTING_RESOURCES_PATH="../../module-resources"
 readonly EXISTING_RESOURCES_DELETE_PATH="../../module-resources/delete"
 readonly EXISTING_RESOURCES_APPLY_PATH="../../module-resources/apply"
+readonly EXCLUDED_RESOURCES_PATH="../../module-resources/excluded"
 readonly HELM_OUTPUT_PATH="rendered"
 readonly NEW_RESOURCES_PATH="rendered/sap-btp-operator/templates"
 readonly RBAC_FILE_PATH="../../controllers/btpoperator_controller.go"
@@ -42,6 +43,25 @@ resource() {
 
 group() {
   echo -n "$(yq '.apiVersion' "$1" | awk -F '/' '/\//{print($1)}' )"
+}
+
+filterProhibitedFiles() {
+  local directory=${1}
+  if [ "$(ls -A $directory)" ]; then
+      for yaml in $directory/*
+      do
+          yq '. | select(.metadata.annotations."helm.sh/hook" == "*pre-delete*")' $yaml >> to-exclude.yml
+
+          yq -i '. | select(.metadata.annotations."helm.sh/hook" != "*pre-delete*")' $yaml
+          if [ ! -s $yaml ]; then
+              echo "Removing $yaml because of pre-delete helm hook"
+              rm $yaml
+          fi
+
+      done
+    else
+      echo "$directory is empty"
+    fi
 }
 
 runActionForEachYaml() {
@@ -97,6 +117,8 @@ updateRbac() {
 }
 
 incoming_resources=()
+touch to-exclude.yml
+filterProhibitedFiles $NEW_RESOURCES_PATH
 runActionForEachYaml $NEW_RESOURCES_PATH actionForNewResource
 
 touch to-delete.yml
@@ -108,6 +130,10 @@ rm -r $EXISTING_RESOURCES_PATH
 mkdir $EXISTING_RESOURCES_PATH
 mkdir $EXISTING_RESOURCES_APPLY_PATH
 mkdir $EXISTING_RESOURCES_DELETE_PATH
+mkdir $EXCLUDED_RESOURCES_PATH
 mv $NEW_RESOURCES_PATH/* $EXISTING_RESOURCES_APPLY_PATH
+
 mv to-delete.yml $EXISTING_RESOURCES_DELETE_PATH
+mv to-exclude.yml $EXCLUDED_RESOURCES_PATH
 rm -r $HELM_OUTPUT_PATH
+
