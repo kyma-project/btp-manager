@@ -14,4 +14,3 @@ For general information on BTP Manager, see the overarching [documentation](../R
 - [GitHub Actions workflow](workflows.md)
 - [Install BTP Manager using Lifecycle Manager](lifecycle_manager.md)
 - [Certification management](certs.md)
-
