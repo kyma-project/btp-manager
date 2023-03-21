@@ -11,21 +11,21 @@ set -o pipefail # prevents errors in a pipeline from being masked
 #   BOT_GITHUB_TOKEN - github token used to upload the template yaml
 
 uploadFile() {
-  fileName=${1}
+  filePath=${1}
   ghAsset=${2}
 
   response=$(curl -s -o output.txt -w "%{http_code}" \
-                  --request POST --data-binary @"$fileName" \
+                  --request POST --data-binary @"$filePath" \
                   -H "Authorization: token $BOT_GITHUB_TOKEN" \
                   -H "Content-Type: text/yaml" \
                    $ghAsset)
   if [[ "$response" != "201" ]]; then
-    echo "Unable to upload the asset ({$fileName}): "
+    echo "Unable to upload the asset ($filePath): "
     echo "HTTP Status: $response"
     cat output.txt
     exit 1
   else
-    echo "{$fileName} uploaded"
+    echo "$filePath uploaded"
   fi
 }
 
