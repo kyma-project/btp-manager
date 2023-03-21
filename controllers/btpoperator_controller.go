@@ -1583,7 +1583,7 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 	logger := log.FromContext(ctx)
 	logger.Info("generation of self signed cert started")
 
-	caCertificate, caPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+	caCertificate, caPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().UTC().Add(CaCertificateExpiration))
 	if err != nil {
 		return nil, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
@@ -1601,7 +1601,7 @@ func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.
 	logger := log.FromContext(ctx)
 	logger.Info("generation of signed webhook certificate started")
 
-	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().Add(WebhookCertificateExpiration), ca, caPrivateKey)
+	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().UTC().Add(WebhookCertificateExpiration), ca, caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("while generating signed webhook certificate: %w", err)
 	}
@@ -1763,7 +1763,7 @@ func (r *BtpOperatorReconciler) doesCertificateExpireSoon(ctx context.Context, s
 		return false, err
 	}
 
-	expirationTriggerBound := certificateTemplate.NotAfter.Add(ExpirationBoundary)
+	expirationTriggerBound := certificateTemplate.NotAfter.UTC().Add(ExpirationBoundary)
 	expiresSoon := time.Now().UTC().After(expirationTriggerBound)
 	return expiresSoon, nil
 }

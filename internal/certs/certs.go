@@ -33,7 +33,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber:          getRandomInt(),
 		DNSNames:              getDns(),
-		NotBefore:             time.Now(),
+		NotBefore:             time.Now().UTC(),
 		NotAfter:              expiration,
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
@@ -74,7 +74,7 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber: getRandomInt(),
 		DNSNames:     getDns(),
-		NotBefore:    time.Now(),
+		NotBefore:    time.Now().UTC(),
 		NotAfter:     expiration,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
