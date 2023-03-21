@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -52,7 +53,7 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	btpOperator, err := r.getOldestBtpOperator()
+	btpOperator, err := r.getOldestBtpOperator(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -102,6 +103,20 @@ func (r *ServiceInstanceReconciler) deletionPredicate() predicate.Predicate {
 	}
 }
 
-func (r *ServiceInstanceReconciler) getOldestBtpOperator() (*v1alpha1.BtpOperator, error) {
+func (r *ServiceInstanceReconciler) getOldestBtpOperator(ctx context.Context) (*v1alpha1.BtpOperator, error) {
+	logger := log.FromContext(ctx)
+	existingBtpOperators := &v1alpha1.BtpOperatorList{}
+	if err := r.List(ctx, existingBtpOperators); err != nil {
+		logger.Error(err, "unable to get existing BtpOperator CRs")
+		return nil, err
+	}
 
+	oldestCr := existingBtpOperators.Items[0]
+	for _, item := range existingBtpOperators.Items {
+		itemCreationTimestamp := &item.CreationTimestamp
+		if !(oldestCr.CreationTimestamp.Before(itemCreationTimestamp)) {
+			oldestCr = item
+		}
+	}
+	return &oldestCr, nil
 }
