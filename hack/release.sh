@@ -10,6 +10,25 @@ set -o pipefail # prevents errors in a pipeline from being masked
 #   PULL_BASE_REF - name of the tag
 #   BOT_GITHUB_TOKEN - github token used to upload the template yaml
 
+uploadFile() {
+  fileName=${1}
+  ghAsset=${2}
+
+  response=$(curl -s -o output.txt -w "%{http_code}" \
+                  --request POST --data-binary @"$fileName" \
+                  -H "Authorization: token $BOT_GITHUB_TOKEN" \
+                  -H "Content-Type: text/yaml" \
+                   $ghAsset)
+  if [[ "$response" != "201" ]]; then
+    echo "Unable to upload the asset ({$fileName}): "
+    echo "HTTP Status: $response"
+    cat output.txt
+    exit 1
+  else
+    echo "{$fileName} uploaded"
+  fi
+}
+
 echo "PULL_BASE_REF ${PULL_BASE_REF}"
 
 MODULE_VERSION=${PULL_BASE_REF} make module-build
@@ -29,21 +48,11 @@ releases=$(curl -sL \
 release_id=$(echo $releases | jq -r '.id')
 echo "Got release ID: ${release_id}"
 
-GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=template.yaml"
+TEMPLATE_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=template.yaml"
 
-echo "Release asset url: ${GH_ASSET}"
+uploadFile "template.yaml" $TEMPLATE_GH_ASSET
 
-response=$(curl -s -o output.txt -w "%{http_code}" \
-                --request POST --data-binary @"template.yaml" \
-                -H "Authorization: token $BOT_GITHUB_TOKEN" \
-                -H "Content-Type: text/yaml" \
-                 $GH_ASSET)
+RENDERED_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=rendered.yaml"
 
-if [[ "$response" != "201" ]]; then
-  echo "Unable to upload the asset: "
-  echo "HTTP Status: $response"
-  cat output.txt
-  exit 1
-else
-  echo "template.yaml uploaded"
-fi
+uploadFile "downloaded_module/chart/templates/rendered.yaml" $RENDERED_GH_ASSET
+
