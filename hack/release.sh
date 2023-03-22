@@ -36,7 +36,12 @@ MODULE_VERSION=${PULL_BASE_REF} make module-build
 echo "Generated template.yaml:"
 cat template.yaml
 
-echo "Updating github release with template.yaml"
+cp template.yaml template_control_plane.yaml
+sed -i '' 's/target: remote/target: control-plane/g' template_control_plane.yaml
+echo "Generated template_control_plane.yaml:"
+cat template_control_plane.yaml
+
+echo "Updating github release with template.yaml, template_control_plane.yaml, rendered.yaml"
 
 echo "Finding release: ${PULL_BASE_REF}"
 releases=$(curl -sL \
