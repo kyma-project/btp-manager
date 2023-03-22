@@ -668,13 +668,15 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 	}
 
-	hardDeleteChannel := make(chan bool, 1)
-	timeoutChannel := make(chan bool, 1)
-	go r.handleHardDelete(ctx, namespaces, hardDeleteChannel, timeoutChannel)
+	hardDeleteSucceededCh := make(chan bool, 1)
+	hardDeleteTimeoutReachedCh := make(chan bool, 1)
+	defer close(hardDeleteTimeoutReachedCh)
+
+	go r.handleHardDelete(ctx, namespaces, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh)
 
 	select {
-	case hardDeleteOk := <-hardDeleteChannel:
-		if hardDeleteOk {
+	case hardDeleteSucceeded := <-hardDeleteSucceededCh:
+		if hardDeleteSucceeded {
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
 			if err := r.deleteBtpOperatorResources(ctx); err != nil {
 				logger.Error(err, "failed to remove module resources")
@@ -697,7 +699,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 	case <-time.After(HardDeleteTimeout):
 		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
-		timeoutChannel <- true
+		hardDeleteTimeoutReachedCh <- true
 		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 			logger.Error(err, "failed to update status")
 			return err
@@ -711,11 +713,10 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, success chan bool, timeout chan bool) {
-	defer close(success)
-	defer close(timeout)
+func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh chan bool) {
 	logger := log.FromContext(ctx)
 	logger.Info("Deprovisioning BTP Operator - hard delete")
+	defer close(hardDeleteSucceededCh)
 
 	errs := make([]error, 0)
 
@@ -748,14 +749,14 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	}
 
 	if len(errs) > 0 {
-		success <- false
+		hardDeleteSucceededCh <- false
 		return
 	}
 
 	var sbResourcesLeft, siResourcesLeft bool
 	for {
 		select {
-		case <-timeout:
+		case <-hardDeleteTimeoutReachedCh:
 			return
 		default:
 		}
@@ -764,7 +765,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			sbResourcesLeft, err = r.resourcesExist(ctx, namespaces, bindingGvk)
 			if err != nil {
 				logger.Error(err, "ServiceBinding leftover resources check failed")
-				success <- false
+				hardDeleteSucceededCh <- false
 				return
 			}
 		}
@@ -773,13 +774,13 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
 			if err != nil {
 				logger.Error(err, "ServiceInstance leftover resources check failed")
-				success <- false
+				hardDeleteSucceededCh <- false
 				return
 			}
 		}
 
 		if !sbResourcesLeft && !siResourcesLeft {
-			success <- true
+			hardDeleteSucceededCh <- true
 			return
 		}
 
