@@ -52,6 +52,10 @@ TEMPLATE_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/rel
 
 uploadFile "template.yaml" $TEMPLATE_GH_ASSET
 
+TEMPLATE_CONTROL_PLANE_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=template_control_plane.yaml"
+
+uploadFile "template_control_plane.yaml" $TEMPLATE_CONTROL_PLANE_GH_ASSET
+
 RENDERED_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=rendered.yaml"
 
 uploadFile "downloaded_module/chart/templates/rendered.yaml" $RENDERED_GH_ASSET
