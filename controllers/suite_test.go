@@ -128,6 +128,7 @@ func TestAPIs(t *testing.T) {
 	} else {
 		SetDefaultEventuallyTimeout(time.Second * 5)
 	}
+
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
 
@@ -212,11 +213,12 @@ var _ = BeforeSuite(func() {
 
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})
 	Expect(err).ToNot(HaveOccurred())
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(o any) { resourceUpdateHandler(o, resourceAdded) },
 		UpdateFunc: func(o, n any) { resourceUpdateHandler(n, resourceUpdated) },
 		DeleteFunc: func(o any) { resourceUpdateHandler(o, resourceDeleted) },
 	})
+	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
 		defer GinkgoRecover()
