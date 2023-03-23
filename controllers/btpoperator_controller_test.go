@@ -27,24 +27,10 @@ import (
 )
 
 const (
-	btpOperatorKind       = "BtpOperator"
-	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
-	btpOperatorName       = "btp-operator-test"
-	defaultNamespace      = "default"
-	kymaNamespace         = "kyma-system"
-	instanceName          = "my-service-instance"
-	bindingName           = "my-service-binding"
-	secretYamlPath        = "testdata/test-secret.yaml"
-	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
-	k8sOpsTimeout         = time.Second * 3
-	k8sOpsPollingInterval = time.Millisecond * 200
-	chartUpdatePath       = "./testdata/module-chart-update"
-	resourcesUpdatePath   = "./testdata/module-resources-update"
-	suffix                = "-updated"
-	defaultChartPath      = "./testdata/test-module-chart"
-	newChartVersion       = "9.9.9"
-	defaultResourcesPath  = "./testdata/test-module-resources"
-	testRsaKeyBits        = 512
+	instanceName    = "my-service-instance"
+	bindingName     = "my-service-binding"
+	suffix          = "-updated"
+	newChartVersion = "9.9.9"
 )
 
 type certificationsTimeOpts struct {
@@ -55,21 +41,6 @@ type certificationsTimeOpts struct {
 
 var _ = Describe("BTP Operator controller - provisioning", func() {
 	var cr *v1alpha1.BtpOperator
-
-	BeforeAll(func() {
-		certs.SetRsaKeyBits(testRsaKeyBits)
-		err := createPrereqs()
-		Expect(err).To(BeNil())
-		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
-		Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
-		ChartPath = defaultChartPath
-		ResourcesPath = defaultResourcesPath
-	})
-
-	AfterAll(func() {
-		Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
-		Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
-	})
 
 	BeforeEach(func() {
 		ctx = context.Background()

@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kyma-project/btp-manager/internal/certs"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -51,9 +52,16 @@ var logger = logf.Log.WithName("suite_test")
 const (
 	hardDeleteTimeoutForAllTests    = time.Second * 1
 	deleteRequestTimeoutForAllTests = time.Millisecond * 200
+	testRsaKeyBits                  = 512
 	resourceAdded                   = "added"
 	resourceUpdated                 = "updated"
 	resourceDeleted                 = "deleted"
+	defaultNamespace                = "default"
+	kymaNamespace                   = "kyma-system"
+	defaultChartPath                = "./testdata/test-module-chart"
+	defaultResourcesPath            = "./testdata/test-module-resources"
+	chartUpdatePath                 = "./testdata/module-chart-update"
+	resourcesUpdatePath             = "./testdata/module-resources-update"
 )
 
 var (
@@ -160,6 +168,11 @@ var _ = BeforeSuite(func() {
 	}
 	ChartPath = "../module-chart/chart"
 	ResourcesPath = "../module-resources"
+	Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
+	ChartPath = defaultChartPath
+	ResourcesPath = defaultResourcesPath
+	certs.SetRsaKeyBits(testRsaKeyBits)
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -172,6 +185,8 @@ var _ = BeforeSuite(func() {
 		DeleteFunc: func(o any) { resourceUpdateHandler(o, resourceDeleted) },
 	})
 	Expect(err).ToNot(HaveOccurred())
+
+	Expect(createPrereqs()).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()
@@ -188,4 +203,6 @@ var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
+	Expect(os.RemoveAll(defaultChartPath)).To(Succeed())
+	Expect(os.RemoveAll(defaultResourcesPath)).To(Succeed())
 })

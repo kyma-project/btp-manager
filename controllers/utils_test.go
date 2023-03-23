@@ -36,6 +36,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	btpOperatorName       = "btp-operator-test"
+	btpOperatorKind       = "BtpOperator"
+	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
+	secretYamlPath        = "testdata/test-secret.yaml"
+	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
+	k8sOpsTimeout         = time.Second * 3
+	k8sOpsPollingInterval = time.Millisecond * 200
+)
+
 // fake K8s clients with overridden behavior
 type timeoutK8sClient struct {
 	client.Client
