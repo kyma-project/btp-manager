@@ -27,11 +27,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
-	gomegatypes "github.com/onsi/gomega/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -43,7 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"github.com/kyma-project/module-manager/pkg/types"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -71,49 +67,6 @@ var (
 	reconciler           *BtpOperatorReconciler
 	updateCh             chan resourceUpdate = make(chan resourceUpdate, 1000)
 )
-
-type resourceUpdate struct {
-	Cr     *v1alpha1.BtpOperator
-	Action string
-}
-
-func resourceUpdateHandler(obj any, t string) {
-	if cr, ok := obj.(*v1alpha1.BtpOperator); ok {
-		logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions)
-		updateCh <- resourceUpdate{Cr: cr, Action: t}
-	}
-}
-
-func matchState(state types.State) gomegatypes.GomegaMatcher {
-	return MatchFields(IgnoreExtras, Fields{
-		"Action": Equal(resourceUpdated),
-		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
-			"Status": MatchFields(IgnoreExtras, Fields{
-				"State": Equal(state),
-			}),
-		})),
-	})
-}
-
-func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason Reason) gomegatypes.GomegaMatcher {
-	return MatchFields(IgnoreExtras, Fields{
-		"Action": Equal(resourceUpdated),
-		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
-			"Status": MatchFields(IgnoreExtras, Fields{
-				"State": Equal(state),
-				"Conditions": ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(ReadyType),
-					"Reason": Equal(string(reason)),
-					"Status": Equal(status),
-				}))),
-			}),
-		})),
-	})
-}
-
-func matchDeleted() gomegatypes.GomegaMatcher {
-	return MatchFields(IgnoreExtras, Fields{"Action": Equal(resourceDeleted)})
-}
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
