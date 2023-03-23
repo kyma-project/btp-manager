@@ -36,7 +36,12 @@ MODULE_VERSION=${PULL_BASE_REF} make module-build
 echo "Generated template.yaml:"
 cat template.yaml
 
-echo "Updating github release with template.yaml"
+sed 's/target: remote/target: control-plane/g' <template.yaml >template_control_plane.yaml
+
+echo "Generated template_control_plane.yaml:"
+cat template_control_plane.yaml
+
+echo "Updating github release with template.yaml, template_control_plane.yaml, rendered.yaml"
 
 echo "Finding release: ${PULL_BASE_REF}"
 releases=$(curl -sL \
@@ -51,6 +56,10 @@ echo "Got release ID: ${release_id}"
 TEMPLATE_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=template.yaml"
 
 uploadFile "template.yaml" $TEMPLATE_GH_ASSET
+
+TEMPLATE_CONTROL_PLANE_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=template_control_plane.yaml"
+
+uploadFile "template_control_plane.yaml" $TEMPLATE_CONTROL_PLANE_GH_ASSET
 
 RENDERED_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=rendered.yaml"
 
