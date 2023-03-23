@@ -108,8 +108,6 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 
 var _ = Describe("BTP Operator controller", Ordered, func() {
 	var cr *v1alpha1.BtpOperator
-	HardDeleteCheckInterval = 10 * time.Millisecond
-	HardDeleteTimeout = 1 * time.Second
 
 	BeforeAll(func() {
 		certs.SetRsaKeyBits(testRsaKeyBits)
@@ -207,7 +205,6 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 	})
 
 	Describe("Deprovisioning without force-delete label", func() {
-		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
 		BeforeEach(func() {
 			secret, err := createCorrectSecretFromYaml()
@@ -224,29 +221,27 @@ var _ = Describe("BTP Operator controller", Ordered, func() {
 			deleteSecret := &corev1.Secret{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
-			k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
-			k8sClient.Update(ctx, cr)
-			time.Sleep(time.Second)
+			Expect(k8sClient.Update(ctx, cr)).To(Succeed())
+			Eventually(func() (bool, error) {
+				err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)
+				return cr.Labels[forceDeleteLabelKey] == "true", err
+			}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
+			Eventually(updateCh).Should(Receive(matchDeleted()))
 		})
 
 		It("Delete should fail because of existing instances and bindings", func() {
-			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
+			_ = createResource(instanceGvk, kymaNamespace, instanceName)
 			ensureResourceExists(instanceGvk)
 
-			sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
+			_ = createResource(bindingGvk, kymaNamespace, bindingName)
 			ensureResourceExists(bindingGvk)
 
-			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
-			setFinalizers(siUnstructured)
-			setFinalizers(sbUnstructured)
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
-
-			Expect(k8sClient.Delete(ctx, sbUnstructured)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, siUnstructured)).To(Succeed())
 		})
 
 	})

@@ -22,8 +22,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/kyma-project/btp-manager/internal/certs"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"reflect"
 	"strconv"
@@ -31,6 +29,7 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
@@ -40,6 +39,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -68,8 +68,9 @@ var (
 	ReadyTimeout                   = time.Minute * 1
 	ReadyCheckInterval             = time.Second * 2
 	HardDeleteTimeout              = time.Minute * 20
-	ChartPath                      = "./module-chart/chart"
 	HardDeleteCheckInterval        = time.Second * 10
+	DeleteRequestTimeout           = time.Minute * 5
+	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
 )
 
@@ -666,13 +667,15 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 	}
 
-	hardDeleteChannel := make(chan bool)
-	timeoutChannel := make(chan bool)
-	go r.handleHardDelete(ctx, namespaces, hardDeleteChannel, timeoutChannel)
+	hardDeleteSucceededCh := make(chan bool, 1)
+	hardDeleteTimeoutReachedCh := make(chan bool, 1)
+	defer close(hardDeleteTimeoutReachedCh)
+
+	go r.handleHardDelete(ctx, namespaces, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh)
 
 	select {
-	case hardDeleteOk := <-hardDeleteChannel:
-		if hardDeleteOk {
+	case hardDeleteSucceeded := <-hardDeleteSucceededCh:
+		if hardDeleteSucceeded {
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
 			if err := r.deleteBtpOperatorResources(ctx); err != nil {
 				logger.Error(err, "failed to remove module resources")
@@ -695,7 +698,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 	case <-time.After(HardDeleteTimeout):
 		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
-		timeoutChannel <- true
+		hardDeleteTimeoutReachedCh <- true
 		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
 			logger.Error(err, "failed to update status")
 			return err
@@ -709,11 +712,10 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	return nil
 }
 
-func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, success chan bool, timeout chan bool) {
-	defer close(success)
-	defer close(timeout)
+func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh chan bool) {
 	logger := log.FromContext(ctx)
 	logger.Info("Deprovisioning BTP Operator - hard delete")
+	defer close(hardDeleteSucceededCh)
 
 	errs := make([]error, 0)
 
@@ -746,14 +748,14 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	}
 
 	if len(errs) > 0 {
-		success <- false
+		hardDeleteSucceededCh <- false
 		return
 	}
 
 	var sbResourcesLeft, siResourcesLeft bool
 	for {
 		select {
-		case <-timeout:
+		case <-hardDeleteTimeoutReachedCh:
 			return
 		default:
 		}
@@ -762,7 +764,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			sbResourcesLeft, err = r.resourcesExist(ctx, namespaces, bindingGvk)
 			if err != nil {
 				logger.Error(err, "ServiceBinding leftover resources check failed")
-				success <- false
+				hardDeleteSucceededCh <- false
 				return
 			}
 		}
@@ -771,13 +773,13 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
 			if err != nil {
 				logger.Error(err, "ServiceInstance leftover resources check failed")
-				success <- false
+				hardDeleteSucceededCh <- false
 				return
 			}
 		}
 
 		if !sbResourcesLeft && !siResourcesLeft {
-			success <- true
+			hardDeleteSucceededCh <- true
 			return
 		}
 
@@ -802,7 +804,7 @@ func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupV
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
-	deleteCtx, cancel := context.WithTimeout(ctx, HardDeleteTimeout/2)
+	deleteCtx, cancel := context.WithTimeout(ctx, DeleteRequestTimeout)
 	defer cancel()
 
 	for _, namespace := range namespaces.Items {
@@ -1287,6 +1289,8 @@ func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcil
 			ResourcesPath = v
 		case "ReadyCheckInterval":
 			ReadyCheckInterval, err = time.ParseDuration(v)
+		case "DeleteRequestTimeout":
+			DeleteRequestTimeout, err = time.ParseDuration(v)
 		case "CaCertificateExpiration":
 			CaCertificateExpiration, err = time.ParseDuration(v)
 		case "WebhookCertificateExpiration":

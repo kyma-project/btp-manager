@@ -53,10 +53,11 @@ import (
 var logger = logf.Log.WithName("suite_test")
 
 const (
-	hardDeleteTimeout = time.Millisecond * 200
-	resourceAdded     = "added"
-	resourceUpdated   = "updated"
-	resourceDeleted   = "deleted"
+	hardDeleteTimeoutForAllTests    = time.Second * 1
+	deleteRequestTimeoutForAllTests = time.Millisecond * 200
+	resourceAdded                   = "added"
+	resourceUpdated                 = "updated"
+	resourceDeleted                 = "deleted"
 )
 
 var (
@@ -183,8 +184,24 @@ var _ = BeforeSuite(func() {
 
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
 	k8sClientFromManager = k8sManager.GetClient()
-	HardDeleteTimeout = hardDeleteTimeout
-	HardDeleteCheckInterval = hardDeleteTimeout / 20
+	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {
+		HardDeleteTimeout, err = time.ParseDuration(hardDeleteTimeoutFromEnv)
+		Expect(err).NotTo(HaveOccurred())
+	} else {
+		HardDeleteTimeout = hardDeleteTimeoutForAllTests
+	}
+	if hardDeleteCheckIntervalFromEnv := os.Getenv("HARD_DELETE_CHECK_INTERVAL"); hardDeleteCheckIntervalFromEnv != "" {
+		HardDeleteCheckInterval, err = time.ParseDuration(hardDeleteCheckIntervalFromEnv)
+		Expect(err).NotTo(HaveOccurred())
+	} else {
+		HardDeleteCheckInterval = hardDeleteTimeoutForAllTests / 20
+	}
+	if deleteRequestTimeoutFromEnv := os.Getenv("DELETE_REQUEST_TIMEOUT"); deleteRequestTimeoutFromEnv != "" {
+		DeleteRequestTimeout, err = time.ParseDuration(deleteRequestTimeoutFromEnv)
+		Expect(err).NotTo(HaveOccurred())
+	} else {
+		DeleteRequestTimeout = deleteRequestTimeoutForAllTests
+	}
 	ChartPath = "../module-chart/chart"
 	ResourcesPath = "../module-resources"
 

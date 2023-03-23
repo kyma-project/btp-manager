@@ -71,6 +71,7 @@ func main() {
 	flag.DurationVar(&controllers.ReadyCheckInterval, "ready-check-interval", controllers.ReadyCheckInterval, "Ready check retry interval.")
 	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
 	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
+	flag.DurationVar(&controllers.DeleteRequestTimeout, "delete-request-timeout", controllers.DeleteRequestTimeout, "Delete request timeout in hard delete.")
 	opts := zap.Options{
 		Development: true,
 	}
