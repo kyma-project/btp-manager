@@ -25,7 +25,6 @@ jobs:
 
   create-release:
     name: Create release
-    needs: [run-unit-tests, run-e2e-tests]
     runs-on: ubuntu-latest
 
     steps:
@@ -48,5 +47,18 @@ jobs:
           tag_name: ${{ github.event.inputs.name }}
           release_name: Release ${{ github.event.inputs.name }}
           body_path: CHANGELOG.md
-          draft: false
+          draft: true
           prerelease: false
+
+  publish-release:
+    name: Publish release
+    needs: [create-release, run-unit-tests, run-e2e-tests]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Publish release
+        uses: eregon/publish-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ steps.create_release.outputs.id }}

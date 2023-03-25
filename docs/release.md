@@ -20,7 +20,7 @@ To create a release, follow these steps:
    2. click on **Create a release** workflow 
    3. click  **Run workflow** on the right
    4. provide a version, for example, 1.2.0.
-2. The GitHub action, defined in the `.github/workflows/create-release.yaml` file, creates a GitHub tag and release with the provided name.
+2. The GitHub action, defined in the `.github/workflows/create-release.yaml` file, creates a GitHub tag and draft release with the provided name.
 3. The tag creation triggers Prow Jobs, `post-btp-manager-module-build` and `post-btp-manager-build`, defined in [btp-manager-build.yaml](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/btp-manager/btp-manager-build.yaml).
 4. `post-btp-manager-build` builds a Docker image tagged with the release name.
 5. `post-btp-manager-module-build` runs the `kyma alpha create module` command, which creates a Kyma module, and pushes the image to the registry. Finally, the job uploads the `template.yaml` file to the btp-manager release as a release asset.
