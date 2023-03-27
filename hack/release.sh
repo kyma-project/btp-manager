@@ -48,7 +48,7 @@ ASSETS_URL=$(curl -sL \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/kyma-project/btp-manager/releases/tags/${PULL_BASE_REF} | jq --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets_url')
+  https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets_url')
 
 TEMPLATE_GH_ASSET="${ASSETS_URL}?name=template.yaml"
 
