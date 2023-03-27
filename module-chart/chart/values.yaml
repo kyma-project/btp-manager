@@ -14,7 +14,7 @@ manager:
   management_namespace:
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.4.0
+    tag: v0.4.1
     sha: ""
   secret:
     b64encoded: false
@@ -51,7 +51,7 @@ manager:
   #        host: myhost1
   certificates:
     # Configure if https://github.com/jetstack/cert-manager is used
-    # certManager: true
+    certManager: true
     # Configure if self-generated, self-signed certificates are used
     # selfSigned: {}
     # selfSigned:
