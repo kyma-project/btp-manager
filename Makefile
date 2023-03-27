@@ -86,8 +86,9 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: test
-test: manifests kustomize generate fmt vet envtest ## Run tests.
-	. ./scripts/testing/set-env-vars.sh; go test ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v
+test: manifests kustomize generate fmt vet envtest ginkgo ## Run tests.
+	. ./testing/set-env-vars.sh; go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v
+	ginkgo -v -p controllers
 
 ##@ Build
 
@@ -197,6 +198,13 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 envtest: $(ENVTEST) ## Download & Build envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+########## ginkgo ###########
+GINKGO ?= $(LOCALBIN)/ginkgo
+.PHONY: ginkgo
+ginkgo: $(GINKGO) ## Download & Build ginkgo locally if necessary.
+$(GINKGO): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@latest
 
 ##@ Checks
 
