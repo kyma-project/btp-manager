@@ -109,13 +109,18 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
 }
 
-var _ = BeforeSuite(func() {
-
+var _ = SynchronizedBeforeSuite(func() {
+	// runs only on process #1
+	ChartPath = "../module-chart/chart"
+	ResourcesPath = "../module-resources"
+	Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
+}, func() {
+	// runs on all processes
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
 		o.Development = true
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
 	}))
-
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	By("bootstrapping test environment")
@@ -166,10 +171,6 @@ var _ = BeforeSuite(func() {
 	} else {
 		DeleteRequestTimeout = deleteRequestTimeoutForAllTests
 	}
-	ChartPath = "../module-chart/chart"
-	ResourcesPath = "../module-resources"
-	Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
-	Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
 	ChartPath = defaultChartPath
 	ResourcesPath = defaultResourcesPath
 	certs.SetRsaKeyBits(testRsaKeyBits)
@@ -194,15 +195,21 @@ var _ = BeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
 
+	apiServerAddressAndPort := fmt.Sprintf("%s:%s", testEnv.ControlPlane.APIServer.Address, testEnv.ControlPlane.APIServer.Port)
+	etcdAddressAndPort := testEnv.ControlPlane.Etcd.URL.Host
+	ginkgoProcessInfoMsg := fmt.Sprintf("Process: %d, ApiServer: %s, etcd: %s", GinkgoParallelProcess(), apiServerAddressAndPort, etcdAddressAndPort)
 	k8sManager.GetCache().WaitForCacheSync(ctx)
+	GinkgoWriter.Println(ginkgoProcessInfoMsg)
 })
 
-var _ = AfterSuite(func() {
+var _ = SynchronizedAfterSuite(func() {
+	// runs on all processes
 	Eventually(func() int { return reconciler.workqueueSize }).Should(Equal(0))
 	cancel()
 	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
+	Expect(testEnv.Stop()).To(Succeed())
+}, func() {
+	// runs only on process #1
 	Expect(os.RemoveAll(defaultChartPath)).To(Succeed())
 	Expect(os.RemoveAll(defaultResourcesPath)).To(Succeed())
 })
