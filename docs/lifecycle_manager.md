@@ -16,7 +16,7 @@ This is an experimental way of installing BTP Manager in the cluster.
 Use the following command to run the BTP Manager via Lifecycle Manager. 
 
 ```shell
-./hack/run_lifecycle_manager.sh https://github.com/kyma-project/btp-manager/releases/download/0.2.3/template.yaml
+./hack/run_lifecycle_manager.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
 ```
 
 It results in:

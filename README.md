@@ -23,37 +23,40 @@ make run
 There are two ways to install BTP Manager in your cluster:
 
 <details>
-<summary>With btp-operator module image</summary>
+<summary>With kubectl and `rendered.yaml` (recommended)</summary>
 
-Use the following command to download and install BTP manager from OCI Image in your cluster.
+Use the following command to download and install BTP manager from k8s resources in your cluster.
 
 ```shell
-./hack/run_module_image.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.2.3
+kubectl apply -f deployments/prerequisites.yaml
+kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/rendered.yaml
 ```
-> **NOTE:** Before using the script, you must install [Helm](https://github.com/helm/helm#install), [skopeo](https://github.com/containers/skopeo) and [jq](https://github.com/stedolan/jq).
->
-> </details>
+
+Use the following command to uninstall BTP Manager from your cluster.
+
+```shell
+kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/rendered.yaml
+kubectl delete -f deployments/prerequisites.yaml
+```
+</details>
 
 <details>
-<summary>With `template.yaml`</summary>
+<summary>With helm and `template.yaml`</summary>
 
 To install BTP Manager using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command) in your cluster, use the following command:
 
 ```shell
-./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/download/0.2.3/template.yaml
+./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
 ```
 
 > **NOTE:** Before using the script, you must install [Helm](https://github.com/helm/helm#install), [skopeo](https://github.com/containers/skopeo), [jq](https://github.com/stedolan/jq) and [yq](https://github.com/mikefarah/yq).
->
-> </details>
-> <br>
-
-### Uninstall BTP Manager from your cluster  
 
 Use the following command to uninstall BTP Manager from your cluster.
 ```shell
 helm uninstall btp-manager -n kyma-system
 ```
+
+</details>
 
 ## Usage
 
@@ -64,12 +67,6 @@ To install SAP BTP Service Operator, run the following commands:
 kubectl apply -f deployments/prerequisites.yaml
 kubectl apply -f examples/btp-manager-secret.yaml
 kubectl apply -f examples/btp-operator.yaml
-```
-```
-namespace/kyma-system created
-priorityclass.scheduling.k8s.io/kyma-system created
-secret/sap-btp-manager created
-btpoperator.operator.kyma-project.io/btpoperator created
 ```
 
 Check `BtpOperator` CR status by running the following command:
@@ -90,10 +87,4 @@ To uninstall SAP BTP Service Operator, run the following commands:
 kubectl delete -f examples/btp-operator.yaml
 kubectl delete -f examples/btp-manager-secret.yaml
 kubectl delete -f deployments/prerequisites.yaml
-```
-```
-btpoperator.operator.kyma-project.io "btpoperator" deleted
-secret "sap-btp-manager" deleted
-namespace "kyma-system" deleted
-priorityclass.scheduling.k8s.io "kyma-system" deleted
 ```
