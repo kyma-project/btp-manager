@@ -58,15 +58,9 @@ fi
 
 UPLOAD_URL="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${RELEASE_ID}/assets"
 
-TEMPLATE_GH_ASSET="${UPLOAD_URL}?name=template.yaml"
+uploadFile "template.yaml" "${UPLOAD_URL}?name=template.yaml"
 
-uploadFile "template.yaml" $TEMPLATE_GH_ASSET
+uploadFile "template_control_plane.yaml" "${UPLOAD_URL}?name=template_control_plane.yaml"
 
-TEMPLATE_CONTROL_PLANE_GH_ASSET="${UPLOAD_URL}?name=template_control_plane.yaml"
-
-uploadFile "template_control_plane.yaml" $TEMPLATE_CONTROL_PLANE_GH_ASSET
-
-RENDERED_GH_ASSET="${UPLOAD_URL}?name=rendered.yaml"
-
-uploadFile "charts/btp-operator/templates/rendered.yaml" $RENDERED_GH_ASSET
+uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=rendered.yaml"
 
