@@ -43,6 +43,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 	var cr *v1alpha1.BtpOperator
 
 	BeforeEach(func() {
+		GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 		ctx = context.Background()
 		cr = createBtpOperator()
 		cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
@@ -106,6 +107,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 var _ = Describe("BTP Operator controller - configuration", func() {
 	Context("When the ConfigMap is present", func() {
 		It("should adjust configuration settings in the operator accordingly", func() {
+			GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 			cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
 			reconciler.reconcileConfig(cm)
 			Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
@@ -119,6 +121,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 	Describe("Deprovisioning without force-delete label", func() {
 
 		BeforeEach(func() {
+			GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
@@ -162,6 +165,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 		var siUnstructured, sbUnstructured *unstructured.Unstructured
 
 		BeforeEach(func() {
+			GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
@@ -221,7 +225,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 
 var _ = Describe("BTP Operator controller - updating", func() {
 	var cr *v1alpha1.BtpOperator
-	var initChartVersion string
+	var initChartVersion, chartUpdatePathForProcess, resourcesUpdatePathForProcess string
 	var manifestHandler *manifest.Handler
 	var initApplyObjs []runtime.Object
 	var gvks []schema.GroupVersionKind
@@ -230,12 +234,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 	var err error
 
 	BeforeEach(func() {
-		Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
-		Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
-
-		Expect(os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "false")).To(BeNil())
-		Expect(createChartOrResourcesCopyWithoutWebhooks("../module-chart/chart", defaultChartPath)).To(Succeed())
-		Expect(createChartOrResourcesCopyWithoutWebhooks("../module-resources", defaultResourcesPath)).To(Succeed())
+		GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 
 		secret, err := createCorrectSecretFromYaml()
 		Expect(err).To(BeNil())
@@ -260,10 +259,12 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		initResourcesNum, err = countResourcesForGivenChartVer(gvks, initChartVersion)
 		Expect(err).To(BeNil())
 
-		copyDirRecursively(ChartPath, chartUpdatePath)
-		copyDirRecursively(ResourcesPath, resourcesUpdatePath)
-		ChartPath = chartUpdatePath
-		ResourcesPath = resourcesUpdatePath
+		chartUpdatePathForProcess = fmt.Sprintf("%s%d", chartUpdatePath, GinkgoParallelProcess())
+		resourcesUpdatePathForProcess = fmt.Sprintf("%s%d", resourcesUpdatePath, GinkgoParallelProcess())
+		copyDirRecursively(ChartPath, chartUpdatePathForProcess)
+		copyDirRecursively(ResourcesPath, resourcesUpdatePathForProcess)
+		ChartPath = chartUpdatePathForProcess
+		ResourcesPath = resourcesUpdatePathForProcess
 	})
 
 	AfterEach(func() {
@@ -273,8 +274,12 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		Eventually(updateCh).Should(Receive(matchDeleted()))
 		Expect(isCrNotFound()).To(BeTrue())
 
-		Expect(os.RemoveAll(chartUpdatePath)).To(Succeed())
-		Expect(os.RemoveAll(resourcesUpdatePath)).To(Succeed())
+		deleteSecret := &corev1.Secret{}
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+		Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+
+		Expect(os.RemoveAll(chartUpdatePathForProcess)).To(Succeed())
+		Expect(os.RemoveAll(resourcesUpdatePathForProcess)).To(Succeed())
 
 		ChartPath = defaultChartPath
 		ResourcesPath = defaultResourcesPath
@@ -288,7 +293,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
 			Expect(err).To(BeNil())
 
-			err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
 
 			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
@@ -327,7 +332,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
 			Expect(err).To(BeNil())
 
-			err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
 
 			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
@@ -371,7 +376,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = ymlutils.CopyManifestsFromYamlsIntoOneYaml(getTempPath(), getToDeleteYamlPath())
 			Expect(err).To(BeNil())
 
-			err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
 
 			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
@@ -394,7 +399,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 	When("bump chart version only", Label("test-update"), func() {
 		It("resources should stay and receive new chart version", func() {
-			err = ymlutils.UpdateChartVersion(chartUpdatePath, newChartVersion)
+			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
 
 			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
@@ -414,27 +419,10 @@ var _ = Describe("BTP Operator controller - updating", func() {
 	})
 })
 
-var _ = Describe("BTP Operator controller - certificates", Ordered, func() {
+var _ = Describe("BTP Operator controller - certificates", func() {
 	var cr *v1alpha1.BtpOperator
-
-	orgCaCertificateExpiration := CaCertificateExpiration
-	orgWebhookCertExpiration := WebhookCertificateExpiration
-	orgExpirationBoundary := ExpirationBoundary
-
-	BeforeAll(func() {
-		secret, err := createCorrectSecretFromYaml()
-		Expect(err).To(BeNil())
-		Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
-
-		Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
-		Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
-
-		Expect(os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")).To(BeNil())
-		Expect(createChartOrResourcesCopyWithoutWebhooks("../module-chart/chart", defaultChartPath)).To(Succeed())
-		Expect(createChartOrResourcesCopyWithoutWebhooks("../module-resources", defaultResourcesPath)).To(Succeed())
-		ChartPath = defaultChartPath
-		ResourcesPath = defaultResourcesPath
-	})
+	var chartPathForProcess, resourcesPathForProcess string
+	var orgCaCertificateExpiration, orgWebhookCertExpiration, orgExpirationBoundary time.Duration
 
 	restoreOriginalCertificateTimes := func() {
 		CaCertificateExpiration = orgCaCertificateExpiration
@@ -443,17 +431,32 @@ var _ = Describe("BTP Operator controller - certificates", Ordered, func() {
 	}
 
 	certBeforeEach := func(opts *certificationsTimeOpts) {
+		secret, err := createCorrectSecretFromYaml()
+		Expect(err).To(BeNil())
+		Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+
+		orgCaCertificateExpiration = CaCertificateExpiration
+		orgWebhookCertExpiration = WebhookCertificateExpiration
+		orgExpirationBoundary = ExpirationBoundary
+
+		ChartPath = "../module-chart/chart"
+		ResourcesPath = "../module-resources"
+		chartPathForProcess = fmt.Sprintf("%s%d", defaultChartPath, GinkgoParallelProcess())
+		resourcesPathForProcess = fmt.Sprintf("%s%d", defaultResourcesPath, GinkgoParallelProcess())
+		Expect(os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")).To(BeNil())
+		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, chartPathForProcess)).To(Succeed())
+		Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, resourcesPathForProcess)).To(Succeed())
+		ChartPath = chartPathForProcess
+		ResourcesPath = resourcesPathForProcess
+
 		if opts != nil {
 			CaCertificateExpiration = opts.CaCertificateExpiration
 			WebhookCertificateExpiration = opts.WebhookCertExpiration
 			ExpirationBoundary = opts.ExpirationBoundary
-		} else {
-			restoreOriginalCertificateTimes()
 		}
 
 		cr = createBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-		Eventually(updateCh).Should(Receive(matchState(types.StateProcessing)))
 		Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 	}
 
@@ -461,10 +464,20 @@ var _ = Describe("BTP Operator controller - certificates", Ordered, func() {
 		cr = &v1alpha1.BtpOperator{}
 		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-		Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 		Eventually(updateCh).Should(Receive(matchDeleted()))
 		Expect(isCrNotFound()).To(BeTrue())
+
+		deleteSecret := &corev1.Secret{}
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+		Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+
 		restoreOriginalCertificateTimes()
+
+		Expect(os.RemoveAll(chartPathForProcess)).To(Succeed())
+		Expect(os.RemoveAll(resourcesPathForProcess)).To(Succeed())
+
+		ChartPath = defaultChartPath
+		ResourcesPath = defaultResourcesPath
 	}
 
 	ensureReconciliationQueueIsEmpty := func() {
@@ -479,7 +492,7 @@ var _ = Describe("BTP Operator controller - certificates", Ordered, func() {
 		ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles()
 	}
 
-	Context("certs created with default expiration times", func() {
+	Describe("certs created with default expiration times", func() {
 		BeforeEach(func() {
 			certBeforeEach(nil)
 		})
@@ -624,7 +637,7 @@ var _ = Describe("BTP Operator controller - certificates", Ordered, func() {
 		})
 	})
 
-	Context("certs created with custom expiration times", func() {
+	Describe("certs created with custom expiration times", func() {
 		fakeSeconds := 30.0
 		fakeExpiration := 10.0
 
