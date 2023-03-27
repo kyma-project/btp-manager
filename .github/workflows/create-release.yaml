@@ -38,7 +38,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
 
-      - name: Create github draft release
+      - name: Create draft release
         id: create-draft
         uses: actions/create-release@v1
         env:
@@ -49,6 +49,11 @@ jobs:
           body_path: CHANGELOG.md
           draft: true
           prerelease: false
+
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
     outputs:
       release_id: ${{ steps.create-draft.outputs.id }}
 
