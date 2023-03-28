@@ -30,7 +30,7 @@ See [BTP Manager release pipeline](release.md)
 
 ## E2E tests workflow ('run-e2e-test.yaml')
 
-This workflow is triggered by pull requests on `main` branch. Uses DEV artifact registry, tags binary and OCI module image with PR-number and calls reusable workflow 
+This workflow is triggered by pull requests on the `main` branch. It uses the DEV artifact registry, tags the binary and OCI module image with the PR number, and calls the reusable workflow 
 'Run E2E tests (reusable)' (`run-e2e-tests-reusable.yaml`). 
 
 ## Unit tests workflow ('run-unit-test.yaml')
