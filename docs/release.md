@@ -36,27 +36,27 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       participant unit tests job
       participant E2E tests job
       participant GitHub repository
-      participant post btp manager build
-      participant post btp manager module build
+      participant post-btp-manager-build
+      participant post-btp-manager-module-build
       participant Docker registry
       user->>GitHub Actions: initiates
       activate GitHub Actions   
       GitHub Actions->>GitHub repository: create tag and draft release
       GitHub Actions->>unit tests job: initiate
       activate unit tests job
-      GitHub repository->>post btp manager build: triggers
-      activate post btp manager build
-      Note over post btp manager build: builds binary image
-      GitHub repository->>post btp manager module build: triggers
+      GitHub repository->>post-btp-manager-build: triggers
+      activate post-btp-manager-build
+      Note over post-btp-manager-build: builds binary image
+      GitHub repository->>post-btp-manager-module-build: triggers
       deactivate unit tests job
       unit tests job->>GitHub Actions: return result
-      activate post btp manager module build
-      Note over post btp manager module build: builds OCI module image and creates yaml artifacts
-      post btp manager build->>Docker registry: uploads binary image 
-      deactivate post btp manager build
-      post btp manager module build->>Docker registry: uploads OCI module image
-      post btp manager module build->>GitHub repository: uploads yaml artifacts
-      deactivate post btp manager module build
+      activate post-btp-manager-module-build
+      Note over post-btp-manager-module-build: builds OCI module image and creates yaml artifacts
+      post-btp-manager-build->>Docker registry: uploads binary image 
+      deactivate post-btp-manager-build
+      post-btp-manager-module-build->>Docker registry: uploads OCI module image
+      post-btp-manager-module-build->>GitHub repository: uploads yaml artifacts
+      deactivate post-btp-manager-module-build
       loop Every 10s
         E2E tests job-->Docker registry: images available?
       end
