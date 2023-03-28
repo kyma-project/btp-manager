@@ -27,7 +27,7 @@ To create a release, follow these steps:
 Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `rendered.yaml` files to the btp-manager release as release assets.
 7. The GitHub action waits for the `template.yaml` asset in the GitHub release and for images in the Docker registry.
 8. The GitHub action fetches the module image and runs E2E tests on the k3s cluster. 
-9. If unit tests and E2E tests pass GitHub action publishes the release.
+9. If unit tests and E2E tests are completed successfully, GitHub action publishes the release.
 
 ```mermaid
    sequenceDiagram
