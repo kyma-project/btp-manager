@@ -31,7 +31,7 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
 
 ```mermaid
    sequenceDiagram
-      actor user
+      actor User
       participant GitHub Actions
       participant unit tests job
       participant E2E tests job
@@ -39,7 +39,7 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       participant post-btp-manager-build
       participant post-btp-manager-module-build
       participant Docker registry
-      user->>GitHub Actions: initiates
+      User->>GitHub Actions: initiates
       activate GitHub Actions   
       GitHub Actions->>GitHub repository: create tag and draft release
       GitHub Actions->>unit tests job: initiate
@@ -49,7 +49,7 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       Note over post-btp-manager-build: builds binary image
       GitHub repository->>post-btp-manager-module-build: triggers
       deactivate unit tests job
-      unit tests job->>GitHub Actions: return result
+      unit tests job->>GitHub Actions: returns result
       activate post-btp-manager-module-build
       Note over post-btp-manager-module-build: builds OCI module image and creates yaml artifacts
       post-btp-manager-build->>Docker registry: uploads binary image 
