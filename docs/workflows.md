@@ -55,9 +55,9 @@ You pass the following parameters from the calling workflow:
 | **skip-templates**  | no  |  wait for images only, skip other artifacts |
 
 The pipeline:
-- prepares k3s cluster and the docker registry,
-- waits for the artifacts to be ready in the registry,
-- runs the E2E tests on the cluster.
+- prepares a k3s cluster and the Docker registry
+- waits for the artifacts to be ready in the registry
+- runs the E2E tests on the cluster
 
 
 ### Run unit tests
