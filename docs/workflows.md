@@ -2,7 +2,7 @@
 title: GitHub Action workflows
 ---
 
-## Promote BTP Manager to release channel
+## Promoting BTP Manager to release channel
 
 The goal of the workflow is to register a module using the BTP Manager template file. The workflow takes a tag and downloads the module template file from the release on GitHub, and places it in the relevant subfolder in the module folder in the Kyma repository by creating a pull request. The pull request needs to be approved manually.
 
@@ -24,26 +24,25 @@ Both scripts are run from the workflow but can also be triggered manually from t
 
 To keep `module-chart/chart` in sync with the [upstream](https://github.com/SAP/sap-btp-service-operator), you must not apply any manual changes there.
 
-## Release pipeline workflow
+## Release workflow
 
 See [BTP Manager release pipeline](release.md)
 
-## E2E tests workflow ('run-e2e-test.yaml')
+## E2E tests workflow 
 
-This workflow is triggered by pull requests on the `main` branch. It uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable workflow 
-'Run E2E tests (reusable)' (`run-e2e-tests-reusable.yaml`). 
+This workflow is triggered by pull requests on the `main` branch. It uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](../.github/workflows/run-e2e-tests-reusable.yaml). 
 
-## Unit tests workflow ('run-unit-test.yaml')
+## Unit tests workflow
 
-This workflow is triggered by pull requests on the `main` branch. Then it calls the reusable workflow 'Run unit tests (reusable)' (`run-unit-tests-reusable.yaml`).
+This workflow is triggered by pull requests on the `main` branch. Then it calls the reusable [workflow](../.github/workflows/run-unit-tests-reusable.yaml).
 
 ## Reusable workflows
 
 There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
 
-### Run E2E tests
+### E2E tests
 
-This workflow runs the E2E tests on the k3a cluster. 
+This [workflow](../.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3a cluster. 
 You pass the following parameters from the calling workflow:
 
 | Parameter name  | Required | Description |
@@ -54,18 +53,18 @@ You pass the following parameters from the calling workflow:
 | **module-tag**  | yes  |  OCI module image tag |
 | **skip-templates**  | no  |  wait for images only, skip other artifacts |
 
-The pipeline:
+The workflow:
 - prepares a k3s cluster and the Docker registry
 - waits for the artifacts to be ready in the registry
 - runs the E2E tests on the cluster
 
 
-### Run unit tests
+### Unit tests
 
-This workflow runs the unit tests.
-No parameters are passed from the calling pipeline (callee).
+This [workflow](../.github/workflows/run-unit-tests-reusable.yaml) runs the unit tests.
+No parameters are passed from the calling workflow (callee).
 
-The pipeline:
+The workflow:
 - checks out code and sets up the cache
 - sets up the Go environment
 - invokes `make test`
