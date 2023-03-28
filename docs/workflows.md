@@ -39,7 +39,7 @@ This workflow is triggered by pull requests on the `main` branch. Then it calls 
 
 ## Reusable workflows
 
-There are reusable workflows created. Anyone with access to a reusable workflow can call the reusable workflow from another workflow.
+There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
 
 ### Run E2E tests
 
