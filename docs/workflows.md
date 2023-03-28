@@ -54,7 +54,7 @@ You pass the following parameters from the calling workflow:
 | **module-tag**  | yes  |  OCI module image tag |
 | **skip-templates**  | no  |  wait for images only, skip other artifacts |
 
-Pipeline:
+The pipeline:
 - prepares k3s cluster and the docker registry,
 - waits for the artifacts to be ready in the registry,
 - runs the E2E tests on the cluster.
