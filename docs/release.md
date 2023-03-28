@@ -7,7 +7,7 @@ title: BTP Manager release pipeline
 The BTP Manager release pipeline creates proper artifacts:
  - btp-operator module OCI image in the [registry](https://console.cloud.google.com/artifacts/docker/kyma-project/europe/prod/btp-manager)
  - btp-manager Docker image in the [registry](http://europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator)
- - template.yaml, template_control_plane.yaml, rendered.yaml
+ - `template.yaml`, `template_control_plane.yaml`, `rendered.yaml`
 
 ## Run the pipeline
 
