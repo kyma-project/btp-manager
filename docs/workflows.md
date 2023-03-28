@@ -39,7 +39,7 @@ Triggered by pull requests on `main` branch and for releases (tag creation on 'm
 
 ## Reusable workflows
 
-There are reusable workflows created. Anyone with access to the reusable workflow can call the reusable workflow from another workflow.
+There are reusable workflows created. Anyone with access to a reusable workflow can call the reusable workflow from another workflow.
 
 ### Run E2E tests
 
