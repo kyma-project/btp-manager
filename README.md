@@ -26,7 +26,7 @@ There are two ways to install BTP Manager in your cluster:
 <summary>With kubectl and <code>rendered.yaml</code> (recommended)</summary>
 <br>
 
-Use the following command to download and install BTP manager from k8s resources in your cluster.
+Use the following command to download and install BTP Manager from Kubernetes resources in your cluster.
 
 ```shell
 kubectl apply -f deployments/prerequisites.yaml
