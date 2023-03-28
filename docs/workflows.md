@@ -63,7 +63,7 @@ Pipeline:
 ### Run unit tests
 
 This workflow runs the unit tests.
-No parameters are passed from calling pipeline (callee).
+No parameters are passed from the calling pipeline (callee).
 
 Pipeline:
 - checkouts code and sets up the cache,
