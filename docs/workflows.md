@@ -44,7 +44,7 @@ There are reusable workflows created. Anyone with access to a reusable workflow 
 ### Run E2E tests
 
 This workflow runs the E2E tests on the k3a cluster. 
-From the calling workflow you pass the following parameters:
+You pass the following parameters from the calling workflow:
 
 | Parameter name  | Required | Description |
 | ------------- | ------------- | ------------- |
