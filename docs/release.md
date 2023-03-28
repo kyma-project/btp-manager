@@ -1,4 +1,3 @@
-
 ---
 title: BTP Manager release pipeline
 ---
