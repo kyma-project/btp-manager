@@ -66,7 +66,7 @@ This workflow runs the unit tests.
 No parameters are passed from the calling pipeline (callee).
 
 The pipeline:
-- checkouts code and sets up the cache,
-- sets up go environment,
+- checks out code and sets up the cache
+- sets up the Go environment
 - invokes `make test`.
 
