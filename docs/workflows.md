@@ -42,7 +42,7 @@ There are reusable workflows created. Anyone with access to a reusable workflow 
 
 ### E2E tests
 
-This [workflow](../.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3a cluster. 
+This [workflow](../.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3s cluster. 
 You pass the following parameters from the calling workflow:
 
 | Parameter name  | Required | Description |
