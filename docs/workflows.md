@@ -35,7 +35,7 @@ This workflow is triggered by pull requests on the `main` branch. It uses the DE
 
 ## Unit tests workflow ('run-unit-test.yaml')
 
-This workflow is triggered by pull requests on `main` branch. Then calls reusable workflow 'Run unit tests (reusable)' (`run-unit-tests-reusable.yaml`).
+This workflow is triggered by pull requests on the `main` branch. Then it calls the reusable workflow 'Run unit tests (reusable)' (`run-unit-tests-reusable.yaml`).
 
 ## Reusable workflows
 
