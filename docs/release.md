@@ -24,7 +24,7 @@ To create a release, follow these steps:
 4. The tag creation triggers Prow Jobs, `post-btp-manager-module-build` and `post-btp-manager-build`, defined in [btp-manager-build.yaml](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/btp-manager/btp-manager-build.yaml).
 5. `post-btp-manager-build` builds a Docker image tagged with the release name.
 6. `post-btp-manager-module-build` runs the `kyma alpha create module` command, which creates a Kyma module, and pushes the image to the registry. 
-Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `rendered.yaml` files to the btp-manager release as a release assets.
+Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `rendered.yaml` files to the btp-manager release as release assets.
 7. The GitHub action waits for the `template.yaml` asset in the GitHub release and for images in the Docker registry.
 8. The GitHub action fetches module image and runs E2E tests on the k3s cluster. 
 9. If unit tests and E2E tests pass GitHub action publishes the release.
