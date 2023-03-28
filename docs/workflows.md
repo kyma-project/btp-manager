@@ -65,7 +65,7 @@ Pipeline:
 This workflow runs the unit tests.
 No parameters are passed from the calling pipeline (callee).
 
-Pipeline:
+The pipeline:
 - checkouts code and sets up the cache,
 - sets up go environment,
 - invokes `make test`.
