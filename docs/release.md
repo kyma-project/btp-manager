@@ -65,7 +65,7 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       Note over E2E tests job: creates k3s cluster and runs E2E tests
       E2E tests job->>GitHub Actions: returns result
       deactivate E2E tests job
-      GitHub Actions->>GitHub repository: publish the release
+      GitHub Actions->>GitHub repository: publish release
       deactivate GitHub Actions
 ```
 
