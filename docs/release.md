@@ -31,42 +31,42 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
 
 ```mermaid
    sequenceDiagram
-      actor Gopher
-      participant Github Actions
-      participant Unit tests job
+      actor user
+      participant GitHub Actions
+      participant unit tests job
       participant E2E tests job
-      participant Github Repository
+      participant GitHub repository
       participant post btp manager build
       participant post btp manager module build
-      participant docker Registry
-      Gopher->>Github Actions: Executes
-      activate Github Actions   
-      Github Actions->>Github Repository: creates the tag and the draft release
-      Github Actions->>Unit tests job: initiates
-      activate Unit tests job
-      Github Repository->>post btp manager build: triggers
+      participant Docker registry
+      user->>GitHub Actions: initiates
+      activate GitHub Actions   
+      GitHub Actions->>GitHub repository: create tag and draft release
+      GitHub Actions->>unit tests job: initiate
+      activate unit tests job
+      GitHub repository->>post btp manager build: triggers
       activate post btp manager build
       Note over post btp manager build: builds binary image
-      Github Repository->>post btp manager module build: triggers
-      deactivate Unit tests job
-      Unit tests job->>Github Actions: returns result
+      GitHub repository->>post btp manager module build: triggers
+      deactivate unit tests job
+      unit tests job->>GitHub Actions: return result
       activate post btp manager module build
-      Note over post btp manager module build: builds OCI module image and create yaml artifacts
-      post btp manager build->>docker Registry: uploads docker image 
+      Note over post btp manager module build: builds OCI module image and creates yaml artifacts
+      post btp manager build->>Docker registry: uploads binary image 
       deactivate post btp manager build
-      post btp manager module build->>docker Registry: uploads OCI module image
-      post btp manager module build->>Github Repository: uploads yaml artifacts
+      post btp manager module build->>Docker registry: uploads OCI module image
+      post btp manager module build->>GitHub repository: uploads yaml artifacts
       deactivate post btp manager module build
       loop Every 10s
-        E2E tests job-->docker Registry: are images available?
+        E2E tests job-->Docker registry: images available?
       end
       activate E2E tests job
       Docker registry->>E2E tests job: fetches binary image, module image
-      Note over E2E tests job: create k3s cluster and run E2E tests
-      E2E tests job->>Github Actions: return result
+      Note over E2E tests job: creates k3s cluster and runs E2E tests
+      E2E tests job->>GitHub Actions: returns result
       deactivate E2E tests job
-      Github Actions->>Github Repository: publish the release
-      deactivate Github Actions
+      GitHub Actions->>GitHub repository: publish the release
+      deactivate GitHub Actions
 ```
 
 ### Replace an existing release

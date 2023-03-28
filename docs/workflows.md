@@ -24,18 +24,18 @@ Both scripts are run from the workflow but can also be triggered manually from t
 
 To keep `module-chart/chart` in sync with the [upstream](https://github.com/SAP/sap-btp-service-operator), you must not apply any manual changes there.
 
-## Release pipeline
+## Release pipeline workflow
 
 See [BTP Manager release pipeline](release.md)
 
-## Run E2E tests
+## E2E tests workflow ('run-e2e-test.yaml')
 
-Triggered by pull requests on `main` branch calls reusable workflow 'Run E2E tests (reusable)' (`run-e2e-tests-reusable.yaml`). 
-Uses DEV artifact registry and tags binary and image with PR-number. 
+This workflow is triggered by pull requests on `main` branch. Uses DEV artifact registry, tags binary and OCI module image with PR-number and calls reusable workflow 
+'Run E2E tests (reusable)' (`run-e2e-tests-reusable.yaml`). 
 
-## Run unit tests
+## Unit tests workflow ('run-unit-test.yaml')
 
-Triggered by pull requests on `main` branch and for releases (tag creation on 'main' branch) calls reusable workflow 'Run unit tests (reusable)' (`run-unit-tests-reusable.yaml`).
+This workflow is triggered by pull requests on `main` branch. Then calls reusable workflow 'Run unit tests (reusable)' (`run-unit-tests-reusable.yaml`).
 
 ## Reusable workflows
 

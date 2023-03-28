@@ -1,10 +1,6 @@
 name: Run unit tests
 
 on:
-  push:
-    branches: [ "main" ]
-    # Trigger for release
-    tags: [ 'v*.*.*' ]
   pull_request:
     # Trigger for Pull Request
     branches: [ "main" ]

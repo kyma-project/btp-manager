@@ -1,4 +1,4 @@
-# This workflow is supposed to be called from other jobs to execute E2E tests
+# Call this workflow from other jobs to execute unit tests in the current context
 
 name: Run E2E tests on the cluster (reusable)
 
