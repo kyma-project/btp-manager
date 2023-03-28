@@ -48,11 +48,11 @@ You pass the following parameters from the calling workflow:
 
 | Parameter name  | Required | Description |
 | ------------- | ------------- | ------------- |
-| image-repo  | yes  | Binary image registry reference |
-| module-repo  | yes  |  OCI module image registry reference |
-| image-tag  | yes  |  Binary image tag |
-| module-tag  | yes  |  OCI module image tag |
-| skip-templates  | no  |  wait for images only, skip other artifacts |
+| **image-repo**  | yes  | binary image registry reference |
+| **module-repo**  | yes  |  OCI module image registry reference |
+| **image-tag**  | yes  |  binary image tag |
+| **module-tag**  | yes  |  OCI module image tag |
+| **skip-templates**  | no  |  wait for images only, skip other artifacts |
 
 Pipeline:
 - prepares k3s cluster and the docker registry,
