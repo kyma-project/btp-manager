@@ -68,5 +68,5 @@ No parameters are passed from the calling pipeline (callee).
 The pipeline:
 - checks out code and sets up the cache
 - sets up the Go environment
-- invokes `make test`.
+- invokes `make test`
 
