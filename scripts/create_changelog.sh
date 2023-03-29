@@ -50,7 +50,5 @@ fi
 
 echo -e "\n**Full changelog**: https://github.com/$REPOSITORY/compare/${LATEST_RELEASE}...${RELEASE_TAG}" >> ${CHANGELOG_FILE}
 
-cat ${CHANGELOG_FILE}
-
 # cleanup
 rm ${NEW_CONTRIB} || echo "cleaned up"
