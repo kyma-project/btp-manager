@@ -33,6 +33,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Create changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
+
       - name: Create draft release
         id: create-draft
         uses: actions/create-release@v1
@@ -48,11 +53,6 @@ jobs:
         run: |
           git tag ${{ github.event.inputs.name }}
           git push origin ${{ github.event.inputs.name }}
-
-      - name: Create changelog
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
 
     outputs:
       release_id: ${{ steps.create-draft.outputs.id }}

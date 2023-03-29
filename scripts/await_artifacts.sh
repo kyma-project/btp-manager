@@ -29,14 +29,14 @@ then
   echo "Finding assets for: ${IMAGE_TAG}"
   curl -sL \
   -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
+  -H "Authorization: Bearer $GITHUB_TOKEN"\
   https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' > $$.assets
   until grep "rendered.yaml"<$$.assets && grep "template.yaml"<$$.assets && grep "template_control_plane.yaml"<$$.assets; do
     echo 'waiting for the assets'
     sleep 10
     curl -sL \
     -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
+    -H "Authorization: Bearer $GITHUB_TOKEN"\
     https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' > $$.assets
   done >/dev/null
   echo "assets available"

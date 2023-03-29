@@ -43,6 +43,7 @@ jobs:
         env:
           BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
 
       - name: Run tests
