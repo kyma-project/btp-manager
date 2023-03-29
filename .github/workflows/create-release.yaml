@@ -37,8 +37,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: | 
-          ./scripts/create_changelog.sh ${{ github.event.inputs.name }}
-          ./scripts/create_changelog2.sh ${{ github.event.inputs.name }}
+          ./scripts/create_changelog.sh ${{ github.event.inputs.name }} 0.2.4
+          ./scripts/create_changelog2.sh ${{ github.event.inputs.name }} 0.2.4
 
       - name: Create draft release
         id: create-draft
