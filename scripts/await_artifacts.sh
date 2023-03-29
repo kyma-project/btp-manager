@@ -18,6 +18,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 # Expected variables:
 #             BTP_MANAGER_REPO - btp-operator binary image repository
 #             BTP_OPERATOR_REPO - btp-operator OCI module image repository
+#             GITHUB_TOKEN - github token
 
 export IMAGE_TAG=$1
 export MODULE_TAG=$2
@@ -27,18 +28,13 @@ PROTOCOL=docker://
 if [ "${SKIP_ASSETS}" != "--skip-templates" ]
 then
   echo "Finding assets for: ${IMAGE_TAG}"
-  curl -sL \
-  -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer $GITHUB_TOKEN"\
-  https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' > $$.assets
-  until grep "rendered.yaml"<$$.assets && grep "template.yaml"<$$.assets && grep "template_control_plane.yaml"<$$.assets; do
+  until [ $(curl -sL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN"\
+            https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' | sort -u | grep -FEc "(rendered.yaml|template.yaml|template_control_plane.yaml)") -eq 3 ]; do
     echo 'waiting for the assets'
     sleep 10
-    curl -sL \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer $GITHUB_TOKEN"\
-    https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' > $$.assets
-  done >/dev/null
+  done
   echo "assets available"
 fi
 

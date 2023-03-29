@@ -27,9 +27,8 @@ on:
         type: string
 
 jobs:
-  wait-for-prow-jobs-and-run-e2e-tests:
-    # job waits until Prow job uploads docker image and module OCI image
-    name: Wait for artifacts and execute E2E tests
+  run-e2e-tests:
+    # job waits until Prow job uploads docker image, module OCI image and optionally artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
