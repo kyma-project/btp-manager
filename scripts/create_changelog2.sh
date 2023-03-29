@@ -22,8 +22,9 @@ fi
 
 echo "## What has changed" >> ${CHANGELOG_FILE}
 
-git log ${LATEST_RELEASE}..HEAD --pretty=format:"%h" --reverse | while read -r commit
-do
+COMMITS_SINCE_LATEST_RELEASE=$(git log ${LATEST_RELEASE}..HEAD --pretty=format:"%h" --reverse)
+
+for commit in "${COMMITS_SINCE_LATEST_RELEASE[@]}"; do
     COMMIT_AUTHOR=$(curl -H "${GITHUB_AUTH_HEADER}" -sS "${GITHUB_URL}/commits/${commit}" | jq -r '.author.login')
     git show -s ${commit} --format="* %s by @${COMMIT_AUTHOR}" >> ${CHANGELOG_FILE}
 done
