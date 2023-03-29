@@ -43,25 +43,24 @@ cat template_control_plane.yaml
 
 echo "Updating github release with template.yaml, template_control_plane.yaml, rendered.yaml"
 
-echo "Finding release: ${PULL_BASE_REF}"
-releases=$(curl -sL \
+echo "Finding release id for: ${PULL_BASE_REF}"
+RELEASE_ID=$(curl -sL \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/kyma-project/btp-manager/releases/tags/${PULL_BASE_REF})
+  https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .id')
 
-release_id=$(echo $releases | jq -r '.id')
-echo "Got release ID: ${release_id}"
+if [ -z "${RELEASE_ID}" ]
+then
+  echo "No release with tag = ${PULL_BASE_REF}"
+  exit 1
+fi
 
-TEMPLATE_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=template.yaml"
+UPLOAD_URL="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${RELEASE_ID}/assets"
 
-uploadFile "template.yaml" $TEMPLATE_GH_ASSET
+uploadFile "template.yaml" "${UPLOAD_URL}?name=template.yaml"
 
-TEMPLATE_CONTROL_PLANE_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=template_control_plane.yaml"
+uploadFile "template_control_plane.yaml" "${UPLOAD_URL}?name=template_control_plane.yaml"
 
-uploadFile "template_control_plane.yaml" $TEMPLATE_CONTROL_PLANE_GH_ASSET
-
-RENDERED_GH_ASSET="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${release_id}/assets?name=rendered.yaml"
-
-uploadFile "charts/btp-operator/templates/rendered.yaml" $RENDERED_GH_ASSET
+uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=rendered.yaml"
 

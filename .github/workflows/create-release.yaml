@@ -1,36 +1,45 @@
-
-name: "Create a release"
-
-env:
-  BTP_MANAGER_REPO: docker://europe-docker.pkg.dev/kyma-project/prod/btp-manager
-  BTP_OPERATOR_REPO: docker://europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+name: "Create release"
 
 on:
   workflow_dispatch:
     inputs:
       name:
-        description: 'Release version'
+        description: 'Create release'
         default: ""
         required: true
 
 jobs:
-  create-release:
+  run-unit-tests:
+    name: Run unit tests
+    uses: "./.github/workflows/run-unit-tests-reusable.yaml"
+
+  run-e2e-tests:
+    name: Run E2E tests where images are available
+    needs: run-unit-tests
+    uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
+    with:
+      image-tag: ${{ github.event.inputs.name }}
+      module-tag: v${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+
+  create-draft:
+    name: Create draft release
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - name: Create changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.inputs.name }}
-        run: |
-          chmod +x scripts/create_changelog.sh
-          scripts/create_changelog.sh
-      - name: Create Release
-        id: create_release
+        run: "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
+
+      - name: Create draft release
+        id: create-draft
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,37 +47,25 @@ jobs:
           tag_name: ${{ github.event.inputs.name }}
           release_name: Release ${{ github.event.inputs.name }}
           body_path: CHANGELOG.md
-          draft: false
+          draft: true
           prerelease: false
-  wait-for-prow-jobs:
-    # this step waits until proper Prow job uploads the template.yaml file, docker image and module OCI image
+
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
+    outputs:
+      release_id: ${{ steps.create-draft.outputs.id }}
+
+  publish-release:
+    name: Publish release
+    needs: [create-draft, run-unit-tests, run-e2e-tests]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+
     steps:
-      - name: Wait for template.yaml
-        run: |
-          until $(curl --output /dev/null --silent --head --fail https://github.com/kyma-project/btp-manager/releases/download/${{ github.event.inputs.name }}/template.yaml); do
-            echo 'waiting...'
-            sleep 15
-          done
-      - name: Wait for btp-operator module
-        # Prow job which uploads the template.yaml also pushes the OCI module image to the registry, so there is no need to make retries for btp-operator module image. It must exist.
-        run: |
-          found=$(skopeo list-tags $BTP_OPERATOR_REPO | jq '.Tags|any(. == "v${{ github.event.inputs.name }}")')
-          if [ $found == "false" ]; then
-            echo "Module Image $BTP_OPERATOR_REPO:v${{ github.event.inputs.name }} not found"
-            exit 1
-          else
-            echo "Image found"
-          fi
-      - name: check btp manager
-        run: |
-          found=false
-          while [ $found == "false" ]
-          do
-            found=$(skopeo list-tags $BTP_MANAGER_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
-            echo "Waiting for BTP Manager image: $BTP_MANAGER_REPO:${{ github.event.inputs.name }}"
-            sleep 10
-          done
-          echo "BTP-manager image found"
-      
+      - name: Publish release
+        uses: eregon/publish-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ needs.create-draft.outputs.release_id }}
