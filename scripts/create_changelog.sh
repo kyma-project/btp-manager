@@ -1,15 +1,21 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 RELEASE_TAG=$1
+LATEST_RELEASE_TAG=$2
 
 REPOSITORY='kyma-project/btp-manager'
-LATEST_RELEASE_TAG=$(curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPOSITORY/releases/latest | jq -r '.tag_name')
+if [ -z "${LATEST_RELEASE_TAG}" ]
+then
+  LATEST_RELEASE_TAG=$(curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPOSITORY/releases/latest | jq -r '.tag_name')
+fi
+
 COMMITS_SINCE_LATEST_RELEASE=($(git log $LATEST_RELEASE_TAG..HEAD --pretty=format:"%h"))
 
 for line in "${COMMITS_SINCE_LATEST_RELEASE[@]}"; do
     git log $LATEST_RELEASE_TAG..HEAD --pretty=format:"* %s by @ %h" | grep "$line" | awk '{$NF=""; print $0}' | tr -d "\n" | sed 's/.$//' >> CHANGELOG.txt
     curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/$REPOSITORY/commits/$line | jq -r '.author.login' >> CHANGELOG.txt
 done
+
 echo "## What's Changed" >> CHANGELOG.md
 if [ -e CHANGELOG.txt ]; then
     tac CHANGELOG.txt >> CHANGELOG.md

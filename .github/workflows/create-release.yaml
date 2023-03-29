@@ -10,11 +10,11 @@ on:
 
 jobs:
   run-unit-tests:
-    name: Run unit tests
+    name: Unit tests
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
 
   run-e2e-tests:
-    name: Run E2E tests where images are available
+    name: E2E tests
     needs: run-unit-tests
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     with:
@@ -36,7 +36,9 @@ jobs:
       - name: Create changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
+        run: |
+          "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
+          "./scripts/create_changelog2.sh ${{ github.event.inputs.name }}"
 
       - name: Create draft release
         id: create-draft
@@ -46,6 +48,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.name }}
           release_name: Release ${{ github.event.inputs.name }}
+          body_path: CHANGELOG.md
           draft: true
           prerelease: false
 
