@@ -33,7 +33,7 @@ if [ "${SKIP_ASSETS}" != "--skip-templates" ]
 then
   echo "Finding assets for: ${IMAGE_TAG}"
   # all 3  artifacts available?
-  until [ $(curl ${CURL_OPTIONS} ${RELEASES_URL} | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' | sort -u | grep -Ec ${ARTIFACTS_REGEX}) -eq 3 ]; do
+  until [ $(curl ${CURL_OPTIONS} ${RELEASES_URL} | jq '.[] | select(.tag_name == env.IMAGE_TAG) | .assets[] | .browser_download_url | split("/") | last ' | sort -u | grep -Ec ${ARTIFACTS_REGEX}) -eq 3 ]; do
     echo 'waiting for the assets'
     sleep 10
   done
