@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 LATEST_RELEASE=$2 # for testability
-
+set -x
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
 set -o errexit  # exit immediately when a command fails.

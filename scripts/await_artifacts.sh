@@ -25,13 +25,15 @@ export MODULE_TAG=$2
 
 PROTOCOL=docker://
 
+CURL_OPTIONS=(-sL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN")
+RELEASES_URL="https://api.github.com/repos/kyma-project/btp-manager/releases"
+ARTIFACTS_REGEX="(rendered.yaml|template.yaml|template_control_plane.yaml)"
+
 if [ "${SKIP_ASSETS}" != "--skip-templates" ]
 then
   echo "Finding assets for: ${IMAGE_TAG}"
-  until [ $(curl -sL \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN"\
-            https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' | sort -u | grep -FEc "(rendered.yaml|template.yaml|template_control_plane.yaml)") -eq 3 ]; do
+  # all 3  artifacts available?
+  until [ $(curl ${CURL_OPTIONS} ${RELEASES_URL} | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' | sort -u | grep -Ec ${ARTIFACTS_REGEX}) -eq 3 ]; do
     echo 'waiting for the assets'
     sleep 10
   done
@@ -39,7 +41,7 @@ then
 fi
 
 until $(skopeo list-tags ${PROTOCOL}${BTP_OPERATOR_REPO} | jq '.Tags|any(. == env.MODULE_TAG)'); do
-  echo "Waiting for BTP Operator OCI module image: ${BTP_OPERATOR_REPO}:${MODULE_TAG}"
+  echo "Waiting for BTP Operator OCI module image: ${BTP_OPERATOR_REPO}:${MODULE_TAG}"ARTIFACTS_REGEX
   sleep 10
 done
 
