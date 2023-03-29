@@ -41,7 +41,7 @@ then
 fi
 
 until $(skopeo list-tags ${PROTOCOL}${BTP_OPERATOR_REPO} | jq '.Tags|any(. == env.MODULE_TAG)'); do
-  echo "Waiting for BTP Operator OCI module image: ${BTP_OPERATOR_REPO}:${MODULE_TAG}"ARTIFACTS_REGEX
+  echo "Waiting for BTP Operator OCI module image: ${BTP_OPERATOR_REPO}:${MODULE_TAG}"
   sleep 10
 done
 
