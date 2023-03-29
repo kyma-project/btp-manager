@@ -33,11 +33,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create changelog
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
-
       - name: Create draft release
         id: create-draft
         uses: actions/create-release@v1
@@ -46,7 +41,6 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.name }}
           release_name: Release ${{ github.event.inputs.name }}
-          body_path: CHANGELOG.md
           draft: true
           prerelease: false
 
@@ -54,6 +48,20 @@ jobs:
         run: |
           git tag ${{ github.event.inputs.name }}
           git push origin ${{ github.event.inputs.name }}
+
+      - name: Create changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/create_changelog.sh ${{ github.event.inputs.name }}"
+
+      - name: Update release with changelog
+        id: update_release
+        uses: tubone24/update_release@v1.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          body_path: CHANGELOG.md
+
     outputs:
       release_id: ${{ steps.create-draft.outputs.id }}
 
