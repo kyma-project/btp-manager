@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SKIP_TEMPLATES=$3
+SKIP_ASSETS=$3
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -24,15 +24,22 @@ export MODULE_TAG=$2
 
 PROTOCOL=docker://
 
-TEMPLATE_URL="https://github.com/kyma-project/btp-manager/releases/download/${IMAGE_TAG}/template.yaml"
-
-if [ "${SKIP_TEMPLATES}" != "--skip-templates" ]
+if [ "${SKIP_ASSETS}" != "--skip-templates" ]
 then
-  until $(curl --output /dev/null --silent --head --fail ${TEMPLATE_URL}); do
-    echo 'waiting for template.yaml'
+  echo "Finding assets for: ${IMAGE_TAG}"
+  curl -sL \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
+  https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' > $$.assets
+  until grep "rendered.yaml"<$$.assets && grep "template.yaml"<$$.assets && grep "template_control_plane.yaml"<$$.assets; do
+    echo 'waiting for the assets'
     sleep 10
-  done
-  echo "template.yaml available"
+    curl -sL \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
+    https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${IMAGE_TAG}" '.[] | select(.tag_name == $ARGS.named.tag) | .assets[] | .browser_download_url | split("/") | last ' > $$.assets
+  done >/dev/null
+  echo "assets available"
 fi
 
 until $(skopeo list-tags ${PROTOCOL}${BTP_OPERATOR_REPO} | jq '.Tags|any(. == env.MODULE_TAG)'); do

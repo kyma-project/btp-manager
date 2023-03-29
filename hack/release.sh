@@ -47,7 +47,6 @@ echo "Finding release id for: ${PULL_BASE_REF}"
 RELEASE_ID=$(curl -sL \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
-  -H "X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .id')
 
 if [ -z "${RELEASE_ID}" ]
