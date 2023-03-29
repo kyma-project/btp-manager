@@ -195,11 +195,15 @@ var _ = SynchronizedBeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
 
-	apiServerAddressAndPort := fmt.Sprintf("%s:%s", testEnv.ControlPlane.APIServer.Address, testEnv.ControlPlane.APIServer.Port)
-	etcdAddressAndPort := testEnv.ControlPlane.Etcd.URL.Host
-	ginkgoProcessInfoMsg := fmt.Sprintf("Process: %d, ApiServer: %s, etcd: %s", GinkgoParallelProcess(), apiServerAddressAndPort, etcdAddressAndPort)
+	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
+	if useExistingClusterEnv == "false" || useExistingClusterEnv == "" {
+		apiServerAddressAndPort := fmt.Sprintf("%s:%s", testEnv.ControlPlane.APIServer.Address, testEnv.ControlPlane.APIServer.Port)
+		etcdAddressAndPort := testEnv.ControlPlane.Etcd.URL.Host
+		ginkgoProcessInfoMsg := fmt.Sprintf("Process: %d, ApiServer: %s, etcd: %s", GinkgoParallelProcess(), apiServerAddressAndPort, etcdAddressAndPort)
+		GinkgoWriter.Println(ginkgoProcessInfoMsg)
+	}
+
 	k8sManager.GetCache().WaitForCacheSync(ctx)
-	GinkgoWriter.Println(ginkgoProcessInfoMsg)
 })
 
 var _ = SynchronizedAfterSuite(func() {
