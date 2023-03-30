@@ -13,7 +13,7 @@ RELEASE_TAG=$1
 REPOSITORY=${REPOSITORY:-kyma-project/btp-manager}
 GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
 GITHUB_AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
-CHANGELOG_FILE="CHANGELOG2.md"
+CHANGELOG_FILE="CHANGELOG.md"
 
 if [ "${LATEST_RELEASE}"  == "" ]
 then
