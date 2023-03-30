@@ -18,4 +18,4 @@ version=$(cat template.yaml | yq '.spec.descriptor.component.version')
 
 url="$base_url/component-descriptors/$component_name:$version"
 echo -e "\nBTP operator module image:" $url
-./hack/run_module_image.sh $url
+./scripts/run_module_image.sh $url
