@@ -124,14 +124,12 @@ Only one Condition of type `Ready` is used.
 | 16                   | Error                | Ready                | false                | InvalidSecret                                   | sap-btp-manager secret does not contain required data - create proper secret           |
 | 17                   | Error                | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                            |
 | 18                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module status                  |
-| 19                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing Install                                                          |
+| 19                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                         |
 | 20                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                    |
 | 21                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                  |
 | 22                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                 |
 | 23                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                       |
 | 24                   | NA                   | Ready                | false                | ServiceInstancesAndBindingsNotCleaned           | NA                                                                                     |
-
-
 
 [comment]: # (table_end)
 

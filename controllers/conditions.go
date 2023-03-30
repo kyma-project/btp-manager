@@ -75,7 +75,7 @@ var Reasons = map[Reason]TypeAndStatus{
 	SoftDeleting:                          NotReady, //Deleting;Trying to soft delete after hard delete failed
 	UpdateCheck:                           NotReady, //Processing;Checking for updates
 	InconsistentChart:                     NotReady, //Error;Chart is inconsistent. Reconciliation initialized
-	PreparingInstallInfoFailed:            NotReady, //Error;Error while preparing Install
+	PreparingInstallInfoFailed:            NotReady, //Error;Error while preparing installation information
 	ChartPathEmpty:                        NotReady, //Error;No chart path available for processing
 	DeletionOfOrphanedResourcesFailed:     NotReady, //Error;Deletion of orphaned resources failed
 	StoringChartDetailsFailed:             NotReady, //Error;Failure of storing chart details
