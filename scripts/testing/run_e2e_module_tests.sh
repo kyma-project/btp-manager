@@ -20,7 +20,7 @@ kubectl apply -f ./deployments/prerequisites.yaml || echo "ignoring failure duri
 kubectl apply -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret creation"
 
 # fetch OCI module image and install btp-manager in current cluster
-./hack/run_module_image.sh "${MODULE_IMAGE_NAME}" ${CI}
+./scripts/run_module_image.sh "${MODULE_IMAGE_NAME}" ${CI}
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
