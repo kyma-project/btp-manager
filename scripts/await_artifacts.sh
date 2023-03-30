@@ -25,7 +25,6 @@ export MODULE_TAG=$2
 
 PROTOCOL=docker://
 
-CURL_OPTIONS=(-sL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN")
 RELEASES_URL="https://api.github.com/repos/kyma-project/btp-manager/releases"
 ARTIFACTS_REGEX="(rendered.yaml|template.yaml|template_control_plane.yaml)"
 
@@ -33,7 +32,7 @@ if [ "${SKIP_ASSETS}" != "--skip-templates" ]
 then
   echo "Finding assets for: ${IMAGE_TAG}"
   # all 3  artifacts available?
-  until [ $(curl ${CURL_OPTIONS} ${RELEASES_URL} | jq '.[] | select(.tag_name == env.IMAGE_TAG) | .assets[] | .browser_download_url | split("/") | last ' | sort -u | grep -Ec ${ARTIFACTS_REGEX}) -eq 3 ]; do
+  until [ $(curl -sL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" ${RELEASES_URL} | jq '.[] | select(.tag_name == env.IMAGE_TAG) | .assets[] | .browser_download_url | split("/") | last ' | sort -u | grep -Ec ${ARTIFACTS_REGEX}) -eq 3 ]; do
     echo 'waiting for the assets'
     sleep 10
   done
