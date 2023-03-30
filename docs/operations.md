@@ -102,30 +102,39 @@ The state of BTP Operator CR is represented by [**Status**](https://github.com/k
 and Conditions.
 Only one Condition of type `Ready` is used.
 
-| No. | CR state    | Condition type | Condition status  | Condition reason                      | Remark                                                                         |
-|-----|-------------|----------------|-------------------|---------------------------------------|--------------------------------------------------------------------------------|
-| 1   | Ready       | Ready          | True              | ReconcileSucceeded                    | Reconciled successfully                                                        |
-| 2   | Ready       | Ready          | True              | UpdateCheckSucceeded                  | Update not required                                                            |
-| 3   | Ready       | Ready          | True              | UpdateDone                            | Updated                                                                        |
-| 4   | Processing  | Ready          | False             | Updated                               | Resource has been updated                                                      |
-| 5   | Processing  | Ready          | False             | Initialized                           | Initial processing or chart is inconsistent                                    |
-| 6   | Processing  | Ready          | False             | Processing                            | Final state after deprovisioning                                               |
-| 7   | Processing  | Ready          | False             | UpdateCheck                           | Checking for updates                                                           |
-| 8   | Deleting    | Ready          | False             | HardDeleting                          | Trying to hard delete                                                          |
-| 9   | Deleting    | Ready          | False             | SoftDeleting                          | Trying to soft delete after hard delete failed                                 |
- | 10  | Deleting    | Ready          | False             | ServiceInstancesAndBindingsNotCleaned | Existing Service Instance or Service Bindings blocks deprovisioning            |
-| 11  | Error       | Ready          | False             | OlderCRExists                         | This CR is not the oldest one so does not represent the module status          |
-| 12  | Error       | Ready          | False             | MissingSecret                         | `sap-btp-manager` secret was not found - create proper secret                  |
-| 13  | Error       | Ready          | False             | InvalidSecret                         | `sap-btp-manager` secret does not contain required data - create proper secret |
-| 14  | Error       | Ready          | False             | ResourceRemovalFailed                 | Some resources can still be present due to errors while deprovisioning         |
-| 15  | Error       | Ready          | False             | ChartInstallFailed                    | Failure during chart installation                                              |
-| 16  | Error       | Ready          | False             | ConsistencyCheckFailed                | Failure during consistency check                                               |
-| 17  | Error       | Ready          | False             | InconsistentChart                     | Chart is inconsistent. Reconciliation initialized                              |
-| 18  | Error       | Ready          | False             | PreparingInstallInfoFailed            | Error while preparing InstallInfo                                              |
-| 19  | Error       | Ready          | False             | ChartPathEmpty                        | No chart path available for processing                                         |
-| 20  | Error       | Ready          | False             | DeletionOfOrphanedResourcesFailed     | Deletion of orphaned resources failed                                          |
-| 21  | Error       | Ready          | False             | StoringChartDetailsFailed             | Failure of storing chart details                                               |
-| 22  | Error       | Ready          | False             | GettingConfigMapFailed                | Getting Config Map failed                                                      |    
+[comment]: # (table_start)
+
+| No.                  | CR state             | Condition type       | Condition status     | Condition reason                                | Remark                                                                                 |
+| -------------------- | -------------------- | -------------------- | -------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1                    | Ready                | Ready                | true                 | ReconcileSucceeded                              | Reconciled successfully                                                                |
+| 2                    | Ready                | Ready                | true                 | UpdateCheckSucceeded                            | Update not required                                                                    |
+| 3                    | Ready                | Ready                | true                 | UpdateDone                                      | Update done                                                                            |
+| 4                    | Processing           | Ready                | false                | Initialized                                     | Initial processing or chart is inconsistent                                            |
+| 5                    | Processing           | Ready                | false                | Processing                                      | Final state after deprovisioning                                                       |
+| 6                    | Processing           | Ready                | false                | UpdateCheck                                     | Checking for updates                                                                   |
+| 7                    | Processing           | Ready                | false                | Updated                                         | Resource has been updated                                                              |
+| 8                    | Deleting             | Ready                | false                | HardDeleting                                    | Trying to hard delete                                                                  |
+| 9                    | Deleting             | Ready                | false                | SoftDeleting                                    | Trying to soft delete after hard delete failed                                         |
+| 10                   | Error                | Ready                | false                | ChartInstallFailed                              | Failure during chart installation                                                      |
+| 11                   | Error                | Ready                | false                | ChartPathEmpty                                  | No chart path available for processing                                                 |
+| 12                   | Error                | Ready                | false                | ConsistencyCheckFailed                          | Failure during consistency check                                                       |
+| 13                   | Error                | Ready                | false                | DeletionOfOrphanedResourcesFailed               | Deletion of orphaned resources failed                                                  |
+| 14                   | Error                | Ready                | false                | GettingConfigMapFailed                          | Getting Config Map failed                                                              |
+| 15                   | Error                | Ready                | false                | InconsistentChart                               | Chart is inconsistent. Reconciliation initialized                                      |
+| 16                   | Error                | Ready                | false                | InvalidSecret                                   | sap-btp-manager secret does not contain required data - create proper secret           |
+| 17                   | Error                | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                            |
+| 18                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module status                  |
+| 19                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing Install                                                          |
+| 20                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                    |
+| 21                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                  |
+| 22                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                 |
+| 23                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                       |
+| 24                   | NA                   | Ready                | false                | ServiceInstancesAndBindingsNotCleaned           | NA                                                                                     |
+
+
+
+[comment]: # (table_end)
+
 ## Updating
 
 The update process is almost the same as the provisioning process. The only difference is BtpOperator CR existence in the cluster, 

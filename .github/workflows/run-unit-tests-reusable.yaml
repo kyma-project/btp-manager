@@ -30,4 +30,7 @@ jobs:
 
     - name: Run make test
       run: make test
-      
+
+    - name: Auto validate documentation
+      run: |
+        make test-docs

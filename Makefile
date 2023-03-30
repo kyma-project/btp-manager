@@ -91,6 +91,10 @@ test: manifests kustomize generate fmt vet envtest ginkgo ## Run tests.
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
 	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) -v controllers; else $(GINKGO) -v -p controllers; fi
 
+.PHONY: test-docs
+test-docs:
+	go run hack/autodoc/autodoc.go
+
 ##@ Build
 
 .PHONY: build
