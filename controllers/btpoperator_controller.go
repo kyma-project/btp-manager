@@ -75,17 +75,20 @@ var (
 )
 
 const (
-	chartVersionKey             = "chart-version"
-	secretKind                  = "Secret"
-	configMapKind               = "ConfigMap"
-	operatorName                = "btp-manager"
-	deletionFinalizer           = "operator.kyma-project.io/btp-manager"
-	managedByLabelKey           = "app.kubernetes.io/managed-by"
-	btpServiceOperatorConfigMap = "sap-btp-operator-config"
-	btpServiceOperatorSecret    = "sap-btp-service-operator"
-	mutatingWebhookName         = "sap-btp-operator-mutating-webhook-configuration"
-	validatingWebhookName       = "sap-btp-operator-validating-webhook-configuration"
-	forceDeleteLabelKey         = "force-delete"
+	chartVersionKey                    = "chart-version"
+	secretKind                         = "Secret"
+	configMapKind                      = "ConfigMap"
+	deploymentKind                     = "Deployment"
+	deploymentAvailableConditionType   = "Available"
+	deploymentProgressingConditionType = "Progressing"
+	operatorName                       = "btp-manager"
+	deletionFinalizer                  = "operator.kyma-project.io/btp-manager"
+	managedByLabelKey                  = "app.kubernetes.io/managed-by"
+	btpServiceOperatorConfigMap        = "sap-btp-operator-config"
+	btpServiceOperatorSecret           = "sap-btp-service-operator"
+	mutatingWebhookName                = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName              = "sap-btp-operator-validating-webhook-configuration"
+	forceDeleteLabelKey                = "force-delete"
 )
 
 const (
@@ -519,7 +522,7 @@ func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstru
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
 	resourcesReadinessInformer := make(chan bool, numOfResources)
-	allReadyInformer := make(chan bool)
+	allReadyInformer := make(chan bool, 1)
 	for _, u := range us {
 		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
 	}
@@ -544,6 +547,46 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 }
 
 func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+	switch u.GetKind() {
+	case deploymentKind:
+		r.checkDeploymentReadiness(ctx, u, c)
+	default:
+		r.checkResourceExistence(ctx, u, c)
+	}
+}
+
+func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+	logger := log.FromContext(ctx)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval/2)
+	defer cancel()
+
+	var err error
+	var availableConditionStatus, progressingConditionStatus string
+	got := &appsv1.Deployment{}
+	now := time.Now()
+	for {
+		if time.Since(now) >= ReadyTimeout {
+			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
+			return
+		}
+		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
+			for _, condition := range got.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					progressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					availableConditionStatus = string(condition.Status)
+				}
+			}
+			if progressingConditionStatus == "True" && availableConditionStatus == "True" {
+				c <- true
+				return
+			}
+		}
+		time.Sleep(ReadyCheckInterval)
+	}
+}
+
+func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval/2)
 	defer cancel()
@@ -554,7 +597,7 @@ func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *u
 	got.SetGroupVersionKind(u.GroupVersionKind())
 	for {
 		if time.Since(now) >= ReadyTimeout {
-			logger.Error(err, fmt.Sprintf("failed to get %s %s from the cluster", u.GetName(), u.GetKind()))
+			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
