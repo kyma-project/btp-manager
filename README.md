@@ -48,7 +48,7 @@ kubectl delete -f deployments/prerequisites.yaml
 To install BTP Manager using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command) in your cluster, use the following command:
 
 ```shell
-./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
+./scripts/run_template.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
 ```
 
 > **NOTE:** Before using the script, you must install [Helm](https://github.com/helm/helm#install), [skopeo](https://github.com/containers/skopeo), [jq](https://github.com/stedolan/jq) and [yq](https://github.com/mikefarah/yq).

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This script has the following argument: a link to a template file, for example:
-# ./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
+# ./scripts/run_template.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
