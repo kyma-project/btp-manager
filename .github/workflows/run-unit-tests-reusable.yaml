@@ -30,4 +30,3 @@ jobs:
 
     - name: Run make test
       run: make test
-
