@@ -196,7 +196,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	}()
 
 	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
-	if useExistingClusterEnv == "false" || useExistingClusterEnv == "" {
+	if useExistingClusterEnv != "true" {
 		apiServerAddressAndPort := fmt.Sprintf("%s:%s", testEnv.ControlPlane.APIServer.Address, testEnv.ControlPlane.APIServer.Port)
 		etcdAddressAndPort := testEnv.ControlPlane.Etcd.URL.Host
 		ginkgoProcessInfoMsg := fmt.Sprintf("Process: %d, ApiServer: %s, etcd: %s", GinkgoParallelProcess(), apiServerAddressAndPort, etcdAddressAndPort)
