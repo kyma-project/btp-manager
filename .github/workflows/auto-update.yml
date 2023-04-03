@@ -23,8 +23,8 @@ jobs:
 
     - name: Compare Tags
       run: |
-        chmod +x hack/update/get-latest-chart-version.sh 
-        latest=$(hack/update/get-latest-chart-version.sh)
+        chmod +x scripts/update/get-latest-chart-version.sh 
+        latest=$(scripts/update/get-latest-chart-version.sh)
         current=$(yq '.version' ./module-chart/chart/Chart.yaml)
         if [[ $latest == $current ]]; then
           echo "version are the same: $latest=$current"
@@ -38,14 +38,14 @@ jobs:
     - name: Update chart
       if: env.CONTINUE_JOB == 'true'
       run: |
-        chmod +x hack/update/make-module-chart.sh
-        hack/update/make-module-chart.sh $TAG
+        chmod +x scripts/update/make-module-chart.sh
+        scripts/update/make-module-chart.sh $TAG
 
     - name: Make templates
       if: env.CONTINUE_JOB == 'true'
       run: |
-        chmod +x hack/update/make-module-resources.sh
-        hack/update/make-module-resources.sh $TAG
+        chmod +x scripts/update/make-module-resources.sh
+        scripts/update/make-module-resources.sh $TAG
 
     - name: Configure Git
       if: env.CONTINUE_JOB == 'true'
