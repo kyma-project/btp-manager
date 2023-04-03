@@ -10,7 +10,7 @@ import (
 
 var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
-	Describe("Deletion", Focus, func() {
+	Describe("Deletion", func() {
 
 		BeforeAll(func() {
 			err := createPrereqs()
@@ -49,7 +49,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
-				
+
 				// WHEN
 				Expect(k8sClient.Delete(ctx, siUnstructured)).To(Succeed())
 
@@ -58,7 +58,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 			})
 		})
 
-		When("Last Service Binding is removed", Pending, func() {
+		When("Last Service Binding is removed", func() {
 			It("BTP Operator should be removed", func() {
 				sbUnstructured := createResource(bindingGvk, kymaNamespace, bindingName)
 				ensureResourceExists(bindingGvk)

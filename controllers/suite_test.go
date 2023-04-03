@@ -140,6 +140,12 @@ var _ = SynchronizedBeforeSuite(func() {
 	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
+	const GroupName = "apiextensions.k8s.io"
+
+	// SchemeGroupVersion is group version used to register these objects
+	//SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: "v1"}
+	//scheme.Scheme.AddKnownTypes(SchemeGroupVersion, &apiextensions.CustomResourceDefinition{})
+
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
@@ -181,9 +187,13 @@ var _ = SynchronizedBeforeSuite(func() {
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	cleanupReconciler := NewCleanupReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
-	err1 := cleanupReconciler.SetupWithManager(k8sManager, cfg)
+	sisbController := NewServiceInstanceReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	err1 := sisbController.SetupWithManager(k8sManager)
 	Expect(err1).ToNot(HaveOccurred())
+
+	//cleanupReconciler := NewCleanupReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	//err1 := cleanupReconciler.SetupWithManager(k8sManager, cfg)
+	//Expect(err1).ToNot(HaveOccurred())
 
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})
 	Expect(err).ToNot(HaveOccurred())

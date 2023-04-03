@@ -3,19 +3,22 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"strings"
 	"sync"
+	"time"
 )
 
 // CleanupReconciler xxx
@@ -41,36 +44,39 @@ func NewCleanupReconciler(client client.Client, scheme *runtime.Scheme) *Cleanup
 	}
 }
 
+func (r *CleanupReconciler) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
+	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+
+	if err := r.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
 func (r *CleanupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Reconcile Cleanup1")
 
-	fmt.Println("*** CLEANUP RECONCILER ***")
-
-	si := apiextensions.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "serviceinstances.services.cloud.sap.com",
-		},
+	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
+	if err != nil {
+		logger.Error(err, "while checking SB CRD existence", "GVK", bindingGvk.String())
+		return ctrl.Result{}, err
 	}
-	err := r.Get(ctx, client.ObjectKey{Name: "serviceinstances.services.cloud.sap.com"}, &si)
-	switch {
-	case errors.IsNotFound(err):
-		fmt.Println("not found, OK")
+	if !sbCrdExists {
 		return ctrl.Result{}, nil
-	case err != nil:
-		fmt.Printf("error1: %s", err.Error())
 	}
-
-	sb := apiextensions.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "servicebindings.services.cloud.sap.com",
-		},
+	siCrdExists, err := r.crdExists(ctx, instanceGvk)
+	if err != nil {
+		logger.Error(err, "while checking SI CRD existence", "GVK", instanceGvk.String())
+		return ctrl.Result{}, err
 	}
-	err = r.Get(ctx, client.ObjectKey{Name: "servicebindings.services.cloud.sap.com"}, &sb)
-	switch {
-	case errors.IsNotFound(err):
-		fmt.Println("not found, OK")
+	if !siCrdExists {
 		return ctrl.Result{}, nil
-	case err != nil:
-		fmt.Printf("error2: %s", err.Error())
 	}
 
 	existingBtpOperators := &v1alpha1.BtpOperatorList{}
@@ -78,11 +84,13 @@ func (r *CleanupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	if len(existingBtpOperators.Items) > 0 {
-		r.enableSISBController()
-	} else {
-		r.disableSISBController()
-	}
+	//if len(existingBtpOperators.Items) > 0 {
+	//	logger.Info(" - enabling SISB controller")
+	//	r.enableSISBController(logger)
+	//} else {
+	//	logger.Info(" - disabling SISB controller")
+	//	r.disableSISBController()
+	//}
 	return ctrl.Result{}, nil
 }
 
@@ -90,7 +98,7 @@ func (r *CleanupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (r *CleanupReconciler) SetupWithManager(mgr ctrl.Manager, cfg *rest.Config) error {
 	r.cfg = cfg
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1.CustomResourceDefinition{}, builder.WithPredicates(r.predicate())).
+		For(&apiextensionsv1.CustomResourceDefinition{}, builder.WithPredicates(r.predicate())).
 		Complete(r)
 }
 
@@ -108,7 +116,7 @@ func (r *CleanupReconciler) predicate() predicate.Predicate {
 	}
 }
 
-func (r *CleanupReconciler) enableSISBController() {
+func (r *CleanupReconciler) enableSISBController(logger logr.Logger) {
 	r.sisbControllerMu.Lock()
 	defer r.sisbControllerMu.Unlock()
 
@@ -116,7 +124,6 @@ func (r *CleanupReconciler) enableSISBController() {
 		return
 	}
 
-	fmt.Println("ENABLING")
 	// todo: handle error
 	mgr, err := ctrl.NewManager(r.cfg, ctrl.Options{
 		Scheme:                 r.Scheme,
@@ -148,9 +155,10 @@ func (r *CleanupReconciler) enableSISBController() {
 	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
 	r.sisbReconcilerStopper = cancel
 	go func() {
-		fmt.Println("STARTING")
+		time.Sleep(500 * time.Millisecond)
 		err = r.mgr.Start(ctx) // todo: handle error
-		fmt.Println(err)
+
+		logger.Info(err.Error())
 	}()
 
 }

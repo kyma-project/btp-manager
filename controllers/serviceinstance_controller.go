@@ -13,8 +13,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 )
 
 // ServiceInstanceReconciler reconciles a BtpOperator object in case of service instance changes
@@ -55,9 +58,15 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
+	time.Sleep(100 * time.Millisecond)
+
 	btpOperator, err := r.getOldestBtpOperator(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+	// btp operator already removed
+	if btpOperator == nil {
+		return ctrl.Result{}, nil
 	}
 	if btpOperator.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
 		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, btpOperator, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
@@ -88,8 +97,9 @@ func (r *ServiceInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(si,
 			builder.WithPredicates(r.deletionPredicate())).
-		//For(sb,
-		//	builder.WithPredicates(r.deletionPredicate())).
+		Watches(&source.Kind{Type: sb},
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(r.deletionPredicate())).
 		Complete(r)
 }
 
@@ -104,6 +114,9 @@ func (r *ServiceInstanceReconciler) deletionPredicate() predicate.Predicate {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			return false
 		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
 	}
 }
 
@@ -113,6 +126,10 @@ func (r *ServiceInstanceReconciler) getOldestBtpOperator(ctx context.Context) (*
 	if err := r.List(ctx, existingBtpOperators); err != nil {
 		logger.Error(err, "unable to get existing BtpOperator CRs")
 		return nil, err
+	}
+
+	if len(existingBtpOperators.Items) == 0 {
+		return nil, nil
 	}
 
 	oldestCr := existingBtpOperators.Items[0]
