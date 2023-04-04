@@ -11,12 +11,14 @@ import (
 )
 
 const (
-	spaceMargin             = 10
-	errorExitCode           = 1
-	okExitCode              = 0
-	expectedDataChunksCount = 3
-	defaultMdElementSize    = 10
-	conditionType           = "Ready"
+	spaceMargin                  = 10
+	errorExitCode                = 1
+	okExitCode                   = 0
+	expectedDataChunksCount      = 3
+	defaultMdElementSize         = 10
+	conditionType                = "Ready"
+	scriptName                   = "extract_conditions_data.sh"
+	expectedMdTableElementsCount = 8
 )
 
 type reasonMetadata struct {
@@ -32,7 +34,7 @@ func main() {
 	dataForProcessing := extractData()
 	dataChunks := strings.Split(dataForProcessing, "====")
 	if len(dataChunks) != expectedDataChunksCount {
-		fmt.Println("'extract_conditions_data.sh' data output failed, it should contain 3 elements")
+		fmt.Println(fmt.Sprintf("'%s' data output failed, it should contain 3 elements", scriptName))
 		os.Exit(errorExitCode)
 	}
 
@@ -51,7 +53,13 @@ func main() {
 		os.Exit(errorExitCode)
 	}
 
-	mdTableContent := mdTableToStruct(dataChunks[2])
+	errors, mdTableContent := mdTableToStruct(dataChunks[2])
+	if len(errors) > 0 {
+		fmt.Println("current table in docs is incorrect:")
+		printErrors(errors)
+		os.Exit(errorExitCode)
+	}
+
 	errors = compareContent(mdTableContent, reasonsMetadata)
 	if len(errors) > 0 {
 		printErrors(errors)
@@ -64,7 +72,7 @@ func main() {
 }
 
 func extractData() string {
-	cmd := exec.Command("/bin/sh", "hack/autodoc/extract_conditions_data.sh")
+	cmd := exec.Command("/bin/sh", fmt.Sprintf("scripts/autodoc/%s", scriptName))
 	var cmdOut, cmdErr bytes.Buffer
 	cmd.Stdout = &cmdOut
 	cmd.Stderr = &cmdErr
@@ -127,12 +135,19 @@ func checkIfConstsAndMetadataAreInSync(constReasons []string, reasonsMetadata []
 	return errors
 }
 
-func mdTableToStruct(tableMd string) []reasonMetadata {
+func mdTableToStruct(tableMd string) ([]string, []reasonMetadata) {
+	var errors []string
 	mdRows := strings.Split(tableMd, "\n")
 	mdRows = mdRows[2 : len(mdRows)-1]
 	structuredData := make([]reasonMetadata, 0)
 	for _, mdRow := range mdRows {
 		cleanLine := strings.Split(mdRow, "|")
+		numberOfElements := len(cleanLine)
+		if numberOfElements != expectedMdTableElementsCount {
+			errors = append(errors, fmt.Sprintf("%s have incorret number of elements, it has %d but it should have %d", cleanLine, numberOfElements, expectedMdTableElementsCount))
+			continue
+		}
+
 		cleanLine = cleanLine[1 : len(cleanLine)-1]
 
 		crState := cleanLine[1]
@@ -145,7 +160,8 @@ func mdTableToStruct(tableMd string) []reasonMetadata {
 		cleanString(&conditionStatusString)
 		conditionStatus, err := strconv.ParseBool(conditionStatusString)
 		if err != nil {
-			panic(err)
+			errors = append(errors, fmt.Sprintf("%s -> cannot parse condition status", cleanLine))
+			continue
 		}
 
 		conditionReason := cleanLine[4]
@@ -164,7 +180,8 @@ func mdTableToStruct(tableMd string) []reasonMetadata {
 		}
 		structuredData = append(structuredData, metadata)
 	}
-	return structuredData
+
+	return errors, structuredData
 }
 
 func compareContent(currentTableStructured []reasonMetadata, newTableStructured []reasonMetadata) []string {
@@ -212,12 +229,12 @@ func compareContent(currentTableStructured []reasonMetadata, newTableStructured 
 func buildMdTable(reasonsMetadata []reasonMetadata) string {
 	renderMdElement := func(length int, content string, spaceFiller string) string {
 		length = length - len(content)
-		element := ""
-		element += content
+		var element strings.Builder
+		element.WriteString(content)
 		for i := 0; i < length+spaceMargin; i++ {
-			element += spaceFiller
+			element.WriteString(spaceFiller)
 		}
-		return element
+		return element.String()
 	}
 
 	sort.Slice(reasonsMetadata, func(i, j int) bool {
@@ -277,7 +294,7 @@ func tryConvertGoLineToStruct(goLine string) (error, *reasonMetadata) {
 	if goLine == "" {
 		return fmt.Errorf("empty goLine given"), nil
 	}
-	goLine = strings.Replace(goLine, "\n", "", -1)
+	goLine = strings.TrimSpace(goLine)
 	parts := strings.Split(goLine, "//")
 	if len(parts) != 2 {
 		return fmt.Errorf("in goLine (%s) there is no comment section (//) included, comment section should have following format (//CRState;Remark)", goLine), nil
