@@ -144,7 +144,7 @@ func mdTableToStruct(tableMd string) ([]string, []reasonMetadata) {
 		cleanLine := strings.Split(mdRow, "|")
 		numberOfElements := len(cleanLine)
 		if numberOfElements != expectedMdTableElementsCount {
-			errors = append(errors, fmt.Sprintf("%s have incorret number of elements, it has %d but it should have %d", cleanLine, numberOfElements, expectedMdTableElementsCount))
+			errors = append(errors, fmt.Sprintf("%s have incorrect number of elements, it has %d but it should have %d", cleanLine, numberOfElements, expectedMdTableElementsCount))
 			continue
 		}
 
