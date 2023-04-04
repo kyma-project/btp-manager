@@ -129,7 +129,7 @@ func checkIfConstsAndMetadataAreInSync(constReasons []string, reasonsMetadata []
 
 	for _, constReason := range constReasons {
 		if !checkIfConstReasonHaveMetadata(constReason) {
-			errors = append(errors, fmt.Sprintf("there is a Reason = (%s) declarated in const scope, but there is no matching metadata for it", constReason))
+			errors = append(errors, fmt.Sprintf("there is a Reason = (%s) declared in const scope, but there is no matching metadata for it", constReason))
 		}
 	}
 	return errors
@@ -302,12 +302,12 @@ func tryConvertGoLineToStruct(goLine string) (error, *reasonMetadata) {
 
 	words := strings.Fields(parts[0])
 	if len(words) != 2 {
-		return fmt.Errorf("goLine (%s) is bad structured, it should have following format (Reason: TypeAndStatus, //CRState;Remark", goLine), nil
+		return fmt.Errorf("goLine (%s) is badly structured, it should have following format (Reason: TypeAndStatus, //CRState;Remark", goLine), nil
 	}
 
 	comments := strings.Split(parts[1], ";")
 	if len(comments) != 2 {
-		return fmt.Errorf("comment in goLine (%s) is bad structured, it should have following format (//CRState;Remark)", goLine), nil
+		return fmt.Errorf("comment in goLine (%s) is badly structured, it should have following format (//CRState;Remark)", goLine), nil
 	}
 
 	reason := words[0]
