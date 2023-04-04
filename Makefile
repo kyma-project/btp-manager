@@ -93,7 +93,7 @@ test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run test
 
 .PHONY: test-docs
 test-docs:
-	go run hack/autodoc/autodoc.go
+	go run cmd/autodoc/main.go
 
 ##@ Build
 
