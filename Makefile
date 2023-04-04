@@ -198,14 +198,14 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download & Build envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20230403212152-53057ba616d1
 
 ########## ginkgo ###########
 GINKGO ?= $(LOCALBIN)/ginkgo
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download & Build ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@latest
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.9.2
 
 ##@ Checks
 
