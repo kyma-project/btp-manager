@@ -68,6 +68,7 @@ func main() {
 		os.Exit(errorExitCode)
 	}
 
+	fmt.Println("docs validation OK. go file is in sync with docs.")
 	os.Exit(okExitCode)
 }
 
