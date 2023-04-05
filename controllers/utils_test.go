@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const (
@@ -651,4 +658,70 @@ func matchReadyCondition(state types.State, status metav1.ConditionStatus, reaso
 
 func matchDeleted() gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{"Action": Equal(resourceDeleted)})
+}
+
+type deploymentReconciler struct {
+	client.Client
+	*rest.Config
+	Scheme *runtime.Scheme
+}
+
+func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	deployment := &v1.Deployment{}
+	if err := r.Get(ctx, req.NamespacedName, deployment); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		logger.Error(err, "failed to get deployment")
+		return ctrl.Result{}, err
+	}
+	var progressingConditionStatus, availableConditionStatus string
+	if len(deployment.Status.Conditions) > 0 {
+		for _, c := range deployment.Status.Conditions {
+			if string(c.Type) == deploymentProgressingConditionType {
+				progressingConditionStatus = string(c.Status)
+			} else if string(c.Type) == deploymentAvailableConditionType {
+				availableConditionStatus = string(c.Status)
+			}
+		}
+		if progressingConditionStatus == "True" && availableConditionStatus == "True" {
+			return ctrl.Result{}, nil
+		}
+	}
+	deploymentProgressingCondition := v1.DeploymentCondition{Type: deploymentProgressingConditionType, Status: "True"}
+	deploymentAvailableCondition := v1.DeploymentCondition{Type: deploymentAvailableConditionType, Status: "True"}
+	deployment.Status.Conditions = append(deployment.Status.Conditions, deploymentProgressingCondition, deploymentAvailableCondition)
+	return ctrl.Result{}, r.Update(ctx, deployment)
+}
+
+func (r *deploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1.Deployment{},
+			builder.WithPredicates(r.watchBtpOperatorDeploymentPredicate())).
+		Complete(r)
+}
+
+func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			if e.Object.GetName() == DeploymentName {
+				return true
+			}
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectNew.GetName() == DeploymentName {
+				return true
+			}
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
 }
