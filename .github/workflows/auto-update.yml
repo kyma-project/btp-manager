@@ -75,11 +75,6 @@ jobs:
         git add config/rbac/role.yaml 
         git stash push --staged
 
-    - uses: actions/checkout@v3
-      if: env.CONTINUE_JOB == 'true'
-      with:
-        ref: main
-
     - name: Create PR
       if: env.CONTINUE_JOB == 'true'
       env:
