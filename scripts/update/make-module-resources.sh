@@ -9,7 +9,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 cd "$(dirname "$0")"
 
 readonly CHART_PATH="../../module-chart/chart"
-readonly CHART_OVERRIDES_PATH="${CHART_PATH}/overrides.yaml"
+readonly CHART_OVERRIDES_PATH="../../module-chart/overrides.yaml"
 readonly EXISTING_RESOURCES_PATH="../../module-resources"
 readonly EXISTING_RESOURCES_DELETE_PATH="${EXISTING_RESOURCES_PATH}/delete"
 readonly EXISTING_RESOURCES_APPLY_PATH="${EXISTING_RESOURCES_PATH}/apply"
