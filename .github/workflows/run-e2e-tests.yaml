@@ -6,11 +6,17 @@ name: Run E2E tests on the cluster
 on:
   pull_request:
     branches: [ main ]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
 
 jobs:
 
   run-e2e-tests:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
+    if: ${{ !github.event.pull_request.draft }}
     with:
       image-tag: PR-${{ github.event.number }}
       module-tag: v0.0.0-PR-${{ github.event.number }}
