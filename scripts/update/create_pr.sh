@@ -14,7 +14,8 @@ set -o pipefail # prevents errors in a pipeline from being masked
 #   KYMA_BTP_MANAGER_REPO         - repository to create PR adding the new chart
 #   SAP_BTP_SERVICE_OPERATOR_REPO - repository to fetch the new chart
 #   MSG                           - commit message and the title for the new PR
-#   TAG                           - chart version
+
+TAG=$1
 
 git status
 git checkout -B ${BRANCH_NAME}

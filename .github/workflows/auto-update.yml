@@ -80,4 +80,4 @@ jobs:
       if: env.CONTINUE_JOB == 'true'
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
-      run: scripts/update/create_pr.sh
+      run: scripts/update/create_pr.sh $TAG
