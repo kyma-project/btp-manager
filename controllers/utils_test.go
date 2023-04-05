@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	clientgoappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -660,15 +661,15 @@ func matchDeleted() gomegatypes.GomegaMatcher {
 }
 
 type deploymentReconciler struct {
-	client.Client
 	*rest.Config
+	clientgoappsv1.DeploymentInterface
 	Scheme *runtime.Scheme
 }
 
 func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	deployment := &v1.Deployment{}
-	if err := r.Get(ctx, req.NamespacedName, deployment); err != nil {
+	deployment, err := r.Get(ctx, req.NamespacedName.Name, metav1.GetOptions{})
+	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -676,41 +677,41 @@ func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 	deployment.Labels["reconciler-test"] = "test"
-	deploymentProgressingCondition := v1.DeploymentCondition{Type: v1.DeploymentConditionType(deploymentProgressingConditionType), Status: corev1.ConditionStatus("True")}
-	deploymentAvailableCondition := v1.DeploymentCondition{Type: v1.DeploymentConditionType(deploymentAvailableConditionType), Status: corev1.ConditionStatus("True")}
-	conditions := make([]v1.DeploymentCondition, 0)
+	deploymentProgressingCondition := appsv1.DeploymentCondition{Type: appsv1.DeploymentConditionType(deploymentProgressingConditionType), Status: corev1.ConditionStatus("True")}
+	deploymentAvailableCondition := appsv1.DeploymentCondition{Type: appsv1.DeploymentConditionType(deploymentAvailableConditionType), Status: corev1.ConditionStatus("True")}
+	conditions := make([]appsv1.DeploymentCondition, 0)
 	conditions = append(conditions, deploymentProgressingCondition, deploymentAvailableCondition)
-	status := v1.DeploymentStatus{Conditions: conditions}
+	status := appsv1.DeploymentStatus{Conditions: conditions}
 	deployment.Status = status
-	return ctrl.Result{}, r.Update(ctx, deployment)
+	_, err = r.UpdateStatus(ctx, deployment, metav1.UpdateOptions{})
+	if err != nil {
+		logger.Error(err, "failed to update deployment status")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			if e.Object.GetName() == DeploymentName {
-				return true
-			}
-			return false
+			return true
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectNew.GetName() == DeploymentName {
-				oldDeployment, ok := e.ObjectOld.(*v1.Deployment)
-				if !ok {
-					return false
+			oldDeployment, ok := e.ObjectOld.(*appsv1.Deployment)
+			if !ok {
+				return false
+			}
+			if len(oldDeployment.Status.Conditions) > 0 {
+				var progressingConditionStatus, availableConditionStatus string
+				for _, c := range oldDeployment.Status.Conditions {
+					if string(c.Type) == deploymentProgressingConditionType {
+						progressingConditionStatus = string(c.Status)
+					} else if string(c.Type) == deploymentAvailableConditionType {
+						availableConditionStatus = string(c.Status)
+					}
 				}
-				if len(oldDeployment.Status.Conditions) > 0 {
-					var progressingConditionStatus, availableConditionStatus string
-					for _, c := range oldDeployment.Status.Conditions {
-						if string(c.Type) == deploymentProgressingConditionType {
-							progressingConditionStatus = string(c.Status)
-						} else if string(c.Type) == deploymentAvailableConditionType {
-							availableConditionStatus = string(c.Status)
-						}
-					}
-					if progressingConditionStatus != "True" || availableConditionStatus != "True" {
-						return true
-					}
+				if progressingConditionStatus != "True" || availableConditionStatus != "True" {
+					return true
 				}
 			}
 			return false

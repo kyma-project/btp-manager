@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes/scheme"
+	v1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -123,7 +124,6 @@ var _ = SynchronizedBeforeSuite(func() {
 	Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
-	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
 		o.Development = true
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
@@ -161,10 +161,13 @@ var _ = SynchronizedBeforeSuite(func() {
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
 	k8sClientFromManager = k8sManager.GetClient()
 
+	appsV1Client, err := v1.NewForConfig(cfg)
+	Expect(err).ToNot(HaveOccurred())
+
 	btpOperatorDeploymentReconciler := &deploymentReconciler{
-		Client: k8sClient,
-		Config: cfg,
-		Scheme: scheme.Scheme,
+		DeploymentInterface: appsV1Client.Deployments(ChartNamespace),
+		Config:              cfg,
+		Scheme:              scheme.Scheme,
 	}
 	deploymentController, err := controller.NewUnmanaged("btp-operator-deployment-controller", k8sManager, controller.Options{
 		Reconciler: btpOperatorDeploymentReconciler,
