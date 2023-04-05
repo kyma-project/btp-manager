@@ -16,7 +16,6 @@ set -o pipefail # prevents errors in a pipeline from being masked
 #   MSG                           - commit message and the title for the new PR
 #   TAG                           - chart version
 
-git checkout main
 git checkout -B ${BRANCH_NAME}
 git stash apply
 git add module-chart/*
