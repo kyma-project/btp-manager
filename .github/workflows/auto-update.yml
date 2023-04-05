@@ -50,7 +50,7 @@ jobs:
           if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
           elif [ -z "$(git status --porcelain)" ]; then
-            echo "nothing changed, skipping remaining steps"
+            echo "nothing changed, no need to create PR"
           else
             scripts/create_pr.sh
           fi
