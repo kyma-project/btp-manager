@@ -30,15 +30,19 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
@@ -65,15 +69,17 @@ const (
 )
 
 var (
-	cfg                  *rest.Config
-	k8sClient            client.Client
-	k8sClientFromManager client.Client
-	k8sManager           manager.Manager
-	testEnv              *envtest.Environment
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	reconciler           *BtpOperatorReconciler
-	updateCh             chan resourceUpdate = make(chan resourceUpdate, 1000)
+	cfg                        *rest.Config
+	k8sClient                  client.Client
+	k8sClientFromManager       client.Client
+	k8sManager                 manager.Manager
+	testEnv                    *envtest.Environment
+	ctx                        context.Context
+	ctxForDeploymentController context.Context
+	cancel                     context.CancelFunc
+	cancelDeploymentController context.CancelFunc
+	reconciler                 *BtpOperatorReconciler
+	updateCh                   chan resourceUpdate = make(chan resourceUpdate, 1000)
 )
 
 func TestAPIs(t *testing.T) {
@@ -117,6 +123,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
+	Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.25.0-darwin-arm64")).To(Succeed())
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
 		o.Development = true
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
@@ -153,6 +160,24 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
 	k8sClientFromManager = k8sManager.GetClient()
+
+	btpOperatorDeploymentReconciler := &deploymentReconciler{
+		Client: k8sClient,
+		Config: cfg,
+		Scheme: scheme.Scheme,
+	}
+	deploymentController, err := controller.NewUnmanaged("btp-operator-deployment-controller", k8sManager, controller.Options{
+		Reconciler: btpOperatorDeploymentReconciler,
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	Expect(deploymentController.Watch(&source.Kind{Type: &appsv1.Deployment{}},
+		&handler.EnqueueRequestForObject{},
+		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate())).
+		To(Succeed())
+
+	ctxForDeploymentController, cancelDeploymentController = context.WithCancel(ctx)
+
 	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {
 		HardDeleteTimeout, err = time.ParseDuration(hardDeleteTimeoutFromEnv)
 		Expect(err).NotTo(HaveOccurred())
@@ -195,6 +220,13 @@ var _ = SynchronizedBeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
 
+	go func() {
+		defer GinkgoRecover()
+		<-k8sManager.Elected()
+		err = deploymentController.Start(ctxForDeploymentController)
+		Expect(err).ToNot(HaveOccurred(), "failed to run deployment controller")
+	}()
+
 	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
 	if useExistingClusterEnv != "true" {
 		apiServerAddressAndPort := fmt.Sprintf("%s:%s", testEnv.ControlPlane.APIServer.Address, testEnv.ControlPlane.APIServer.Port)
@@ -209,6 +241,7 @@ var _ = SynchronizedBeforeSuite(func() {
 var _ = SynchronizedAfterSuite(func() {
 	// runs on all processes
 	Eventually(func() int { return reconciler.workqueueSize }).Should(Equal(0))
+	cancelDeploymentController()
 	cancel()
 	By("tearing down the test environment")
 	Expect(testEnv.Stop()).To(Succeed())

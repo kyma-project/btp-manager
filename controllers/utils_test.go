@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -676,31 +675,14 @@ func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		logger.Error(err, "failed to get deployment")
 		return ctrl.Result{}, err
 	}
-	var progressingConditionStatus, availableConditionStatus string
-	if len(deployment.Status.Conditions) > 0 {
-		for _, c := range deployment.Status.Conditions {
-			if string(c.Type) == deploymentProgressingConditionType {
-				progressingConditionStatus = string(c.Status)
-			} else if string(c.Type) == deploymentAvailableConditionType {
-				availableConditionStatus = string(c.Status)
-			}
-		}
-		if progressingConditionStatus == "True" && availableConditionStatus == "True" {
-			return ctrl.Result{}, nil
-		}
-	}
-	deploymentProgressingCondition := v1.DeploymentCondition{Type: deploymentProgressingConditionType, Status: "True"}
-	deploymentAvailableCondition := v1.DeploymentCondition{Type: deploymentAvailableConditionType, Status: "True"}
-	deployment.Status.Conditions = append(deployment.Status.Conditions, deploymentProgressingCondition, deploymentAvailableCondition)
+	deployment.Labels["reconciler-test"] = "test"
+	deploymentProgressingCondition := v1.DeploymentCondition{Type: v1.DeploymentConditionType(deploymentProgressingConditionType), Status: corev1.ConditionStatus("True")}
+	deploymentAvailableCondition := v1.DeploymentCondition{Type: v1.DeploymentConditionType(deploymentAvailableConditionType), Status: corev1.ConditionStatus("True")}
+	conditions := make([]v1.DeploymentCondition, 0)
+	conditions = append(conditions, deploymentProgressingCondition, deploymentAvailableCondition)
+	status := v1.DeploymentStatus{Conditions: conditions}
+	deployment.Status = status
 	return ctrl.Result{}, r.Update(ctx, deployment)
-}
-
-func (r *deploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Config = mgr.GetConfig()
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1.Deployment{},
-			builder.WithPredicates(r.watchBtpOperatorDeploymentPredicate())).
-		Complete(r)
 }
 
 func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.Funcs {
@@ -713,7 +695,23 @@ func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.F
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if e.ObjectNew.GetName() == DeploymentName {
-				return true
+				oldDeployment, ok := e.ObjectOld.(*v1.Deployment)
+				if !ok {
+					return false
+				}
+				if len(oldDeployment.Status.Conditions) > 0 {
+					var progressingConditionStatus, availableConditionStatus string
+					for _, c := range oldDeployment.Status.Conditions {
+						if string(c.Type) == deploymentProgressingConditionType {
+							progressingConditionStatus = string(c.Status)
+						} else if string(c.Type) == deploymentAvailableConditionType {
+							availableConditionStatus = string(c.Status)
+						}
+					}
+					if progressingConditionStatus != "True" || availableConditionStatus != "True" {
+						return true
+					}
+				}
 			}
 			return false
 		},
