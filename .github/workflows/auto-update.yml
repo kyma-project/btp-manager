@@ -68,7 +68,7 @@ jobs:
     - name: Pass changes
       if: env.CONTINUE_JOB == 'true'
       run: |
-        git status
+        git status --porcelain
         git add module-chart/* 
         git add module-resources/* 
         git add controllers/btpoperator_controller.go
@@ -85,7 +85,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: |
-        git status
+        git status --porcelain
         git checkout -B ${BRANCH_NAME}
         git stash apply
         git add module-chart/*
