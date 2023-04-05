@@ -8,6 +8,9 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+# Expected variables passed e.g. from CI:
+#   SAP_BTP_SERVICE_OPERATOR_REPO - repository to fetch the new chart
+
 cd "$(dirname "$0")"
 
 readonly CHART_PATH="../../module-chart/chart"

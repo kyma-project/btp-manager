@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -x
 # Create PR with the new version of chart and link it to Gophers' dashboard
 
 # standard bash error handling
@@ -16,6 +16,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 #   MSG                           - commit message and the title for the new PR
 #   TAG                           - chart version
 
+git status
 git checkout -B ${BRANCH_NAME}
 git stash apply
 git add module-chart/*
