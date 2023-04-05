@@ -9,6 +9,9 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked# link the PR from ^^ to gopher project board
 
+# Expected variables passed (passed from CI via calling script):
+#   GH_TOKEN                      - GitHub token for GitHub CLI
+
 pr_number=$(echo "${pr_link}" | awk -F '/' '{print($NF)}')
 pr_id=$(gh api repos/kyma-project/btp-manager/pulls/"${pr_number}" | jq -r '.node_id')
 

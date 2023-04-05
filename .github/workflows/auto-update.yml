@@ -81,5 +81,5 @@ jobs:
     - name: Create PR
       if: env.CONTINUE_JOB == 'true'
       env:
-        BOT_GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: ./scripts/update/create_pr.sh

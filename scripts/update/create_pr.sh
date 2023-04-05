@@ -10,7 +10,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 # Expected variables passed e.g. from CI:
 #   BRANCH_NAME                   - branch
-#   BOT_GITHUB_TOKEN              - GitHub token
+#   GH_TOKEN                      - GitHub token for GitHub CLI
 #   KYMA_BTP_MANAGER_REPO         - repository to create PR adding the new chart
 #   SAP_BTP_SERVICE_OPERATOR_REPO - repository to fetch the new chart
 #   MSG                           - commit message and the title for the new PR
@@ -23,7 +23,7 @@ git add module-resources/*
 git add controllers/btpoperator_controller.go
 git add config/rbac/role.yaml
 git commit -m "$MSG"
-git remote set-url origin https://x-access-token:${BOT_GITHUB_TOKEN}@github.com/${KYMA_BTP_MANAGER_REPO}.git
+git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${KYMA_BTP_MANAGER_REPO}.git
 git push --set-upstream origin ${BRANCH_NAME} -f
 
 pr_link=$(gh pr create -B main --title "${MSG}" --body "https://${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/tag/${TAG}" | tail -n 1)
