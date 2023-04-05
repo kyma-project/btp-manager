@@ -52,5 +52,5 @@ jobs:
           elif [ -z "$(git status --porcelain)" ]; then
             echo "nothing changed, no need to create PR"
           else
-            scripts/create_pr.sh
+            scripts/update/create_pr.sh
           fi
