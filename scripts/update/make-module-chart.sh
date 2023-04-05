@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -x
 TAG=$1
 
 # standard bash error handling
