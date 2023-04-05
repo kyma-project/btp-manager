@@ -2,7 +2,7 @@ name: Auto update chart/resources
 
 env:
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
-  SAP_BTP_SERVICE_OPERATOR_REPO: github.com/sap/sap-btp-service-operator
+  SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
 on:
@@ -19,9 +19,9 @@ jobs:
 
     - uses: actions/checkout@v3
 
-    - name: Compare Tags
+    - name: Compare tags
       run: |
-        latest=$(scripts/update/get-latest-chart-version.sh)
+        latest=$(curl -sL -H "Accept: application/vnd.github+json" https://api.github.com/repos/SAP/sap-btp-service-operator/releases/latest | jq -r '.tag_name')
         current=$(yq '.version' ./module-chart/chart/Chart.yaml)
         if [[ $latest == $current ]]; then
           echo "versions are the same: $latest=$current"
@@ -30,27 +30,18 @@ jobs:
           echo "version update from $current to $latest"
           echo "CONTINUE_JOB=true" >> $GITHUB_ENV
           echo "TAG=${latest}" >> $GITHUB_ENV
+          echo "BRANCH_NAME=chart-${latest}" >> $GITHUB_ENV
+          echo "MSG=Update module chart and resources to ${latest}" >> $GITHUB_ENV
         fi
 
-    - name: Update chart
-      if: env.CONTINUE_JOB == 'true'
-      run: scripts/update/make-module-chart.sh $TAG
-
-    - name: Update module resources
-      if: env.CONTINUE_JOB == 'true'
-      run: scripts/update/make-module-resources.sh $TAG
-
-    - name: Configure Git
-      if: env.CONTINUE_JOB == 'true'
+    - name: Update chart and module resources
+      if: env.CONTINUE_JOB
       run: |
-        git config --global user.email $GIT_EMAIL
-        git config --global user.name $GIT_NAME 
-        echo "BRANCH_NAME=chart-$TAG" >> $GITHUB_ENV
-        echo "MSG=Update module chart and resources to $TAG" >> $GITHUB_ENV
+        scripts/update/make-module-chart.sh $TAG
+        scripts/update/make-module-resources.sh $TAG
 
-    - name: Check if there are changes
-      if: env.CONTINUE_JOB == 'true'
-      shell: bash
+    - name: Check if there are any changes
+      if: env.CONTINUE_JOB
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: |
@@ -66,26 +57,22 @@ jobs:
         fi
 
     - name: Pass changes
-      if: env.CONTINUE_JOB == 'true'
+      if: env.CONTINUE_JOB
       run: |
-        git status --porcelain
+        git config --global user.email $GIT_EMAIL
+        git config --global user.name $GIT_NAME 
         git add module-chart/* 
         git add module-resources/* 
         git add controllers/btpoperator_controller.go
         git add config/rbac/role.yaml 
         git stash push --staged
 
-    - uses: actions/checkout@v3
-      if: env.CONTINUE_JOB == 'true'
-      with:
-        ref: main
-
     - name: Create PR
-      if: env.CONTINUE_JOB == 'true'
+      if: env.CONTINUE_JOB
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: |
-        git status --porcelain
+        git checkout --force -B main refs/remotes/origin/main
         git checkout -B ${BRANCH_NAME}
         git stash apply
         git add module-chart/*
@@ -100,7 +87,7 @@ jobs:
         echo "pr_link=${pr_link}" >> $GITHUB_ENV
 
     - name: Link PR to dashboard
-      if: env.CONTINUE_JOB == 'true'
+      if: env.CONTINUE_JOB
       env:
         GH_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: |
