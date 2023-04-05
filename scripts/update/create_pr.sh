@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# link PR it to Gopher dashboard
-
-pr_link=$1
+# move changes to the dedicated branch created from the remote main and create link on the Gopher dashboard
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -9,8 +7,47 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked# link the PR from ^^ to gopher project board
 
-# Expected variables passed (passed from CI via calling script):
+# Expected variables passed (passed from CI):
 #   GH_TOKEN                      - GitHub token for GitHub CLI
+#   GIT_EMAIL                     - email setting for PR to be created
+#   GIT_NAME                      - user name setting for PR to be created
+#   KYMA_BTP_MANAGER_REPO         - Kyma repository
+#   SAP_BTP_SERVICE_OPERATOR_REPO - upstream repository with new chart versions
+#   BRANCH_NAME                   - branch with updated resources
+#   TAG                           - new chart version
+
+# add changed files to stage
+git add module-chart/*
+git add module-resources/*
+git add controllers/btpoperator_controller.go
+git add config/rbac/role.yaml
+
+#stash staged changes
+git stash push --staged
+
+#pass changes to branch created from main
+git checkout --force -B main refs/remotes/origin/main
+git checkout -B ${BRANCH_NAME}
+
+#apply stashed changes
+git stash apply
+git add module-chart/*
+git add module-resources/*
+git add controllers/btpoperator_controller.go
+git add config/rbac/role.yaml
+
+#configure git
+git config --global user.email ${GIT_EMAIL}
+git config --global user.name ${GIT_NAME}
+
+#commit and push changes
+git commit -m "$MSG"
+git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${KYMA_BTP_MANAGER_REPO}.git
+git push --set-upstream origin ${BRANCH_NAME} -f
+
+#create PR
+pr_link=$(gh pr create -B main --title "${MSG}" --body "https://${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/tag/${TAG}" | tail -n 1)
+echo "Link for created PR: ${pr_link}"
 
 pr_number=$(echo "${pr_link}" | awk -F '/' '{print($NF)}')
 pr_id=$(gh api repos/kyma-project/btp-manager/pulls/"${pr_number}" | jq -r '.node_id')
@@ -29,7 +66,7 @@ resp=$(gh api graphql -f query='mutation{ addProjectV2ItemById(input:{projectId:
 echo "response from inserting projectv2 item: $resp"
 card_id=$(echo "$resp" | jq -r '.data.addProjectV2ItemById.item.id')
 
-# move projectv2 item (card on the gopher board) to the top of the "todo" column
+# move projectv2 item (card on the gopher board) to the top of the "To Do" column
 # due to GitHub internal GraphQL limitation, adding item and update has to be two separate calls
 # https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects#updating-projects
 gh api graphql -f query="$(cat << EOF
