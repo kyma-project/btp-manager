@@ -53,13 +53,11 @@ pr_number=$(echo "${pr_link}" | awk -F '/' '{print($NF)}')
 pr_id=$(gh api repos/kyma-project/btp-manager/pulls/"${pr_number}" | jq -r '.node_id')
 
 # Gopher board node_id
-project_board_id=PVT_kwDOAlVvc84AEv0v
-
+readonly project_board_id=PVT_kwDOAlVvc84AEv0v
 # "To Do" column on Gopher board node_id
-todo_column_id=834c7033
-
+readonly todo_column_id=834c7033
 # order in "To Do" column on Gopher board node_id
-status_field=PVTSSF_lADOAlVvc84AEv0vzgCvCtY
+readonly status_field=PVTSSF_lADOAlVvc84AEv0vzgCvCtY
 
 # insert projectv2 item (card on the gopher board)
 resp=$(gh api graphql -f query='mutation{ addProjectV2ItemById(input:{projectId: "'${project_board_id}'" contentId: "'${pr_id}'"}){ item{id} }}' )
