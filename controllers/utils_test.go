@@ -34,13 +34,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/kubernetes/scheme"
 	clientgoappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	v1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -666,6 +672,28 @@ type deploymentReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.Controller {
+	appsV1Client, err := v1.NewForConfig(cfg)
+	Expect(err).ToNot(HaveOccurred())
+
+	btpOperatorDeploymentReconciler := &deploymentReconciler{
+		DeploymentInterface: appsV1Client.Deployments(ChartNamespace),
+		Config:              cfg,
+		Scheme:              scheme.Scheme,
+	}
+	deploymentController, err := controller.NewUnmanaged("deployment-controller", mgr, controller.Options{
+		Reconciler: btpOperatorDeploymentReconciler,
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	Expect(deploymentController.Watch(&source.Kind{Type: &appsv1.Deployment{}},
+		&handler.EnqueueRequestForObject{},
+		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate())).
+		To(Succeed())
+
+	return deploymentController
+}
+
 func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	deployment, err := r.Get(ctx, req.NamespacedName.Name, metav1.GetOptions{})
@@ -676,7 +704,6 @@ func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		logger.Error(err, "failed to get deployment")
 		return ctrl.Result{}, err
 	}
-	deployment.Labels["reconciler-test"] = "test"
 	deploymentProgressingCondition := appsv1.DeploymentCondition{Type: appsv1.DeploymentConditionType(deploymentProgressingConditionType), Status: corev1.ConditionStatus("True")}
 	deploymentAvailableCondition := appsv1.DeploymentCondition{Type: appsv1.DeploymentConditionType(deploymentAvailableConditionType), Status: corev1.ConditionStatus("True")}
 	conditions := make([]appsv1.DeploymentCondition, 0)
