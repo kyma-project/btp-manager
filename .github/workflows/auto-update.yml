@@ -22,7 +22,7 @@ jobs:
 
       - name: Compare tags
         run: |
-          latest=$(curl -sL -H "Accept: application/vnd.github+json" https://api.github.com/repos/SAP/sap-btp-service-operator/releases/latest | jq -r '.tag_name')
+          latest=$(scripts/update/get-latest-chart-version.sh)
           current=$(yq '.version' ./module-chart/chart/Chart.yaml)
           if [[ $latest == $current ]]; then
             echo "versions are the same: $latest=$current"
