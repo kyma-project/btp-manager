@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+TAG=$1
+
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
 set -o errexit  # exit immediately when a command fails.
@@ -13,7 +15,9 @@ cd "$(dirname "$0")"
 
 readonly CHART_PATH="../../module-chart/chart"
 
-TAG=$1
+if [[ -z ${TAG} ]]; then
+   TAG=$(./get-latest-chart-version.sh)
+fi
 
 curl -sL ${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/download/${TAG}/sap-btp-operator-${TAG}.tgz | tar zx
 
