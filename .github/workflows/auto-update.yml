@@ -36,13 +36,13 @@ jobs:
           fi
 
       - name: Update chart and module resources
-        if: env.CONTINUE_JOB
+        if: env.CONTINUE_JOB == 'true'
         run: |
           scripts/update/make-module-chart.sh $TAG
           scripts/update/make-module-resources.sh $TAG
 
       - name: Create PR if anything changed
-        if: env.CONTINUE_JOB
+        if: env.CONTINUE_JOB == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
