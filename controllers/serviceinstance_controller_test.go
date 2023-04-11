@@ -10,9 +10,11 @@ import (
 
 var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
-	Describe("Deletion", func() {
+	Describe("Deletion", Focus, func() {
 
 		BeforeAll(func() {
+			ChartPath = "../module-chart/chart"
+			ResourcesPath = "../module-resources"
 			err := createPrereqs()
 			Expect(err).To(BeNil())
 			Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())

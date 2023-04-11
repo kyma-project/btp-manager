@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -84,13 +83,10 @@ func (r *CleanupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	//if len(existingBtpOperators.Items) > 0 {
-	//	logger.Info(" - enabling SISB controller")
-	//	r.enableSISBController(logger)
-	//} else {
-	//	logger.Info(" - disabling SISB controller")
-	//	r.disableSISBController()
-	//}
+	if len(existingBtpOperators.Items) > 0 {
+		logger.Info(" - enabling SISB controller")
+		r.EnableSISBController()
+	}
 	return ctrl.Result{}, nil
 }
 
@@ -116,7 +112,7 @@ func (r *CleanupReconciler) predicate() predicate.Predicate {
 	}
 }
 
-func (r *CleanupReconciler) enableSISBController(logger logr.Logger) {
+func (r *CleanupReconciler) EnableSISBController() {
 	r.sisbControllerMu.Lock()
 	defer r.sisbControllerMu.Unlock()
 
@@ -157,15 +153,29 @@ func (r *CleanupReconciler) enableSISBController(logger logr.Logger) {
 	go func() {
 		time.Sleep(500 * time.Millisecond)
 		err = r.mgr.Start(ctx) // todo: handle error
-
-		logger.Info(err.Error())
 	}()
 
 }
 
-func (r *CleanupReconciler) disableSISBController() {
+//func (r *CleanupReconciler) disableSISBController() {
+//	r.sisbControllerMu.Lock()
+//	defer r.sisbControllerMu.Unlock()
+//	if !r.enabled {
+//		return
+//	}
+//
+//	r.enabled = false
+//	fmt.Println("DISABLING")
+//	if r.sisbReconcilerStopper != nil {
+//		r.sisbReconcilerStopper()
+//	}
+//}
+
+func (r *CleanupReconciler) DisableSISBController() {
+
 	r.sisbControllerMu.Lock()
 	defer r.sisbControllerMu.Unlock()
+	fmt.Println("*** DISABLE ***")
 	if !r.enabled {
 		return
 	}
@@ -175,4 +185,5 @@ func (r *CleanupReconciler) disableSISBController() {
 	if r.sisbReconcilerStopper != nil {
 		r.sisbReconcilerStopper()
 	}
+
 }

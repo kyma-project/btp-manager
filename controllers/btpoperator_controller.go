@@ -126,6 +126,11 @@ var (
 	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
 )
 
+type InstanceBindingSerivice interface {
+	DisableSISBController()
+	EnableSISBController()
+}
+
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
 	client.Client
@@ -133,13 +138,16 @@ type BtpOperatorReconciler struct {
 	Scheme          *runtime.Scheme
 	manifestHandler *manifest.Handler
 	workqueueSize   int
+
+	instanceBindingService InstanceBindingSerivice
 }
 
-func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivice) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
-		Client:          client,
-		Scheme:          scheme,
-		manifestHandler: &manifest.Handler{Scheme: scheme},
+		Client:                 client,
+		Scheme:                 scheme,
+		manifestHandler:        &manifest.Handler{Scheme: scheme},
+		instanceBindingService: instanceBindingSerivice,
 	}
 }
 
@@ -270,6 +278,8 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	if err := r.reconcileResources(ctx, secret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, err.Error())
 	}
+
+	r.instanceBindingService.EnableSISBController()
 
 	logger.Info("provisioning succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module provisioning succeeded")

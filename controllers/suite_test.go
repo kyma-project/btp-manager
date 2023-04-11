@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	. "github.com/onsi/ginkgo/v2"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
-	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
@@ -159,7 +159,11 @@ var _ = SynchronizedBeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	cleanupReconciler := NewCleanupReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	//err1 := cleanupReconciler.SetupWithManager(k8sManager, cfg)
+	//Expect(err1).ToNot(HaveOccurred())
+
+	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), cleanupReconciler)
 	k8sClientFromManager = k8sManager.GetClient()
 
 	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {
@@ -187,12 +191,8 @@ var _ = SynchronizedBeforeSuite(func() {
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	sisbController := NewServiceInstanceReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
-	err1 := sisbController.SetupWithManager(k8sManager)
-	Expect(err1).ToNot(HaveOccurred())
-
-	//cleanupReconciler := NewCleanupReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
-	//err1 := cleanupReconciler.SetupWithManager(k8sManager, cfg)
+	//sisbController := NewServiceInstanceReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	//err1 := sisbController.SetupWithManager(k8sManager)
 	//Expect(err1).ToNot(HaveOccurred())
 
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})
