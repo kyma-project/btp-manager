@@ -102,8 +102,6 @@ actionForNewResource() {
 actionForExistingResource() {
     local yaml=${1}
     if [[ ! "${incoming_resources[*]}" =~ "$(yq '.metadata.name' $yaml):$(yq '.kind' $yaml)" ]] ; then
-      # do not delete CRDs
-      if [[ "$(yq '.kind' $yaml)" != "CustomResourceDefinition" ]] ; then
         cat $yaml >> ../to-delete.yml
         local gvk=$(yq '.apiVersion' "$yaml")/$(yq '.kind' "$yaml")
         local r=$(resource "$yaml")
@@ -111,7 +109,6 @@ actionForExistingResource() {
         if ! [[ "${rbac[$gvk]+x}" ]]; then
           rbac[$gvk]='//+kubebuilder:rbac:groups=\"'$g'\",resources=\"'$r'\",verbs=\"delete\"'
         fi
-      fi
     fi
 }
 

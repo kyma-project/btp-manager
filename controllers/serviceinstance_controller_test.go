@@ -10,7 +10,7 @@ import (
 
 var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
-	Describe("Deletion", Focus, func() {
+	Describe("Deletion", func() {
 
 		BeforeAll(func() {
 			ChartPath = "../module-chart/chart"
@@ -62,12 +62,12 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 		When("Last Service Binding is removed", func() {
 			It("BTP Operator should be removed", func() {
-				sbUnstructured := createResource(bindingGvk, kymaNamespace, bindingName)
-				ensureResourceExists(bindingGvk)
 
 				btpOperatorResource := createBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+				sbUnstructured := createResource(bindingGvk, kymaNamespace, bindingName)
+				ensureResourceExists(bindingGvk)
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))

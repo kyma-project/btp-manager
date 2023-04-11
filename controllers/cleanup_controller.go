@@ -36,10 +36,11 @@ type CleanupReconciler struct {
 	cfg                   *rest.Config
 }
 
-func NewCleanupReconciler(client client.Client, scheme *runtime.Scheme) *CleanupReconciler {
+func NewCleanupReconciler(client client.Client, scheme *runtime.Scheme, cfg *rest.Config) *CleanupReconciler {
 	return &CleanupReconciler{
 		Client: client,
 		Scheme: scheme,
+		cfg:    cfg,
 	}
 }
 
@@ -113,6 +114,7 @@ func (r *CleanupReconciler) predicate() predicate.Predicate {
 }
 
 func (r *CleanupReconciler) EnableSISBController() {
+	fmt.Println("EnableSISBController")
 	r.sisbControllerMu.Lock()
 	defer r.sisbControllerMu.Unlock()
 
