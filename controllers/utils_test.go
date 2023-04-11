@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/kubernetes/scheme"
+	clientgoappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	v1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -651,4 +664,90 @@ func matchReadyCondition(state types.State, status metav1.ConditionStatus, reaso
 
 func matchDeleted() gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{"Action": Equal(resourceDeleted)})
+}
+
+type deploymentReconciler struct {
+	*rest.Config
+	clientgoappsv1.DeploymentInterface
+	Scheme *runtime.Scheme
+}
+
+func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.Controller {
+	appsV1Client, err := v1.NewForConfig(cfg)
+	Expect(err).ToNot(HaveOccurred())
+
+	btpOperatorDeploymentReconciler := &deploymentReconciler{
+		DeploymentInterface: appsV1Client.Deployments(ChartNamespace),
+		Config:              cfg,
+		Scheme:              scheme.Scheme,
+	}
+	deploymentController, err := controller.NewUnmanaged("deployment-controller", mgr, controller.Options{
+		Reconciler: btpOperatorDeploymentReconciler,
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	Expect(deploymentController.Watch(&source.Kind{Type: &appsv1.Deployment{}},
+		&handler.EnqueueRequestForObject{},
+		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate())).
+		To(Succeed())
+
+	return deploymentController
+}
+
+func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	deployment, err := r.Get(ctx, req.NamespacedName.Name, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		logger.Error(err, "failed to get deployment")
+		return ctrl.Result{}, err
+	}
+	deploymentProgressingCondition := appsv1.DeploymentCondition{Type: appsv1.DeploymentConditionType(deploymentProgressingConditionType), Status: corev1.ConditionStatus("True")}
+	deploymentAvailableCondition := appsv1.DeploymentCondition{Type: appsv1.DeploymentConditionType(deploymentAvailableConditionType), Status: corev1.ConditionStatus("True")}
+	conditions := make([]appsv1.DeploymentCondition, 0)
+	conditions = append(conditions, deploymentProgressingCondition, deploymentAvailableCondition)
+	status := appsv1.DeploymentStatus{Conditions: conditions}
+	deployment.Status = status
+	_, err = r.UpdateStatus(ctx, deployment, metav1.UpdateOptions{})
+	if err != nil {
+		logger.Error(err, "failed to update deployment status")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldDeployment, ok := e.ObjectOld.(*appsv1.Deployment)
+			if !ok {
+				return false
+			}
+			if len(oldDeployment.Status.Conditions) > 0 {
+				var progressingConditionStatus, availableConditionStatus string
+				for _, c := range oldDeployment.Status.Conditions {
+					if string(c.Type) == deploymentProgressingConditionType {
+						progressingConditionStatus = string(c.Status)
+					} else if string(c.Type) == deploymentAvailableConditionType {
+						availableConditionStatus = string(c.Status)
+					}
+				}
+				if progressingConditionStatus != "True" || availableConditionStatus != "True" {
+					return true
+				}
+			}
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
 }

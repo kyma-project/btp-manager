@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
@@ -39,8 +40,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -65,15 +64,17 @@ const (
 )
 
 var (
-	cfg                  *rest.Config
-	k8sClient            client.Client
-	k8sClientFromManager client.Client
-	k8sManager           manager.Manager
-	testEnv              *envtest.Environment
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	reconciler           *BtpOperatorReconciler
-	updateCh             chan resourceUpdate = make(chan resourceUpdate, 1000)
+	cfg                        *rest.Config
+	k8sClient                  client.Client
+	k8sClientFromManager       client.Client
+	k8sManager                 manager.Manager
+	testEnv                    *envtest.Environment
+	ctx                        context.Context
+	ctxForDeploymentController context.Context
+	cancel                     context.CancelFunc
+	cancelDeploymentController context.CancelFunc
+	reconciler                 *BtpOperatorReconciler
+	updateCh                   chan resourceUpdate = make(chan resourceUpdate, 1000)
 )
 
 func TestAPIs(t *testing.T) {
@@ -122,6 +123,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
 	}))
 	ctx, cancel = context.WithCancel(context.TODO())
+	ctxForDeploymentController, cancelDeploymentController = ctx, cancel
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -153,6 +155,7 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
 	k8sClientFromManager = k8sManager.GetClient()
+
 	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {
 		HardDeleteTimeout, err = time.ParseDuration(hardDeleteTimeoutFromEnv)
 		Expect(err).NotTo(HaveOccurred())
@@ -196,7 +199,16 @@ var _ = SynchronizedBeforeSuite(func() {
 	}()
 
 	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
-	if useExistingClusterEnv == "false" || useExistingClusterEnv == "" {
+	if useExistingClusterEnv != "true" {
+		deploymentController := newDeploymentController(cfg, k8sManager)
+		ctxForDeploymentController, cancelDeploymentController = context.WithCancel(ctx)
+		go func() {
+			defer GinkgoRecover()
+			<-k8sManager.Elected()
+			err = deploymentController.Start(ctxForDeploymentController)
+			Expect(err).ToNot(HaveOccurred(), "failed to run deployment controller")
+		}()
+
 		apiServerAddressAndPort := fmt.Sprintf("%s:%s", testEnv.ControlPlane.APIServer.Address, testEnv.ControlPlane.APIServer.Port)
 		etcdAddressAndPort := testEnv.ControlPlane.Etcd.URL.Host
 		ginkgoProcessInfoMsg := fmt.Sprintf("Process: %d, ApiServer: %s, etcd: %s", GinkgoParallelProcess(), apiServerAddressAndPort, etcdAddressAndPort)
@@ -209,6 +221,7 @@ var _ = SynchronizedBeforeSuite(func() {
 var _ = SynchronizedAfterSuite(func() {
 	// runs on all processes
 	Eventually(func() int { return reconciler.workqueueSize }).Should(Equal(0))
+	cancelDeploymentController()
 	cancel()
 	By("tearing down the test environment")
 	Expect(testEnv.Stop()).To(Succeed())
