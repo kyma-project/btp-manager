@@ -10,7 +10,7 @@ import (
 
 var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
-	Describe("Deletion", func() {
+	Describe("Deletion", Ordered, func() {
 
 		BeforeAll(func() {
 			ChartPath = "../module-chart/chart"

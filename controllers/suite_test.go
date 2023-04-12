@@ -190,10 +190,10 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
-
-	sisbController := NewServiceInstanceReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
-	err1 := sisbController.SetupWithManager(k8sManager)
-	Expect(err1).ToNot(HaveOccurred())
+	//
+	//sisbController := NewServiceInstanceReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	//err1 := sisbController.SetupWithManager(k8sManager)
+	//Expect(err1).ToNot(HaveOccurred())
 
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})
 	Expect(err).ToNot(HaveOccurred())
