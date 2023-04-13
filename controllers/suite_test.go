@@ -73,6 +73,7 @@ var (
 	ctxForDeploymentController context.Context
 	cancel                     context.CancelFunc
 	cancelDeploymentController context.CancelFunc
+	sisbCancel                 context.CancelFunc
 	reconciler                 *BtpOperatorReconciler
 	updateCh                   chan resourceUpdate = make(chan resourceUpdate, 1000)
 )
@@ -114,8 +115,8 @@ var _ = SynchronizedBeforeSuite(func() {
 	// runs only on process #1
 	ChartPath = "../module-chart/chart"
 	ResourcesPath = "../module-resources"
-	Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
-	Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, defaultChartPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, defaultResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
@@ -140,12 +141,6 @@ var _ = SynchronizedBeforeSuite(func() {
 	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	const GroupName = "apiextensions.k8s.io"
-
-	// SchemeGroupVersion is group version used to register these objects
-	//SchemeGroupVersion := schema.GroupVersion{Group: GroupName, Version: "v1"}
-	//scheme.Scheme.AddKnownTypes(SchemeGroupVersion, &apiextensions.CustomResourceDefinition{})
-
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
@@ -159,9 +154,9 @@ var _ = SynchronizedBeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	cleanupReconciler := NewCleanupReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
-	//err1 := cleanupReconciler.SetupWithManager(k8sManager, cfg)
-	//Expect(err1).ToNot(HaveOccurred())
+	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
+
+	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), cleanupReconciler)
 	k8sClientFromManager = k8sManager.GetClient()
@@ -190,10 +185,6 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
-	//
-	//sisbController := NewServiceInstanceReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
-	//err1 := sisbController.SetupWithManager(k8sManager)
-	//Expect(err1).ToNot(HaveOccurred())
 
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})
 	Expect(err).ToNot(HaveOccurred())
@@ -238,6 +229,7 @@ var _ = SynchronizedAfterSuite(func() {
 	cancelDeploymentController()
 	cancel()
 	By("tearing down the test environment")
+	fmt.Printf("%v\n\n", testEnv.ControlPlaneStopTimeout)
 	Expect(testEnv.Stop()).To(Succeed())
 }, func() {
 	// runs only on process #1

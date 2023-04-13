@@ -2,38 +2,54 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
+	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
-	Describe("Deletion", Ordered, func() {
+	Describe("Deletion", func() {
 
-		BeforeAll(func() {
+		var resourcesPathForProcess, chartPathForProcess string
+		var serviceInstanceName = fmt.Sprintf("testing-instance-%s", rand.String(4))
+		var serviceBindingName = fmt.Sprintf("testing-binding-%s", rand.String(4))
+
+		BeforeEach(func() {
 			ChartPath = "../module-chart/chart"
 			ResourcesPath = "../module-resources"
 			err := createPrereqs()
 			Expect(err).To(BeNil())
-			Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
-			Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
-			ChartPath = defaultChartPath
-			ResourcesPath = defaultResourcesPath
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 
-		})
+			chartPathForProcess = fmt.Sprintf("%s-%d-%d", defaultChartPath, GinkgoParallelProcess(), rand.Intn(999))
+			resourcesPathForProcess = fmt.Sprintf("%s-%d-%d", defaultResourcesPath, GinkgoParallelProcess(), rand.Intn(999))
+			createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, chartPathForProcess)
+			createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, resourcesPathForProcess)
+			ChartPath = chartPathForProcess
+			ResourcesPath = resourcesPathForProcess
 
-		AfterAll(func() {
-			Expect(removeAllFromPath(defaultChartPath)).To(Succeed())
-			Expect(removeAllFromPath(defaultResourcesPath)).To(Succeed())
-		})
-
-		BeforeEach(func() {
 			ctx = context.Background()
+		})
+
+		AfterEach(func() {
+			Expect(os.RemoveAll(chartPathForProcess)).To(Succeed())
+			Expect(os.RemoveAll(resourcesPathForProcess)).To(Succeed())
+
+			ChartPath = defaultChartPath
+			ResourcesPath = defaultResourcesPath
+
+			deleteSecret := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
 		})
 
 		When("Last Service Instance is removed", func() {
@@ -45,7 +61,9 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 
 				//  - create Service Instance
-				siUnstructured := createResource(instanceGvk, kymaNamespace, instanceName)
+				printDir(ChartPath + "/templates")
+				printDir(ResourcesPath + "/apply")
+				siUnstructured := createResource(instanceGvk, kymaNamespace, serviceInstanceName)
 				ensureResourceExists(instanceGvk)
 
 				//  - trigger BTP operator deletion
@@ -62,21 +80,37 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 		When("Last Service Binding is removed", func() {
 			It("BTP Operator should be removed", func() {
-
+				// GIVEN
+				//  - create BTP operator
 				btpOperatorResource := createBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
-				sbUnstructured := createResource(bindingGvk, kymaNamespace, bindingName)
+				//  - create Service Binding
+				printDir(ChartPath + "/templates")
+				printDir(ResourcesPath + "/apply")
+				sbUnstructured := createResource(bindingGvk, kymaNamespace, serviceBindingName)
 				ensureResourceExists(bindingGvk)
-				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
 
+				//  - trigger BTP operator deletion
+				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
 
+				// WHEN
 				Expect(k8sClient.Delete(ctx, sbUnstructured)).To(Succeed())
 
+				// THEN
 				Eventually(updateCh).Should(Receive(matchDeleted()))
 			})
 		})
 	})
 
 })
+
+func printDir(path string) {
+	entries, _ := os.ReadDir(path)
+	r := "Directory: "
+	for _, e := range entries {
+		r = r + " " + e.Name()
+	}
+	fmt.Println(r)
+}

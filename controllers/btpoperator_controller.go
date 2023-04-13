@@ -673,6 +673,8 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		}
 	}
 
+	r.instanceBindingService.DisableSISBController()
+
 	return nil
 }
 

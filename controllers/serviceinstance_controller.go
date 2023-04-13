@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/module-manager/pkg/types"
 	corev1 "k8s.io/api/core/v1"
@@ -17,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"time"
 )
 
 // ServiceInstanceReconciler reconciles a BtpOperator object in case of service instance changes
@@ -25,20 +23,16 @@ type ServiceInstanceReconciler struct {
 	client.Client
 	*rest.Config
 	Scheme *runtime.Scheme
-	//manifestHandler *manifest.Handler
-	workqueueSize int
 }
 
 func NewServiceInstanceReconciler(client client.Client, scheme *runtime.Scheme) *ServiceInstanceReconciler {
 	return &ServiceInstanceReconciler{
 		Client: client,
 		Scheme: scheme,
-		//manifestHandler: &manifest.Handler{Scheme: scheme},
 	}
 }
 
 func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	fmt.Println(" ++++++ ServiceInstanceReconciler")
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(instanceGvk)
 	err := r.List(ctx, list, client.InNamespace(corev1.NamespaceAll))
@@ -58,8 +52,6 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	time.Sleep(100 * time.Millisecond)
-
 	btpOperator, err := r.getOldestBtpOperator(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -72,7 +64,6 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, btpOperator, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
 	}
 
-	fmt.Println("XxXXxxxxxxxxxxxxxxxx - - - - - - - - - - - ")
 	return ctrl.Result{}, nil
 }
 
