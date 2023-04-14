@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// InstanceBindingControllerManager xxx
+// InstanceBindingControllerManager runs and stops the ServiceInstance controller
 type InstanceBindingControllerManager struct {
 	client.Client
 	*rest.Config

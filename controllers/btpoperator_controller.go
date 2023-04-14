@@ -635,7 +635,6 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	}
 
 	if err := r.handleDeprovisioning(ctx, cr); err != nil {
-		logger.Info(err.Error())
 		logger.Error(err, "deprovisioning failed")
 		return err
 	}
@@ -916,7 +915,6 @@ func (r *BtpOperatorReconciler) numberOfResources(ctx context.Context, gvk schem
 }
 
 func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) error {
-
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to delete")
