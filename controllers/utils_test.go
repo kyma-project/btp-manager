@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -371,112 +370,6 @@ func populateServiceBindingFields(object *unstructured.Unstructured) {
 	Expect(unstructured.SetNestedField(object.Object, "test-service-instance", "spec", "serviceInstanceName")).To(Succeed())
 	Expect(unstructured.SetNestedField(object.Object, "test-binding-external", "spec", "externalName")).To(Succeed())
 	Expect(unstructured.SetNestedField(object.Object, "test-service-binding-secret", "spec", "secretName")).To(Succeed())
-}
-
-func Test_filter(t *testing.T) {
-	input := []byte(`apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  {{- if .Values.manager.certificates.certManager }}
-  annotations:
-    cert-manager.io/inject-ca-from: {{.Release.Namespace}}/sap-btp-operator-serving-cert
-  {{- end}}
-  name: sap-btp-operator-mutating-webhook-configuration
-webhooks:
-  - admissionReviewVersions:
-      - v1beta1
-      - v1
-    clientConfig:
-      service:
-        name: sap-btp-operator-webhook-service
-        namespace: {{.Release.Namespace}}
-        path: /mutate-services-cloud-sap-com-v1-servicebinding
-      {{- if .Values.manager.certificates.selfSigned }}
-      caBundle: {{.Values.manager.certificates.selfSigned.caBundle }}
-      {{- end }}
-      {{- if .Values.manager.certificates.gardenerCertManager }}
-      caBundle: {{.Values.manager.certificates.gardenerCertManager.caBundle }}
-      {{- end }}
-    failurePolicy: Fail
-    name: mservicebinding.kb.io
-    rules:
-      - apiGroups:
-          - services.cloud.sap.com
-        apiVersions:
-          - v1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - servicebindings
-    sideEffects: None
-  - admissionReviewVersions:
-      - v1beta1
-      - v1
-    clientConfig:
-      service:
-        name: sap-btp-operator-webhook-service
-        namespace: {{.Release.Namespace}}
-        path: /mutate-services-cloud-sap-com-v1-serviceinstance
-      {{- if .Values.manager.certificates.selfSigned }}
-      caBundle: {{.Values.manager.certificates.selfSigned.caBundle }}
-      {{- end }}
-      {{- if .Values.manager.certificates.gardenerCertManager }}
-      caBundle: {{.Values.manager.certificates.gardenerCertManager.caBundle }}
-      {{- end }}
-    failurePolicy: Fail
-    name: mserviceinstance.kb.io
-    rules:
-      - apiGroups:
-          - services.cloud.sap.com
-        apiVersions:
-          - v1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - serviceinstances
-    sideEffects: None
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  {{- if .Values.manager.certificates.certManager }}
-  annotations:
-    cert-manager.io/inject-ca-from: {{.Release.Namespace}}/sap-btp-operator-serving-cert
-  {{- end}}
-  name: sap-btp-operator-validating-webhook-configuration
-webhooks:
-  - admissionReviewVersions:
-      - v1beta1
-      - v1
-    clientConfig:
-      service:
-        name: sap-btp-operator-webhook-service
-        namespace: {{.Release.Namespace}}
-        path: /validate-services-cloud-sap-com-v1-servicebinding
-      {{- if .Values.manager.certificates.selfSigned }}
-      caBundle: {{.Values.manager.certificates.selfSigned.caBundle }}
-      {{- end }}
-      {{- if .Values.manager.certificates.gardenerCertManager }}
-      caBundle: {{.Values.manager.certificates.gardenerCertManager.caBundle }}
-      {{- end }}
-    failurePolicy: Fail
-    name: vservicebinding.kb.io
-    rules:
-      - apiGroups:
-          - services.cloud.sap.com
-        apiVersions:
-          - v1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - servicebindings
-    sideEffects: None`)
-
-	result, _ := filterWebhooks(input)
-	fmt.Println(string(result))
 }
 
 func filterWebhooks(file []byte) (filtered []byte, hasWebhook bool) {
