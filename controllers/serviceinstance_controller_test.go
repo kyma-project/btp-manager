@@ -61,8 +61,6 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 
 				//  - create Service Instance
-				printDir(ChartPath + "/templates")
-				printDir(ResourcesPath + "/apply")
 				siUnstructured := createResource(instanceGvk, kymaNamespace, serviceInstanceName)
 				ensureResourceExists(instanceGvk)
 
@@ -86,8 +84,6 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 				//  - create Service Binding
-				printDir(ChartPath + "/templates")
-				printDir(ResourcesPath + "/apply")
 				sbUnstructured := createResource(bindingGvk, kymaNamespace, serviceBindingName)
 				ensureResourceExists(bindingGvk)
 
@@ -105,12 +101,3 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 	})
 
 })
-
-func printDir(path string) {
-	entries, _ := os.ReadDir(path)
-	r := "Directory: "
-	for _, e := range entries {
-		r = r + " " + e.Name()
-	}
-	fmt.Println(r)
-}
