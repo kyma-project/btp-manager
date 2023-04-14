@@ -351,11 +351,7 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	} else if kind == bindingGvk.Kind {
 		populateServiceBindingFields(object)
 	}
-	err := k8sClient.Create(ctx, object)
-	if err != nil {
-		fmt.Println(err)
-	}
-	Expect(err).To(BeNil())
+	Expect(k8sClient.Create(ctx, object)).To(BeNil())
 
 	return object
 }
