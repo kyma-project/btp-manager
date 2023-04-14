@@ -73,7 +73,6 @@ var (
 	ctxForDeploymentController context.Context
 	cancel                     context.CancelFunc
 	cancelDeploymentController context.CancelFunc
-	sisbCancel                 context.CancelFunc
 	reconciler                 *BtpOperatorReconciler
 	updateCh                   chan resourceUpdate = make(chan resourceUpdate, 1000)
 )
