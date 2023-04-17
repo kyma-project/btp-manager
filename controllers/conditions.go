@@ -33,6 +33,7 @@ const (
 	StoringChartDetailsFailed             Reason = "StoringChartDetailsFailed"
 	GettingConfigMapFailed                Reason = "GettingConfigMapFailed"
 	ProvisioningFailed                    Reason = "ProvisioningFailed"
+	Demo                                  Reason = "Demo"
 )
 
 // gophers_reasons_section_end
@@ -82,6 +83,7 @@ var Reasons = map[Reason]TypeAndStatus{
 	GettingConfigMapFailed:                NotReady, //Error;Getting Config Map failed
 	ProvisioningFailed:                    NotReady, //Error;Provisioning failed
 	ServiceInstancesAndBindingsNotCleaned: NotReady, //NA;NA
+	Demo:                                  NotReady, //NA;Demo
 }
 
 // gophers_metadata_section_end
