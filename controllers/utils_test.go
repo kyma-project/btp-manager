@@ -409,7 +409,7 @@ func filterWebhooks(file []byte) (filtered []byte, hasWebhook bool) {
 	return
 }
 
-func createChartOrResourcesCopyWithoutWebhooks(src, dst string) error {
+func createChartOrResources(src, dst string, includeWebhooks bool) error {
 	Expect(os.MkdirAll(dst, 0700)).To(Succeed())
 	src = fmt.Sprintf("%v/.", src)
 	cmd := exec.Command("cp", "-r", src, dst)
@@ -417,10 +417,9 @@ func createChartOrResourcesCopyWithoutWebhooks(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("copying: %v -> %v\n\nout: %v\nerr: %v", src, dst, string(out), err)
 	}
-	filterWebhooksDisabled := os.Getenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS")
 
 	return filepath.WalkDir(dst, func(path string, de fs.DirEntry, err error) error {
-		if filterWebhooksDisabled == "true" {
+		if !includeWebhooks {
 			return nil
 		}
 		if de.IsDir() {
@@ -447,6 +446,15 @@ func createChartOrResourcesCopyWithoutWebhooks(src, dst string) error {
 	})
 }
 
+func createChartOrResourcesCopyWithoutWebhooksByConfig(src, dst string) error {
+	filterWebhooksDisabled := os.Getenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS") == "true"
+	return createChartOrResources(src, dst, !filterWebhooksDisabled)
+}
+
+func createChartOrResourcesCopyWithoutWebhooks(src, dst string) error {
+	return createChartOrResources(src, dst, false)
+}
+
 func removeAllFromPath(path string) error {
 	return os.RemoveAll(path)
 }
@@ -457,6 +465,7 @@ func doChecks() {
 
 	go func() {
 		defer wg.Done()
+		defer GinkgoRecover()
 		checkIfNoServiceExists(btpOperatorServiceBinding)
 	}()
 	go func() {
@@ -465,6 +474,7 @@ func doChecks() {
 	}()
 	go func() {
 		defer wg.Done()
+		defer GinkgoRecover()
 		checkIfNoServiceExists(btpOperatorServiceInstance)
 	}()
 	go func() {
@@ -478,8 +488,11 @@ func checkIfNoServiceExists(kind string) {
 	list := unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(schema.GroupVersionKind{Version: btpOperatorApiVer, Group: btpOperatorGroup, Kind: kind})
 	err := k8sClient.List(ctx, &list)
-	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 	Expect(list.Items).To(HaveLen(0))
+	if len(list.Items) == 0 {
+		return
+	}
+	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 }
 
 func checkIfNoBindingSecretExists() {

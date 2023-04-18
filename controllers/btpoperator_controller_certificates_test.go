@@ -49,7 +49,6 @@ var _ = Describe("BTP Operator controller - certificates", func() {
 		ResourcesPath = "../module-resources"
 		chartPathForProcess = fmt.Sprintf("%s%d", defaultChartPath, GinkgoParallelProcess())
 		resourcesPathForProcess = fmt.Sprintf("%s%d", defaultResourcesPath, GinkgoParallelProcess())
-		Expect(os.Setenv("DISABLE_WEBHOOK_FILTER_FOR_TESTS", "true")).To(BeNil())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, chartPathForProcess)).To(Succeed())
 		Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, resourcesPathForProcess)).To(Succeed())
 		ChartPath = chartPathForProcess

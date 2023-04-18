@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	. "github.com/onsi/ginkgo/v2"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
-	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
@@ -114,8 +114,8 @@ var _ = SynchronizedBeforeSuite(func() {
 	// runs only on process #1
 	ChartPath = "../module-chart/chart"
 	ResourcesPath = "../module-resources"
-	Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, defaultChartPath)).To(Succeed())
-	Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, defaultResourcesPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, defaultChartPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, defaultResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
@@ -153,7 +153,11 @@ var _ = SynchronizedBeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
+
+	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
+
+	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), cleanupReconciler)
 	k8sClientFromManager = k8sManager.GetClient()
 
 	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {
