@@ -14,8 +14,7 @@ import (
 type InstanceBindingControllerManager struct {
 	client.Client
 	*rest.Config
-	Scheme        *runtime.Scheme
-	workqueueSize int
+	Scheme *runtime.Scheme
 
 	sisbControllerMu sync.Mutex
 	sisbReconciler   *ServiceInstanceReconciler
@@ -44,8 +43,9 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 		return
 	}
 	mgr, err := ctrl.NewManager(r.cfg, ctrl.Options{
-		Scheme:             r.Scheme,
-		MetricsBindAddress: "0",
+		Scheme:                 r.Scheme,
+		MetricsBindAddress:     "0",
+		HealthProbeBindAddress: "0",
 	})
 	if err != nil {
 		logger.Error(err, "unable to create controller manager")
@@ -77,11 +77,9 @@ func (r *InstanceBindingControllerManager) DisableSISBController() {
 		return
 	}
 
-	r.enabled = false
 	if r.stopper != nil {
-		go func() {
-			r.stopper()
-		}()
+		r.stopper()
 	}
+	r.enabled = false
 
 }

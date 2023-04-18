@@ -228,7 +228,6 @@ var _ = SynchronizedAfterSuite(func() {
 	cancelDeploymentController()
 	cancel()
 	By("tearing down the test environment")
-	fmt.Printf("%v\n\n", testEnv.ControlPlaneStopTimeout)
 	Expect(testEnv.Stop()).To(Succeed())
 }, func() {
 	// runs only on process #1

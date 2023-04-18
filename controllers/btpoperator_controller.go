@@ -126,7 +126,7 @@ var (
 	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
 )
 
-type InstanceBindingSerivice interface {
+type InstanceBindingSerivce interface {
 	DisableSISBController()
 	EnableSISBController()
 }
@@ -139,10 +139,10 @@ type BtpOperatorReconciler struct {
 	manifestHandler *manifest.Handler
 	workqueueSize   int
 
-	instanceBindingService InstanceBindingSerivice
+	instanceBindingService InstanceBindingSerivce
 }
 
-func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivice) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		Scheme:                 scheme,
