@@ -227,6 +227,7 @@ var _ = SynchronizedAfterSuite(func() {
 	Eventually(func() int { return reconciler.workqueueSize }).Should(Equal(0))
 	cancelDeploymentController()
 	cancel()
+
 	By("tearing down the test environment")
 	Expect(testEnv.Stop()).To(Succeed())
 }, func() {
