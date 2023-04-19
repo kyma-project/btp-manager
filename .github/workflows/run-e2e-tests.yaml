@@ -2,8 +2,6 @@
 #  The action is triggered on pull requests to the main branch of the repository.
 
 name: Run E2E tests on the cluster
-env:
-  RUN_ID: ${{ github.GITHUB_RUN_ID }}
 
 on:
   pull_request:
@@ -25,3 +23,4 @@ jobs:
       image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       skip-templates: --skip-templates
+      credentials-mode: dummy

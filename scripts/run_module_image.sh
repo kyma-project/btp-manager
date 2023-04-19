@@ -2,7 +2,7 @@
 
 # This script has the following arguments:
 #     the mandatory link to a module image,
-#     optional ci to indicate call from CI pipeline
+#     optional ci to indicate call from CI pipeline either "release" or "pr"
 # Example:
 # ./run_module_image.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.2.3
 
@@ -22,7 +22,7 @@ NAMESPACE=${NAMESPACE:-kyma-system}
 # for local runs
 rm -rf ${TARGET_DIRECTORY}
 
-echo -e "\n--- Downloading module image"
+echo -e "\n--- Downloading module image: ${IMAGE_NAME}"
 mkdir ${TARGET_DIRECTORY}
 
 # tls setting to allow local access over http, when invoked from CI https is used

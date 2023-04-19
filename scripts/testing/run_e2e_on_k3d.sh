@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 
-# This script uses the following environment variables (if not provided script defines default values):
+# This script has the following arguments:
+#                       optional ci to indicate call from CI pipeline and indicating if it's called from release pipeline,
+#                       or PR triggered pipeline
+# The script uses the following environment variables (if not provided script defines default values):
 #                       LOCAL_REGISTRY
 #                       K3D_REGISTRY
 #                       PR_NAME
 #                       MODULE_PREFIX
-# ./run_e2e_on_k3d.sh
+# ./run_e2e_on_k3d.sh release
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
