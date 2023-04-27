@@ -34,7 +34,7 @@ helm list -A
 echo -e "\n---Uninstalling..."
 
 # uninstall btp-manager
-helm uninstall btp-manager -n kyma-system
+./scripts/uninstall_btp_manager.sh
 
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"

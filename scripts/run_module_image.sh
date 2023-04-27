@@ -34,14 +34,21 @@ fi
 
 skopeo copy ${TLS_OPTIONS} docker://${IMAGE_NAME} dir:${TARGET_DIRECTORY}
 
-FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
+FILENAME=$(./scripts/check_if_k8s_yaml.sh)
+echo $FILENAME
+if [[ -n "$FILENAME" ]]; 
+then
+  echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace using kubectl apply"
 
-echo -e "\n--- Extracting resources from file:" ${FILENAME}
+  kubectl apply -f ${TARGET_DIRECTORY}/${FILENAME}
+else
+  FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
+  echo -e "\n--- Extracting resources from file:" ${FILENAME}
 
-mkdir ${TARGET_DIRECTORY}/$CHART_DIRECTORY
-tar xzvf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
+  mkdir ${TARGET_DIRECTORY}/$CHART_DIRECTORY
+  tar xzvf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
+  echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace using helm"
 
-echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace"
-
-# install by helm
-helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n ${NAMESPACE} --create-namespace
+  # install by helm
+  helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n ${NAMESPACE} --create-namespace
+fi
