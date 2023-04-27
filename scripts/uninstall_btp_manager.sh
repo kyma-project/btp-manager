@@ -8,23 +8,11 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 TARGET_DIRECTORY=${TARGET_DIRECTORY:-downloaded_module}
 
-FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
+FILENAME=$(./scripts/check_if_k8s_yaml.sh)
 
-# if no application/gzip files found that means that we have a raw Kubernetes YAML file and we need to identify it
-if [ -z "${FILENAME}" ]
+if [[ -n "$FILENAME" ]]; 
 then
-  POTENTIAL_YAML_FILES=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/octet-stream").digest[7:]' | tr -d \")
-  POTENTIAL_YAMLS_ARRAY=($POTENTIAL_YAML_FILES)
-
-  for RAW_K8S_YAML in "${POTENTIAL_YAMLS_ARRAY[@]}"
-  do
-    KIND_VALUE=$(cat ${TARGET_DIRECTORY}/${RAW_K8S_YAML} | yq e '.kind' -)    
-    if echo "$KIND_VALUE" | grep -q "CustomResourceDefinition"; 
-    then
-      kubectl delete -f ${TARGET_DIRECTORY}/${RAW_K8S_YAML}
-      break
-    fi
-  done
+  kubectl delete -f ${TARGET_DIRECTORY}/${FILENAME}
 else
   helm uninstall btp-manager -n kyma-system
 fi

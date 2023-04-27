@@ -34,31 +34,20 @@ fi
 
 skopeo copy ${TLS_OPTIONS} docker://${IMAGE_NAME} dir:${TARGET_DIRECTORY}
 
-FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
-
-# if no application/gzip files found that means that we have a raw Kubernetes YAML file and we need to identify it before apply
-if [ -z "${FILENAME}" ]
+FILENAME=$(./scripts/check_if_k8s_yaml.sh)
+echo $FILENAME
+if [[ -n "$FILENAME" ]]; 
 then
-  POTENTIAL_YAML_FILES=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/octet-stream").digest[7:]' | tr -d \")
-  POTENTIAL_YAMLS_ARRAY=($POTENTIAL_YAML_FILES)
+  echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace using kubectl apply"
 
-  for RAW_K8S_YAML in "${POTENTIAL_YAMLS_ARRAY[@]}"
-  do
-    KIND_VALUE=$(cat ${TARGET_DIRECTORY}/${RAW_K8S_YAML} | yq e '.kind' -)    
-    if echo "$KIND_VALUE" | grep -q "CustomResourceDefinition"; 
-    then
-      echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace"
-
-      kubectl apply -f ${TARGET_DIRECTORY}/${RAW_K8S_YAML}
-      break
-    fi
-  done
+  kubectl apply -f ${TARGET_DIRECTORY}/${FILENAME}
 else
+  FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
   echo -e "\n--- Extracting resources from file:" ${FILENAME}
 
   mkdir ${TARGET_DIRECTORY}/$CHART_DIRECTORY
   tar xzvf ${TARGET_DIRECTORY}/${FILENAME} -C ${TARGET_DIRECTORY}/${CHART_DIRECTORY}
-  echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace"
+  echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace using helm"
 
   # install by helm
   helm upgrade --install btp-manager ${TARGET_DIRECTORY}/${CHART_DIRECTORY} -n ${NAMESPACE} --create-namespace
