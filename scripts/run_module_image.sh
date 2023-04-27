@@ -36,7 +36,7 @@ skopeo copy ${TLS_OPTIONS} docker://${IMAGE_NAME} dir:${TARGET_DIRECTORY}
 
 FILENAME=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/gzip").digest[7:]' | tr -d \")
 
-# if no application/gzip files found that means that we have a raw Kubernetes YAML file and we need to identify it
+# if no application/gzip files found that means that we have a raw Kubernetes YAML file and we need to identify it before apply
 if [ -z "${FILENAME}" ]
 then
   POTENTIAL_YAML_FILES=$(cat ${TARGET_DIRECTORY}/manifest.json  | jq -c '.layers[] | select(.mediaType=="application/octet-stream").digest[7:]' | tr -d \")
