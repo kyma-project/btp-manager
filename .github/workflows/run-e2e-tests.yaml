@@ -3,7 +3,7 @@
 
 name: Run E2E tests on the cluster
 env:
-  RUN_ID: ${{ env.GITHUB_RUN_ID }}
+  RUN_ID: ${{ github.GITHUB_RUN_ID }}
 
 on:
   pull_request:
