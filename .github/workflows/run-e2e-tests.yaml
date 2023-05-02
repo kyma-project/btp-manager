@@ -2,6 +2,8 @@
 #  The action is triggered on pull requests to the main branch of the repository.
 
 name: Run E2E tests on the cluster
+env:
+  RUN_ID: ${{ github.GITHUB_RUN_ID }}
 
 on:
   pull_request:
@@ -17,8 +19,6 @@ jobs:
   run-e2e-tests:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     if: ${{ !github.event.pull_request.draft }}
-    env:
-      RUN_ID: ${{ env.GITHUB_RUN_ID }}
     with:
       image-tag: PR-${{ github.event.number }}
       module-tag: v0.0.0-PR-${{ github.event.number }}
