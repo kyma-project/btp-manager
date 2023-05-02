@@ -17,6 +17,8 @@ jobs:
   run-e2e-tests:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     if: ${{ !github.event.pull_request.draft }}
+    env:
+      RUN_ID: ${{ env.GITHUB_RUN_ID }}
     with:
       image-tag: PR-${{ github.event.number }}
       module-tag: v0.0.0-PR-${{ github.event.number }}
