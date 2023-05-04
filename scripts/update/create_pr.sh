@@ -46,7 +46,7 @@ git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${KYMA_B
 git push --set-upstream origin ${BRANCH_NAME} -f
 
 #create PR
-pr_link=$(gh pr create -B main --title "${MSG}" --body "https://${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/tag/${TAG}" | tail -n 1)
+pr_link=$(gh pr create -B main --title "${MSG}" --body "${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/tag/${TAG}" | tail -n 1)
 echo "Link for created PR: ${pr_link}"
 
 pr_number=$(echo "${pr_link}" | awk -F '/' '{print($NF)}')
