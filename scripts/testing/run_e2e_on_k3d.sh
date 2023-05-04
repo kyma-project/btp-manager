@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
 # This script has the following arguments:
-#                       optional ci to indicate call from CI pipeline and indicating if it's called from release pipeline,
-#                       or PR triggered pipeline
+#                       optional ci to indicate call from CI pipeline
 # The script uses the following environment variables (if not provided script defines default values):
 #                       LOCAL_REGISTRY
 #                       K3D_REGISTRY
 #                       PR_NAME
 #                       MODULE_PREFIX
-# ./run_e2e_on_k3d.sh release
+# ./run_e2e_on_k3d.sh ci
+
+CI=${2-manual}  # if called from any workflow "ci" is expected here
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -37,5 +38,5 @@ echo "Creating OCI module image and pushing to registry: ${LOCAL_REGISTRY}"
 make module-build IMG=${K3D_REGISTRY}/${IMG_NAME} MODULE_REGISTRY=${LOCAL_REGISTRY} MODULE_VERSION=${MODULE_VERSION}
 
 echo "Running E2E tests"
-./scripts/testing/run_e2e_module_tests.sh ${LOCAL_REGISTRY}/${MODULE_NAME}:${EXTENDED_MODULE_VERSION}
+./scripts/testing/run_e2e_module_tests.sh ${LOCAL_REGISTRY}/${MODULE_NAME}:${EXTENDED_MODULE_VERSION} dummy ${CI}
 
