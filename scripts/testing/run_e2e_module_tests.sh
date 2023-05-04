@@ -3,8 +3,8 @@ set -x #TODO remove
 # This script has the following arguments:
 #     - link to a module image (required),
 #     - credentials mode, allowed values (required):
-#         dummy - dummy credentials
-#         real - real credentials passed via environment variables
+#         dummy - dummy credentials passed
+#         real - real credentials passed
 #     - ci to indicate call from CI pipeline (optional)
 # ./run_e2e_module_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-PR-999 real ci
 #
@@ -16,14 +16,16 @@ set -x #TODO remove
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
 
-# standard bash error handling but allowing unset variables
+CI=${3-manual}  # if called from any workflow "ci" is expected here
+
+# standard bash error handling
+set -o nounset  # treat unset variables as an error and exit immediately.
 set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 MODULE_IMAGE_NAME=$1
 CREDENTIALS=$2
-CI=$3
 YAML_DIR="scripts/testing/yaml"
 
 [[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
