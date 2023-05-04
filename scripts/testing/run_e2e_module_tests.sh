@@ -100,8 +100,8 @@ fi
 
 echo -e "\n---Uninstalling..."
 
-# remove btp-operator (service binding and service instance will be deleted if these were created)
-kubectl delete btpoperators/e2e-test-btpoperator || echo "ignoring failure during btp-operator removal"
+# remove btp-operator (service binding and service instance will be deleted as well)
+kubectl delete btpoperators/e2e-test-btpoperator
 
 # uninstall btp-manager
 ./scripts/uninstall_btp_manager.sh
