@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sap-btp-manager
+  namespace: kyma-system
+data:
+  HardDeleteTimeout: "10s"

@@ -10,7 +10,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 echo "Starting docker registry"
 sudo mkdir -p /etc/rancher/k3s
-sudo cp scripts/testing/registries.yaml /etc/rancher/k3s
+sudo cp scripts/testing/yaml/registries.yaml /etc/rancher/k3s
 docker run -d \
 -p 5000:5000 \
 --restart=always \

@@ -10,6 +10,7 @@ on:
       credentials:
         type: choice
         description: SM credentials
+        default: real
         options:
           - dummy
           - real
