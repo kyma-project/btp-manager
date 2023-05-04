@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -x
+
 # This script has the following arguments:
 #     the mandatory link to a module image,
 #     optional ci to indicate call from CI pipeline
