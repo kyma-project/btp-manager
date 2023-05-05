@@ -21,16 +21,12 @@ The prerequisites for SAP BTP Service Operator provisioning are:
 - Secret `sap-btp-manager` with data for SAP BTP Service Operator
 
 The Namespace and PriorityClass resources are created during Kyma installation. The Secret is injected into the cluster
-by Kyma Environment Broker. If you want to provision SAP BTP Service Operator on a cluster without Kyma, you must create
+by Kyma Environment Broker (KEB). If you want to provision SAP BTP Service Operator on a cluster without Kyma, you must create
 the prerequisites yourself.
 
 ### Process
 
-The provisioning process is part of a module reconciliation and is carried out as presented in the following diagram:
-
-![Provisioning diagram](./assets/provisioning.svg)
-
-Create a [BtpOperator CR](../api/v1alpha1/btpoperator_types.go) to trigger the reconciliation:
+The provisioning process is part of a module reconciliation. To trigger the reconciliation, create a [BtpOperator CR](../api/v1alpha1/btpoperator_types.go) :
 
 ```shell
 cat <<EOF | kubectl apply -f -
@@ -69,6 +65,10 @@ set of [timeouts](../controllers/btpoperator_controller.go) defined as `consts` 
 for performed operations. The provisioning is successful when all module resources exist in the cluster. This is the
 condition which allows the reconciler to set the CR in `Ready` state.
 
+The provisioning process is carried out as presented in the following diagram:
+
+![Provisioning diagram](./assets/provisioning.svg)
+
 ## Deprovisioning
 
 To start the deprovisioning process, use the following command:
@@ -93,7 +93,9 @@ In order to delete finalizers the reconciler deletes module deployment and webho
 Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager`
 label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../module-resources).
 If the process succeeds, the finalizer on BtpOperator CR itself is removed and the resource is deleted.
-If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`.
+If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`. 
+
+The deprovisioning process is presented in the following diagram:
 
 ![Deprovisioning diagram](./assets/deprovisioning.svg)
 
