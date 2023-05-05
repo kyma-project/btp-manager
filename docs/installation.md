@@ -9,7 +9,7 @@ title: Install and uninstall BTP Manager
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
-Use the following commands to run the BTP Manager controller from your host. Both `make` commands refer to [Makefile](../Makefile) in the `operator` directory.
+Use the following commands to run the BTP Manager controller from your host. Both `make` commands refer to [Makefile](../Makefile).
 
 ```sh
 make install
