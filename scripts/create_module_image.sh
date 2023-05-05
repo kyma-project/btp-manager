@@ -33,5 +33,3 @@ MODULE_VERSION=${MODULE_VERSION} IMG=${IMAGE_REFERENCE} make module-build
 
 echo "Generated template.yaml:"
 cat template.yaml
-
-cat manifests/btp-operator/rendered.yaml

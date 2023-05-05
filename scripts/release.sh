@@ -61,5 +61,9 @@ uploadFile "template.yaml" "${UPLOAD_URL}?name=template.yaml"
 
 uploadFile "template_control_plane.yaml" "${UPLOAD_URL}?name=template_control_plane.yaml"
 
-uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=rendered.yaml"
-
+if [ -e "manifests/btp-operator/rendered.yaml" ]
+then
+  uploadFile "manifests/btp-operator/rendered.yaml" "${UPLOAD_URL}?name=rendered.yaml"
+else
+  uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=rendered.yaml"
+fi
