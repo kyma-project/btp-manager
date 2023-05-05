@@ -17,7 +17,7 @@ The flow is as follows:
 9. run `helm uninstall btp-manager` 
 
 ### CI pipelines
-The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./hack/create_module_image.sh` script.
+The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./scripts/create_module_image.sh` script.
 This script sets appropriate environment variables and invokes `make module-build`. In effect, the module is built, and the OCI module image is pushed to the registry. 
 The registry URL and component name are predefined. 
 
@@ -51,6 +51,6 @@ The script:
 1. creates the binary `btp-manager:${PR_NAME}` image, and pushes it to the k3d registry.
 2. creates the OCI module image `component-descriptors/kyma.project.io/module/btp-operator:0.0.0-${PR_NAME}`, and pushes the module to the k3d registry.
 3. downloads the btp-operator OCI module image from k3d registry
-4. runs `helm install btp-manager chart`
+4. runs `kubectl apply -f rendered.yaml`
 5. verifies if deployment is in the `Available` state
-6. runs `helm uninstall btp-manager`
+6. runs `kubectl delete -f rendered.yaml
