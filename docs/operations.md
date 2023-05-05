@@ -65,7 +65,7 @@ set of [timeouts](../controllers/btpoperator_controller.go) defined as `consts` 
 for performed operations. The provisioning is successful when all module resources exist in the cluster. This is the
 condition which allows the reconciler to set the CR in `Ready` state.
 
-The provisioning process is carried out as presented in the following diagram:
+You can see the provisioning process in the following diagram:
 
 ![Provisioning diagram](./assets/provisioning.svg)
 
@@ -95,7 +95,7 @@ label are deleted. The deletion process of module resources is based on resource
 If the process succeeds, the finalizer on BtpOperator CR itself is removed and the resource is deleted.
 If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`. 
 
-The deprovisioning process is presented in the following diagram:
+You can see the deprovisioning process in the following diagram:
 
 ![Deprovisioning diagram](./assets/deprovisioning.svg)
 

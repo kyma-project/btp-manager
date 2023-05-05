@@ -1,5 +1,5 @@
 ---
-title: Install and unistall BTP Manager
+title: Install and uninstall BTP Manager
 ---
 
 ## Install BTP Manager locally
@@ -9,7 +9,7 @@ title: Install and unistall BTP Manager
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
-Use the following commands to run the BTP Manager controller from your host. Both `make` commands refer to [Makefile](./Makefile) in the `operator` directory.
+Use the following commands to run the BTP Manager controller from your host. Both `make` commands refer to [Makefile](../Makefile) in the `operator` directory.
 
 ```sh
 make install
@@ -92,7 +92,7 @@ Use the following command to run the BTP Manager with Lifecycle Manager.
 It results in:
 - downloading and using Kyma CLI to provision the k3d cluster
 - deploying Lifecycle Manager
-- applying the BTP Manager template.yaml provided by the user
+- applying the BTP Manager `template.yaml` provided by the user
 - enabling the BTP Operator module
 - displaying the BTP Manager and BTP Operator status
 
