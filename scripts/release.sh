@@ -44,10 +44,17 @@ cat template_control_plane.yaml
 echo "Updating github release with template.yaml, template_control_plane.yaml, rendered.yaml"
 
 echo "Finding release id for: ${PULL_BASE_REF}"
-RELEASE_ID=$(curl -sL \
-  -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
-  https://api.github.com/repos/kyma-project/btp-manager/releases | jq --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .id')
+CURL_RESPONSE=$(curl -w "%{http_code}" -sL \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
+                https://api.github.com/repos/kyma-project/btp-manager/releases)
+JSON_RESPONSE=$(sed '$ d' <<< "${CURL_RESPONSE}")
+HTTP_CODE=$(tail -n1 <<< "${CURL_RESPONSE}")
+if [[ "${HTTP_CODE}" != "200" ]]; then
+  echo "${JSON_RESPONSE}" && exit 1
+fi
+
+RELEASE_ID=$(jq <<< ${JSON_RESPONSE} --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .id')
 
 if [ -z "${RELEASE_ID}" ]
 then
