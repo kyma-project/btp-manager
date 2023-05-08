@@ -28,8 +28,7 @@ IMAGE_REFERENCE=${IMG_REGISTRY}${IMAGE_NAME}:${PULL_REQUEST_NAME}
 
 echo "MODULE_VERSION ${MODULE_VERSION}"
 echo "IMAGE_REFERENCE ${IMAGE_REFERENCE}"
-ls -l
-cat downloaded_module/manifest.json 
+
 MODULE_VERSION=${MODULE_VERSION} IMG=${IMAGE_REFERENCE} make module-build
 
 echo "Generated template.yaml:"
