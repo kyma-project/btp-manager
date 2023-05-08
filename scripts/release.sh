@@ -30,8 +30,6 @@ uploadFile() {
 }
 
 echo "PULL_BASE_REF ${PULL_BASE_REF}"
-ls -l
-cat downloaded_module/manifest.json 
 
 MODULE_VERSION=${PULL_BASE_REF} make module-build
 
