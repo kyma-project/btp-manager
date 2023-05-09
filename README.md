@@ -23,11 +23,17 @@ kubectl apply -f deployments/prerequisites.yaml
 kubectl apply -f examples/btp-manager-secret.yaml
 kubectl apply -f examples/btp-operator.yaml
 ```
-To create the BTP Manager Secret, follow these steps:  
+If you don't want to use the dummy BTP Manager Secret, you can create a real one by following these steps:  
 1. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2b and 2c of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
 2. Copy the access credentials into the `creds.json` file.
-3. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh).
-
+3. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh). 
+4. Apply the Secret.   
+   For steps 3 and 4, use the following commands:
+   ```sh
+    ./hack/create-secret-file.sh
+    kubectl apply -f operator-secret.yaml
+   ```
+   
 Check `BtpOperator` CR status by running the following command:
 ```sh
 kubectl get btpoperators btpoperator
