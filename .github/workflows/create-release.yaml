@@ -24,6 +24,7 @@ jobs:
     name: E2E tests
     needs: run-unit-tests
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
+    secrets: inherit
     with:
       image-tag: ${{ github.event.inputs.name }}
       module-tag: v${{ github.event.inputs.name }}

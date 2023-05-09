@@ -85,17 +85,25 @@ then
   while [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
   do echo -e "\n---Waiting for service instance to be ready"; sleep 5; done
 
+  echo -e "\n---Service instance is ready"
+
   while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
   do echo -e "\n---Waiting for service binding to be ready"; sleep 5; done
+
+  echo -e "\n---Service binding is ready"
 else
   echo -e "\n---Using dummy credentials"
   while [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o json | jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseNotProvisioned" ]] \
   && [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o json | jq '.status.conditions[] | select(.type=="Succeeded") |.reason'|xargs) != "CreateInProgress" ]];
   do echo -e "\n---Waiting for service instance to be not ready due to invalid credentials"; sleep 5; done
 
+  echo -e "\n---Service instance is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
+
   while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o json | jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseNotProvisioned" ]] \
   && [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o json | jq '.status.conditions[] | select(.type=="Succeeded") |.reason'|xargs) != "CreateInProgress" ]];
   do echo -e "\n---Waiting for service binding to be not ready due to invalid credentials"; sleep 5; done
+
+  echo -e "\n---Service binding is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
 fi
 
 echo -e "\n---Uninstalling..."
