@@ -131,7 +131,7 @@ func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool,
 	if err != nil {
 		return true, err
 	}
-	leafCertificateDecoded, _ := TryDecodeCertificate(leafCertificate)
+	leafCertificateDecoded, err := TryDecodeCertificate(leafCertificate)
 	if err != nil {
 		return true, err
 	}
