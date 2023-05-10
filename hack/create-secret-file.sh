@@ -1,4 +1,5 @@
 #! /bin/bash
+cd "$(dirname "$0")"
 FILE=creds.json
 if [ ! -f "$FILE" ];
 then
