@@ -24,14 +24,14 @@ You can install SAP BTP Service Operator:
 
 To install SAP BTP Service Operator with a real BTP Manager Secret, follow these steps:
 1. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2b and 2c of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
-2. Copy the access credentials into the `creds.json` file.
+2. Copy the access credentials into the `hack/creds.json` file.
 3. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh). 
-4. Apply the Secret. 
+4. Apply the Secret in your cluster. 
  
    ```sh
    ./hack/create-secret-file.sh
    kubectl apply -f deployments/prerequisites.yaml
-   kubectl apply -f operator-secret.yaml
+   kubectl apply -f hack/operator-secret.yaml
    kubectl apply -f examples/btp-operator.yaml
    ```
    </details>
