@@ -22,7 +22,7 @@ The flow is as follows:
 14. Uninstall BTP Manager. 
 
 ### CI pipelines
-The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./scripts/create_module_image.sh` script.
+The Prow presubmit job, `pull-btp-manager-module-build`, creates the OCI module image. The `./scripts/create_module_image.sh` script does the actual execution.
 This script sets appropriate environment variables and invokes `make module-build`. In effect, the module is built, and the OCI module image is pushed to the registry. 
 The registry URL and component name are predefined. 
 
