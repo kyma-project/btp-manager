@@ -4,14 +4,14 @@ title: E2E tests of btp-manager installation from OCI module image
 
 ## Overview
 
-End-to-end (E2E) tests currently check if you can install and then uninstall btp-manager using an OCI module image.
+End-to-end (E2E) tests currently check if you can install and uninstall BTP Manager using an OCI module image.
 The flow is as follows:
-1. create an OCI module image
-2. push the image to the registry
-3. create a Kubernetes cluster
-4. wait for the btp-operator OCI module image to be available in the registry
-5. wait for the btp-manager image to be available in the registry
-6. download the btp-operator OCI module image
+1. Create an OCI module image.
+2. Push the image to the registry.
+3. Create a Kubernetes cluster.
+4. Wait for the btp-operator OCI module image to be available in the registry.
+5. Wait for the btp-manager image to be available in the registry.
+6. Download the btp-operator OCI module image.
 7. install the BTP Manager using `kubectl apply`
 8. verify if deployment is in the `Available` state
 9. install the BTP Operator
