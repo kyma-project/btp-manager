@@ -57,6 +57,6 @@ The script:
 1. creates the binary `btp-manager:${PR_NAME}` image, and pushes it to the k3d registry.
 2. creates the OCI module image `component-descriptors/kyma.project.io/module/btp-operator:0.0.0-${PR_NAME}`, and pushes the module to the k3d registry.
 3. downloads the btp-operator OCI module image from k3d registry
-4. installs BTP Manager, BTP Operator, Service Instance and Service Binding
-5. verifies states of resources
-6. uninstalls BTP Operator and BTP Manager
+4. installs BTP Manager, BTP Operator, Service Instance, and Service Binding.
+5. verifies states of resources.
+6. uninstalls BTP Operator and BTP Manager.
