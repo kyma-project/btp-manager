@@ -14,13 +14,12 @@ The flow is as follows:
 6. Download the btp-operator OCI module image.
 7. Install the BTP Manager using `kubectl apply`.
 8. Verify if deployment is in the `Available` state.
-9. install the BTP Operator
-10. verify if BTP Operator has the `Ready` status equal to `True`.
-11. create Service Instance and Service Binding with either real or dummy credentials 
-12. when real credentials are used verify if Service Instance and Service Binding have the `Ready` status `True`, 
-if dummy credentials are used verify if both have `Ready` status `NotProvisioned`
-13. uninstall BTP Operator
-14. uninstall BTP Manager 
+9. Install BTP Operator.
+10. Verify if BTP Operator has the `Ready` status equal to `True`.
+11. Create a Service Instance and Service Binding with either real or dummy credentials. 
+12. When real credentials are used, verify if the Service Instance and Service Binding have the `Ready` status `True`. If dummy credentials are used, verify if the `Ready` status for both of them is`NotProvisioned`.
+13. Uninstall BTP Operator.
+14. Uninstall BTP Manager. 
 
 ### CI pipelines
 The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./scripts/create_module_image.sh` script.
