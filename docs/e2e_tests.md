@@ -31,7 +31,7 @@ The registry URL and component name are predefined.
  
 The GitHub Actions workflow executes the tests (`run-e2e-tests-reusable.yaml`). The Kubernetes cluster is created, and the sources are checked out.
 The workflow waits till the OCI module image is available for fetching.
-The OCI module image is fetched from the registry by the `./scripts/testing/run_e2e_module_tests.sh` script. This script creates the required prerequisites, 
+The `./scripts/testing/run_e2e_module_tests.sh` script fetches the OCI module image from the registry. This script creates the required prerequisites, 
 gets the BTP Manager and BTP Operator installed, validates expected statuses and the gets BTP Operator and BTP Manager uninstalled.
 
 ### Run E2E tests locally on k3d cluster
