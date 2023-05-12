@@ -14,9 +14,9 @@ The BTP Manager release pipeline creates proper artifacts:
 ### Create a release
 To create a release, follow these steps:
 
-1. Run GitHub action **Create a release**: 
+1. Run GitHub action **Create release**: 
    1. go to the **Actions** tab
-   2. click on **Create a release** workflow 
+   2. click on **Create release** workflow 
    3. click  **Run workflow** on the right
    4. provide a version, for example, 1.2.0
    5. choose real or dummy credentials for Service Manager
