@@ -18,7 +18,7 @@ To create a release, follow these steps:
    1. go to the **Actions** tab
    2. click on **Create a release** workflow 
    3. click  **Run workflow** on the right
-   4. provide a version, for example, 1.2.0.
+   4. provide a version, for example, 1.2.0
    5. choose real or dummy credentials for Service Manager
 2. The GitHub action, defined in the `.github/workflows/create-release.yaml` file, creates a GitHub tag and draft release with the provided name.
 3. The GitHub action asynchronously initiates unit tests and E2E test jobs.
