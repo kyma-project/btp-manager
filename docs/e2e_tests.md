@@ -25,7 +25,7 @@ if dummy credentials are used verify if both have `Ready` status `NotProvisioned
 ### CI pipelines
 The OCI module image is created by the Prow presubmit job named 'pull-btp-manager-module-build'. The actual execution is done by the `./scripts/create_module_image.sh` script.
 This script sets appropriate environment variables and invokes `make module-build`. In effect, the module is built, and the OCI module image is pushed to the registry. 
-The registry URL and component name are pre-defined. 
+The registry URL and component name are predefined. 
 
 > **NOTE:**
 > The module image tag has the form `0.0.0-PR-<PR number>` due to component description requirements imposed by the tooling used.
