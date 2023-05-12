@@ -19,7 +19,7 @@ To create a release, follow these steps:
    2. click on **Create a release** workflow 
    3. click  **Run workflow** on the right
    4. provide a version, for example, 1.2.0.
-   5. choose credentials for Service Manager, either "real" or "dummy" 
+   5. choose real or dummy credentials for Service Manager
 2. The GitHub action, defined in the `.github/workflows/create-release.yaml` file, creates a GitHub tag and draft release with the provided name.
 3. The GitHub action asynchronously initiates unit tests and E2E test jobs.
 4. The tag creation triggers Prow Jobs, `post-btp-manager-module-build` and `post-btp-manager-build`, defined in [btp-manager-build.yaml](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/btp-manager/btp-manager-build.yaml).
