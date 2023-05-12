@@ -12,8 +12,8 @@ The flow is as follows:
 4. Wait for the btp-operator OCI module image to be available in the registry.
 5. Wait for the btp-manager image to be available in the registry.
 6. Download the btp-operator OCI module image.
-7. install the BTP Manager using `kubectl apply`
-8. verify if deployment is in the `Available` state
+7. Install the BTP Manager using `kubectl apply`.
+8. Verify if deployment is in the `Available` state.
 9. install the BTP Operator
 10. verify if BTP Operator has the `Ready` status equal to `True`.
 11. create Service Instance and Service Binding with either real or dummy credentials 
