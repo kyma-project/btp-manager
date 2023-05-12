@@ -26,7 +26,7 @@ the prerequisites yourself.
 
 ### Process
 
-The provisioning process is part of a module reconciliation. To trigger the reconciliation, create a [BtpOperator CR](../api/v1alpha1/btpoperator_types.go) :
+The provisioning process is part of a module reconciliation. To trigger the reconciliation, create a [BtpOperator CR](../api/v1alpha1/btpoperator_types.go):
 
 ```shell
 cat <<EOF | kubectl apply -f -
