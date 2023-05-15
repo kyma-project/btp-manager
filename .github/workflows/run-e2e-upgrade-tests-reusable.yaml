@@ -1,0 +1,23 @@
+# This reusable workflow is designed to run end-to-end (e2e) upgrade tests on a Kubernetes cluster using the k3s distribution.
+# Call this workflow from another workflow to execute the tests in the current context.
+
+name: Run E2E upgrade tests on the cluster (reusable)
+on:
+  workflow_call:
+    inputs:
+      image-repo:
+        description: Binary image registry reference
+        required: true
+        type: string
+      module-repo:
+        description: OCI module image registry reference
+        required: true
+        type: string
+      image-tag:
+        description: Binary image tag
+        required: true
+        type: string
+      module-tag:
+        description: OCI module image tag
+        required: true
+        type: string

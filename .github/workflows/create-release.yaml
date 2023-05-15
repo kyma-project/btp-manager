@@ -32,6 +32,13 @@ jobs:
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
 
+  run-e2e-upgrade-tests:
+    name: E2E upgrade tests
+    needs: run-unit-tests
+    secrets: inherit
+    if: ${{ inputs.credentials == 'real' }}
+    uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
+
   create-draft:
     name: Create draft release
     runs-on: ubuntu-latest
