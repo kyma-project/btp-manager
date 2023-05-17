@@ -69,9 +69,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: Publish release
-        uses: eregon/publish-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_id: ${{ needs.create-draft.outputs.release_id }}
+        run: ./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
