@@ -520,7 +520,9 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 }
 
 func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
 	for _, u := range us {
+		logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
 		if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
 			return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 		}
