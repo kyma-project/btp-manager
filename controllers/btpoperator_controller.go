@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/metrics"
 	"os"
 	"reflect"
 	"strconv"
@@ -135,19 +136,20 @@ type InstanceBindingSerivce interface {
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
-	Scheme          *runtime.Scheme
-	manifestHandler *manifest.Handler
-	workqueueSize   int
-
+	Scheme                 *runtime.Scheme
+	manifestHandler        *manifest.Handler
+	workqueueSize          int
+	metrics                *metrics.Metrics
 	instanceBindingService InstanceBindingSerivce
 }
 
-func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, btpManagerMetrics *metrics.Metrics) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		Scheme:                 scheme,
 		manifestHandler:        &manifest.Handler{Scheme: scheme},
 		instanceBindingService: instanceBindingSerivice,
+		metrics:                btpManagerMetrics,
 	}
 }
 
@@ -172,8 +174,9 @@ func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, inst
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.workqueueSize += 1
-	defer func() { r.workqueueSize -= 1 }()
+	r.increaseWorkqueueSize()
+	defer r.decreaseWorkqueueSize()
+
 	logger := log.FromContext(ctx)
 
 	cr := &v1alpha1.BtpOperator{}
@@ -227,6 +230,17 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *BtpOperatorReconciler) increaseWorkqueueSize() {
+	r.workqueueSize += 1
+	r.metrics.WorkqueueSizeGauge.Inc()
+
+}
+
+func (r *BtpOperatorReconciler) decreaseWorkqueueSize() {
+	r.workqueueSize -= 1
+	r.metrics.WorkqueueSizeGauge.Dec()
 }
 
 func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOperatorList) *v1alpha1.BtpOperator {

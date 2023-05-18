@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	"os"
 	//test
 
@@ -107,7 +108,8 @@ func main() {
 
 	signalContext := ctrl.SetupSignalHandler()
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
-	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler)
+	metrics := btpmanagermetrics.InitMetrics()
+	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler, metrics)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
