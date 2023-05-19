@@ -49,25 +49,25 @@ kubectl apply -f ./deployments/prerequisites.yaml
 envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 
 # fetch the latest OCI module image and install btp-manager in current cluster
-echo -e "\n---Running module image: ${OLD_MODULE_IMAGE_NAME}"
+echo -e "\n--- Running module image: ${OLD_MODULE_IMAGE_NAME}"
 ./scripts/run_module_image.sh "${OLD_MODULE_IMAGE_NAME}" ${CI}
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
-do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
+do echo -e "\n--- Waiting for deployment to be available"; sleep 5; done
 
-echo -e "\n---Deployment available"
+echo -e "\n--- Deployment available"
 
 echo -e "\n---Installing BTP operator"
 kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
 
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
-do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
+do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
-echo -e "\n---BTP Operator is ready"
+echo -e "\n--- BTP Operator is ready"
 
 # verifying whether service instance and service binding crds were created
-echo -e "\n---Checking if serviceinstances and servicebindings CRDs are created"
+echo -e "\n--- Checking if serviceinstances and servicebindings CRDs are created"
 CRDS=$(kubectl get crds|awk '/(servicebindings|serviceinstances)/{print $1}')
 if [[ $(wc -w <<< ${CRDS}) -ne 2 ]]
 then
@@ -81,62 +81,62 @@ SB_NAME=e2e-test-service-binding-${GITHUB_JOB}-${GITHUB_RUN_ID}
 export SI_NAME
 export SB_NAME
 
-echo -e "\n---Creating ServiceInstance: ${SI_NAME}"
+echo -e "\n--- Creating ServiceInstance: ${SI_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
 
-echo -e "\n---Creating ServiceBinding: ${SB_NAME}"
+echo -e "\n--- Creating ServiceBinding: ${SB_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
 
 while [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
-do echo -e "\n---Waiting for ServiceInstance to be ready"; sleep 5; done
+do echo -e "\n--- Waiting for ServiceInstance to be ready"; sleep 5; done
 
-echo -e "\n---ServiceInstance is ready"
+echo -e "\n--- ServiceInstance is ready"
 
 while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
-do echo -e "\n---Waiting for ServiceBinding to be ready"; sleep 5; done
+do echo -e "\n--- Waiting for ServiceBinding to be ready"; sleep 5; done
 
-echo -e "\n---ServiceBinding is ready"
+echo -e "\n--- ServiceBinding is ready"
 
-echo -e "\n---Upgrading the module"
-echo -e "\n---Running module image: ${NEW_MODULE_IMAGE_NAME}"
+echo -e "\n--- Upgrading the module"
+echo -e "\n--- Running module image: ${NEW_MODULE_IMAGE_NAME}"
 ./scripts/run_module_image.sh "${NEW_MODULE_IMAGE_NAME}" ${CI}
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
-do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
+do echo -e "\n--- Waiting for deployment to be available"; sleep 5; done
 
-echo -e "\n---Deployment available"
+echo -e "\n--- Deployment available"
 
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
-do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
+do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
-echo -e "\n---BTP Operator is ready"
+echo -e "\n--- BTP Operator is ready"
 
-echo -e "\n---Checking previously created ServiceInstance and ServiceBinding readiness"
+echo -e "\n--- Checking readiness of previously created ServiceInstance and ServiceBinding"
 
 while [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
-do echo -e "\n---Waiting for ServiceInstance to be ready"; sleep 5; done
+do echo -e "\n--- Waiting for ServiceInstance to be ready"; sleep 5; done
 
-echo -e "\n---ServiceInstance is ready"
+echo -e "\n--- ServiceInstance is ready"
 
 while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
-do echo -e "\n---Waiting for ServiceBinding to be ready"; sleep 5; done
+do echo -e "\n--- Waiting for ServiceBinding to be ready"; sleep 5; done
 
-echo -e "\n---ServiceBinding is ready"
+echo -e "\n--- ServiceBinding is ready"
 
 SB_NAME=e2e-test-service-binding2-${GITHUB_JOB}-${GITHUB_RUN_ID}
 
-echo -e "\n---Creating a new ServiceBinding: ${SB_NAME}"
+echo -e "\n--- Creating new ServiceBinding: ${SB_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
 
 while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
-do echo -e "\n---Waiting for the new ServiceBinding to be ready"; sleep 5; done
+do echo -e "\n--- Waiting for new ServiceBinding to be ready"; sleep 5; done
 
-echo -e "\n---New ServiceBinding is ready"
+echo -e "\n--- New ServiceBinding is ready"
 
-echo -e "\n---Upgrade succeeded"
+echo -e "\n--- Upgrade succeeded"
 
-echo -e "\n---Uninstalling..."
+echo -e "\n--- Uninstalling..."
 
 # remove btp-operator (ServiceBinding and ServiceInstance will be deleted as well)
 kubectl delete btpoperators/e2e-test-btpoperator
