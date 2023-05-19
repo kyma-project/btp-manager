@@ -268,7 +268,11 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 		conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
 	}
 
-	r.metrics.ReasonCounters[reason].Inc()
+	counter, found := r.metrics.ReasonCounters[reason]
+	if found {
+		counter.Inc()
+	}
+
 	return r.Status().Update(ctx, cr)
 }
 
