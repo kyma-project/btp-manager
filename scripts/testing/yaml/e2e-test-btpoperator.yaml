@@ -7,7 +7,6 @@ metadata:
     app.kubernetes.io/part-of: btp-manager
     app.kubernetes.io/managed-by: btp-manager
     app.kubernetes.io/created-by: btp-manager
-    force-delete: "true"
   name: e2e-test-btpoperator
 spec:
 # fields can be added here

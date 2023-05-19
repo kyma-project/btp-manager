@@ -141,6 +141,23 @@ echo -e "\n--- Uninstalling..."
 # remove btp-operator (ServiceBinding and ServiceInstance will be deleted as well)
 kubectl delete btpoperators/e2e-test-btpoperator
 
+echo -e "\n--- Checking deprovisioning without force delete label"
+
+while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "FalseServiceInstancesAndBindingsNotCleaned" ]];
+do echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"; sleep 5; done
+
+echo -e "\n--- Condition reason is correct, deprovisioning safety measures work"
+
+echo -e "\n--- Adding force delete label"
+kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
+
+echo -e "\n--- Checking deprovisioning with force delete label"
+
+while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != "*Error from server (NotFound)*" ]];
+do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
+
+echo -e "\n--- BtpOperator deprovisioning succeeded"
+
 # uninstall btp-manager
 ./scripts/uninstall_btp_manager.sh
 
