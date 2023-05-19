@@ -70,8 +70,8 @@ then
   exit 1
 fi
 
-SI_NAME=e2e-test-service-instance-${GITHUB_JOB}-${GITHUB_RUN_ID}
-SB_NAME=e2e-test-service-binding-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SI_NAME=auditlog-management-si-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
 
 export SI_NAME
 export SB_NAME

@@ -75,8 +75,8 @@ then
   exit 1
 fi
 
-SI_NAME=e2e-test-service-instance-${GITHUB_JOB}-${GITHUB_RUN_ID}
-SB_NAME=e2e-test-service-binding-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SI_NAME=auditlog-management-si-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
 
 export SI_NAME
 export SB_NAME
@@ -124,7 +124,7 @@ do echo -e "\n--- Waiting for ServiceBinding to be ready"; sleep 5; done
 
 echo -e "\n--- ServiceBinding is ready"
 
-SB_NAME=e2e-test-service-binding2-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SB_NAME=auditlog-management-sb2-${GITHUB_JOB}-${GITHUB_RUN_ID}
 
 echo -e "\n--- Creating new ServiceBinding: ${SB_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
