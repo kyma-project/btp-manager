@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-project/module-manager/pkg/types"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -54,7 +56,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 			It("BTP Operator should be removed", func() {
 				// GIVEN
 				//  - create BTP operator
-				btpOperatorResource := CreateBtpOperator()
+				btpOperatorResource := createBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 
@@ -78,7 +80,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 			It("BTP Operator should be removed", func() {
 				// GIVEN
 				//  - create BTP operator
-				btpOperatorResource := CreateBtpOperator()
+				btpOperatorResource := createBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 				//  - create Service Binding

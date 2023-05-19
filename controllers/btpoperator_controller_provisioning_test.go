@@ -16,7 +16,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 	BeforeEach(func() {
 		GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 		ctx = context.Background()
-		cr = CreateBtpOperator()
+		cr = createBtpOperator()
 		cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 		Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 	})

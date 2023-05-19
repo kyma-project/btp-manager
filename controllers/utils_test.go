@@ -260,7 +260,7 @@ func isCrNotFound() bool {
 	return k8serrors.IsNotFound(err)
 }
 
-func CreateBtpOperator() *v1alpha1.BtpOperator {
+func createBtpOperator() *v1alpha1.BtpOperator {
 	return &v1alpha1.BtpOperator{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       btpOperatorKind,

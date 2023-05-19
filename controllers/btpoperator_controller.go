@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/kyma-project/btp-manager/internal/metrics"
 	"os"
 	"reflect"
 	"strconv"
