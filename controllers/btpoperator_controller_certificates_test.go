@@ -10,6 +10,8 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/module-manager/pkg/types"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apimachienerytypes "k8s.io/apimachinery/pkg/types"
 	controllerruntime "sigs.k8s.io/controller-runtime"
