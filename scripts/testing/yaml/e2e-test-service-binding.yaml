@@ -1,8 +1,8 @@
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: e2e-test-service-binding-${GITHUB_RUN_ID}
+  name: e2e-test-service-binding-${SB_NAME}
 spec:
-  serviceInstanceName: e2e-test-service-instance-${GITHUB_RUN_ID}
-  externalName: e2e-test-service-binding-external-${GITHUB_RUN_ID}
-  secretName: e2e-test-service-binding-secret-${GITHUB_RUN_ID}
+  serviceInstanceName: e2e-test-service-instance-${SI_NAME}
+  externalName: e2e-test-service-binding-external-${SB_NAME}
+  secretName: e2e-test-service-binding-secret-${SB_NAME}

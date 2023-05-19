@@ -70,8 +70,11 @@ then
   exit 1
 fi
 
-SI_NAME=e2e-test-service-instance-${GITHUB_RUN_ID}
-SB_NAME=e2e-test-service-binding-${GITHUB_RUN_ID}
+SI_NAME=e2e-test-service-instance-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SB_NAME=e2e-test-service-binding-${GITHUB_JOB}-${GITHUB_RUN_ID}
+
+export SI_NAME
+export SB_NAME
 
 echo -e "\n---Creating service instance: ${SI_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
