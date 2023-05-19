@@ -139,7 +139,7 @@ echo -e "\n--- Upgrade succeeded"
 echo -e "\n--- Uninstalling..."
 
 # remove btp-operator (ServiceBinding and ServiceInstance will be deleted as well)
-kubectl delete btpoperators/e2e-test-btpoperator
+kubectl delete btpoperators/e2e-test-btpoperator &
 
 echo -e "\n--- Checking deprovisioning without force delete label"
 
