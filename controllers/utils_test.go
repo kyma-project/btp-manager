@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -260,7 +261,7 @@ func isCrNotFound() bool {
 	return k8serrors.IsNotFound(err)
 }
 
-func createBtpOperator() *v1alpha1.BtpOperator {
+func CreateBtpOperator() *v1alpha1.BtpOperator {
 	return &v1alpha1.BtpOperator{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       btpOperatorKind,
@@ -659,14 +660,14 @@ func matchState(state types.State) gomegatypes.GomegaMatcher {
 	})
 }
 
-func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason Reason) gomegatypes.GomegaMatcher {
+func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason conditions.Reason) gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
 			"Status": MatchFields(IgnoreExtras, Fields{
 				"State": Equal(state),
 				"Conditions": ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(ReadyType),
+					"Type":   Equal(conditions.ReadyType),
 					"Reason": Equal(string(reason)),
 					"Status": Equal(status),
 				}))),

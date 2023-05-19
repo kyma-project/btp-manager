@@ -10,8 +10,6 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/module-manager/pkg/types"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apimachienerytypes "k8s.io/apimachinery/pkg/types"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -60,7 +58,7 @@ var _ = Describe("BTP Operator controller - certificates", func() {
 			ExpirationBoundary = opts.ExpirationBoundary
 		}
 
-		cr = createBtpOperator()
+		cr = CreateBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 		Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 	}

@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"os"
 	"reflect"
@@ -209,7 +210,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != types.StateDeleting {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
 	}
 
 	switch cr.Status.State {
@@ -221,7 +222,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case types.StateDeleting:
 		err := r.HandleDeletingState(ctx, cr)
-		if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
 		}
 		return ctrl.Result{}, err
@@ -235,7 +236,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 func (r *BtpOperatorReconciler) increaseWorkqueueSize() {
 	r.workqueueSize += 1
 	r.metrics.WorkqueueSizeGauge.Inc()
-
 }
 
 func (r *BtpOperatorReconciler) decreaseWorkqueueSize() {
@@ -257,23 +257,25 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the module",
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, conditions.OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the module",
 		oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
-func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason Reason, message string) error {
+func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason conditions.Reason, message string) error {
 	cr.Status.WithState(newState)
-	newCondition := ConditionFromExistingReason(reason, message)
+	newCondition := conditions.ConditionFromExistingReason(reason, message)
 	if newCondition != nil {
-		SetStatusCondition(&cr.Status.Conditions, *newCondition)
+		conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
 	}
+
+	r.metrics.ReasonCounters[reason].Inc()
 	return r.Status().Update(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Initial state")
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Initialized, "Initialized")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, conditions.Initialized, "Initialized")
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -286,17 +288,17 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, err.Error())
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
 	if err := r.reconcileResources(ctx, secret); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ProvisioningFailed, err.Error())
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
 	r.instanceBindingService.EnableSISBController()
 
 	logger.Info("provisioning succeeded")
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, ReconcileSucceeded, "Module provisioning succeeded")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateReady, conditions.ReconcileSucceeded, "Module provisioning succeeded")
 }
 
 func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
@@ -306,13 +308,13 @@ func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) 
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return nil, NewErrorWithReason(MissingSecret, "Secret resource not found")
+		return nil, NewErrorWithReason(conditions.MissingSecret, "Secret resource not found")
 	}
 
 	logger.Info("verifying the required Secret")
 	if err = r.verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return nil, NewErrorWithReason(InvalidSecret, "Secret validation failed")
+		return nil, NewErrorWithReason(conditions.InvalidSecret, "Secret validation failed")
 	}
 	return secret, nil
 }
@@ -638,7 +640,7 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
 
-	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, Updated, "CR has been updated")
+	return r.UpdateBtpOperatorStatus(ctx, cr, types.StateProcessing, conditions.Updated, "CR has been updated")
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -654,7 +656,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		logger.Error(err, "deprovisioning failed")
 		return err
 	}
-	if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
 			return err
@@ -683,7 +685,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 			continue
 		}
 		remainingCr := item
-		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, types.StateProcessing, Processing, "After deprovisioning"); err != nil {
+		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, types.StateProcessing, conditions.Processing, "After deprovisioning"); err != nil {
 			logger.Error(err, "unable to set \"Processing\" state")
 		}
 	}
@@ -717,21 +719,21 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			logger.Info(msg)
 
 			// if the reason is already set, do nothing
-			if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 				return nil
 			}
 
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
-				types.StateDeleting, ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
+				types.StateDeleting, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
 				return updateStatusErr
 			}
 			return nil
 		}
 	}
-	if cr.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 		// go to a state which starts deleting process
 		if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
-			types.StateDeleting, HardDeleting,
+			types.StateDeleting, conditions.HardDeleting,
 			"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
 			return updateStatusErr
 		}
@@ -749,7 +751,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
 			if err := r.deleteBtpOperatorResources(ctx); err != nil {
 				logger.Error(err, "failed to remove module resources")
-				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
+				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, conditions.ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
 					logger.Error(updateStatusErr, "failed to update status")
 					return updateStatusErr
 				}
@@ -757,7 +759,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			}
 		} else {
 			logger.Info("Service Instances and Service Bindings hard delete failed")
-			if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
+			if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
 				logger.Error(err, "failed to update status")
 				return err
 			}
@@ -769,7 +771,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	case <-time.After(HardDeleteTimeout):
 		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
 		hardDeleteTimeoutReachedCh <- true
-		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, SoftDeleting, "Being soft deleted"); err != nil {
+		if err := r.UpdateBtpOperatorStatus(ctx, cr, types.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
 			logger.Error(err, "failed to update status")
 			return err
 		}
@@ -1136,11 +1138,11 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ReconcileFailed, err.Error())
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
 	if err := r.reconcileResources(ctx, secret); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, ReconcileFailed, err.Error())
+		return r.UpdateBtpOperatorStatus(ctx, cr, types.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
 	logger.Info("reconciliation succeeded")

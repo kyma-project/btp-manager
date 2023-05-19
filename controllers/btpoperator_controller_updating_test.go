@@ -9,8 +9,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,7 +42,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
 		actualWorkqueueSize = func() int { return reconciler.workqueueSize }
 
-		cr = createBtpOperator()
+		cr = CreateBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 		Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
 
