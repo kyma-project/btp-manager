@@ -1,8 +1,8 @@
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: e2e-test-service-binding-${SB_NAME}
+  name: ${SB_NAME}
 spec:
-  serviceInstanceName: e2e-test-service-instance-${SI_NAME}
-  externalName: e2e-test-service-binding-external-${SB_NAME}
-  secretName: e2e-test-service-binding-secret-${SB_NAME}
+  serviceInstanceName: ${SI_NAME}
+  externalName: ${SB_NAME}-external
+  secretName: ${SB_NAME}-secret
