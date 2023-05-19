@@ -8,7 +8,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/kyma-project/btp-manager/internal/conditions"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -660,14 +659,14 @@ func matchState(state types.State) gomegatypes.GomegaMatcher {
 	})
 }
 
-func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason conditions.Reason) gomegatypes.GomegaMatcher {
+func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason Reason) gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
 			"Status": MatchFields(IgnoreExtras, Fields{
 				"State": Equal(state),
 				"Conditions": ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(conditions.ReadyType),
+					"Type":   Equal(ReadyType),
 					"Reason": Equal(string(reason)),
 					"Status": Equal(status),
 				}))),

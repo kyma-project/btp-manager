@@ -1,14 +1,14 @@
 package metrics
 
 import (
-	"github.com/kyma-project/btp-manager/internal/conditions"
+	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type Metrics struct {
 	WorkqueueSizeGauge prometheus.Gauge
-	ReasonCounters     map[conditions.Reason]prometheus.Counter
+	ReasonCounters     map[controllers.Reason]prometheus.Counter
 }
 
 func (m *Metrics) registerMetrics() {
@@ -20,8 +20,8 @@ func (m *Metrics) registerMetrics() {
 	)
 	metrics.Registry.MustRegister(m.WorkqueueSizeGauge)
 
-	reasonsCounters := make(map[conditions.Reason]prometheus.Counter, len(conditions.Reasons))
-	for reason, metadata := range conditions.Reasons {
+	reasonsCounters := make(map[controllers.Reason]prometheus.Counter, len(controllers.Reasons))
+	for reason, metadata := range controllers.Reasons {
 		counter := prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        string(reason),
 			ConstLabels: prometheus.Labels{"state": string(metadata.State)},

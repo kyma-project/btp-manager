@@ -1,7 +1,6 @@
-package conditions
+package controllers
 
 import (
-	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -33,7 +32,7 @@ func TestSetStatusCondition(t *testing.T) {
 	t.Run("should add single condition to the empty set", func(t *testing.T) {
 		condition := ConditionFromExistingReason("ReconcileSucceeded", "Ready to process")
 
-		btpOperator := controllers.CreateBtpOperator()
+		btpOperator := CreateBtpOperator()
 		SetStatusCondition(&btpOperator.Status.Conditions, *condition)
 
 		assert.Equal(t, 1, len(btpOperator.Status.Conditions))
@@ -45,7 +44,7 @@ func TestSetStatusCondition(t *testing.T) {
 	t.Run("should add the condition with the same type only once", func(t *testing.T) {
 		condition := ConditionFromExistingReason("ReconcileSucceeded", "Ready to process")
 
-		btpOperator := controllers.CreateBtpOperator()
+		btpOperator := CreateBtpOperator()
 		SetStatusCondition(&btpOperator.Status.Conditions, *condition)
 		SetStatusCondition(&btpOperator.Status.Conditions, *condition)
 
@@ -58,7 +57,7 @@ func TestSetStatusCondition(t *testing.T) {
 	t.Run("should update conditions of the same type with new values", func(t *testing.T) {
 		precondition := ConditionFromExistingReason("ReconcileSucceeded", "Ready to process")
 		postcondition := ConditionFromExistingReason("MissingSecret", "No secret found")
-		btpOperator := controllers.CreateBtpOperator()
+		btpOperator := CreateBtpOperator()
 		SetStatusCondition(&btpOperator.Status.Conditions, *precondition)
 		SetStatusCondition(&btpOperator.Status.Conditions, *postcondition)
 

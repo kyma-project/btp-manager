@@ -1,4 +1,4 @@
-package conditions
+package controllers
 
 import (
 	"github.com/kyma-project/module-manager/pkg/types"

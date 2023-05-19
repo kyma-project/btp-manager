@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/module-manager/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -61,18 +60,18 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if btpOperator == nil {
 		return ctrl.Result{}, nil
 	}
-	if btpOperator.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, btpOperator, types.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
+	if btpOperator.IsReasonStringEqual(string(ServiceInstancesAndBindingsNotCleaned)) {
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, btpOperator, types.StateDeleting, HardDeleting, "BtpOperator is to be deleted")
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *ServiceInstanceReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason conditions.Reason, message string) error {
+func (r *ServiceInstanceReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason Reason, message string) error {
 	cr.Status.WithState(newState)
-	newCondition := conditions.ConditionFromExistingReason(reason, message)
+	newCondition := ConditionFromExistingReason(reason, message)
 	if newCondition != nil {
-		conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
+		SetStatusCondition(&cr.Status.Conditions, *newCondition)
 	}
 	return r.Status().Update(ctx, cr)
 }
