@@ -153,7 +153,7 @@ kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
 echo -e "\n--- Checking deprovisioning with force delete label"
 
-while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != "*Error from server (NotFound)*" ]];
+while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BtpOperator deprovisioning succeeded"
