@@ -146,7 +146,43 @@ echo -e "\n--- Checking deprovisioning without force delete label"
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "FalseServiceInstancesAndBindingsNotCleaned" ]];
 do echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"; sleep 5; done
 
-echo -e "\n--- Condition reason is correct, deprovisioning safety measures work"
+echo -e "\n--- Condition reason is correct"
+
+echo -e "\n--- Checking if ServiceInstance still exists"
+[[ "$(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] \
+&& echo "ServiceInstance was removed when it shouldn't have been" && exit 1
+
+echo -e "\n--- Checking if ServiceInstance is in Ready state"
+[[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]] \
+&& echo "ServiceInstance is not in Ready state" && exit 1
+
+echo -e "\n--- ServiceInstance exists and is in Ready state"
+
+SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
+
+echo -e "\n--- Checking if ServiceBinding still exists"
+[[ "$(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] \
+&& echo "ServiceBinding was removed when it shouldn't have been" && exit 1
+
+echo -e "\n--- Checking if ServiceBinding is in Ready state"
+[[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]] \
+&& echo "ServiceBinding is not in Ready state" && exit 1
+
+echo -e "\n--- ServiceBinding exists and is in Ready state"
+
+SB_NAME=auditlog-management-sb2-${GITHUB_JOB}-${GITHUB_RUN_ID}
+
+echo -e "\n--- Checking if new ServiceBinding still exists"
+[[ "$(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] \
+&& echo "New ServiceBinding was removed when it shouldn't have been" && exit 1
+
+echo -e "\n--- Checking if new ServiceBinding is in Ready state"
+[[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]] \
+&& echo "New ServiceBinding is not in Ready state" && exit 1
+
+echo -e "\n--- New ServiceBinding exists and is in Ready state"
+
+echo -e "\n--- Deprovisioning safety measures work"
 
 echo -e "\n--- Adding force delete label"
 kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
@@ -157,6 +193,22 @@ while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BtpOperator deprovisioning succeeded"
+
+echo -e "\n--- Checking if ServiceInstance was removed"
+[[ "$(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} 2>&1)" != *"Error from server (NotFound)"* ]] \
+&& echo "ServiceInstance still exists when it should have been removed" && exit 1
+
+SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
+
+echo -e "\n--- Checking if ServiceBinding was removed"
+[[ "$(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} 2>&1)" != *"Error from server (NotFound)"* ]] \
+&& echo "ServiceBinding still exists when it should have been removed" && exit 1
+
+SB_NAME=auditlog-management-sb2-${GITHUB_JOB}-${GITHUB_RUN_ID}
+
+echo -e "\n--- Checking if new ServiceBinding was removed"
+[[ "$(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} 2>&1)" != *"Error from server (NotFound)"* ]] \
+&& echo "New ServiceBinding still exists when it should have been removed" && exit 1
 
 # uninstall btp-manager
 ./scripts/uninstall_btp_manager.sh
