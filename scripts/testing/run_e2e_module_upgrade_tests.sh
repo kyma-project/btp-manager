@@ -192,23 +192,21 @@ echo -e "\n--- Checking deprovisioning with force delete label"
 while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
-echo -e "\n--- BtpOperator deprovisioning succeeded"
+echo -e "\n--- BtpOperator CR has been removed"
 
-echo -e "\n--- Checking if ServiceInstance was removed"
-[[ "$(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} 2>&1)" != *"Error from server (NotFound)"* ]] \
-&& echo "ServiceInstance still exists when it should have been removed" && exit 1
+echo -e "\n--- Checking if ServiceInstance CRD was removed"
+[[ "$(kubectl get crd serviceinstances 2>&1)" != *"Error from server (NotFound)"* ]] \
+&& echo "ServiceInstance CRD still exists when it should have been removed" && exit 1
 
-SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
+echo -e "\n--- ServiceInstance CRD has been removed"
 
-echo -e "\n--- Checking if ServiceBinding was removed"
-[[ "$(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} 2>&1)" != *"Error from server (NotFound)"* ]] \
-&& echo "ServiceBinding still exists when it should have been removed" && exit 1
+echo -e "\n--- Checking if ServiceBinding CRD was removed"
+[[ "$(kubectl get crd servicebindings 2>&1)" != *"Error from server (NotFound)"* ]] \
+&& echo "ServiceBinding CRD still exists when it should have been removed" && exit 1
 
-SB_NAME=auditlog-management-sb2-${GITHUB_JOB}-${GITHUB_RUN_ID}
+echo -e "\n--- ServiceBinding CRD has been removed"
 
-echo -e "\n--- Checking if new ServiceBinding was removed"
-[[ "$(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} 2>&1)" != *"Error from server (NotFound)"* ]] \
-&& echo "New ServiceBinding still exists when it should have been removed" && exit 1
+echo -e "\n--- BTP Operator deprovisioning succeeded"
 
 # uninstall btp-manager
 ./scripts/uninstall_btp_manager.sh
