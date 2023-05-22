@@ -138,7 +138,7 @@ echo -e "\n--- Upgrade succeeded"
 
 echo -e "\n--- Uninstalling..."
 
-# remove btp-operator (ServiceBinding and ServiceInstance will be deleted as well)
+# remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
 kubectl delete btpoperators/e2e-test-btpoperator &
 
 echo -e "\n--- Checking deprovisioning without force delete label"
@@ -207,6 +207,8 @@ echo -e "\n--- Checking if ServiceBinding CRD was removed"
 echo -e "\n--- ServiceBinding CRD has been removed"
 
 echo -e "\n--- BTP Operator deprovisioning succeeded"
+
+echo -e "\n--- Uninstalling BTP Manager"
 
 # uninstall btp-manager
 ./scripts/uninstall_btp_manager.sh
