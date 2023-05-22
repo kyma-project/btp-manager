@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
 # This script has the following arguments:
-#     - link to a module image (required),
+#     - link to the upgrade module image (required),
+#     - link to the base module image (optional),
 #     - ci to indicate call from CI pipeline (optional)
 # ./run_e2e_module_upgrade_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.4.1 ci
 #
-# The script requires the following environment variable set - this value is used to create unique SI and SB names:
+# The script requires the following environment variable set - this values are used to create unique SI and SB names:
 #      GITHUB_RUN_ID - a unique number for each workflow run within a repository
 #      GITHUB_JOB - the ID of the current job from the workflow
-# The script requires the following environment variables if is called with "real" parameter - these should be real credentials base64 encoded:
+# The script requires the following environment variables - these should be real credentials base64 encoded:
 #      SM_CLIENT_ID - client ID
 #      SM_CLIENT_SECRET - client secret
 #      SM_URL - service manager url
