@@ -105,9 +105,9 @@ else
 
   while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o json | jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseNotProvisioned" ]] \
   && [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o json | jq '.status.conditions[] | select(.type=="Succeeded") |.reason'|xargs) != "CreateInProgress" ]];
-  do echo -e "\n---Waiting for service binding to be not ready due to invalid credentials"; sleep 5; done
+  do echo -e "\n--- Waiting for service binding to be not ready due to invalid credentials"; sleep 5; done
 
-  echo -e "\n---Service binding is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
+  echo -e "\n--- Service binding is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
 fi
 
 echo -e "\n---Uninstalling..."
@@ -126,23 +126,36 @@ echo -e "\n--- Checking if ServiceInstance still exists"
 [[ "$(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] \
 && echo "ServiceInstance was removed when it shouldn't have been" && exit 1
 
-echo -e "\n--- Checking if ServiceInstance is in Ready state"
-[[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]] \
-&& echo "ServiceInstance is not in Ready state" && exit 1
-
-echo -e "\n--- ServiceInstance exists and is in Ready state"
-
-SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
-
 echo -e "\n--- Checking if ServiceBinding still exists"
 [[ "$(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] \
 && echo "ServiceBinding was removed when it shouldn't have been" && exit 1
 
-echo -e "\n--- Checking if ServiceBinding is in Ready state"
-[[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]] \
-&& echo "ServiceBinding is not in Ready state" && exit 1
+if [[ "${CREDENTIALS}" == "real" ]]
+then
+  echo -e "\n--- Checking if ServiceInstance is in Ready state"
+  [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]] \
+  && echo "ServiceInstance is not in Ready state" && exit 1
 
-echo -e "\n--- ServiceBinding exists and is in Ready state"
+  echo -e "\n--- ServiceInstance exists and is in Ready state"
+
+  echo -e "\n--- Checking if ServiceBinding is in Ready state"
+  [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]] \
+  && echo "ServiceBinding is not in Ready state" && exit 1
+
+  echo -e "\n--- ServiceBinding exists and is in Ready state"
+else
+  [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o json | jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseNotProvisioned" ]] \
+  && [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o json | jq '.status.conditions[] | select(.type=="Succeeded") |.reason'|xargs) != "CreateInProgress" ]] \
+  && echo -e "\n--- ServiceInstance is not in expected state Ready: NotProvisioned, Succeeded: CreateInProgress"
+
+  echo -e "\n--- ServiceInstance exists and is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
+
+  [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o json | jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseNotProvisioned" ]] \
+  && [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o json | jq '.status.conditions[] | select(.type=="Succeeded") |.reason'|xargs) != "CreateInProgress" ]] \
+  && echo -e "\n--- ServiceBinding is not in expected state Ready: NotProvisioned, Succeeded: CreateInProgress"
+
+  echo -e "\n--- ServiceBinding exists and is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
+fi
 
 echo -e "\n--- Deprovisioning safety measures work"
 
