@@ -26,6 +26,9 @@ spec:
         - --leader-elect
         image: controller:latest
         name: manager
+        ports:
+        - name: http
+          containerPort: 8080
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
