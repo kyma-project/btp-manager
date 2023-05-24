@@ -4,12 +4,12 @@ title: E2E tests of btp-manager installation from OCI module image
 
 ## Overview
 
-End-to-end (E2E) tests currently check if you can install, upgrade and uninstall BTP Manager using an OCI module image.
-There are two separate tests:
+The end-to-end (E2E) tests check if you can install, upgrade and uninstall BTP Manager using an OCI module image.
+There are two tests:
 - `e2e-tests` for checking installation and uninstallation of a given BTP Manager version
 - `e2e-upgrade-tests` for checking BTP Manager upgradability from one version to another
 
-The flows of tests are mostly similar, upgrade tests contain extra steps for checking whether BTP Manager works as expected after upgrading to a new version. You can see the differences between the tests in the descriptions of the tests flows below.
+The flows of the tests are similar. The upgrade tests contain extra steps for checking whether BTP Manager works as expected after upgrading to a new version. You can see the differences between the tests in the descriptions of the tests' flows below.
 
 #### E2E tests for installation and uninstallation flow
 1. Create an OCI module image.
@@ -24,9 +24,9 @@ The flows of tests are mostly similar, upgrade tests contain extra steps for che
 10. Verify if BTP Operator has the `Ready` status equal to `True`.
 11. Create a Service Instance and Service Binding with either real or dummy credentials. 
 12. When real credentials are used, verify if the Service Instance and Service Binding have the `Ready` status `True`. If dummy credentials are used, verify if the `Ready` status for both of them is`NotProvisioned`.
-13. Try to uninstall BTP Operator without force delete label.
-14. Verify if deprovisioning safety measures work.
-15. Add force delete label to BtpOperator CR.
+13. Try to uninstall BTP Operator without the `force delete` label.
+14. Verify if the deprovisioning safety measures work.
+15. Add the `force delete` label to BtpOperator CR.
 16. Verify if BTP Operator, ServiceInstance CRD and ServiceBinding CRD were deleted.
 17. Uninstall BTP Manager. 
 
@@ -48,10 +48,10 @@ The flows of tests are mostly similar, upgrade tests contain extra steps for che
 15. Verify if deployment is in the `Available` state.
 16. Verify if the existing Service Instance and Service Binding have the `Ready` status `True`.
 17. Create a new Service Binding with real credentials.
-18. Verify if the new Service Binding have the `Ready` status `True`.
-19. Try to uninstall BTP Operator without force delete label.
-20. Verify if deprovisioning safety measures work.
-21. Add force delete label to BtpOperator CR.
+18. Verify if the new Service Binding has the `Ready` status `True`.
+19. Try to uninstall BTP Operator without the `force delete` label.
+20. Verify if the deprovisioning safety measures work.
+21. Add the `force delete` label to BtpOperator CR.
 22. Verify if BTP Operator, ServiceInstance CRD and ServiceBinding CRD were deleted.
 23. Uninstall BTP Manager.
 
@@ -61,16 +61,16 @@ This script sets appropriate environment variables and invokes `make module-buil
 The registry URL and component name are predefined. 
 
 > **NOTE:**
-> For PR workflow runs the module image tag has the form `0.0.0-PR-<PR number>` due to component description requirements imposed by the tooling used.
+> For PR workflow runs, the module image tag has the form `0.0.0-PR-<PR number>` due to component description requirements imposed by the tooling used.
  
 The GitHub Actions workflows execute the tests (`run-e2e-tests-reusable.yaml` and `run-e2e-upgrade-tests-reusable.yaml`). The Kubernetes cluster is created, and the sources are checked out.
 The workflows wait till the OCI module image is available for fetching.
 Scripts `./scripts/testing/run_e2e_module_tests.sh` and `./scripts/testing/run_e2e_module_upgrade_tests.sh` fetch the OCI module image from the registry. The scripts create the required prerequisites, 
-get the BTP Manager and BTP Operator installed or upgraded, validate expected statuses and the gets BTP Operator and BTP Manager uninstalled.
+get the BTP Manager and BTP Operator installed or upgraded, validate expected statuses, and get BTP Operator and BTP Manager uninstalled.
 
 ### Run E2E tests locally on k3d cluster
 > **NOTE:**
-> Valid only for installing and uninstalling e2e tests.
+> Valid only for the installation and uninstallation e2e tests.
 
 For local tests, you can use the OCI module image from the official registry (that is, the module image created by the Prow presubmit job) 
 or you can use the local registry.

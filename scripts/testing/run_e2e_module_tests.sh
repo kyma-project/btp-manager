@@ -8,7 +8,7 @@
 #     - ci to indicate call from CI pipeline (optional)
 # ./run_e2e_module_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-PR-999 real ci
 #
-# The script requires the following environment variable set - this values are used to create unique SI and SB names:
+# The script requires the following environment variable set - these values are used to create unique SI and SB names:
 #      GITHUB_RUN_ID - a unique number for each workflow run within a repository
 #      GITHUB_JOB - the ID of the current job from the workflow
 # The script requires the following environment variables if is called with "real" parameter - these should be real credentials base64 encoded:

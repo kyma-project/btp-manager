@@ -62,9 +62,9 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
         E2E tests job-->Docker registry: images available?
       end
       activate E2E tests jobs
-      Docker registry->>E2E tests jobs: fetches binary image, module image
-      Note over E2E tests jobs: creates k3s cluster and runs E2E tests
-      E2E tests jobs->>GitHub Actions: returns result
+      Docker registry->>E2E tests jobs: fetch binary image, module image
+      Note over E2E tests jobs: create k3s cluster and runs E2E tests
+      E2E tests jobs->>GitHub Actions: return result
       deactivate E2E tests jobs
       GitHub Actions->>GitHub repository: publish release
       deactivate GitHub Actions
