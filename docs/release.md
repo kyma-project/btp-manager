@@ -35,7 +35,7 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       actor User
       participant GitHub Actions
       participant unit tests job
-      participant E2E tests job
+      participant E2E tests jobs
       participant GitHub repository
       participant post-btp-manager-build
       participant post-btp-manager-module-build
@@ -59,7 +59,7 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       post-btp-manager-module-build->>GitHub repository: uploads yaml artifacts
       deactivate post-btp-manager-module-build
       loop Every 10s
-        E2E tests job-->Docker registry: images available?
+        E2E tests jobs-->Docker registry: images available?
       end
       activate E2E tests jobs
       Docker registry->>E2E tests jobs: fetch binary image, module image
