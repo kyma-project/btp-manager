@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kyma-project/btp-manager/internal/conditions"
+
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"github.com/kyma-project/module-manager/pkg/types"
@@ -659,14 +661,14 @@ func matchState(state types.State) gomegatypes.GomegaMatcher {
 	})
 }
 
-func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason Reason) gomegatypes.GomegaMatcher {
+func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason conditions.Reason) gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
 			"Status": MatchFields(IgnoreExtras, Fields{
 				"State": Equal(state),
 				"Conditions": ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(ReadyType),
+					"Type":   Equal(conditions.ReadyType),
 					"Reason": Equal(string(reason)),
 					"Status": Equal(status),
 				}))),
