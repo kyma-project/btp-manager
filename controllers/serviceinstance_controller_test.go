@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -66,7 +67,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 
 				// WHEN
 				Expect(k8sClient.Delete(ctx, siUnstructured)).To(Succeed())
@@ -89,7 +90,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 
 				// WHEN
 				Expect(k8sClient.Delete(ctx, sbUnstructured)).To(Succeed())
