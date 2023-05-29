@@ -3,7 +3,7 @@ module github.com/kyma-project/btp-manager
 go 1.19
 
 require (
-	github.com/kyma-project/module-manager v0.0.0-20230210113751-b82b62a40cb0
+    github.com/kyma-project/lifecycle-manager v0.0.0-20230525083550-2c81ca32a49b
 	github.com/onsi/ginkgo/v2 v2.9.5
 	github.com/onsi/gomega v1.27.7
 	github.com/stretchr/testify v1.8.3

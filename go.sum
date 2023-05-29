@@ -170,6 +170,7 @@ github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
+github.com/kyma-project/lifecycle-manager v0.0.0-20230525083550-2c81ca32a49b/go.mod h1:G+HHF0oOUQYQ8g2VNvpYe1wreR42ri/upK3lj5D4J2c=
 github.com/kyma-project/module-manager v0.0.0-20230105142740-3cfa8d2c94ca h1:P4Clup8wQ8oelejzWvFuHD69jy8NCaqfCF8w7SqILeo=
 github.com/kyma-project/module-manager v0.0.0-20230105142740-3cfa8d2c94ca/go.mod h1:1zBwRseccaud21bydzXRrxS/VmylusMymH5m/+Dy9Oo=
 github.com/kyma-project/module-manager v0.0.0-20230210113751-b82b62a40cb0 h1:dZx2C8gGXFORkoCZFOGxyRCw06kiO3FLOtSWDWH0GHY=
