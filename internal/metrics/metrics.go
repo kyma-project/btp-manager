@@ -15,7 +15,7 @@ func (m *Metrics) registerMetrics() {
 	for reason, metadata := range conditions.Reasons {
 		counter := prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        string(reason),
-			ConstLabels: prometheus.Labels{"state": string(metadata.State)},
+			ConstLabels: prometheus.Labels{"state": string(metadata.State), "type": "state"},
 		})
 		m.ReasonCounters[reason] = counter
 		metrics.Registry.MustRegister(counter)
