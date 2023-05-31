@@ -1,8 +1,8 @@
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceInstance
 metadata:
-  name: e2e-test-service-instance-${GITHUB_RUN_ID}
+  name: ${SI_NAME}
 spec:
   serviceOfferingName: auditlog-management
   servicePlanName: default
-  externalName: e2e-test-service-instance-external-${GITHUB_RUN_ID}
+  externalName: ${SI_NAME}-external

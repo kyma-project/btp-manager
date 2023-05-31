@@ -19,14 +19,16 @@ package controllers
 import (
 	"context"
 	"fmt"
-	. "github.com/onsi/ginkgo/v2"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
+
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
@@ -155,9 +157,10 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
 
+	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
+	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), cleanupReconciler, metrics)
 
-	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), cleanupReconciler)
 	k8sClientFromManager = k8sManager.GetClient()
 
 	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {

@@ -37,3 +37,5 @@ Dockerfile.cross
 /downloaded_module/
 /temp/
 /charts/
+
+/vendor

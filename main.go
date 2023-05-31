@@ -19,6 +19,9 @@ package main
 import (
 	"flag"
 	"os"
+
+	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+
 	//test
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -106,8 +109,9 @@ func main() {
 	}
 
 	signalContext := ctrl.SetupSignalHandler()
+	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
-	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler)
+	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler, metrics)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")

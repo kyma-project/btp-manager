@@ -1,6 +1,6 @@
 module github.com/kyma-project/btp-manager
 
-go 1.19
+go 1.20
 
 require (
     github.com/kyma-project/lifecycle-manager v0.0.0-20230525083550-2c81ca32a49b

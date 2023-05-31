@@ -21,7 +21,7 @@ To create a release, follow these steps:
    4. provide a version, for example, 1.2.0
    5. choose real or dummy credentials for Service Manager
 2. The GitHub action, defined in the `.github/workflows/create-release.yaml` file, creates a GitHub tag and draft release with the provided name.
-3. The GitHub action asynchronously initiates unit tests and E2E test jobs.
+3. The GitHub action asynchronously initiates unit tests and E2E tests jobs. E2E upgrade tests run only with real credentials for Service Manager.
 4. The tag creation triggers Prow Jobs, `post-btp-manager-module-build` and `post-btp-manager-build`, defined in [btp-manager-build.yaml](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/btp-manager/btp-manager-build.yaml).
 5. `post-btp-manager-build` builds a Docker image tagged with the release name.
 6. `post-btp-manager-module-build` runs the `kyma alpha create module` command, which creates a Kyma module, and pushes the image to the registry. 
@@ -35,7 +35,7 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       actor User
       participant GitHub Actions
       participant unit tests job
-      participant E2E tests job
+      participant E2E tests jobs
       participant GitHub repository
       participant post-btp-manager-build
       participant post-btp-manager-module-build
@@ -59,13 +59,13 @@ Finally, the job uploads the `template.yaml`,`template_control_plane.yaml` and `
       post-btp-manager-module-build->>GitHub repository: uploads yaml artifacts
       deactivate post-btp-manager-module-build
       loop Every 10s
-        E2E tests job-->Docker registry: images available?
+        E2E tests jobs-->Docker registry: images available?
       end
-      activate E2E tests job
-      Docker registry->>E2E tests job: fetches binary image, module image
-      Note over E2E tests job: creates k3s cluster and runs E2E tests
-      E2E tests job->>GitHub Actions: returns result
-      deactivate E2E tests job
+      activate E2E tests jobs
+      Docker registry->>E2E tests jobs: fetch binary image, module image
+      Note over E2E tests jobs: create k3s cluster and runs E2E tests
+      E2E tests jobs->>GitHub Actions: return result
+      deactivate E2E tests jobs
       GitHub Actions->>GitHub repository: publish release
       deactivate GitHub Actions
 ```
