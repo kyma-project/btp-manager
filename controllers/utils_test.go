@@ -20,11 +20,9 @@ import (
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
-	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	gomegatypes "github.com/onsi/gomega/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -239,7 +237,7 @@ func setFinalizers(resource *unstructured.Unstructured) {
 	Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 }
 
-func getCurrentCrState() types.State {
+func getCurrentCrState() State {
 	cr := &v1alpha1.BtpOperator{}
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
 		return ""
@@ -247,10 +245,10 @@ func getCurrentCrState() types.State {
 	return cr.GetStatus().State
 }
 
-func getCurrentCrStatus() types.Status {
+func getCurrentCrStatus() Status {
 	cr := &v1alpha1.BtpOperator{}
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
-		return types.Status{}
+		return Status{}
 	}
 	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
 	return cr.GetStatus()
@@ -650,7 +648,7 @@ func resourceUpdateHandler(obj any, t string) {
 	}
 }
 
-func matchState(state types.State) gomegatypes.GomegaMatcher {
+func matchState(state State) gomegaGomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
@@ -661,7 +659,7 @@ func matchState(state types.State) gomegatypes.GomegaMatcher {
 	})
 }
 
-func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason conditions.Reason) gomegatypes.GomegaMatcher {
+func matchReadyCondition(state State, status metav1.ConditionStatus, reason Reason) gomegaGomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
@@ -677,7 +675,7 @@ func matchReadyCondition(state types.State, status metav1.ConditionStatus, reaso
 	})
 }
 
-func matchDeleted() gomegatypes.GomegaMatcher {
+func matchDeleted() gomegaGomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{"Action": Equal(resourceDeleted)})
 }
 

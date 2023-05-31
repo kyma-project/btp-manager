@@ -3,7 +3,6 @@ package controllers
 import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/conditions"
-	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -30,7 +29,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
 			cr = createBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
 		})
@@ -59,7 +58,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 		})
 
 	})
@@ -75,7 +74,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			cr = createBtpOperator()
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
 
@@ -98,8 +97,8 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			setFinalizers(sbUnstructured)
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, conditions.HardDeleting)))
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, conditions.SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.SoftDeleting)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
 			doChecks()
 		})
@@ -110,7 +109,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			setFinalizers(sbUnstructured)
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, conditions.SoftDeleting)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.SoftDeleting)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
 			doChecks()
 		})
@@ -119,7 +118,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			reconciler.Client = k8sClientFromManager
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-			Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, conditions.HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.HardDeleting)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
 			doChecks()
 		})

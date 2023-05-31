@@ -45,18 +45,11 @@ if [ "$1" = "rc" ]; then
         export MODULE_REGISTRY_PORT=$(docker port op-kcp-registry.localhost 5000/tcp | cut -d ":" -f2) &&
         export IMG_REGISTRY_PORT=$(docker port op-skr-registry.localhost 5000/tcp | cut -d ":" -f2) &&
 
-        cd "$modularizationPath/module-manager/operator" &&
-        make install &&
-
         cd "$modularizationPath/lifecycle-manager/operator" && 
         make install &&
 
         osascript -e 'tell app "Terminal"
             do script "cd '${modularizationPath}'/lifecycle-manager/operator && make run"
-        end tell' &&
-
-        osascript -e 'tell app "Terminal"
-            do script "cd '${modularizationPath}'/module-manager/operator && make run"
         end tell' &&
 
         cd "$modularizationPath/lifecycle-manager/operator" &&    
