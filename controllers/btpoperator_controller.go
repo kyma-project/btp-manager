@@ -1161,7 +1161,7 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
 		).
 		Watches(
-			&source.Kind{Type: &admissionregistrationv1.MutatingWebhookConfiguration{}},
+			&source.Kind{Type: &admissionregistrationv1.ValidatingWebhookConfiguration{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
