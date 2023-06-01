@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/kyma-project/module-manager/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,23 +36,74 @@ type BtpOperator struct {
 
 	//+nullable
 	Spec   BtpOperatorSpec `json:"spec,omitempty"`
-	Status types.Status    `json:"status,omitempty"`
+	Status Status          `json:"status,omitempty"`
 }
 
 // BtpOperatorSpec defines the desired state of BtpOperator
 type BtpOperatorSpec struct{}
 
-var _ types.CustomObject = &BtpOperator{}
+type State string
+
+// Valid CustomObject States.
+const (
+	// StateReady signifies CustomObject is ready and has been installed successfully.
+	StateReady State = "Ready"
+
+	// StateProcessing signifies CustomObject is reconciling and is in the process of installation.
+	// Processing can also signal that the Installation previously encountered an error and is now recovering.
+	StateProcessing State = "Processing"
+
+	// StateError signifies an error for CustomObject. This signifies that the Installation
+	// process encountered an error.
+	// Contrary to Processing, it can be expected that this state should change on the next retry.
+	StateError State = "Error"
+
+	// StateDeleting signifies CustomObject is being deleted. This is the state that is used
+	// when a deletionTimestamp was detected and Finalizers are picked up.
+	StateDeleting State = "Deleting"
+)
+
+// Status defines the observed state of CustomObject.
+// +k8s:deepcopy-gen=true
+// Status defines the observed state of CustomObject.
+type Status struct {
+	// State signifies current state of CustomObject.
+	// Value can be one of ("Ready", "Processing", "Error", "Deleting").
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=Processing;Deleting;Ready;Error
+	State State `json:"state"`
+
+	// Conditions associated with CustomStatus.
+	Conditions []*metav1.Condition `json:"conditions,omitempty"`
+}
+
+func (s *Status) WithState(state State) Status {
+	s.State = state
+	return *s
+}
+
+// LastOperation defines the last operation from the control-loop.
+// +k8s:deepcopy-gen=true
+type LastOperation struct {
+	Operation      string      `json:"operation"`
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+}
+
+type Resource struct {
+	Name                    string `json:"name"`
+	Namespace               string `json:"namespace"`
+	metav1.GroupVersionKind `json:",inline"`
+}
 
 func (o *BtpOperator) ComponentName() string {
 	return componentName
 }
 
-func (o *BtpOperator) GetStatus() types.Status {
+func (o *BtpOperator) GetStatus() Status {
 	return o.Status
 }
 
-func (o *BtpOperator) SetStatus(status types.Status) {
+func (o *BtpOperator) SetStatus(status Status) {
 	o.Status = status
 }
 

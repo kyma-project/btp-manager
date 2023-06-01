@@ -2,10 +2,11 @@ package controllers
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/kyma-project/btp-manager/internal/conditions"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"github.com/kyma-project/btp-manager/internal/conditions"
-	"github.com/kyma-project/module-manager/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // ServiceInstanceReconciler reconciles a BtpOperator object in case of service instance changes
@@ -63,13 +63,13 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 	if btpOperator.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, btpOperator, types.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, btpOperator, v1alpha1.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *ServiceInstanceReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState types.State, reason conditions.Reason, message string) error {
+func (r *ServiceInstanceReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState v1alpha1.State, reason conditions.Reason, message string) error {
 	cr.Status.WithState(newState)
 	newCondition := conditions.ConditionFromExistingReason(reason, message)
 	if newCondition != nil {
