@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"strconv"
 	"strings"
 	"time"
@@ -1145,22 +1146,22 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.BtpOperator{},
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
-			&corev1.Secret{},
+			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Watches(
-			&corev1.ConfigMap{},
+			&source.Kind{Type: &corev1.ConfigMap{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
 			builder.WithPredicates(r.watchConfigPredicates()),
 		).
 		Watches(
-			&admissionregistrationv1.MutatingWebhookConfiguration{},
+			&source.Kind{Type: &admissionregistrationv1.MutatingWebhookConfiguration{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
 		).
 		Watches(
-			&admissionregistrationv1.ValidatingWebhookConfiguration{},
+			&source.Kind{Type: &admissionregistrationv1.MutatingWebhookConfiguration{}},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
@@ -1192,7 +1193,7 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(ctx context.Context, secret client.Object) []reconcile.Request {
+func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(secret client.Object) []reconcile.Request {
 	return r.enqueueOldestBtpOperator()
 }
 
@@ -1316,7 +1317,7 @@ func (r *BtpOperatorReconciler) watchMutatingWebhooksPredicates() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileConfig(ctx context.Context, object client.Object) []reconcile.Request {
+func (r *BtpOperatorReconciler) reconcileConfig(object client.Object) []reconcile.Request {
 	logger := log.FromContext(nil, "name", object.GetName(), "namespace", object.GetNamespace())
 	cm, ok := object.(*corev1.ConfigMap)
 	if !ok {

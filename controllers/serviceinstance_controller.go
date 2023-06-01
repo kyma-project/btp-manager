@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/kyma-project/btp-manager/internal/conditions"
 
@@ -89,7 +90,7 @@ func (r *ServiceInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(si,
 			builder.WithPredicates(r.deletionPredicate())).
-		Watches(sb,
+		Watches(&source.Kind{Type: sb},
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(r.deletionPredicate())).
 		Complete(r)

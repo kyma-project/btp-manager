@@ -1,9 +1,9 @@
 package conditions
 
 import (
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 )
 
 type Reason string
