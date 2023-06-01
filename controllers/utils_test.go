@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	gomegatypes "github.com/onsi/gomega/types"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -237,7 +238,7 @@ func setFinalizers(resource *unstructured.Unstructured) {
 	Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 }
 
-func getCurrentCrState() State {
+func getCurrentCrState() v1alpha1.State {
 	cr := &v1alpha1.BtpOperator{}
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
 		return ""
@@ -245,10 +246,10 @@ func getCurrentCrState() State {
 	return cr.GetStatus().State
 }
 
-func getCurrentCrStatus() Status {
+func getCurrentCrStatus() v1alpha1.Status {
 	cr := &v1alpha1.BtpOperator{}
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
-		return Status{}
+		return v1alpha1.Status{}
 	}
 	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
 	return cr.GetStatus()
@@ -648,7 +649,7 @@ func resourceUpdateHandler(obj any, t string) {
 	}
 }
 
-func matchState(state State) gomegaGomegaMatcher {
+func matchState(state v1alpha1.State) gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
@@ -659,7 +660,7 @@ func matchState(state State) gomegaGomegaMatcher {
 	})
 }
 
-func matchReadyCondition(state State, status metav1.ConditionStatus, reason Reason) gomegaGomegaMatcher {
+func matchReadyCondition(state v1alpha1.State, status metav1.ConditionStatus, reason conditions.Reason) gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
@@ -675,7 +676,7 @@ func matchReadyCondition(state State, status metav1.ConditionStatus, reason Reas
 	})
 }
 
-func matchDeleted() gomegaGomegaMatcher {
+func matchDeleted() gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{"Action": Equal(resourceDeleted)})
 }
 
@@ -699,7 +700,7 @@ func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.C
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	Expect(deploymentController.Watch(&source.Kind{Type: &appsv1.Deployment{}},
+	Expect(deploymentController.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}),
 		&handler.EnqueueRequestForObject{},
 		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate())).
 		To(Succeed())

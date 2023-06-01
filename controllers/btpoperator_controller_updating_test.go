@@ -45,7 +45,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 		cr = createBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-		Eventually(updateCh).Should(Receive(matchState(StateReady)))
+		Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
 		initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 		Expect(err).To(BeNil())

@@ -77,6 +77,11 @@ type Status struct {
 	Conditions []*metav1.Condition `json:"conditions,omitempty"`
 }
 
+func (s *Status) WithState(state State) Status {
+	s.State = state
+	return *s
+}
+
 // LastOperation defines the last operation from the control-loop.
 // +k8s:deepcopy-gen=true
 type LastOperation struct {

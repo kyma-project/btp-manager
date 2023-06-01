@@ -61,7 +61,7 @@ var _ = Describe("BTP Operator controller - certificates", func() {
 
 		cr = createBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-		Eventually(updateCh).Should(Receive(matchState(StateReady)))
+		Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 	}
 
 	certAfterEach := func() {
