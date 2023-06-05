@@ -1,10 +1,10 @@
 package metrics
 
 import (
-	"fmt"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	"strings"
 )
 
 type Metrics struct {
@@ -15,7 +15,7 @@ func (m *Metrics) registerMetrics() {
 	m.ReasonCounters = make(map[conditions.Reason]prometheus.Counter, len(conditions.Reasons))
 	for reason, metadata := range conditions.Reasons {
 		counter := prometheus.NewCounter(prometheus.CounterOpts{
-			Name:        fmt.Sprintf("btp-manager-%s", string(reason)),
+			Name:        prometheus.BuildFQName("btpmanager", "", strings.ToLower(string(reason))),
 			ConstLabels: prometheus.Labels{"state": string(metadata.State)},
 		})
 		m.ReasonCounters[reason] = counter
