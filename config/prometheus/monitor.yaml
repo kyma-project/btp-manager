@@ -1,16 +1,19 @@
-
-# Prometheus Service (Metrics)
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    app.kubernetes.io/component: btp-manager.kyma-project.io
-  name: metrics-service
+  name: btp-manager-metrics-service
   namespace: kyma-system
+  labels:
+    app.kubernetes.io/name:  btp-manager.kyma-project.io
+  annotations:
+    prometheus.io/port: "8080"
+    prometheus.io/scrape: "true"
 spec:
-  ports:
-    - name: http
-      port: 8080
-      targetPort: http
   selector:
     app.kubernetes.io/component: btp-manager.kyma-project.io
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8080

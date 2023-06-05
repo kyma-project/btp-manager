@@ -27,5 +27,5 @@ COPY --from=builder /workspace/manager .
 COPY --from=builder /workspace/module-chart ./module-chart
 COPY --from=builder /workspace/module-resources ./module-resources
 USER 65532:65532
-
+EXPOSE 8080
 ENTRYPOINT ["/manager"]
