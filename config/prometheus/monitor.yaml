@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: btp-manager-metrics-service
+  name: metrics-service
   namespace: kyma-system
   labels:
     app.kubernetes.io/name:  btp-manager.kyma-project.io
