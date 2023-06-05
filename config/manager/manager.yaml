@@ -23,7 +23,7 @@ spec:
       - command:
         - /manager
         args:
-        - --metrics-addr=0.0.0.0:8080
+        - --metrics-bind-address=0.0.0.0:8080
         - --leader-elect
         image: controller:latest
         name: manager
