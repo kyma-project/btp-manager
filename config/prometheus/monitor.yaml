@@ -17,3 +17,26 @@ spec:
       port: 8080
       protocol: TCP
       targetPort: 8080
+---
+      apiVersion: security.istio.io/v1beta1
+      kind: PeerAuthentication
+      metadata:
+        name: btp-manager-metrics-service
+        namespace: kyma-system
+      spec:
+        selector:
+          matchLabels:
+             app.kubernetes.io/name:  btp-manager.kyma-project.io
+             app.kuberentes.io/instance: btp-manager-controller-manager
+        portLevelMtls:
+          "8080":
+            mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default2
+  namespace: kyma-system
+spec:
+  mtls:
+    mode: PERMISSIVE
