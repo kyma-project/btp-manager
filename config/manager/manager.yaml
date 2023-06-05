@@ -23,6 +23,7 @@ spec:
       - command:
         - /manager
         args:
+        - --metrics-addr=0.0.0.0:8080
         - --leader-elect
         image: controller:latest
         name: manager
@@ -36,14 +37,16 @@ spec:
               - "ALL"
         livenessProbe:
           httpGet:
-            path: /healthz
-            port: 8081
+            path: /metrics
+            port: 8080
+            scheme: HTTP
           initialDelaySeconds: 15
           periodSeconds: 20
         readinessProbe:
           httpGet:
-            path: /readyz
-            port: 8081
+            path: /metrics
+            port: 8080
+            scheme: HTTP
           initialDelaySeconds: 5
           periodSeconds: 10
         # TODO(user): Configure the resources accordingly based on the project requirements.
