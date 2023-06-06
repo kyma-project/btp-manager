@@ -2,12 +2,17 @@
 
 ## Overview
 
-This directory contains documentation on BTP Manager.  
+This directory contains the BTP Manager documentation. For general information on BTP Manager, see the overarching [documentation](../README.md)
 
-For general information on BTP Manager, see the overarching [documentation](../README.md), and for more details, read the following documents:
+For information on the BTP Operator module, see the `user` folder containing the following documents:
+
+- [Configuration](01-01-configuration.md)
+- [Use BTP Manager to manage SAP BTP Service Operator](02-01-usage.md)
+- [Troubleshooting guide](03-01-troubleshooting.md)
+
+See the `contributors` folder for more information on the following topics:
 
 - [Install and uninstall BTP Manager](installation.md)
-- [Configuration](configuration.md)
 - [BTP Manager operations](operations.md)
 - [BTP Manager release pipeline](release.md)
 - [Run unit tests](testing.md)
