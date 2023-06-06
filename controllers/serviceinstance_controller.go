@@ -38,6 +38,9 @@ func NewServiceInstanceReconciler(client client.Client, scheme *runtime.Scheme) 
 }
 
 func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("SI reconcile triggered")
+
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(instanceGvk)
 	err := r.List(ctx, list, client.InNamespace(corev1.NamespaceAll))
