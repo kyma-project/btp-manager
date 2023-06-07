@@ -13,21 +13,8 @@ YAML_DIR=./scripts/testing/yaml
 LIFE_SPAN=${2-60}
 
 echo -e "\n---Installing BTP operator"
-kubectl apply -f - <<EOF
-apiVersion: operator.kyma-project.io/v1alpha1
-kind: BtpOperator
-metadata:
-  labels:
-    app.kubernetes.io/name: e2e-test-btpoperator
-    app.kubernetes.io/instance: btpoperator
-    app.kubernetes.io/part-of: btp-manager
-    app.kubernetes.io/managed-by: btp-manager
-    app.kubernetes.io/created-by: btp-manager
-    force-delete: "true"
-  name: e2e-test-btpoperator
-spec:
-# fields can be added here
-EOF
+kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
+kubectl label btpoperators e2e-test-btpoperator force-delete=true
 
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
