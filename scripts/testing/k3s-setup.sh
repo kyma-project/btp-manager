@@ -26,7 +26,7 @@ chmod 600 ~/.kube/config
 
 curl -sL https://istio.io/downloadIstioctl | sh -
 export PATH=$HOME/.istioctl/bin:$PATH
-istioctl install
+istioctl install --set profile=demo
 
 if [ "${WAIT_OPT}" == "--wait" ]
 then
