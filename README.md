@@ -24,7 +24,7 @@ Visit the [`contributor`](docs/contributor) folder to read more on the following
 - [GitHub Actions workflows](docs/contributor/04-01-workflows.md)
 - [Certification management](docs/contributor/06-01-certs.md)
 
-For information on the BTP Operator module, visit the [`user`](docs/user) and read the following documents:
+For information on the BTP Operator module, visit the [`user`](docs/user) folder and read the following documents:
 
 - [BTP Operator Module](docs/user/README.md)
 - [Configuration](docs/user/01-01-configuration.md)
