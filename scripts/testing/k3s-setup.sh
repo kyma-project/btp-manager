@@ -12,7 +12,7 @@ echo "Starting docker registry"
 sudo mkdir -p /etc/rancher/k3s
 sudo cp scripts/testing/yaml/registries.yaml /etc/rancher/k3s
 docker run -d \
--p 5000:5000 \
+-p 6000:6000 \
 --restart=always \
 --name registry.localhost \
 -v "$PWD/registry:/var/lib/registry" \
@@ -23,6 +23,9 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.25.5+k3s1" K3S_KUBECONFIG
 mkdir -p ~/.kube
 cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 chmod 600 ~/.kube/config
+
+curl -sL https://istio.io/downloadIstioctl | sh -
+export PATH=$HOME/.istioctl/bin:$PATH
 
 if [ "${WAIT_OPT}" == "--wait" ]
 then
