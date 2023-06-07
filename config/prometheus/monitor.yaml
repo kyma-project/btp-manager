@@ -21,7 +21,7 @@ spec:
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
-  name: btp-manager-metrics-service
+  name: metrics-service
   namespace: kyma-system
 spec:
   selector:
