@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"context"
+	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 
 	"github.com/kyma-project/btp-manager/internal/conditions"
 
@@ -35,6 +38,9 @@ func NewServiceInstanceReconciler(client client.Client, scheme *runtime.Scheme) 
 }
 
 func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("SI reconcile triggered")
+
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(instanceGvk)
 	err := r.List(ctx, list, client.InNamespace(corev1.NamespaceAll))
@@ -93,6 +99,7 @@ func (r *ServiceInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: sb},
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(r.deletionPredicate())).
+		WithOptions(controller.Options{RateLimiter: workqueue.NewItemExponentialFailureRateLimiter(10*time.Millisecond, 1000*time.Second)}).
 		Complete(r)
 }
 

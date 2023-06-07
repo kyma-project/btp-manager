@@ -660,6 +660,9 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 			return nil
 		}
 	}
+
+	r.instanceBindingService.DisableSISBController()
+
 	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
 	if err := r.Update(ctx, cr); err != nil {
@@ -679,8 +682,6 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 			logger.Error(err, "unable to set \"Processing\" state")
 		}
 	}
-
-	r.instanceBindingService.DisableSISBController()
 
 	return nil
 }
