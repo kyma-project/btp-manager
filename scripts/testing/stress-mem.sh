@@ -14,7 +14,7 @@ LIFE_SPAN=${2-60}
 
 echo -e "\n---Installing BTP operator"
 kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
-kubectl label btpoperators e2e-test-btpoperator force-delete=true
+kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
