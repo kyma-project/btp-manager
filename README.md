@@ -6,7 +6,7 @@ BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP
 
 ## Install BTP Manager
 
- You can install BTP Manager locally or in your cluster. For more information, read the [Install and uninstall BTP Manager](docs/contributor/01-01-installation.md) document.
+ You can install BTP Manager locally or in your cluster. For more information, read the [Install and uninstall BTP Manager](docs/contributor/01-10-installation.md) document.
 
 ## Usage
 
