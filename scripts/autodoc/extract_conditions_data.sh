@@ -7,4 +7,4 @@ printf "===="
 awk '/gophers_metadata_section_start/,/gophers_metadata_section_end/' < ../../controllers/conditions.go | grep ':'
 printf "===="
 
-awk '/table_start/,/table_end/' < ../../docs/contributor/02-01-operations.md | grep "|"
+awk '/table_start/,/table_end/' < ../../docs/contributor/02-10-operations.md | grep "|"
