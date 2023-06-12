@@ -44,7 +44,7 @@ kubectl get btpoperators btpoperator
 The expected result is:
 ```
 NAME                 STATE
-btpoperator   Ready
+btpoperator          Ready
 ```
 
 ### Uninstall SAP BTP Service Operator

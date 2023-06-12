@@ -53,7 +53,7 @@ key values should be empty. If some required data is missing, the reconciler thr
 missing keys/values, sets the CR in `Error` state (reason `InvalidSecret`), and stops the reconciliation until there is a change in the required
 Secret.
 
-After checking the Secret, the reconciler proceeds to apply and delete operations of [module resources](../../module-resources).
+After checking the Secret, the reconciler proceeds to apply and delete operations of the [module resources](../../module-resources).
 The `module-resources` directory is created by one of GitHub Actions and contains manifests for applying and deleting operations. See [workflows](04-01-workflows.md#auto-update-chart-and-resources) for more details.
 First, the reconciler deletes outdated module resources stored as manifests in [to-delete.yml](../../module-resources/delete/to-delete.yml).
 When all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in the [apply](../../module-resources/apply) directory to be applied to the cluster.
