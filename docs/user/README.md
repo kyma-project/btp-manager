@@ -35,6 +35,4 @@ This directory contains the end-user documentation of the BTP Operator module.
 For general information on BTP Manager, see the overarching [documentation](../../README.md), and for more details on the BTP Operator module, read the following documents:
 
 - [Install BTP Operator](01-10-installation.md)
-- [Configuration](01-20-configuration.md)
 - [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md)
-- [Troubleshooting guide](03-10-troubleshooting.md)

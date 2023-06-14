@@ -17,6 +17,7 @@ Use BTP Manager to install or uninstall SAP BTP Service Operator. To find out ho
 If you want to provide new features for BTP Operator, visit the [`contributor`](docs/contributor) folder. For details on BTP Manager's operations, releases, testing and more, read the following documents:
 
 - [Install and uninstall BTP Manager](docs/contributor/01-10-installation.md)
+- [Configuration](01-20-configuration.md)
 - [BTP Manager operations](docs/contributor/02-10-operations.md)
 - [BTP Manager release pipeline](docs/contributor/03-10-release.md)
 - [GitHub Actions workflows](docs/contributor/04-10-workflows.md)
@@ -28,6 +29,4 @@ If you want to use the BTP Operator module, visit the [`user`](docs/user) folder
 
 - [BTP Operator module](docs/user/README.md)
 - [Install BTP Operator](docs/user/01-10-installation.md)
-- [Configuration](docs/user/01-20-configuration.md)
 - [Use BTP Manager to manage SAP BTP Service Operator](docs/user/02-10-usage.md)
-- [Troubleshooting guide](docs/user/03-10-troubleshooting.md)
