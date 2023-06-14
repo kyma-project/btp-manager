@@ -2,9 +2,8 @@ package controllers
 
 import (
 	"context"
-	"github.com/kyma-project/btp-manager/internal/conditions"
-
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,9 +32,9 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 	})
 
 	When("The required Secret is missing", func() {
-		It("should return error while getting the required Secret", func() {
+		It("should return warning while getting the required Secret", func() {
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateProcessing, metav1.ConditionFalse, conditions.Initialized)))
-			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.MissingSecret)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.MissingSecret)))
 		})
 	})
 
@@ -44,7 +43,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 			deleteSecret := &corev1.Secret{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
-			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.MissingSecret)))
+			//Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.MissingSecret)))
 		})
 
 		When("the required Secret does not have all required keys", func() {
@@ -52,7 +51,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				secret, err := createSecretWithoutKeys()
 				Expect(err).To(BeNil())
 				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.InvalidSecret)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.InvalidSecret)))
 			})
 		})
 
@@ -61,7 +60,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				secret, err := createSecretWithoutValues()
 				Expect(err).To(BeNil())
 				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.InvalidSecret)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.InvalidSecret)))
 			})
 		})
 

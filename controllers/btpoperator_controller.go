@@ -273,7 +273,8 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
+		logger.Info("secret verification failed: " + errWithReason.Error())
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.reason, errWithReason.message)
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
