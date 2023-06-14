@@ -8,7 +8,7 @@ BTP Manager performs the following operations:
 
 - provisioning of SAP BTP Service Operator
 - update of SAP BTP Service Operator
-- deprovisioning of SAP BTP Service Operator and its resources, Service Instances and Service Bindings
+- deprovisioning of SAP BTP Service Operator and its resources, Service Instances, and Service Bindings
 
 ## Provisioning
 
@@ -25,6 +25,8 @@ by Kyma Environment Broker (KEB). If you want to provision SAP BTP Service Opera
 the prerequisites yourself.
 
 ### Process
+
+![Provisioning diagram](../assets/provisioning.svg)
 
 The provisioning process is part of a module reconciliation. To trigger the reconciliation, create a [BtpOperator CR](../../api/v1alpha1/btpoperator_types.go):
 
@@ -65,11 +67,9 @@ set of [timeouts](../../controllers/btpoperator_controller.go) defined as `const
 for performed operations. The provisioning is successful when all module resources exist in the cluster. This is the
 condition which allows the reconciler to set the CR in `Ready` state.
 
-You can see the provisioning process in the following diagram:
-
-![Provisioning diagram](../assets/provisioning.svg)
-
 ## Deprovisioning
+
+![Deprovisioning diagram](../assets/deprovisioning.svg)
 
 To start the deprovisioning process, use the following command:
 
@@ -94,10 +94,6 @@ Regardless of mode, in the next step, all SAP BTP Service Operator resources mar
 label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../../module-resources).
 If the process succeeds, the finalizer on BtpOperator CR itself is removed and the resource is deleted.
 If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`. 
-
-You can see the deprovisioning process in the following diagram:
-
-![Deprovisioning diagram](../assets/deprovisioning.svg)
 
 ## Conditions
 The state of BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/declarative/v2/object.go#L23) that comprises State

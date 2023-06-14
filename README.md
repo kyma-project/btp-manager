@@ -10,7 +10,7 @@ BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP
 
 ## Usage
 
-You use BTP Manager to install or uninstall SAP BTP Service Operator. To find out how to do it, read the [Usage](docs/user/02-10-usage.md) document.
+Use BTP Manager to install or uninstall SAP BTP Service Operator. To find out how to do it, read the [Usage](docs/user/02-10-usage.md) document.
 
 ## Read more
 

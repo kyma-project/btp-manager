@@ -2,8 +2,6 @@
 title: Use BTP Manager to manage SAP BTP Service Operator 
 ---
 
-You use BTP Manager to install or uninstall SAP BTP Service Operator.
-
 You can install SAP BTP Service Operator: 
 <details>
 <summary>with a real BTP Manager Secret</summary>

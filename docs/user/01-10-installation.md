@@ -2,6 +2,11 @@
 Install BPT Operator
 ---
 
+## Prerequisites
+
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- Kubernetes cluster, or [k3d](https://k3d.io) for local installation
+  
 To enable the BTP Operator module from the latest release, you must install BTP Manager and SAP BTP Service Operator. Follow these steps to do that:
 
 1. To install BTP Manager, use the following command:

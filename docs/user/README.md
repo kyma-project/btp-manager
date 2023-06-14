@@ -1,7 +1,6 @@
 ---
-title: BTP Operator Module
+title: BTP Operator module
 ---
-
 
 ## Overview
 
@@ -24,6 +23,10 @@ To enable the BTP Operator module, follow the steps described in the [Install BT
 BTP Manager provisions, updates, and deprovisions SAP BTP Service Operator along with its resources, ServiceInstances, and ServiceBindings. SAP BTP Service Operator manages SAP BTP services in your cluster.
 
 Read [BTP Manager operations](../contributor/02-10-operations.md) and the [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator) documentation to learn more.
+
+## Contact and support
+
+For contact and support details, go to {link}.
 
 ## Read more
 
