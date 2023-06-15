@@ -218,7 +218,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case v1alpha1.StateProcessing:
 		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
-	case v1alpha1.StateError:
+	case v1alpha1.StateError, v1alpha1.StateWarning:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case v1alpha1.StateDeleting:
 		err := r.HandleDeletingState(ctx, cr)

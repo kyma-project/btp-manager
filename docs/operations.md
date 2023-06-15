@@ -46,7 +46,7 @@ about the CR responsible for reconciling the operand.
 
 Next, the reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace. This Secret contains Service
 Manager credentials for SAP BTP Service Operator and should be delivered to the cluster by KEB. If the Secret is
-missing, an error is thrown, the reconciler sets `Error` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
+missing, an error is thrown, the reconciler sets `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
 is created. When the Secret is present in the cluster, the reconciler verifies whether it contains required data. The
 Secret should contain the following keys: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, `cluster_id`. None of the
 key values should be empty. If some required data is missing, the reconciler throws an error with the message about
