@@ -302,8 +302,8 @@ func tryConvertGoLineToStruct(goLine string) (error, *reasonMetadata) {
 	}
 
 	words := strings.Fields(parts[0])
-	if len(words) != 2 {
-		return fmt.Errorf("goLine (%s) is badly structured, it should have following format (Reason: TypeAndStatus, //CRState;Remark", goLine), nil
+	if len(words) != 5 {
+		return fmt.Errorf("goLine (%s) is badly structured, it should have following format (Reason: Metadata, //CRState;Remark", goLine), nil
 	}
 
 	comments := strings.Split(parts[1], ";")
