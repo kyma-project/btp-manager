@@ -219,7 +219,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case v1alpha1.StateProcessing:
 		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
-	case v1alpha1.StateError:
+	case v1alpha1.StateError, v1alpha1.StateWarning:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case v1alpha1.StateDeleting:
 		err := r.HandleDeletingState(ctx, cr)
@@ -227,7 +227,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
 		}
 		return ctrl.Result{}, err
-	case v1alpha1.StateReady, v1alpha1.StateWarning:
+	case v1alpha1.StateReady:
 		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
 	}
 
@@ -1187,7 +1187,8 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 			if !ok {
 				return false
 			}
-			if newBtpOperator.GetStatus().State == v1alpha1.StateError && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
+			state := newBtpOperator.GetStatus().State
+			if (state == v1alpha1.StateError || state == v1alpha1.StateWarning) && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
 				return false
 			}
 

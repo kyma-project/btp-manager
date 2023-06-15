@@ -125,13 +125,13 @@ Only one Condition of type `Ready` is used.
 | 15                   | Error                | Ready                | false                | GettingConfigMapFailed                          | Getting Config Map failed                                                                     |
 | 16                   | Error                | Ready                | false                | InconsistentChart                               | Chart is inconsistent. Reconciliation initialized                                             |
 | 17                   | Error                | Ready                | false                | InvalidSecret                                   | sap-btp-manager secret does not contain required data - create proper secret                  |
-| 18                   | Error                | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                                   |
-| 19                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module State                          |
-| 20                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                                |
-| 21                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                           |
-| 22                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                         |
-| 23                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                        |
-| 24                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                              |
+| 18                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module State                          |
+| 19                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                                |
+| 20                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                           |
+| 21                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                         |
+| 22                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                        |
+| 23                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                              |
+| 24                   | Warning              | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                                   |
 
 [comment]: # (table_end)
 
