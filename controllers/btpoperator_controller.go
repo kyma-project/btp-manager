@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/go-logr/logr"
 	"os"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -273,8 +274,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		logger.Info("secret verification failed: " + errWithReason.Error())
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.reason, errWithReason.message)
+		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
@@ -289,6 +289,11 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	logger.Info("provisioning succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateReady, conditions.ReconcileSucceeded, "Module provisioning succeeded")
+}
+
+func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
+	logger.Info("secret verification failed: " + errWithReason.Error())
+	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.reason, errWithReason.message)
 }
 
 func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
@@ -1125,7 +1130,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
+		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
