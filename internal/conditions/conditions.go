@@ -59,7 +59,7 @@ var Reasons = map[Reason]Metadata{
 	ConsistencyCheckFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure during consistency check
 	Processing:                            {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Final State after deprovisioning
 	OlderCRExists:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;This CR is not the oldest one so does not represent the module State
-	MissingSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;sap-btp-manager secret was not found - create proper secret
+	MissingSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;sap-btp-manager secret was not found - create proper secret
 	InvalidSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;sap-btp-manager secret does not contain required data - create proper secret
 	HardDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to hard delete
 	ResourceRemovalFailed:                 {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Some resources can still be present due to errors while deprovisioning

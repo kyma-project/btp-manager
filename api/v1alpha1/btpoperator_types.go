@@ -53,6 +53,10 @@ const (
 	// Processing can also signal that the Installation previously encountered an error and is now recovering.
 	StateProcessing State = "Processing"
 
+	// StateWarning signifies a warning for CustomObject. This signifies that the Installation
+	// process encountered a problem.
+	StateWarning State = "Warning"
+
 	// StateError signifies an error for CustomObject. This signifies that the Installation
 	// process encountered an error.
 	// Contrary to Processing, it can be expected that this state should change on the next retry.
@@ -68,9 +72,9 @@ const (
 // Status defines the observed state of CustomObject.
 type Status struct {
 	// State signifies current state of CustomObject.
-	// Value can be one of ("Ready", "Processing", "Error", "Deleting").
+	// Value can be one of ("Ready", "Processing", "Error", "Deleting", "Warning").
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=Processing;Deleting;Ready;Error
+	// +kubebuilder:validation:Enum=Processing;Deleting;Ready;Error;Warning
 	State State `json:"state"`
 
 	// Conditions associated with CustomStatus.

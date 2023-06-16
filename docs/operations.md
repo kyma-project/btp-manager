@@ -46,7 +46,7 @@ about the CR responsible for reconciling the operand.
 
 Next, the reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace. This Secret contains Service
 Manager credentials for SAP BTP Service Operator and should be delivered to the cluster by KEB. If the Secret is
-missing, an error is thrown, the reconciler sets `Error` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
+missing, an error is thrown, the reconciler sets `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
 is created. When the Secret is present in the cluster, the reconciler verifies whether it contains required data. The
 Secret should contain the following keys: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, `cluster_id`. None of the
 key values should be empty. If some required data is missing, the reconciler throws an error with the message about
@@ -125,13 +125,13 @@ Only one Condition of type `Ready` is used.
 | 15                   | Error                | Ready                | false                | GettingConfigMapFailed                          | Getting Config Map failed                                                                     |
 | 16                   | Error                | Ready                | false                | InconsistentChart                               | Chart is inconsistent. Reconciliation initialized                                             |
 | 17                   | Error                | Ready                | false                | InvalidSecret                                   | sap-btp-manager secret does not contain required data - create proper secret                  |
-| 18                   | Error                | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                                   |
-| 19                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module State                          |
-| 20                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                                |
-| 21                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                           |
-| 22                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                         |
-| 23                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                        |
-| 24                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                              |
+| 18                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module State                          |
+| 19                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                                |
+| 20                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                           |
+| 21                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                         |
+| 22                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                        |
+| 23                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                              |
+| 24                   | Warning              | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                                   |
 
 [comment]: # (table_end)
 

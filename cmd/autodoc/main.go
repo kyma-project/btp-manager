@@ -344,10 +344,12 @@ func detectGroupOrder(state string) int {
 		return 3
 	case "Error":
 		return 4
-	case "NA":
+	case "Warning":
 		return 5
-	default:
+	case "NA":
 		return 6
+	default:
+		return 7
 	}
 }
 

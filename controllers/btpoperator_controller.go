@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/go-logr/logr"
 	"os"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -218,7 +219,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
 	case v1alpha1.StateProcessing:
 		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
-	case v1alpha1.StateError:
+	case v1alpha1.StateError, v1alpha1.StateWarning:
 		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
 	case v1alpha1.StateDeleting:
 		err := r.HandleDeletingState(ctx, cr)
@@ -273,7 +274,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
+		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
@@ -288,6 +289,11 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	logger.Info("provisioning succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateReady, conditions.ReconcileSucceeded, "Module provisioning succeeded")
+}
+
+func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
+	logger.Info("secret verification failed: " + errWithReason.Error())
+	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.reason, errWithReason.message)
 }
 
 func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
@@ -1124,7 +1130,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
+		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
@@ -1181,7 +1187,8 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 			if !ok {
 				return false
 			}
-			if newBtpOperator.GetStatus().State == v1alpha1.StateError && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
+			state := newBtpOperator.GetStatus().State
+			if (state == v1alpha1.StateError || state == v1alpha1.StateWarning) && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
 				return false
 			}
 
