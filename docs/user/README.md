@@ -14,10 +14,6 @@ BTP Manager is an operator based on the [Kubebuilder](https://github.com/kuberne
 
 SAP BTP Service Operator allows you to connect SAP BTP services to your cluster and then manage them using Kubernetes-native tools.
 
-## Enable BTP Operator module
-
-To enable the BTP Operator module, follow the steps described in the [Install BTP Operator](01-10-installation.md) document.
-
 ## How BTP Operator module works
 
 BTP Manager provisions, updates, and deprovisions SAP BTP Service Operator along with its resources, ServiceInstances, and ServiceBindings. SAP BTP Service Operator manages SAP BTP services in your cluster.
@@ -31,8 +27,4 @@ For contact and support details, go to {link}.
 ## Read more
 
 This directory contains the end-user documentation of the BTP Operator module.  
-
-For general information on BTP Manager, see the overarching [documentation](../../docs), and for more details on the BTP Operator module, read the following documents:
-
-- [Install BTP Operator](01-10-installation.md)
-- [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md)
+To learn how to easily install it, read the [Install BTP Operator from latest release](01-10-installation.md). For the module's usage details, read the [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md) document.

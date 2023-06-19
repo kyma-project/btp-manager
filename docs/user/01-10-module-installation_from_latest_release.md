@@ -1,5 +1,5 @@
 ---
-Install BPT Operator
+Install BPT Operator module from latest release
 ---
 
 ## Prerequisites
