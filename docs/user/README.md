@@ -8,7 +8,7 @@ Within the BTP Operator module, [BTP Manager](../../README.md) installs [SAP BTP
 
 ### BTP Manager
 
-BTP Manager is an operator based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator](https://github.com/kyma-project/btp-manager/blob/main/config/crd/bases/operator.kyma-project.io_btpoperators.yaml) CustonResourceDefinition (CRD) which allows you to manage SAP BTP Service Operator resource through Custom Resource (CR). 
+BTP Manager is an operator based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator](https://github.com/kyma-project/btp-manager/blob/main/config/crd/bases/operator.kyma-project.io_btpoperators.yaml) CustomResourceDefinition (CRD) which allows you to manage SAP BTP Service Operator resource through Custom Resource (CR). 
 
 ### SAP BTP Service Operator
 
@@ -26,5 +26,5 @@ For contact and support details, go to {link}.
 
 ## Read more
 
-This directory contains the end-user documentation of the BTP Operator module.  
-To learn how to easily install it, read the [Install BTP Operator from latest release](01-10-installation.md). For the module's usage details, read the [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md) document.
+This directory contains the end user documentation of the BTP Operator module.  
+For the module's usage details, read the [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md) document.

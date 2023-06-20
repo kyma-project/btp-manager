@@ -1,2 +1,2 @@
-- [Install BPT Operator module from latest release](01-10-module-installation_from_latest_release.md)
+- [BTP Operator module](README.md)
 - [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md)
