@@ -13,7 +13,7 @@ To enable the BTP Operator module from the latest release, you must install BTP 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster, or [k3d](https://k3d.io) for local installation
 
-> **CAUTION** You also need the `kyma-system` Namespace. If you don't have it on your cluster, use the following command to create it:
+> **CAUTION** You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
 > ```bash
 > kubectl create namespace kyma-system
 > ```
@@ -36,8 +36,6 @@ To enable the BTP Operator module from the latest release, you must install BTP 
     ```
 
 For more installation options, read the [Install BTP Manager in your cluster](./docs/contributor/01-10-installation.md) document.
-
- 
 
 ## Usage
 
