@@ -48,7 +48,7 @@ about the CR responsible for reconciling the operand.
 
 Next, the reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace. This Secret contains Service
 Manager credentials for SAP BTP Service Operator and should be delivered to the cluster by KEB. If the Secret is
-missing, an error is thrown, the reconciler sets `Error` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
+missing, an error is thrown, the reconciler sets `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
 is created. When the Secret is present in the cluster, the reconciler verifies whether it contains required data. The
 Secret should contain the following keys: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, `cluster_id`. None of the
 key values should be empty. If some required data is missing, the reconciler throws an error with the message about
@@ -102,32 +102,32 @@ Only one Condition of type `Ready` is used.
 
 [comment]: # (table_start)
 
-| No.                  | CR state             | Condition type       | Condition status     | Condition reason                                | Remark                                                                                 |
-| -------------------- | -------------------- | -------------------- | -------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 1                    | Ready                | Ready                | true                 | ReconcileSucceeded                              | Reconciled successfully                                                                |
-| 2                    | Ready                | Ready                | true                 | UpdateCheckSucceeded                            | Update not required                                                                    |
-| 3                    | Ready                | Ready                | true                 | UpdateDone                                      | Update done                                                                            |
-| 4                    | Processing           | Ready                | false                | Initialized                                     | Initial processing or chart is inconsistent                                            |
-| 5                    | Processing           | Ready                | false                | Processing                                      | Final state after deprovisioning                                                       |
-| 6                    | Processing           | Ready                | false                | UpdateCheck                                     | Checking for updates                                                                   |
-| 7                    | Processing           | Ready                | false                | Updated                                         | Resource has been updated                                                              |
-| 8                    | Deleting             | Ready                | false                | HardDeleting                                    | Trying to hard delete                                                                  |
-| 9                    | Deleting             | Ready                | false                | SoftDeleting                                    | Trying to soft delete after hard delete failed                                         |
-| 10                   | Error                | Ready                | false                | ChartInstallFailed                              | Failure during chart installation                                                      |
-| 11                   | Error                | Ready                | false                | ChartPathEmpty                                  | No chart path available for processing                                                 |
-| 12                   | Error                | Ready                | false                | ConsistencyCheckFailed                          | Failure during consistency check                                                       |
-| 13                   | Error                | Ready                | false                | DeletionOfOrphanedResourcesFailed               | Deletion of orphaned resources failed                                                  |
-| 14                   | Error                | Ready                | false                | GettingConfigMapFailed                          | Getting Config Map failed                                                              |
-| 15                   | Error                | Ready                | false                | InconsistentChart                               | Chart is inconsistent. Reconciliation initialized                                      |
-| 16                   | Error                | Ready                | false                | InvalidSecret                                   | sap-btp-manager secret does not contain required data - create proper secret           |
-| 17                   | Error                | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                            |
-| 18                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module status                  |
-| 19                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                         |
-| 20                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                    |
-| 21                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                  |
-| 22                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                 |
-| 23                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                       |
-| 24                   | NA                   | Ready                | false                | ServiceInstancesAndBindingsNotCleaned           | NA                                                                                     |
+| No.                  | CR state             | Condition type       | Condition status     | Condition reason                                | Remark                                                                                        |
+| -------------------- | -------------------- | -------------------- | -------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1                    | Ready                | Ready                | true                 | ReconcileSucceeded                              | Reconciled successfully                                                                       |
+| 2                    | Ready                | Ready                | true                 | UpdateCheckSucceeded                            | Update not required                                                                           |
+| 3                    | Ready                | Ready                | true                 | UpdateDone                                      | Update done                                                                                   |
+| 4                    | Processing           | Ready                | false                | Initialized                                     | Initial processing or chart is inconsistent                                                   |
+| 5                    | Processing           | Ready                | false                | Processing                                      | Final State after deprovisioning                                                              |
+| 6                    | Processing           | Ready                | false                | UpdateCheck                                     | Checking for updates                                                                          |
+| 7                    | Processing           | Ready                | false                | Updated                                         | Resource has been updated                                                                     |
+| 8                    | Deleting             | Ready                | false                | HardDeleting                                    | Trying to hard delete                                                                         |
+| 9                    | Deleting             | Ready                | false                | ServiceInstancesAndBindingsNotCleaned           | Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence           |
+| 10                   | Deleting             | Ready                | false                | SoftDeleting                                    | Trying to soft delete after hard delete failed                                                |
+| 11                   | Error                | Ready                | false                | ChartInstallFailed                              | Failure during chart installation                                                             |
+| 12                   | Error                | Ready                | false                | ChartPathEmpty                                  | No chart path available for processing                                                        |
+| 13                   | Error                | Ready                | false                | ConsistencyCheckFailed                          | Failure during consistency check                                                              |
+| 14                   | Error                | Ready                | false                | DeletionOfOrphanedResourcesFailed               | Deletion of orphaned resources failed                                                         |
+| 15                   | Error                | Ready                | false                | GettingConfigMapFailed                          | Getting Config Map failed                                                                     |
+| 16                   | Error                | Ready                | false                | InconsistentChart                               | Chart is inconsistent. Reconciliation initialized                                             |
+| 17                   | Error                | Ready                | false                | InvalidSecret                                   | sap-btp-manager secret does not contain required data - create proper secret                  |
+| 18                   | Error                | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module State                          |
+| 19                   | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                                |
+| 20                   | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                           |
+| 21                   | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                         |
+| 22                   | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                        |
+| 23                   | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                              |
+| 24                   | Warning              | Ready                | false                | MissingSecret                                   | sap-btp-manager secret was not found - create proper secret                                   |
 
 [comment]: # (table_end)
 

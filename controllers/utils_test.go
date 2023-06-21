@@ -16,9 +16,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kyma-project/btp-manager/internal/conditions"
+
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
-	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -237,7 +238,7 @@ func setFinalizers(resource *unstructured.Unstructured) {
 	Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 }
 
-func getCurrentCrState() types.State {
+func getCurrentCrState() v1alpha1.State {
 	cr := &v1alpha1.BtpOperator{}
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
 		return ""
@@ -245,10 +246,10 @@ func getCurrentCrState() types.State {
 	return cr.GetStatus().State
 }
 
-func getCurrentCrStatus() types.Status {
+func getCurrentCrStatus() v1alpha1.Status {
 	cr := &v1alpha1.BtpOperator{}
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
-		return types.Status{}
+		return v1alpha1.Status{}
 	}
 	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
 	return cr.GetStatus()
@@ -648,7 +649,7 @@ func resourceUpdateHandler(obj any, t string) {
 	}
 }
 
-func matchState(state types.State) gomegatypes.GomegaMatcher {
+func matchState(state v1alpha1.State) gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
@@ -659,14 +660,14 @@ func matchState(state types.State) gomegatypes.GomegaMatcher {
 	})
 }
 
-func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason Reason) gomegatypes.GomegaMatcher {
+func matchReadyCondition(state v1alpha1.State, status metav1.ConditionStatus, reason conditions.Reason) gomegatypes.GomegaMatcher {
 	return MatchFields(IgnoreExtras, Fields{
 		"Action": Equal(resourceUpdated),
 		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
 			"Status": MatchFields(IgnoreExtras, Fields{
 				"State": Equal(state),
 				"Conditions": ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(ReadyType),
+					"Type":   Equal(conditions.ReadyType),
 					"Reason": Equal(string(reason)),
 					"Status": Equal(status),
 				}))),

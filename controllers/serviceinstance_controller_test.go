@@ -3,7 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-project/module-manager/pkg/types"
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -58,7 +59,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				//  - create BTP operator
 				btpOperatorResource := createBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
 				//  - create Service Instance
 				siUnstructured := createResource(instanceGvk, kymaNamespace, serviceInstanceName)
@@ -66,7 +67,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 
 				// WHEN
 				Expect(k8sClient.Delete(ctx, siUnstructured)).To(Succeed())
@@ -82,14 +83,14 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				//  - create BTP operator
 				btpOperatorResource := createBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 				//  - create Service Binding
 				sbUnstructured := createResource(bindingGvk, kymaNamespace, serviceBindingName)
 				ensureResourceExists(bindingGvk)
 
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(types.StateDeleting, metav1.ConditionFalse, ServiceInstancesAndBindingsNotCleaned)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 
 				// WHEN
 				Expect(k8sClient.Delete(ctx, sbUnstructured)).To(Succeed())

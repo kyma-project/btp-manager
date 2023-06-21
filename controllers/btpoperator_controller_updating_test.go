@@ -8,7 +8,6 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
-	"github.com/kyma-project/module-manager/pkg/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -46,7 +45,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 		cr = createBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
-		Eventually(updateCh).Should(Receive(matchState(types.StateReady)))
+		Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
 		initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 		Expect(err).To(BeNil())

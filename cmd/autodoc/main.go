@@ -302,8 +302,8 @@ func tryConvertGoLineToStruct(goLine string) (error, *reasonMetadata) {
 	}
 
 	words := strings.Fields(parts[0])
-	if len(words) != 2 {
-		return fmt.Errorf("goLine (%s) is badly structured, it should have following format (Reason: TypeAndStatus, //CRState;Remark", goLine), nil
+	if len(words) != 5 {
+		return fmt.Errorf("goLine (%s) is badly structured, it should have following format (Reason: Metadata, //CRState;Remark", goLine), nil
 	}
 
 	comments := strings.Split(parts[1], ";")
@@ -344,10 +344,12 @@ func detectGroupOrder(state string) int {
 		return 3
 	case "Error":
 		return 4
-	case "NA":
+	case "Warning":
 		return 5
-	default:
+	case "NA":
 		return 6
+	default:
+		return 7
 	}
 }
 

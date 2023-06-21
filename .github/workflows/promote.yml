@@ -7,47 +7,52 @@ env:
   BTP_MANAGER_REPO: btp-manager
   KYMA_REPO: kyma
   TEMPLATE_NAME_FROM_RELEASE: template.yaml
-  TEMPLATE_NAME_FOR_KYMA: moduletemplate-btp-manager.yaml
+  TEMPLATE_NAME_FOR_KYMA: moduletemplate-btp-operator.yaml
   GIT_EMAIL: <>
-  GIT_NAME: kyma-btp-manager-bot
+  GIT_NAME: kyma-btp-manager-serviceuser
+  MODULES_REPO: "https://github.tools.sap/kyma/kyma-modules"
+  DOC_URL: "https://github.com/kyma-project/btp-manager"
+
+  # needed by gh cli for gihtub enterprise
+  GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+  GH_HOST: github.tools.sap
 
 on:
   workflow_dispatch:
     inputs:
       releaseTag:
         description: 'Release Tag'
-        default: use latest available release 
+        default: use latest available release
         required: true
       channel:
         description: 'Channel'
         type: choice
         options:
-        - alpha
-        - fast
-        - regular
+          - fast
+          - regular
         required: true
+        default: fast
 
 jobs:
   promote:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Use default (latest) Release Tag
+        if: inputs.releaseTag == 'use latest available release'
+        shell: bash
+        run: |
+          latest=$(curl \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    https://api.github.com/repos/$KYMA_ORG/$BTP_MANAGER_REPO/releases/latest | jq -r '.tag_name') 
+          
+          echo "TAG=${latest}" >> $GITHUB_ENV
 
-    - name: Use default (latest) Release Tag
-      if: inputs.releaseTag == 'use latest available release' 
-      shell: bash
-      run: |
-        latest=$(curl \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/$KYMA_ORG/$BTP_MANAGER_REPO/releases/latest | jq -r '.tag_name') 
-
-        echo "TAG=${latest}" >> $GITHUB_ENV
-
-    - name: Validate Given Release Tag
-      if: inputs.releaseTag != 'use latest available release'
-      shell: bash
-      run: |
+      - name: Validate Given Release Tag
+        if: inputs.releaseTag != 'use latest available release'
+        shell: bash
+        run: |
           tags=$(curl \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -62,61 +67,78 @@ jobs:
           echo "tag not found: ${{ inputs.releaseTag }}"
           exit 1
 
-    - name: Set branch name
-      run: echo "BRANCH_NAME=$BTP_MANAGER_REPO-$TAG" >> $GITHUB_ENV
+      - name: Set branch name
+        run: echo "BRANCH_NAME=$BTP_MANAGER_REPO-$TAG-${{ inputs.channel }}" >> $GITHUB_ENV
 
-    - name: Download module template 
-      run: curl -O -J -L https://github.com/$KYMA_ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME_FROM_RELEASE
+      - name: Setup GitHub config
+        run: |
+          git config --global user.email $GIT_EMAIL
+          git config --global user.name $GIT_NAME
 
-    - name: Setup GitHub config
-      run: |
-        git config --global user.email $GIT_EMAIL
-        git config --global user.name $GIT_NAME
+      - name: Clone modules repo
+        run: git clone https://kyma-btp-manager-serviceuser:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@github.tools.sap/kyma/kyma-modules.git
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
 
-    - name: Clone Kyma Repo 
-      run: |
-        git clone https://github.com/$BOT_ORG/$KYMA_REPO.git
+      - name: Sync Repo
+        working-directory: kyma-modules
+        run: |
+          git remote add upstream https://kyma-btp-manager-serviceuser:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@github.tools.sap/kyma/kyma-modules.git
+          git fetch upstream
+          git merge upstream/main
 
-    - name: Sync Repo
-      working-directory: kyma
-      run: |
-        git remote add upstream https://github.com/$KYMA_ORG/$KYMA_REPO/
-        git fetch upstream
-        git merge upstream/main
+      - name: Create Branch
+        working-directory: kyma-modules
+        run: |
+          git checkout -B $BRANCH_NAME
 
-    - name: Create Branch
-      working-directory: kyma
-      run: |
-        git checkout -B $BRANCH_NAME
+      - name: Download module template
+        run: |
+          curl -O -J -L https://github.com/$KYMA_ORG/$BTP_MANAGER_REPO/releases/download/$TAG/$TEMPLATE_NAME_FROM_RELEASE
+      - name: Add module template
+        run: |
+          mv $TEMPLATE_NAME_FROM_RELEASE $TEMPLATE_NAME_FOR_KYMA
 
-    - name: Add module template
-      run: |
-        mv $TEMPLATE_NAME_FROM_RELEASE $TEMPLATE_NAME_FOR_KYMA
-        yes | cp -rf $TEMPLATE_NAME_FOR_KYMA $KYMA_REPO/modules/${{ inputs.channel }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: main
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip' # caching pip dependencies
+      - run: pip install -r main/scripts/python/requirements.txt
+      - name: Adjust the template (name, doc annotation)
+        run: |
+          python3 main/scripts/python/adjust_template.py $TEMPLATE_NAME_FOR_KYMA > tmp.yaml
+          mv tmp.yaml kyma-modules/$CHANNEL/$TEMPLATE_NAME_FOR_KYMA
+        env:
+          CHANNEL: ${{ inputs.channel }}
 
-    - name: Commit Changes
-      working-directory: kyma
-      run: |
-        git add .
-        git commit -m "Update $TEMPLATE_NAME_FOR_KYMA"
+      - name: Commit Changes
+        working-directory: kyma-modules
+        run: |
+          git add .
+          git commit -m "Update $TEMPLATE_NAME_FOR_KYMA"
 
-    - name: Push Changes
-      working-directory: kyma
-      run: |
-        git remote set-url origin https://${{ secrets.BOT_TOKEN }}@github.com/$BOT_ORG/$KYMA_REPO.git
-        git push --set-upstream origin $BRANCH_NAME -f
+      - name: Push Changes
+        working-directory: kyma-modules
+        run: |
+          git remote set-url origin https://kyma-btp-manager-serviceuser:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@github.tools.sap/kyma-btp-manager-serviceuser/kyma-modules.git
+          git push --set-upstream origin $BRANCH_NAME -f
 
-    - name: Create PR if needed
-      working-directory: kyma
-      shell: bash
-      run: |
-        prs=$(gh pr list -R https://github.com/$KYMA_ORG/$KYMA_REPO/ -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-       
-        if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
-            echo "opened pr already exists, no need to create new one, pr will be updated by push from previous step"
-            exit 0
-        fi
-       
-        gh pr create -B main -R https://github.com/$KYMA_ORG/$KYMA_REPO/ --title "Promote BTP Manager to ( $TAG )" --fill --body "https://github.com/kyma-project/btp-manager/releases/$TAG"
-      env:
-        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+      - name: Create PR if needed
+        working-directory: kyma-modules
+        shell: bash
+        run: |
+          prs=$(gh pr list -R $MODULES_REPO/ -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+
+          if  echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+              echo "opened pr already exists, no need to create new one, pr will be updated by push from previous step"
+              exit 0
+          fi
+
+          gh pr create -B main -R https://github.tools.sap/kyma/kyma-modules/ --title "Promote BTP Manager to ( $TAG ), channel $CHANNEL" --fill --body "https://github.com/kyma-project/btp-manager/releases/$TAG"
+        env:
+          CHANNEL: ${{ inputs.channel }}

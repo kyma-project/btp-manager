@@ -2,12 +2,13 @@ package controllers
 
 import (
 	"context"
+	"sync"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sync"
 )
 
 // InstanceBindingControllerManager runs and stops the ServiceInstance controller
@@ -61,11 +62,15 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 	}
 	r.enabled = true
 
-	_, cancel := context.WithCancel(r.ctx)
+	contextWithCancel, cancel := context.WithCancel(r.ctx)
 	r.stopper = cancel
 	go func() {
-		err = r.mgr.Start(r.ctx)
-		logger.Error(err, "unable to start SI SB controller")
+		err = r.mgr.Start(contextWithCancel)
+		if err != nil {
+			logger.Error(err, "unable to start SI SB controller")
+		} else {
+			logger.Info("SI SB controller goroutine stopped")
+		}
 	}()
 
 }
