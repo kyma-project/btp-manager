@@ -39,7 +39,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers"
 	//+kubebuilder:scaffold:imports
 )
-
+//etcd fix test
 var (
 	scheme   = clientgoscheme.Scheme
 	setupLog = ctrl.Log.WithName("setup")
