@@ -59,10 +59,10 @@ kubectl delete -f deployments/prerequisites.yaml
 
 If you want to provide new features for BTP Manager, visit the [`contributor`](docs/contributor) folder. You will find detailed information on BTP Manager's:
 
-- [configuration](01-20-configuration.md)
+- [configuration](docs/contributor/01-20-configuration.md)
 - [operations](docs/contributor/02-10-operations.md)
 - [release pipeline](docs/contributor/03-10-release.md)
-- [Github Actions workflows](docs/contributor/04-10-workflows.md)
+- [GitHub Actions workflows](docs/contributor/04-10-workflows.md)
 - [unit tests](docs/contributor/05-10-testing.md)
 - [E2E tests](docs/contributor/05-20-e2e_tests.md)
 - [certification management](docs/contributor/06-10-certs.md)
