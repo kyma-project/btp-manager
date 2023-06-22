@@ -2,38 +2,22 @@
 title: Use BTP Manager to manage SAP BTP Service Operator 
 ---
 
-## Install SAP BTP Service Operator
-You can install the operator: 
-<details>
-<summary>with a real BTP Manager Secret</summary>
-<br>
+## Install BTP Operator
 
-To install SAP BTP Service Operator with a real BTP Manager Secret, follow these steps:
+For instructions on how to install the BTP Operator module, see the [overarching documentation](../../README.md#installation).
+
+## Create and install a Secret
+
+To create a real BTP Manager Secret, follow these steps:
 1. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2b and 2c of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
-2. Copy the access credentials into the `hack/creds.json` file.
+2. Save the access credentials into the `hack/creds.json` file.
 3. Call [`create-secret-file.sh`](../../hack/create-secret-file.sh). 
 4. Apply the Secret in your cluster. 
  
    ```sh
    ./hack/create-secret-file.sh
-   kubectl apply -f deployments/prerequisites.yaml
    kubectl apply -f hack/operator-secret.yaml
-   kubectl apply -f examples/btp-operator.yaml
    ```
-   </details>
-  
-<details>
-<summary>with a dummy BTP Manager Secret</summary>
-<br>
-
-To install SAP BTP Service Operator with a dummy BTP Manager Secret, run the following commands:
-```sh
-kubectl apply -f deployments/prerequisites.yaml
-kubectl apply -f examples/btp-manager-secret.yaml
-kubectl apply -f examples/btp-operator.yaml
-```
-</details>
-<br>
 
 To check the `BtpOperator` CR status, run the following command:
 ```sh
@@ -49,6 +33,9 @@ btpoperator          Ready
 ## Deploy an SAP BTP service in your Kyma cluster
 
 After successfully installing SAP BTP Service Operator, you can create a Service Instance and a Service Binding.
+
+> **NOTE:** This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfule complete the procedure.
+
 1. To create a Service Instance, run the following script:
 
     ```yaml
@@ -118,9 +105,4 @@ After successfully installing SAP BTP Service Operator, you can create a Service
 
 ## Uninstall SAP BTP Service Operator
 
-To uninstall SAP BTP Service Operator, run the following commands:
-```sh
-kubectl delete -f examples/btp-operator.yaml
-kubectl delete -f examples/btp-manager-secret.yaml
-kubectl delete -f deployments/prerequisites.yaml
-```
+To uninstall SAP BTP Service Operator, follow the instruction in the [overarching documentation](../../README.md#uninstallation).

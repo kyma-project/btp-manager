@@ -13,7 +13,7 @@ To enable the BTP Operator module from the latest release, you must install BTP 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster, or [k3d](https://k3d.io) for local installation
 
-> **CAUTION** You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
+> **CAUTION:  ** You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
 > ```bash
 > kubectl create namespace kyma-system
 > ```
@@ -34,12 +34,26 @@ To enable the BTP Operator module from the latest release, you must install BTP 
     ```bash
     kubectl apply -f https://raw.githubusercontent.com/kyma-project/btp-manager/main/config/samples/operator_v1alpha1_btpoperator.yaml
     ```
+3. To check the `BtpOperator` CR status, run the following command:
+   ```sh
+   kubectl get btpoperators btpoperator
+   ```
+   > **NOTE:** The CR is in `WarningState` and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
 
 For more installation options, read the [Install and uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
 ## Usage
 
-Use BTP Manager to install or uninstall SAP BTP Service Operator. To find out how to do it, read the [Usage](docs/user/02-10-usage.md) document.
+Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, read the [usage](docs/user/02-10-usage.md) document.
+
+## Uninstallation
+
+To uninstall SAP BTP Service Operator, run the following commands:
+```sh
+kubectl delete -f examples/btp-operator.yaml
+kubectl delete -f examples/btp-manager-secret.yaml
+kubectl delete -f deployments/prerequisites.yaml
+```
 
 ## Read more
 
