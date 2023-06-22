@@ -32,10 +32,10 @@ To enable the BTP Operator module from the latest release, you must install BTP 
  2. To install SAP BTP Service Operator, apply the sample BtpOperator CR:
 
     ```bash
-    kubectl apply -f https://github.com/kyma-project/btp-manager/tree/main/config/samples
+    kubectl apply -f https://raw.githubusercontent.com/kyma-project/btp-manager/main/config/samples/operator_v1alpha1_btpoperator.yaml
     ```
 
-For more installation options, read the [Install BTP Manager in your cluster](./docs/contributor/01-10-installation.md) document.
+For more installation options, read the [Install and uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
 ## Usage
 
