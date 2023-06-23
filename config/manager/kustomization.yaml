@@ -4,5 +4,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-  newTag: 0.0.23-test
+  newName: op-skr-registry.localhost:60765/unsigned/operator-images/btp-manager
+  newTag: 0.0.1
