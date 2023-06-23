@@ -21,7 +21,7 @@ make run
 There are three ways to install BTP Manager in your cluster:
 
 <details>
-<summary>With kubectl and <code>rendered.yaml</code> (recommended)</summary>
+<summary>With kubectl and <code>btp-manager.yaml</code> (recommended)</summary>
 <br>
 
 ### Prerequisites
@@ -33,13 +33,13 @@ Use the following command to download and install BTP Manager from Kubernetes re
 
 ```shell
 kubectl apply -f deployments/prerequisites.yaml
-kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/rendered.yaml
+kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 ```
 
 Use the following command to uninstall BTP Manager from your cluster.
 
 ```shell
-kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/rendered.yaml
+kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 kubectl delete -f deployments/prerequisites.yaml
 ```
 </details>
