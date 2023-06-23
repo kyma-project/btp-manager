@@ -70,7 +70,15 @@ uploadFile "template_control_plane.yaml" "${UPLOAD_URL}?name=template_control_pl
 
 if [ -e "manifests/btp-operator/rendered.yaml" ]
 then
-  uploadFile "manifests/btp-operator/rendered.yaml" "${UPLOAD_URL}?name=rendered.yaml"
+  uploadFile "manifests/btp-operator/rendered.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
 else
-  uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=rendered.yaml"
+  uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
+fi
+
+if [ -e "examples/btp-operator.yaml" ]
+then
+  uploadFile "examples/btp-operator.yaml" "${UPLOAD_URL}?name=btp-operator-default-cr.yaml"
+else
+  echo "BTP operator CR does not exists"
+  exit 1
 fi
