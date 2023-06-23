@@ -41,7 +41,7 @@ sed 's/target: remote/target: control-plane/g' <template.yaml >template_control_
 echo "Generated template_control_plane.yaml:"
 cat template_control_plane.yaml
 
-echo "Updating github release with template.yaml, template_control_plane.yaml, rendered.yaml"
+echo "Updating github release with template.yaml, template_control_plane.yaml, btp-manager.yaml, btp-operator-default-cr.yaml"
 
 echo "Finding release id for: ${PULL_BASE_REF}"
 CURL_RESPONSE=$(curl -w "%{http_code}" -sL \

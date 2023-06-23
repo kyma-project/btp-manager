@@ -26,7 +26,7 @@ export MODULE_TAG=$2
 PROTOCOL=docker://
 
 RELEASES_URL="https://api.github.com/repos/kyma-project/btp-manager/releases"
-ARTIFACTS_REGEX="(rendered.yaml|template.yaml|template_control_plane.yaml)"
+ARTIFACTS_REGEX="(btp-manager.yaml|template.yaml|template_control_plane.yaml)"
 
 if [ "${SKIP_ASSETS}" != "--skip-templates" ]
 then
