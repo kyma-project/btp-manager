@@ -2,7 +2,7 @@
 
 ## Install BTP Operator
 
-For instructions on how to install the BTP Operator module, see the [overarching documentation](/README.md#installation).
+For instructions on how to install the BTP Operator module, see the [overarching documentation](../../README.md#installation).
 
 ## Create and install a Secret
 
@@ -32,7 +32,7 @@ btpoperator          Ready
 
 After successfully installing SAP BTP Service Operator, you can create a Service Instance and a Service Binding.
 
-> **NOTE:** This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfule complete the procedure.
+> **NOTE:** This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
 
 1. To create a Service Instance, run the following script:
 
@@ -99,4 +99,4 @@ After successfully installing SAP BTP Service Operator, you can create a Service
 
 ## Uninstall SAP BTP Service Operator
 
-To uninstall SAP BTP Service Operator, follow the instruction in the [overarching documentation](/README.md#uninstallation).
+To uninstall SAP BTP Service Operator, follow the instruction in the [overarching documentation](../../README.md#uninstallation).
