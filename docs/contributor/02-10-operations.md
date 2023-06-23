@@ -1,6 +1,4 @@
----
-title: BTP Manager operations 
----
+# BTP Manager operations 
 
 ## Overview
 

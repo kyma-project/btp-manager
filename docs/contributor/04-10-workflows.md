@@ -1,6 +1,4 @@
----
-title: GitHub Action workflows
----
+# GitHub Action workflows
 
 ## Auto update chart and resources
 

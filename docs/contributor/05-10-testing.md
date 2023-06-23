@@ -1,6 +1,4 @@
----
-title: Run unit tests
----
+# Run unit tests
 
 ## Run unit tests using CLI 
 

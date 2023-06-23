@@ -1,6 +1,4 @@
----
-title: Install and uninstall BTP Manager
----
+# Install and uninstall BTP Manager
 
 ## Install BTP Manager locally
 

@@ -1,10 +1,8 @@
----
-title: Use BTP Manager to manage SAP BTP Service Operator 
----
+# Use BTP Manager to manage SAP BTP Service Operator 
 
 ## Install BTP Operator
 
-For instructions on how to install the BTP Operator module, see the [overarching documentation](../../README.md#installation).
+For instructions on how to install the BTP Operator module, see the [overarching documentation](/README.md#installation).
 
 ## Create and install a Secret
 
@@ -97,12 +95,8 @@ After successfully installing SAP BTP Service Operator, you can create a Service
     ```bash
     kubectl delete servicebindings.services.cloud.sap.com btp-audit-log-binding
     kubectl delete serviceinstances.services.cloud.sap.com btp-audit-log-instance
-    helm delete btp-operator -n sap-btp-operator
-    kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
-    kubectl delete ns cert-manager
-    kubectl delete ns sap-btp-operator
     ```
 
 ## Uninstall SAP BTP Service Operator
 
-To uninstall SAP BTP Service Operator, follow the instruction in the [overarching documentation](../../README.md#uninstallation).
+To uninstall SAP BTP Service Operator, follow the instruction in the [overarching documentation](/README.md#uninstallation).
