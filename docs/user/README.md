@@ -4,7 +4,7 @@ title: BTP Operator module
 
 ## Overview
 
-Within the BTP Operator module, [BTP Manager](../../README.md) installs [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md).
+Within the BTP Operator module, [BTP Manager](/README.md) installs [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md).
 
 ### BTP Manager
 
@@ -18,7 +18,7 @@ SAP BTP Service Operator allows you to connect SAP BTP services to your cluster 
 
 BTP Manager provisions, updates, and deprovisions SAP BTP Service Operator along with its resources, ServiceInstances, and ServiceBindings. SAP BTP Service Operator manages SAP BTP services in your cluster.
 
-Read [BTP Manager operations](../contributor/02-10-operations.md) and the [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator) documentation to learn more.
+Read [BTP Manager operations](/docs/contributor/02-10-operations.md) and the [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator) documentation to learn more.
 
 ## Contact and support
 
@@ -27,4 +27,4 @@ For contact and support details, go to {link}.
 ## Read more
 
 This directory contains the end user documentation of the BTP Operator module.  
-For the module's usage details, read the [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md) document.
+For the module's usage details, read the [Use BTP Manager to manage SAP BTP Service Operator](/docs/user/02-10-usage.md) document.
