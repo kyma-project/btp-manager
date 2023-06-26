@@ -1,8 +1,5 @@
 # Use BTP Manager to manage SAP BTP Service Operator 
 
-## Install BTP Operator
-
-For instructions on how to install the BTP Operator module, see the [overarching documentation](../../README.md#installation).
 
 ## Create and install a Secret
 
