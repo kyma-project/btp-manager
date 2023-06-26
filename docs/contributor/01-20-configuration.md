@@ -1,6 +1,6 @@
 # Configuration
 
-You can configure the BTP Manager internal settings using CLI arguments or `ConfigMap`.
+You can configure BTP Manager using CLI arguments or `ConfigMap`.
 
 To configure the BTP Manager internal settings using CLI arguments, choose the parameters you need, and use them with corresponding custom values:
 ```

@@ -1,7 +1,7 @@
 # Use BTP Manager to manage SAP BTP Service Operator 
 
 
-## Create and install a Secret
+## Create and install Secret
 
 To create a real BTP Manager Secret, follow these steps:
 1. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2b and 2c of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
@@ -27,7 +27,7 @@ btpoperator          Ready
 
 ## Deploy an SAP BTP service in your Kyma cluster
 
-After successfully installing SAP BTP Service Operator, you can create a Service Instance and a Service Binding.
+After successfully installing your Secret, you can create a Service Instance and a Service Binding.
 
 > **NOTE:** This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
 
