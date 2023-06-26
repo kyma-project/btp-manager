@@ -5,7 +5,7 @@
 The BTP Manager release pipeline creates proper artifacts:
  - btp-operator module OCI image in the [registry](https://console.cloud.google.com/artifacts/docker/kyma-project/europe/prod/btp-manager)
  - btp-manager Docker image in the [registry](http://europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator)
- - `template.yaml`, `template_control_plane.yaml`, `rendered.yaml`
+ - `template.yaml`, `template_control_plane.yaml`, `btp-manager.yaml`, `btp-btp-operator-default-cr.yaml`
 
 ## Run the pipeline
 
@@ -60,7 +60,7 @@ To create a release, follow these steps:
    iii. click  **Run workflow** on the right  
    iv. provide a version, for example, 1.2.0  
    v. choose real or dummy credentials for Service Manager  
-2. The GitHub action, defined in the [`create-release.yaml`](../../.github/workflows/create-release.yaml) file, creates a GitHub tag and draft release with the provided name.
+2. The GitHub action, defined in the [`create-release.yaml`](/.github/workflows/create-release.yaml) file, creates a GitHub tag and draft release with the provided name.
 3. The GitHub action asynchronously initiates unit tests and E2E tests jobs. E2E upgrade tests run only with real credentials for Service Manager.
 4. The tag creation triggers Prow Jobs, `post-btp-manager-module-build` and `post-btp-manager-build`, defined in [btp-manager-build.yaml](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/btp-manager/btp-manager-build.yaml).
 5. `post-btp-manager-build` builds a Docker image tagged with the release name.

@@ -6,7 +6,7 @@ The goal of the workflow is to update the chart (`module-chart/chart`) to the ne
 
 - `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator), from the release tagged as `latest` and places it in the `module-chart/chart`. 
 	
-- `make-module-resources.sh` - uses Helm to render Kubernetes resources templates. As a base, it takes a chart from the `module-chart/chart` and values to [override](../../module-chart/overrides.yaml). After Helm finishes templating with the applied overrides, the generated resources are put into `module-resources/apply`. The resources used in the previous version but not used in the new version are placed under `module-resource/delete`.
+- `make-module-resources.sh` - uses Helm to render Kubernetes resources templates. As a base, it takes a chart from the `module-chart/chart` and values to [override](/module-chart/overrides.yaml). After Helm finishes templating with the applied overrides, the generated resources are put into `module-resources/apply`. The resources used in the previous version but not used in the new version are placed under `module-resource/delete`.
 During the process of iterating over the `sap-btp-service-operator` resources, the script also keeps track of the GVKs to generate RBAC rules in [`btpoperator_controller.go`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/controllers/btpoperator_controller.go#L135-L146) which feeds into RBAC `ClusterRole` in the [`role.yaml`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/config/rbac/role.yaml#L1) resource
 kept in sync with `make manifests` just like any standard [kubebuilder operator](https://book-v2.book.kubebuilder.io/reference/markers/rbac.html). The script excludes all resources with a Helm hook "pre-delete" as it is not necessary to apply it. Additionally, all excluded resources are added to the `module-resources/excluded` folder, where you can see what was excluded.
  
@@ -20,11 +20,11 @@ See [BTP Manager release pipeline](03-10-release.md) to learn more about the rel
 
 ## E2E tests workflow 
 
-This workflow is triggered by pull requests (PRs) on the `main` branch. It uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](../../.github/workflows/run-e2e-tests-reusable.yaml). 
+This workflow is triggered by pull requests (PRs) on the `main` branch. It uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](/.github/workflows/run-e2e-tests-reusable.yaml). 
 
 ## Unit tests workflow
 
-This workflow is triggered by PRs on the `main` branch. Then it calls the reusable [workflow](../../.github/workflows/run-unit-tests-reusable.yaml).
+This workflow is triggered by PRs on the `main` branch. Then it calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml).
 
 ## Reusable workflows
 
@@ -32,7 +32,7 @@ There are reusable workflows created. Anyone with access to a reusable workflow 
 
 ### E2E tests
 
-This [workflow](../../.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3s cluster. 
+This [workflow](/.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3s cluster. 
 You pass the following parameters from the calling workflow:
 
 | Parameter name  | Required | Description |
@@ -51,7 +51,7 @@ The workflow:
 
 ### Unit tests
 
-This [workflow](../../.github/workflows/run-unit-tests-reusable.yaml) runs the unit tests.
+This [workflow](/.github/workflows/run-unit-tests-reusable.yaml) runs the unit tests.
 No parameters are passed from the calling workflow (callee).
 
 The workflow:

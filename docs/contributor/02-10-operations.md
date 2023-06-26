@@ -24,9 +24,9 @@ the prerequisites yourself.
 
 ### Process
 
-![Provisioning diagram](../assets/provisioning.svg)
+![Provisioning diagram](/docs/assets/deprovisioning.svg)
 
-The provisioning process is part of a module reconciliation. To trigger the reconciliation, create a [BtpOperator CR](../../api/v1alpha1/btpoperator_types.go):
+The provisioning process is part of a module reconciliation. To trigger the reconciliation, create a [BtpOperator CR](/api/v1alpha1/btpoperator_types.go):
 
 ```shell
 cat <<EOF | kubectl apply -f -
@@ -53,21 +53,21 @@ key values should be empty. If some required data is missing, the reconciler thr
 missing keys/values, sets the CR in `Error` state (reason `InvalidSecret`), and stops the reconciliation until there is a change in the required
 Secret.
 
-After checking the Secret, the reconciler proceeds to apply and delete operations of the [module resources](../../module-resources).
-The `module-resources` directory is created by one of GitHub Actions and contains manifests for applying and deleting operations. See [workflows](04-01-workflows.md#auto-update-chart-and-resources) for more details.
-First, the reconciler deletes outdated module resources stored as manifests in [to-delete.yml](../../module-resources/delete/to-delete.yml).
-When all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in the [apply](../../module-resources/apply) directory to be applied to the cluster.
-Preparation of current resources consists of adding the `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, 
+After checking the Secret, the reconciler proceeds to apply and delete operations of the [module resources](/module-resources).
+The `module-resources` directory is created by one of GitHub Actions and contains manifests for applying and deleting operations. See [workflows](04-10-workflows.md#auto-update-chart-and-resources) for more details.
+First, the reconciler deletes outdated module resources stored as manifests in [to-delete.yml](/module-resources/delete/to-delete.yml).
+When all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in the [apply](/module-resources/apply) directory to be applied to the cluster.
+Preparation of the current resources consists of adding the `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, 
 setting `kyma-system` Namespace in all resources, setting module Secret and ConfigMap based on data read from the required Secret. 
 After preparing the resources, the reconciler starts applying them to the cluster and waits a specified time for all module resources existence in the cluster. 
 If the timeout is reached, the CR receives the `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed
-set of [timeouts](../../controllers/btpoperator_controller.go) defined as `consts` which limit the processing time
+set of [timeouts](/controllers/btpoperator_controller.go) defined as `consts` which limit the processing time
 for performed operations. The provisioning is successful when all module resources exist in the cluster. This is the
 condition which allows the reconciler to set the CR in `Ready` state.
 
 ## Deprovisioning
 
-![Deprovisioning diagram](../assets/deprovisioning.svg)
+![Deprovisioning diagram](/docs/assets/deprovisioning.svg)
 
 To start the deprovisioning process, use the following command:
 
@@ -89,7 +89,7 @@ After this time, or in case of an error, the process goes into soft delete mode,
 
 In order to delete finalizers the reconciler deletes module deployment and webhooks.
 Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager`
-label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../../module-resources).
+label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](/module-resources).
 If the process succeeds, the finalizer on BtpOperator CR itself is removed and the resource is deleted.
 If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`. 
 

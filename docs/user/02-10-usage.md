@@ -96,7 +96,7 @@ After successfully installing SAP BTP Service Operator, you can create a Service
     kubectl delete servicebindings.services.cloud.sap.com btp-audit-log-binding
     kubectl delete serviceinstances.services.cloud.sap.com btp-audit-log-instance
     ```
-
-## Uninstall SAP BTP Service Operator
-
-To uninstall SAP BTP Service Operator, follow the instruction in the [overarching documentation](../../README.md#uninstallation).
+    To remove the Secret, use the following command:
+    ```bash
+    kubectl delete -f hack/operator-secret.yaml
+    ```

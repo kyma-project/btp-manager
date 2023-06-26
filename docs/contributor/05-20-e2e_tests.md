@@ -54,7 +54,7 @@ The flows of the tests are similar. The upgrade tests contain extra steps for ch
 23. Uninstall BTP Manager.
 
 ### CI pipelines
-The Prow presubmit job, `pull-btp-manager-module-build`, creates the OCI module image. The [`create_module_image.sh`](../../scripts/create_module_image.sh) script does the actual execution.
+The Prow presubmit job, `pull-btp-manager-module-build`, creates the OCI module image. The [`create_module_image.sh`](/scripts/create_module_image.sh) script does the actual execution.
 This script sets appropriate environment variables and invokes `make module-build`. In effect, the module is built, and the OCI module image is pushed to the registry. 
 The registry URL and component name are predefined. 
 
@@ -62,8 +62,8 @@ The registry URL and component name are predefined.
 > For PR workflow runs, the module image tag has the form `0.0.0-PR-<PR number>` due to component description requirements imposed by the tooling used.
  
 The GitHub Actions workflows execute the two tests:
-- [`run-e2e-tests-reusable.yaml`](../../scripts/testing/run_e2e_module_tests.sh) 
--  [`run-e2e-upgrade-tests-reusable.yaml`](../../scripts/testing/run_e2e_module_upgrade_tests.sh) 
+- [`run-e2e-tests-reusable.yaml`](/scripts/testing/run_e2e_module_tests.sh) 
+-  [`run-e2e-upgrade-tests-reusable.yaml`](/scripts/testing/run_e2e_module_upgrade_tests.sh) 
 <br>
 
 The Kubernetes cluster is created, and the sources are checked out.
