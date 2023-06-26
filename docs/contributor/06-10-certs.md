@@ -1,6 +1,5 @@
 # Certification management
 
-
 ![Certification management diagram](/docs/assets/certs.svg)
 
 Certification reconciliation is triggered by one of the three events: scheduled reconciliation, editing [BtpOperator CR](/api/v1alpha1/btpoperator_types.go), or using custom watchers founded on Secret and Webhook resources.
