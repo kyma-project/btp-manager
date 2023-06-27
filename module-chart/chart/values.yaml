@@ -14,7 +14,7 @@ manager:
   management_namespace:
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.4.4
+    tag: v0.4.6
     sha: ""
   secret:
     b64encoded: false
@@ -87,3 +87,9 @@ manager:
     enabled: false
 cluster:
   id:
+externalImages:
+  kubectl:
+    image:
+      repository: bitnami/kubectl
+      sha: ""
+      tag: latest
