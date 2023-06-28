@@ -13,7 +13,7 @@ else
     exit 1
 fi
 
-FILE_OPERATIONS=../../docs/operations.md
+FILE_OPERATIONS=../../docs/contributor/02-10-operations.md
 if [ -f "$FILE_OPERATIONS" ]; then
     awk '/table_start/,/table_end/' < $FILE_OPERATIONS | grep "|"
 else
