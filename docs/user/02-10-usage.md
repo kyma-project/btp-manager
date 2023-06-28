@@ -1,13 +1,13 @@
 # Use BTP Manager to manage SAP BTP Service Operator 
 
-
 ## Create and install Secret
 
 To create a real BTP Manager Secret, follow these steps:
-1. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2b and 2c of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
-2. Save the access credentials into the `hack/creds.json` file.
-3. Call [`create-secret-file.sh`](../../hack/create-secret-file.sh). 
-4. Apply the Secret in your cluster. 
+1. Clone the `btp-manager` repository to your local file system.
+2. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
+3. Copy and save the access credentials into your `hack/creds.json` file in the cloned `btp-manager` repository.
+4. Call [`create-secret-file.sh`](../../hack/create-secret-file.sh). 
+5. Apply the Secret in your cluster. 
  
    ```sh
    ./hack/create-secret-file.sh
