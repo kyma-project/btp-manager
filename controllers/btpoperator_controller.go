@@ -440,7 +440,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	r.deleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info("applying module resources")
-	if err = r.applyResources(ctx, resourcesToApply); err != nil {
+	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("Failed to apply module resources: %w", err)
 	}
@@ -530,15 +530,27 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 	return nil
 }
 
-func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	for _, u := range us {
-		logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
-		if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-			return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+		preExistingResource := &unstructured.Unstructured{}
+		preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
+		if err := r.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, preExistingResource); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
+			}
+			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
+			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
+				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+			}
+		} else {
+			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
+			u.SetResourceVersion(preExistingResource.GetResourceVersion())
+			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
+				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
+			}
 		}
 	}
-
 	return nil
 }
 

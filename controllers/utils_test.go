@@ -58,6 +58,8 @@ const (
 	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
 	k8sOpsTimeout         = time.Second * 3
 	k8sOpsPollingInterval = time.Millisecond * 200
+	extraLabelKey         = "reconciler.kyma-project.io/managed-by"
+	extraLabelValue       = "reconciler"
 )
 
 // fake K8s clients with overridden behavior
@@ -187,19 +189,23 @@ func getUniqueGvksFromObjects(objs []runtime.Object) []schema.GroupVersionKind {
 	return gvks
 }
 
-func countResourcesForGivenChartVer(gvks []schema.GroupVersionKind, version string) (int, error) {
+func countResourcesWithGivenLabel(gvks []schema.GroupVersionKind, labelKey string, labelValue string) (int, error) {
 	var foundResources int
 	var ul *unstructured.UnstructuredList
 	for _, gvk := range gvks {
 		ul = &unstructured.UnstructuredList{}
 		ul.SetGroupVersionKind(gvk)
-		if err := k8sClient.List(ctx, ul, client.MatchingLabels{chartVersionKey: version}); err != nil {
+		if err := k8sClient.List(ctx, ul, client.MatchingLabels{labelKey: labelValue}); err != nil {
 			return 0, err
 		}
 		foundResources += len(ul.Items)
 	}
 
 	return foundResources, nil
+}
+
+func countResourcesForGivenChartVer(gvks []schema.GroupVersionKind, version string) (int, error) {
+	return countResourcesWithGivenLabel(gvks, chartVersionKey, version)
 }
 
 func copyDirRecursively(src, target string) {

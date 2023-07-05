@@ -50,12 +50,12 @@ you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in the [
 
 You can use labels by setting the **GINKGO_LABEL_FILTER** variable. For example, to run only the specs labeled as `smoke-test`:
 ```shell
-GINKGO_VERBOSE_FLAG="smoke-test" make test
+GINKGO_LABEL_FILTER="smoke-test" make test
 ```
 
 Here is another example of a simple expression:
 ```shell
-GINKGO_VERBOSE_FLAG="test-provisioning,test-deprovisioning" make test
+GINKGO_LABEL_FILTER="test-provisioning,test-deprovisioning" make test
 ```
 
 ### Environment variables
