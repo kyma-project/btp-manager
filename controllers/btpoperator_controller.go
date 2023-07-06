@@ -545,7 +545,9 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			}
 		} else {
 			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
-			u.SetResourceVersion(preExistingResource.GetResourceVersion())
+			if u.GetKind() == "CustomResourceDefinition" {
+				u.SetResourceVersion(preExistingResource.GetResourceVersion())
+			}
 			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
