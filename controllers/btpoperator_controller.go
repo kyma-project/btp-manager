@@ -545,12 +545,9 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			}
 		} else {
 			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
-			if u.GetKind() == "CustomResourceDefinition" {
-				if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-					return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
-				}
-			}
-			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
+			preExistingResource.SetAnnotations(u.GetAnnotations())
+			preExistingResource.SetLabels(u.GetLabels())
+			if err := r.Update(ctx, preExistingResource, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		}
