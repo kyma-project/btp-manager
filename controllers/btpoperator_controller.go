@@ -425,7 +425,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		logger.Error(err, "while creating applicable objects from manifests")
 		return fmt.Errorf("failed to create applicable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d module resources to apply", len(resourcesToApply)))
+	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
 	logger.Info("preparing module resources to apply")
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
@@ -439,16 +439,16 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 
 	r.deleteCreationTimestamp(resourcesToApply...)
 
-	logger.Info("applying module resources")
+	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
 	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
-		return fmt.Errorf("Failed to apply module resources: %w", err)
+		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
 	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
-		return fmt.Errorf("Timed out while waiting for resources readiness: %w", err)
+		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
 	}
 
 	return nil
@@ -539,15 +539,18 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			if !k8serrors.IsNotFound(err) {
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
+			logger.Info(fmt.Sprintf("reconciling (create by apply) %s - %s", u.GetKind(), u.GetName()))
 			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+				return fmt.Errorf("while applying patch %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
-			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
-			preExistingResource.SetAnnotations(u.GetAnnotations())
-			preExistingResource.SetLabels(u.GetLabels())
-			if err := r.Update(ctx, preExistingResource, client.FieldOwner(operatorName)); err != nil {
+			logger.Info(fmt.Sprintf("reconciling (update) %s - %s", u.GetKind(), u.GetName()))
+			if u.GetKind() == "CustomResourceDefinition" || u.GetKind() == "ValidatingWebhookConfiguration" || u.GetKind() == "MutatingWebhookConfiguration" {
+				if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
+					return fmt.Errorf("while applying patch %s %s: %w", u.GetName(), u.GetKind(), err)
+				}
+			}
+			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		}
@@ -1674,9 +1677,10 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 		return nil, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
 
+	logger.Info("adding secret with newly generated self signed cert to list of resources to apply")
 	err = r.appendCertificationDataToUnstructured(CaSecret, caCertificate, caPrivateKey, CaSecretDataPrefix, resourcesToApply)
 	if err != nil {
-		return nil, nil, fmt.Errorf("while adding newly generated self signed cert to resoruces to apply: %w", err)
+		return nil, nil, fmt.Errorf("while adding newly generated self signed cert to list of resources to apply: %w", err)
 	}
 
 	logger.Info("generation of self signed cert succeeded")
@@ -1691,9 +1695,10 @@ func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.
 	if err != nil {
 		return fmt.Errorf("while generating signed webhook certificate: %w", err)
 	}
+	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
 	err = r.appendCertificationDataToUnstructured(WebhookSecret, webhookCertificate, webhookPrivateKey, WebhookSecretDataPrefix, resourcesToApply)
 	if err != nil {
-		return fmt.Errorf("while adding newly generated signed webhook certificate to resoruces to apply: %w", err)
+		return fmt.Errorf("while adding newly generated signed webhook certificate to list of resources to apply: %w", err)
 	}
 	logger.Info("generation of signed webhook certificate success")
 	return nil

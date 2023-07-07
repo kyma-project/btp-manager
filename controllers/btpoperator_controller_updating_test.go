@@ -257,6 +257,8 @@ func addExtraLabelAsReconcilerAsFieldManager(objectsUnstructured []*unstructured
 		patch.SetNamespace(unstructuredObject.GetNamespace())
 		patch.SetName(unstructuredObject.GetName())
 
+		GinkgoWriter.Println("labeling with extra label: ", unstructuredObject.GetKind(), unstructuredObject.GetName())
+
 		labels := unstructuredObject.GetLabels()
 		if len(labels) == 0 {
 			labels = make(map[string]string)
