@@ -59,7 +59,7 @@ var _ = Describe("BTP Operator controller - certificates", func() {
 			ExpirationBoundary = opts.ExpirationBoundary
 		}
 
-		cr = createBtpOperator()
+		cr = createDefaultBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 		Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 	}

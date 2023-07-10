@@ -43,7 +43,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
 		actualWorkqueueSize = func() int { return reconciler.workqueueSize }
 
-		cr = createBtpOperator()
+		cr = createDefaultBtpOperator()
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 		Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 

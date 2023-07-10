@@ -34,6 +34,7 @@ const (
 	StoringChartDetailsFailed             Reason = "StoringChartDetailsFailed"
 	GettingConfigMapFailed                Reason = "GettingConfigMapFailed"
 	ProvisioningFailed                    Reason = "ProvisioningFailed"
+	LeaderCrRotation                      Reason = "LeaderCrRotation"
 )
 
 // gophers_reasons_section_end
@@ -73,6 +74,7 @@ var Reasons = map[Reason]Metadata{
 	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting Config Map failed
 	ProvisioningFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Provisioning failed
 	ServiceInstancesAndBindingsNotCleaned: {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
+	LeaderCrRotation:                      {Status: metav1.ConditionTrue, State: v1alpha1.StateProcessing},  //Processing;Selected new BtpOperator as a leading one
 }
 
 // gophers_metadata_section_end

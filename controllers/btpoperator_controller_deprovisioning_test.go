@@ -27,7 +27,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
-			cr = createBtpOperator()
+			cr = createDefaultBtpOperator()
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
@@ -71,7 +71,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			secret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
-			cr = createBtpOperator()
+			cr = createDefaultBtpOperator()
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
