@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-logr/logr"
+	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	"os"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -36,7 +37,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
-	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -129,6 +129,13 @@ var (
 	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
 )
 
+// Only for debug
+func TLog(format string, a ...any) {
+	fmt.Println("=========")
+	fmt.Printf(format, a...)
+	fmt.Println("=========")
+}
+
 type InstanceBindingSerivce interface {
 	DisableSISBController()
 	EnableSISBController()
@@ -181,11 +188,32 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	logger := log.FromContext(ctx)
 
-	cr := &v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
+	TLog("reconcile for: %s. workqueueSize = %d", req.Name, r.workqueueSize)
+
+	requestedCr := &v1alpha1.BtpOperator{}
+	if err := r.Get(ctx, req.NamespacedName, requestedCr); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("BtpOperator CR not found. Ignoring since object has been deleted.")
-			return ctrl.Result{}, nil
+			logger.Info(fmt.Sprintf("BtpOperator CR (%s) not found. Ignoring it since object has been deleted.", requestedCr.Name))
+			leftBtpOperators := &v1alpha1.BtpOperatorList{}
+			leftBtpOperatorsCount := len(leftBtpOperators.Items)
+			if err := r.Client.List(ctx, leftBtpOperators); err != nil {
+				//if err happens here, we know that CR is deleted, thus we cannot set status on it
+				return ctrl.Result{}, nil
+			}
+			//We assume that if no CR is now on cluster, then it will be created by LM
+			if leftBtpOperatorsCount == 0 {
+				return ctrl.Result{}, nil
+			}
+			for _, cr := range leftBtpOperators.Items {
+				//If there exists other CR in state different that error/warning we do nothing since this one is operable
+				if cr.Status.State != v1alpha1.StateError && cr.Status.State != v1alpha1.StateWarning {
+					return ctrl.Result{}, nil
+				}
+			}
+			logger.Info(fmt.Sprintf("Found %d which are still left.", leftBtpOperatorsCount))
+			oldestCr := r.getOldestCR(leftBtpOperators)
+			logger.Info(fmt.Sprintf("Selected BtpOperator %s as new leader.", oldestCr.GetName()))
+			return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.LeaderCrRotation, fmt.Sprintf("%s has taken over role of CR leader after %s", oldestCr.GetName(), requestedCr.GetName()))
 		}
 		logger.Error(err, "unable to get BtpOperator CR")
 		return ctrl.Result{}, err
@@ -199,36 +227,36 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if len(existingBtpOperators.Items) > 1 {
 		oldestCr := r.getOldestCR(existingBtpOperators)
-		if cr.GetUID() == oldestCr.GetUID() {
-			cr.Status.Conditions = nil
+		if requestedCr.GetUID() == oldestCr.GetUID() {
+			requestedCr.Status.Conditions = nil
 		} else {
-			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, cr)
+			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, requestedCr)
 		}
 	}
 
-	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
-		return ctrl.Result{}, r.Update(ctx, cr)
+	if ctrlutil.AddFinalizer(requestedCr, deletionFinalizer) {
+		return ctrl.Result{}, r.Update(ctx, requestedCr)
 	}
 
-	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != v1alpha1.StateDeleting {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
+	if !requestedCr.ObjectMeta.DeletionTimestamp.IsZero() && requestedCr.Status.State != v1alpha1.StateDeleting {
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, requestedCr, v1alpha1.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
 	}
 
-	switch cr.Status.State {
+	switch requestedCr.Status.State {
 	case "":
-		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
+		return ctrl.Result{}, r.HandleInitialState(ctx, requestedCr)
 	case v1alpha1.StateProcessing:
-		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, requestedCr)
 	case v1alpha1.StateError, v1alpha1.StateWarning:
-		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+		return ctrl.Result{}, r.HandleErrorState(ctx, requestedCr)
 	case v1alpha1.StateDeleting:
-		err := r.HandleDeletingState(ctx, cr)
-		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+		err := r.HandleDeletingState(ctx, requestedCr)
+		if requestedCr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
 		}
 		return ctrl.Result{}, err
 	case v1alpha1.StateReady:
-		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, requestedCr)
 	}
 
 	return ctrl.Result{}, nil
@@ -643,6 +671,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	logger.Info("Handling Deleting state")
 
 	if len(cr.GetFinalizers()) == 0 {
+		TLog("-1")
 		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
 		return nil
 	}
@@ -693,44 +722,55 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 
 func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
-
+	TLog("1")
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
+		TLog("1b")
 		return err
 	}
 
 	if !r.IsForceDelete(cr) {
+		TLog("2")
+
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
+			TLog("2a")
 			return err
 		}
 		numberOfInstances, err := r.numberOfResources(ctx, instanceGvk)
 		if err != nil {
+			TLog("2b")
 			return err
 		}
 
 		if numberOfBindings > 0 || numberOfInstances > 0 {
+			TLog("3")
 			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) blocks btp operator deletion.", numberOfInstances, numberOfBindings))
 			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
 			logger.Info(msg)
 
 			// if the reason is already set, do nothing
 			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+				TLog("4")
 				return nil
 			}
 
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 				v1alpha1.StateDeleting, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
+				TLog("5")
 				return updateStatusErr
 			}
 			return nil
 		}
 	}
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+		TLog("5")
+
 		// go to a state which starts deleting process
 		if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 			v1alpha1.StateDeleting, conditions.HardDeleting,
 			"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
+			TLog("6")
 			return updateStatusErr
 		}
 	}
@@ -744,34 +784,43 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	select {
 	case hardDeleteSucceeded := <-hardDeleteSucceededCh:
 		if hardDeleteSucceeded {
+			fmt.Printf("7")
 			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
 			if err := r.deleteBtpOperatorResources(ctx); err != nil {
+				TLog("8")
 				logger.Error(err, "failed to remove module resources")
 				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
+					TLog("9")
 					logger.Error(updateStatusErr, "failed to update status")
 					return updateStatusErr
 				}
 				return err
 			}
 		} else {
+			TLog("10")
 			logger.Info("Service Instances and Service Bindings hard delete failed")
 			if err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
 				logger.Error(err, "failed to update status")
+				TLog("11")
 				return err
 			}
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
+				TLog("12")
 				logger.Error(err, "failed to soft delete")
 				return err
 			}
 		}
 	case <-time.After(HardDeleteTimeout):
+		TLog("13")
 		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
 		hardDeleteTimeoutReachedCh <- true
 		if err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
+			TLog("14")
 			logger.Error(err, "failed to update status")
 			return err
 		}
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
+			TLog("15")
 			logger.Error(err, "failed to soft delete")
 			return err
 		}
@@ -781,6 +830,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 }
 
 func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh chan bool) {
+	TLog("del1")
 	logger := log.FromContext(ctx)
 	logger.Info("Deprovisioning BTP Operator - hard delete")
 	defer close(hardDeleteSucceededCh)
@@ -824,6 +874,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 	for {
 		select {
 		case <-hardDeleteTimeoutReachedCh:
+			TLog("del2")
 			return
 		default:
 		}
@@ -831,6 +882,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		if sbCrdExists {
 			sbResourcesLeft, err = r.resourcesExist(ctx, namespaces, bindingGvk)
 			if err != nil {
+				TLog("del3")
 				logger.Error(err, "ServiceBinding leftover resources check failed")
 				hardDeleteSucceededCh <- false
 				return
@@ -840,6 +892,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		if siCrdExists {
 			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
 			if err != nil {
+				TLog("del4")
 				logger.Error(err, "ServiceInstance leftover resources check failed")
 				hardDeleteSucceededCh <- false
 				return
@@ -847,6 +900,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		}
 
 		if !sbResourcesLeft && !siResourcesLeft {
+			TLog("del5")
 			hardDeleteSucceededCh <- true
 			return
 		}
@@ -877,6 +931,7 @@ func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.Group
 
 	for _, namespace := range namespaces.Items {
 		if err := r.DeleteAllOf(deleteCtx, object, client.InNamespace(namespace.Name)); err != nil {
+			TLog("del10")
 			return err
 		}
 	}
@@ -1177,21 +1232,26 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
+			TLog("CreateFunc")
 			return true
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
+			TLog("DeleteFunc")
 			return true
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
+			TLog("DeleteFunc")
 			newBtpOperator, ok := e.ObjectNew.(*v1alpha1.BtpOperator)
 			if !ok {
 				return false
 			}
 			state := newBtpOperator.GetStatus().State
 			if (state == v1alpha1.StateError || state == v1alpha1.StateWarning) && newBtpOperator.ObjectMeta.DeletionTimestamp.IsZero() {
+				TLog("UpdateFunc -> enqueue -> false. %s", newBtpOperator.Name)
 				return false
 			}
 
+			TLog("UpdateFunc -> enqueue -> true. %s", newBtpOperator.Name)
 			return true
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
@@ -1213,8 +1273,9 @@ func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
 	if len(btpOperators.Items) == 0 {
 		return nil
 	}
-	requests := make([]reconcile.Request, 0)
+	requests := make([]reconcile.Request, 1)
 	oldestCr := r.getOldestCR(btpOperators)
+	TLog("oldests is %s", oldestCr.GetName())
 	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
 
 	return requests

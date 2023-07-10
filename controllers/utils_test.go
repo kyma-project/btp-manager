@@ -261,7 +261,7 @@ func isCrNotFound() bool {
 	return k8serrors.IsNotFound(err)
 }
 
-func createBtpOperator() *v1alpha1.BtpOperator {
+func createBtpOperator(name string) *v1alpha1.BtpOperator {
 	return &v1alpha1.BtpOperator{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       btpOperatorKind,
@@ -272,6 +272,10 @@ func createBtpOperator() *v1alpha1.BtpOperator {
 			Namespace: defaultNamespace,
 		},
 	}
+}
+
+func createDefaultBtpOperator() *v1alpha1.BtpOperator {
+	return createBtpOperator(btpOperatorName)
 }
 
 func initConfig(data map[string]string) *corev1.ConfigMap {
@@ -764,4 +768,21 @@ func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.F
 			return false
 		},
 	}
+}
+
+func ExecCmd(name string, ignore bool, arg ...string) {
+	cmd := exec.Command(name, arg...)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println(name + "->" + fmt.Sprint(err) + ": " + stderr.String())
+		if !ignore {
+			os.Exit(1)
+		}
+		return
+	}
+	fmt.Println(name + "->" + out.String())
 }
