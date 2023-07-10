@@ -440,7 +440,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	r.deleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
-	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
+	if err = r.applyResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
@@ -530,7 +530,7 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 	return nil
 }
 
-func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	for _, u := range us {
 		preExistingResource := &unstructured.Unstructured{}
@@ -539,17 +539,13 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			if !k8serrors.IsNotFound(err) {
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			logger.Info(fmt.Sprintf("reconciling (create by apply) %s - %s", u.GetKind(), u.GetName()))
+			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
 			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-				return fmt.Errorf("while applying patch %s %s: %w", u.GetName(), u.GetKind(), err)
+				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
-			logger.Info(fmt.Sprintf("reconciling (update) %s - %s", u.GetKind(), u.GetName()))
-			if u.GetKind() == "CustomResourceDefinition" || u.GetKind() == "ValidatingWebhookConfiguration" || u.GetKind() == "MutatingWebhookConfiguration" {
-				if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-					return fmt.Errorf("while applying patch %s %s: %w", u.GetName(), u.GetKind(), err)
-				}
-			}
+			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
+			u.SetResourceVersion(preExistingResource.GetResourceVersion())
 			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
