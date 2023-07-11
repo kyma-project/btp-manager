@@ -195,18 +195,24 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if k8serrors.IsNotFound(err) {
 			logger.Info(fmt.Sprintf("BtpOperator CR (%s) not found. Ignoring it since object has been deleted.", requestedCr.Name))
 			leftBtpOperators := &v1alpha1.BtpOperatorList{}
-			leftBtpOperatorsCount := len(leftBtpOperators.Items)
-			if err := r.Client.List(ctx, leftBtpOperators); err != nil {
+			//should we search across all namespaces?
+			if err := r.Client.List(ctx, leftBtpOperators, client.InNamespace(requestedCr.Namespace)); err != nil {
 				//if err happens here, we know that CR is deleted, thus we cannot set status on it
+				TLog("err from List")
 				return ctrl.Result{}, nil
 			}
+			leftBtpOperatorsCount := len(leftBtpOperators.Items)
+
 			//We assume that if no CR is now on cluster, then it will be created by LM
 			if leftBtpOperatorsCount == 0 {
+				TLog("leftBtpOperatorsCount is 0")
 				return ctrl.Result{}, nil
 			}
 			for _, cr := range leftBtpOperators.Items {
-				//If there exists other CR in state different that error/warning we do nothing since this one is operable
+				//If there exists other CR in state different that error/warning we do nothing since this found one is doing something
+				//To fix:
 				if cr.Status.State != v1alpha1.StateError && cr.Status.State != v1alpha1.StateWarning {
+					TLog("state %s", cr.Name)
 					return ctrl.Result{}, nil
 				}
 			}

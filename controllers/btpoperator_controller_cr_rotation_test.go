@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	firstBtpOperator  = "firstBtpOperator"
-	secondBtpOperator = "secondBtpOperator"
+	firstBtpOperator  = "f"
+	secondBtpOperator = "s"
 )
 
 var _ = Describe("BTP Operator CR leader replacement", Label("debug"), func() {
@@ -76,12 +76,12 @@ var _ = Describe("BTP Operator CR leader replacement", Label("debug"), func() {
 		err = k8sClient.List(ctx, btpOperators)
 		Expect(err).To(BeNil())
 		TLog("there is %d CR:", len(btpOperators.Items))
+		Expect(len(btpOperators.Items)).To(BeEquivalentTo(1))
 
 		TLog("%s -> %s , %s , %s", btpOperators.Items[0].Name, btpOperators.Items[0].Status.State, btpOperators.Items[0].Status.Conditions[0].Reason, btpOperators.Items[0].Status.Conditions[0].Message)
 		Expect(btpOperators.Items[0].Name).To(BeEquivalentTo(secondBtpOperator))
 		Expect(btpOperators.Items[0].Status.State).To(BeEquivalentTo(v1alpha1.StateReady))
 		Expect(btpOperators.Items[0].Status.Conditions[0].Reason).To(BeEquivalentTo(conditions.ReconcileSucceeded))
-		Expect(len(btpOperators.Items)).To(BeEquivalentTo(1))
 
 	})
 })

@@ -268,7 +268,7 @@ func createBtpOperator(name string) *v1alpha1.BtpOperator {
 			APIVersion: btpOperatorApiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      btpOperatorName,
+			Name:      name,
 			Namespace: defaultNamespace,
 		},
 	}
