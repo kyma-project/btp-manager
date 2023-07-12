@@ -769,20 +769,3 @@ func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.F
 		},
 	}
 }
-
-func ExecCmd(name string, ignore bool, arg ...string) {
-	cmd := exec.Command(name, arg...)
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		fmt.Println(name + "->" + fmt.Sprint(err) + ": " + stderr.String())
-		if !ignore {
-			os.Exit(1)
-		}
-		return
-	}
-	fmt.Println(name + "->" + out.String())
-}

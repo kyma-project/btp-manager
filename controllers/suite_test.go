@@ -119,14 +119,6 @@ var _ = SynchronizedBeforeSuite(func() {
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, defaultChartPath)).To(Succeed())
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, defaultResourcesPath)).To(Succeed())
 }, func() {
-	ExecCmd("k3d", true, "cluster", "delete", "t1")
-	ExecCmd("k3d", false, "cluster", "create", "t1")
-	ExecCmd("kubectl", false, "config", "use-context", "k3d-t1")
-	ExecCmd("make", false, "-C", "../", "install")
-	defer func() {
-		ExecCmd("k3d", true, "cluster", "delete", "btp-manager-tests")
-	}()
-
 	// runs on all processes
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
 		o.Development = true
