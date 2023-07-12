@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	firstBtpOperator  = "f"
-	secondBtpOperator = "s"
+	firstBtpOperator  = "first"
+	secondBtpOperator = "second"
 )
 
 var _ = Describe("BTP Operator CR leader replacement", Label("debug"), func() {
@@ -65,11 +65,13 @@ var _ = Describe("BTP Operator CR leader replacement", Label("debug"), func() {
 
 				Expect(k8sClient.List(ctx, btpOperators)).To(Succeed())
 				Expect(len(btpOperators.Items)).To(BeEquivalentTo(1))
-
 				Expect(btpOperators.Items[0].Name).To(BeEquivalentTo(secondBtpOperator))
-				Expect(btpOperators.Items[0].Status.State).To(BeEquivalentTo(v1alpha1.StateReady))
-				Expect(btpOperators.Items[0].Status.Conditions[0].Reason).To(BeEquivalentTo(conditions.ReconcileSucceeded))
 
+				Eventually(func() (bool, error) {
+					err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: secondBtpOperator}, btpOperator2)
+					return btpOperator2.Status.State == v1alpha1.StateReady, err
+				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
+				Expect(btpOperator2.Status.Conditions[0].Reason).To(BeEquivalentTo(conditions.ReconcileSucceeded))
 			})
 		})
 	})
