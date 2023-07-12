@@ -229,11 +229,13 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 			GinkgoWriter.Println("objects to label: ", len(objectsUnstructured))
 
-			addExtraLabelAsReconcilerAsFieldManager(objectsUnstructured)
+			addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured)
 
 			initialNumberOfResourcesWithExtraLabel, err := countResourcesWithGivenLabel(gvks, extraLabelKey, extraLabelValue)
 			Expect(err).To(BeNil())
 			Expect(initialNumberOfResourcesWithExtraLabel).To(Equal(len(objectsUnstructured)))
+
+			GinkgoWriter.Println("labeled objects: ", len(objectsUnstructured))
 
 			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
@@ -250,14 +252,12 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 })
 
-func addExtraLabelAsReconcilerAsFieldManager(objectsUnstructured []*unstructured.Unstructured) {
+func addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured []*unstructured.Unstructured) {
 	for _, unstructuredObject := range objectsUnstructured {
 		patch := &unstructured.Unstructured{}
 		patch.SetGroupVersionKind(unstructuredObject.GroupVersionKind())
 		patch.SetNamespace(unstructuredObject.GetNamespace())
 		patch.SetName(unstructuredObject.GetName())
-
-		GinkgoWriter.Println("labeling with extra label: ", unstructuredObject.GetKind(), unstructuredObject.GetName())
 
 		labels := unstructuredObject.GetLabels()
 		if len(labels) == 0 {

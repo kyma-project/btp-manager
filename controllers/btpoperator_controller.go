@@ -440,7 +440,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	r.deleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
-	if err = r.applyResources(ctx, resourcesToApply); err != nil {
+	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
@@ -530,7 +530,7 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 	return nil
 }
 
-func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	for _, u := range us {
 		preExistingResource := &unstructured.Unstructured{}
@@ -545,8 +545,13 @@ func (r *BtpOperatorReconciler) applyResources(ctx context.Context, us []*unstru
 			}
 		} else {
 			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
-			u.SetResourceVersion(preExistingResource.GetResourceVersion())
-			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
+			//u.SetResourceVersion(preExistingResource.GetResourceVersion())
+			preExistingResource.SetAnnotations(u.GetAnnotations())
+			preExistingResource.SetLabels(u.GetLabels())
+			if u.GetKind() == "MutatingWebhookConfiguration" || u.GetKind() == "ValidatingWebhookConfiguration" {
+				logger.Info(fmt.Sprintf("applying %s - %s\n%v\n", u.GetKind(), u.GetName(), preExistingResource))
+			}
+			if err := r.Update(ctx, preExistingResource, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		}
@@ -1596,6 +1601,8 @@ func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx contex
 func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectSigned(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
 	signOk, err := r.isWebhookSecretCertSignedByCaSecretCert(ctx)
+	logger.Info("checking if webhook is signed by correct CA")
+
 	if err != nil {
 		logger.Error(err, "while checking if webhook is signed by correct CA")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
@@ -1817,12 +1824,17 @@ func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, webhook *u
 }
 
 func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
+	//logger := log.FromContext(ctx)
+	//logger.Info("CA bundle replaced with success")
+
 	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
+	//logger.Info("CASecret", CaSecret)
 	if err != nil {
 		return false, err
 	}
 
 	webhookCertificate, err := r.getCertificateFromSecret(ctx, WebhookSecret)
+	//logger.Info("WebhookSecret", CaSecret)
 	if err != nil {
 		return false, err
 	}

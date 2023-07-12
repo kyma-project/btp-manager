@@ -85,7 +85,7 @@ var _ = Describe("BTP Operator controller - certificates", func() {
 	}
 
 	ensureReconciliationQueueIsEmpty := func() {
-		Eventually(func() int { return reconciler.workqueueSize }).WithTimeout(time.Second * 15).WithPolling(time.Millisecond * 100).Should(Equal(0))
+		Eventually(func() int { return reconciler.workqueueSize }).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 	}
 
 	ensureCorrectState := func() {
@@ -249,7 +249,7 @@ var _ = Describe("BTP Operator controller - certificates", func() {
 			certAfterEach()
 		})
 
-		When("webhook certificate expires", Label("test-certs"), func() {
+		When("webhook certificate expires", func() {
 			BeforeEach(func() {
 				timeOpts := &certificationsTimeOpts{
 					CaCertificateExpiration: CaCertificateExpiration,
