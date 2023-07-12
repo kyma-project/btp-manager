@@ -545,13 +545,8 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			}
 		} else {
 			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
-			//u.SetResourceVersion(preExistingResource.GetResourceVersion())
-			preExistingResource.SetAnnotations(u.GetAnnotations())
-			preExistingResource.SetLabels(u.GetLabels())
-			if u.GetKind() == "MutatingWebhookConfiguration" || u.GetKind() == "ValidatingWebhookConfiguration" {
-				logger.Info(fmt.Sprintf("applying %s - %s\n%v\n", u.GetKind(), u.GetName(), preExistingResource))
-			}
-			if err := r.Update(ctx, preExistingResource, client.FieldOwner(operatorName)); err != nil {
+			u.SetResourceVersion(preExistingResource.GetResourceVersion())
+			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		}
