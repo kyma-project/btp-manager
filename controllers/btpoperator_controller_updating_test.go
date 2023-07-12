@@ -32,6 +32,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 	var gvks []schema.GroupVersionKind
 	var initResourcesNum int
 	var actualWorkqueueSize func() int
+	var actualObjectsWithExtraLabelCount func() int
 	var err error
 
 	BeforeEach(func() {
@@ -219,7 +220,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		})
 	})
 
-	When("update all resources removing extra labels", Label("test-label-update"), func() {
+	When("update all resources removing extra labels", func() {
 		It("resources should not have extra labels after reconciliation", func() {
 
 			objectsToBeApplied, err := manifestHandler.CollectObjectsFromDir(getApplyPath())
@@ -231,11 +232,12 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 			addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured)
 
-			initialNumberOfResourcesWithExtraLabel, err := countResourcesWithGivenLabel(gvks, extraLabelKey, extraLabelValue)
-			Expect(err).To(BeNil())
-			Expect(initialNumberOfResourcesWithExtraLabel).To(Equal(len(objectsUnstructured)))
+			actualObjectsWithExtraLabelCount = func() int {
+				initialNumberOfResourcesWithExtraLabel, _ := countResourcesWithGivenLabel(gvks, extraLabelKey, extraLabelValue)
+				return initialNumberOfResourcesWithExtraLabel
+			}
 
-			GinkgoWriter.Println("labeled objects: ", len(objectsUnstructured))
+			Eventually(actualObjectsWithExtraLabelCount).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(len(objectsUnstructured)))
 
 			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
