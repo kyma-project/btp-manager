@@ -183,7 +183,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	reconcileCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info(fmt.Sprintf("%s BtpOperator CR not found. Ignoring it since object has been deleted.", reconcileCr.Name))
+			logger.Info(fmt.Sprintf("%s BtpOperator CR not found. Ignoring it since object has been deleted.", req.Name))
 			existingBtpOperators := &v1alpha1.BtpOperatorList{}
 			if err := r.List(ctx, existingBtpOperators); err != nil {
 				logger.Error(err, "unable to get existing BtpOperator CRs")
@@ -722,7 +722,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 
 		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) blocks btp operator deletion.", numberOfInstances, numberOfBindings))
+			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) block BTP Operator deletion.", numberOfInstances, numberOfBindings))
 			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
 			logger.Info(msg)
 
