@@ -246,9 +246,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			}})
 			Expect(err).To(BeNil())
 
-			eventualNumberOfResourcesWithExtraLabel, err := countResourcesWithGivenLabel(gvks, extraLabelKey, extraLabelValue)
-			Expect(err).To(BeNil())
-			Expect(eventualNumberOfResourcesWithExtraLabel).To(Equal(0))
+			Eventually(actualObjectsWithExtraLabelCount).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 		})
 	})
 
