@@ -189,15 +189,11 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				logger.Error(err, "unable to get existing BtpOperator CRs")
 				return ctrl.Result{}, nil
 			}
-
 			if len(existingBtpOperators.Items) == 0 {
 				return ctrl.Result{}, nil
 			}
 
-			logger.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
-			oldestCr := r.getOldestCR(existingBtpOperators)
-			logger.Info(fmt.Sprintf("%s BtpOperator is the new leader", oldestCr.GetName()))
-			return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing, fmt.Sprintf("%s is the new leader after %s deletion", oldestCr.GetName(), reconcileCr.GetName()))
+			return r.setNewLeader(ctx, existingBtpOperators, reconcileCr)
 		}
 		logger.Error(err, "unable to get BtpOperator CR")
 		return ctrl.Result{}, err
@@ -243,6 +239,28 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, reconcileCr)
 	}
 
+	return ctrl.Result{}, nil
+}
+
+func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOperators *v1alpha1.BtpOperatorList, reconcileCr *v1alpha1.BtpOperator) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
+	oldestCr := r.getOldestCR(existingBtpOperators)
+	if err := r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing,
+		fmt.Sprintf("%s is the new leader after %s deletion", oldestCr.GetName(), reconcileCr.GetName())); err != nil {
+		logger.Error(err, fmt.Sprintf("unable to set %s BtpOperator CR as the new leader", oldestCr.GetName()))
+		return ctrl.Result{}, err
+	}
+	logger.Info(fmt.Sprintf("%s BtpOperator is the new leader", oldestCr.GetName()))
+	for _, cr := range existingBtpOperators.Items {
+		if cr.GetUID() == oldestCr.GetUID() {
+			continue
+		}
+		redundantCR := cr.DeepCopy()
+		if err := r.HandleRedundantCR(ctx, oldestCr, redundantCR); err != nil {
+			logger.Info(fmt.Sprintf("unable to update %s BtpOperator CR Status", redundantCR.GetName()))
+		}
+	}
 	return ctrl.Result{}, nil
 }
 
