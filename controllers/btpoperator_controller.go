@@ -433,7 +433,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
 
-	if err := r.reconcileCertificates(ctx, &resourcesToApply); err != nil {
+	if err := r.prepareCertificatesReconciliationData(ctx, &resourcesToApply); err != nil {
 		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
 	}
 
@@ -1411,10 +1411,11 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 	return cr.Labels[forceDeleteLabelKey] == "true"
 }
 
-// *[]*unstructured.Unstructured is required for changing the length of slice in certificates regeneration
-func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+// *[]*unstructured.Unstructured is required because we extend the slice during certificates regeneration adding secrets and webhook configurations,
+// so the result of the function execution is in resourcesToApply slice
+func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
-	logger.Info("certificates reconciliation started")
+	logger.Info("preparation of certificates reconciliation data started")
 
 	certificatesRegenerationDone, err := r.ensureCertificatesExists(ctx, resourcesToApply)
 	if err != nil {
@@ -1456,7 +1457,7 @@ func (r *BtpOperatorReconciler) reconcileCertificates(ctx context.Context, resou
 		return nil
 	}
 
-	if err := r.reconcileWebhooksConfigurations(ctx, resourcesToApply, nil); err != nil {
+	if err := r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, nil); err != nil {
 		return err
 	}
 
@@ -1643,7 +1644,7 @@ func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Conte
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
 	}
 
-	if err := r.reconcileWebhooksConfigurations(ctx, resourcesToApply, caCertificate); err != nil {
+	if err := r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, caCertificate); err != nil {
 		return fmt.Errorf("error while reconciling webhooks. %w", err)
 	}
 
@@ -1659,7 +1660,7 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in partial regeneration proccess. %w", err)
 	}
-	if err := r.reconcileWebhooksConfigurations(ctx, resourceToApply, nil); err != nil {
+	if err := r.prepareWebhooksConfigurationsReconciliationData(ctx, resourceToApply, nil); err != nil {
 		return err
 	}
 	logger.Info("partial regeneration succeeded")
@@ -1748,7 +1749,7 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []by
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileWebhooksConfigurations(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
+func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
 	logger := log.FromContext(ctx)
 	logger.Info("starting reconciliation of webhooks")
 	if expectedCa == nil {
@@ -1766,7 +1767,7 @@ func (r *BtpOperatorReconciler) reconcileWebhooksConfigurations(ctx context.Cont
 	for _, resource := range *resourcesToApply {
 		kind := resource.GetKind()
 		if kind == MutatingWebhookConfiguration || kind == ValidatingWebhookConfiguration {
-			err := r.reconcileWebhook(ctx, resource, expectedCa)
+			err := r.prepareWebhookReconciliationData(ctx, resource, expectedCa)
 			if err != nil {
 				return err
 			}
@@ -1777,7 +1778,7 @@ func (r *BtpOperatorReconciler) reconcileWebhooksConfigurations(ctx context.Cont
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileWebhook(ctx context.Context, webhook *unstructured.Unstructured, expectedCa []byte) error {
+func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Context, webhook *unstructured.Unstructured, expectedCa []byte) error {
 	const (
 		WebhooksKey     = "webhooks"
 		ClientConfigKey = "clientConfig"
