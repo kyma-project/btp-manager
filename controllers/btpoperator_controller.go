@@ -189,11 +189,11 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				logger.Error(err, "unable to get existing BtpOperator CRs")
 				return ctrl.Result{}, nil
 			}
-			if len(existingBtpOperators.Items) == 0 {
-				return ctrl.Result{}, nil
+			if len(existingBtpOperators.Items) > 0 {
+				return r.setNewLeader(ctx, existingBtpOperators)
 			}
 
-			return r.setNewLeader(ctx, existingBtpOperators, reconcileCr)
+			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "unable to get BtpOperator CR")
 		return ctrl.Result{}, err
@@ -242,14 +242,16 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOperators *v1alpha1.BtpOperatorList, reconcileCr *v1alpha1.BtpOperator) (ctrl.Result, error) {
+func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOperators *v1alpha1.BtpOperatorList) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	logger.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
 	oldestCr := r.getOldestCR(existingBtpOperators)
-	if err := r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing,
-		fmt.Sprintf("%s is the new leader after %s deletion", oldestCr.GetName(), reconcileCr.GetName())); err != nil {
-		logger.Error(err, fmt.Sprintf("unable to set %s BtpOperator CR as the new leader", oldestCr.GetName()))
-		return ctrl.Result{}, err
+	if oldestCr.GetStatus().State == v1alpha1.StateError && oldestCr.IsReasonStringEqual(string(conditions.OlderCRExists)) {
+		if err := r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing,
+			fmt.Sprintf("%s is the new leader", oldestCr.GetName())); err != nil {
+			logger.Error(err, fmt.Sprintf("unable to set %s BtpOperator CR as the new leader", oldestCr.GetName()))
+			return ctrl.Result{}, err
+		}
 	}
 	logger.Info(fmt.Sprintf("%s BtpOperator is the new leader", oldestCr.GetName()))
 	for _, cr := range existingBtpOperators.Items {
