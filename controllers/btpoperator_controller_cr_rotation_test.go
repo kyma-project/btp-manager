@@ -117,6 +117,8 @@ var _ = Describe("BTP Operator CR leader replacement", Label("debug"), func() {
 				sbUnstructured := createResource(bindingGvk, kymaNamespace, bindingName)
 				ensureResourceExists(bindingGvk)
 
+				// required for later CreationTimestamp than btpOperator1
+				time.Sleep(1 * time.Second)
 				btpOperator2 := createBtpOperator(secondBtpOperator)
 				Eventually(func() error { return k8sClient.Create(ctx, btpOperator2) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateError)))
