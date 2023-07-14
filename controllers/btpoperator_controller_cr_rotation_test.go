@@ -36,12 +36,11 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 			for _, cr := range btpOperators.Items {
 				btpOp := cr.DeepCopy()
 				Expect(k8sClient.Delete(ctx, btpOp)).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchDeleted()))
 			}
-			Eventually(func() (bool, error) {
-				err := k8sClient.List(ctx, btpOperators)
-				return len(btpOperators.Items) == 0, err
-			}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 		}
+		Expect(k8sClient.List(ctx, btpOperators)).To(Succeed())
+		Expect(len(btpOperators.Items)).To(BeEquivalentTo(0))
 		deleteSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
 		Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
