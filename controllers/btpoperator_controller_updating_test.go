@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os"
 	"time"
 
@@ -31,6 +32,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 	var gvks []schema.GroupVersionKind
 	var initResourcesNum int
 	var actualWorkqueueSize func() int
+	var actualObjectsWithExtraLabelCount func() int
 	var err error
 
 	BeforeEach(func() {
@@ -217,4 +219,52 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(actualNumOfResourcesWithNewChartVer).To(Equal(initResourcesNum))
 		})
 	})
+
+	When("update all resources removing extra labels", func() {
+		It("resources should not have extra labels after reconciliation", func() {
+
+			objectsToBeApplied, err := manifestHandler.CollectObjectsFromDir(getApplyPath())
+			Expect(err).To(BeNil())
+			objectsUnstructured, err := manifestHandler.ObjectsToUnstructured(objectsToBeApplied)
+			Expect(err).To(BeNil())
+
+			GinkgoWriter.Println("objects to label: ", len(objectsUnstructured))
+
+			addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured)
+
+			actualObjectsWithExtraLabelCount = func() int {
+				initialNumberOfResourcesWithExtraLabel, _ := countResourcesWithGivenLabel(gvks, extraLabelKey, extraLabelValue)
+				return initialNumberOfResourcesWithExtraLabel
+			}
+
+			Eventually(actualObjectsWithExtraLabelCount).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(len(objectsUnstructured)))
+
+			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+				Namespace: cr.Namespace,
+				Name:      cr.Name,
+			}})
+			Expect(err).To(BeNil())
+
+			Eventually(actualObjectsWithExtraLabelCount).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+		})
+	})
+
 })
+
+func addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured []*unstructured.Unstructured) {
+	for _, unstructuredObject := range objectsUnstructured {
+		patch := &unstructured.Unstructured{}
+		patch.SetGroupVersionKind(unstructuredObject.GroupVersionKind())
+		patch.SetNamespace(unstructuredObject.GetNamespace())
+		patch.SetName(unstructuredObject.GetName())
+
+		labels := unstructuredObject.GetLabels()
+		if len(labels) == 0 {
+			labels = make(map[string]string)
+		}
+		labels[extraLabelKey] = extraLabelValue
+		patch.SetLabels(labels)
+		Expect(k8sClient.Patch(ctx, patch, client.Apply, client.FieldOwner("reconciler"))).To(Succeed())
+	}
+}
