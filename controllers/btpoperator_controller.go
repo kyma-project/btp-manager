@@ -72,6 +72,8 @@ var (
 	HardDeleteTimeout              = time.Minute * 20
 	HardDeleteCheckInterval        = time.Second * 10
 	DeleteRequestTimeout           = time.Minute * 5
+	StatusUpdateTimeout            = time.Second * 10
+	StatusUpdateCheckInterval      = time.Millisecond * 500
 	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
 )
