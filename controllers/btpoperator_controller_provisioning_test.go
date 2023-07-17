@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	. "github.com/onsi/ginkgo/v2"
@@ -18,7 +19,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 	BeforeEach(func() {
 		GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 		ctx = context.Background()
-		cr = createBtpOperator()
+		cr = createDefaultBtpOperator()
 		cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 		Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 	})

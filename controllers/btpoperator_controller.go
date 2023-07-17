@@ -22,18 +22,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/go-logr/logr"
 	"os"
 	"reflect"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal/conditions"
-
+	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
@@ -58,6 +56,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -181,10 +180,19 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	logger := log.FromContext(ctx)
 
-	cr := &v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
+	reconcileCr := &v1alpha1.BtpOperator{}
+	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("BtpOperator CR not found. Ignoring since object has been deleted.")
+			logger.Info(fmt.Sprintf("%s BtpOperator CR not found. Ignoring it since object has been deleted.", req.Name))
+			existingBtpOperators := &v1alpha1.BtpOperatorList{}
+			if err := r.List(ctx, existingBtpOperators); err != nil {
+				logger.Error(err, "unable to get existing BtpOperator CRs")
+				return ctrl.Result{}, nil
+			}
+			if len(existingBtpOperators.Items) > 0 {
+				return r.setNewLeader(ctx, existingBtpOperators)
+			}
+
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "unable to get BtpOperator CR")
@@ -199,38 +207,62 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if len(existingBtpOperators.Items) > 1 {
 		oldestCr := r.getOldestCR(existingBtpOperators)
-		if cr.GetUID() == oldestCr.GetUID() {
-			cr.Status.Conditions = nil
+		if reconcileCr.GetUID() == oldestCr.GetUID() {
+			reconcileCr.Status.Conditions = nil
 		} else {
-			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, cr)
+			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, reconcileCr)
 		}
 	}
 
-	if ctrlutil.AddFinalizer(cr, deletionFinalizer) {
-		return ctrl.Result{}, r.Update(ctx, cr)
+	if ctrlutil.AddFinalizer(reconcileCr, deletionFinalizer) {
+		return ctrl.Result{}, r.Update(ctx, reconcileCr)
 	}
 
-	if !cr.ObjectMeta.DeletionTimestamp.IsZero() && cr.Status.State != v1alpha1.StateDeleting {
-		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
+	if !reconcileCr.ObjectMeta.DeletionTimestamp.IsZero() && reconcileCr.Status.State != v1alpha1.StateDeleting {
+		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, reconcileCr, v1alpha1.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
 	}
 
-	switch cr.Status.State {
+	switch reconcileCr.Status.State {
 	case "":
-		return ctrl.Result{}, r.HandleInitialState(ctx, cr)
+		return ctrl.Result{}, r.HandleInitialState(ctx, reconcileCr)
 	case v1alpha1.StateProcessing:
-		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, reconcileCr)
 	case v1alpha1.StateError, v1alpha1.StateWarning:
-		return ctrl.Result{}, r.HandleErrorState(ctx, cr)
+		return ctrl.Result{}, r.HandleErrorState(ctx, reconcileCr)
 	case v1alpha1.StateDeleting:
-		err := r.HandleDeletingState(ctx, cr)
-		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+		err := r.HandleDeletingState(ctx, reconcileCr)
+		if reconcileCr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
 		}
 		return ctrl.Result{}, err
 	case v1alpha1.StateReady:
-		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, cr)
+		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, reconcileCr)
 	}
 
+	return ctrl.Result{}, nil
+}
+
+func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOperators *v1alpha1.BtpOperatorList) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
+	oldestCr := r.getOldestCR(existingBtpOperators)
+	if oldestCr.GetStatus().State == v1alpha1.StateError && oldestCr.IsReasonStringEqual(string(conditions.OlderCRExists)) {
+		if err := r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing,
+			fmt.Sprintf("%s is the new leader", oldestCr.GetName())); err != nil {
+			logger.Error(err, fmt.Sprintf("unable to set %s BtpOperator CR as the new leader", oldestCr.GetName()))
+			return ctrl.Result{}, err
+		}
+	}
+	logger.Info(fmt.Sprintf("%s BtpOperator is the new leader", oldestCr.GetName()))
+	for _, cr := range existingBtpOperators.Items {
+		if cr.GetUID() == oldestCr.GetUID() {
+			continue
+		}
+		redundantCR := cr.DeepCopy()
+		if err := r.HandleRedundantCR(ctx, oldestCr, redundantCR); err != nil {
+			logger.Info(fmt.Sprintf("unable to update %s BtpOperator CR Status", redundantCR.GetName()))
+		}
+	}
 	return ctrl.Result{}, nil
 }
 
@@ -710,7 +742,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 
 		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) blocks btp operator deletion.", numberOfInstances, numberOfBindings))
+			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) block BTP Operator deletion.", numberOfInstances, numberOfBindings))
 			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
 			logger.Info(msg)
 

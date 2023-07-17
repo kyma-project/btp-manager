@@ -57,7 +57,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 			It("BTP Operator should be removed", func() {
 				// GIVEN
 				//  - create BTP operator
-				btpOperatorResource := createBtpOperator()
+				btpOperatorResource := createDefaultBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
@@ -81,7 +81,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 			It("BTP Operator should be removed", func() {
 				// GIVEN
 				//  - create BTP operator
-				btpOperatorResource := createBtpOperator()
+				btpOperatorResource := createDefaultBtpOperator()
 				Expect(k8sClient.Create(ctx, btpOperatorResource)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 				//  - create Service Binding

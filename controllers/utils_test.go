@@ -261,17 +261,21 @@ func isCrNotFound() bool {
 	return k8serrors.IsNotFound(err)
 }
 
-func createBtpOperator() *v1alpha1.BtpOperator {
+func createBtpOperator(name string) *v1alpha1.BtpOperator {
 	return &v1alpha1.BtpOperator{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       btpOperatorKind,
 			APIVersion: btpOperatorApiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      btpOperatorName,
+			Name:      name,
 			Namespace: defaultNamespace,
 		},
 	}
+}
+
+func createDefaultBtpOperator() *v1alpha1.BtpOperator {
+	return createBtpOperator(btpOperatorName)
 }
 
 func initConfig(data map[string]string) *corev1.ConfigMap {
