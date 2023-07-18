@@ -288,44 +288,36 @@ func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr 
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState v1alpha1.State, reason conditions.Reason, message string) error {
 	logger := log.FromContext(ctx)
-	currentCr := &v1alpha1.BtpOperator{}
 	timeout := time.Now().Add(StatusUpdateTimeout)
 
-	if err := r.Get(ctx, client.ObjectKeyFromObject(cr), currentCr); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil
-		}
-		logger.Error(err, "cannot get the current BtpOperator for status update.")
-		return err
-	}
-
-	currentCr.Status.WithState(newState)
-	newCondition := conditions.ConditionFromExistingReason(reason, message)
-	if newCondition != nil {
-		conditions.SetStatusCondition(&currentCr.Status.Conditions, *newCondition)
-	}
-	if err := r.Status().Update(ctx, currentCr); err != nil {
-		logger.Error(err, "cannot update the status of the current BtpOperator.")
-		return err
-	}
-
+	var err error
 	for now := time.Now(); now.Before(timeout); now = time.Now() {
-		if err := r.Get(ctx, client.ObjectKeyFromObject(cr), currentCr); err != nil {
+		if err = r.Get(ctx, client.ObjectKeyFromObject(cr), cr); err != nil {
 			if k8serrors.IsNotFound(err) {
 				return nil
 			}
-			logger.Error(err, "cannot get the current BtpOperator after status update. Retrying in 500 ms...")
+			logger.Error(err, "cannot get the BtpOperator to update the status. Retrying in 500 ms...")
 			time.Sleep(StatusUpdateCheckInterval)
 			continue
 		}
-		if currentCr.Status.State == newState && currentCr.IsReasonStringEqual(string(reason)) {
+		if cr.Status.State == newState && cr.IsReasonStringEqual(string(reason)) {
 			return nil
 		}
-		logger.Info("waiting for the status change of the current BtpOperator after update...")
+		cr.Status.WithState(newState)
+		newCondition := conditions.ConditionFromExistingReason(reason, message)
+		if newCondition != nil {
+			conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
+		}
+		if err = r.Status().Update(ctx, cr); err != nil {
+			logger.Error(err, "cannot update the status of the BtpOperator. Retrying in 500 ms...")
+			time.Sleep(StatusUpdateCheckInterval)
+			continue
+		}
 		time.Sleep(StatusUpdateCheckInterval)
 	}
+	logger.Error(err, "timed out while waiting for the BtpOperator status change.")
 
-	return errors.New("timed out while waiting for the BtpOperator status change")
+	return err
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
