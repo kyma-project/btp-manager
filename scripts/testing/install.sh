@@ -6,9 +6,9 @@
 #         dummy - dummy credentials passed
 #         real - real credentials passed
 #     - ci to indicate call from CI pipeline (optional)
-# ./install.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-PR-999 ci
+# ./install.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-PR-999 real ci
 
-CI=${2-manual}  # if called from any workflow "ci" is expected here
+CI=${3-manual}  # if called from any workflow "ci" is expected here
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -18,6 +18,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 MODULE_IMAGE_NAME=$1
 YAML_DIR="scripts/testing/yaml"
+CREDENTIALS=$2
 
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
