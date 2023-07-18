@@ -57,9 +57,12 @@ After checking the Secret, the reconciler proceeds to apply and delete operation
 The `module-resources` directory is created by one of GitHub Actions and contains manifests for applying and deleting operations. See [workflows](04-10-workflows.md#auto-update-chart-and-resources) for more details.
 First, the reconciler deletes outdated module resources stored as manifests in [to-delete.yml](/module-resources/delete/to-delete.yml).
 When all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in the [apply](/module-resources/apply) directory to be applied to the cluster.
-Preparation of the current resources consists of adding the `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, 
+The reconciler prepares certificates (regenerated if needed) and webhook configurations and adds these to the list of current resources. 
+Then preparation of the current resources continues adding the `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, 
 setting `kyma-system` Namespace in all resources, setting module Secret and ConfigMap based on data read from the required Secret. 
-After preparing the resources, the reconciler starts applying them to the cluster and waits a specified time for all module resources existence in the cluster. 
+After preparing the resources, the reconciler starts applying or updating them to the cluster. 
+The non-existent resources are created using server-side apply to create the given resource, the existent ones are updated.
+The reconciler waits a specified time for all module resources existence in the cluster.
 If the timeout is reached, the CR receives the `Error` state and the resources are checked again in the next reconciliation. The reconciler has a fixed
 set of [timeouts](/controllers/btpoperator_controller.go) defined as `consts` which limit the processing time
 for performed operations. The provisioning is successful when all module resources exist in the cluster. This is the
