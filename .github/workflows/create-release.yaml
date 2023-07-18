@@ -36,7 +36,7 @@ jobs:
     name: Stress tests
     needs: run-unit-tests
     runs-on: ubuntu-latest
-    with:
+    env:
       image-tag: ${{ github.event.inputs.name }}
       module-tag: v${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
