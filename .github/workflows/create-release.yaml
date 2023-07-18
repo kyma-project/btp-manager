@@ -32,6 +32,29 @@ jobs:
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
 
+  run-stress-tests:
+    name: Stress tests
+    needs: run-unit-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
+          BTP_MANAGER_REPO: ${{ inputs.image-repo }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
+
+      - name: Install BTP operator
+        run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ci"
+
+
   run-e2e-upgrade-tests:
     name: E2E upgrade tests
     needs: run-unit-tests

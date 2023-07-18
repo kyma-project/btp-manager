@@ -49,6 +49,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
 
+      - name: Install BTP operator
+        run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ci"
+
       - name: Run tests
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}

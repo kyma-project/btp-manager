@@ -36,5 +36,11 @@ done
 echo -e "\n---${N} service bindings and instances created - let them be for a while... ${LIFE_SPAN}s"
 sleep ${LIFE_SPAN}
 
-echo -e "\n---Deleting e2e-test-btpoperator"
-kubectl delete btpoperators/e2e-test-btpoperator
+if [[ $(kubectl get po -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io -o 'jsonpath={..items[0].status.containerStatuses[0].restartCount}') != '0 ']]
+then
+  echo "BTP manager was restarted"
+  exit 1
+fi
+
+#echo -e "\n---Deleting e2e-test-btpoperator"
+#kubectl delete btpoperators/e2e-test-btpoperator
