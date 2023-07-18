@@ -292,6 +292,9 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 	timeout := time.Now().Add(StatusUpdateTimeout)
 
 	if err := r.Get(ctx, client.ObjectKeyFromObject(cr), currentCr); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
 		logger.Error(err, "cannot get the current BtpOperator for status update.")
 		return err
 	}
@@ -308,6 +311,9 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 
 	for now := time.Now(); now.Before(timeout); now = time.Now() {
 		if err := r.Get(ctx, client.ObjectKeyFromObject(cr), currentCr); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
 			logger.Error(err, "cannot get the current BtpOperator after status update. Retrying in 500 ms...")
 			time.Sleep(StatusUpdateCheckInterval)
 			continue
