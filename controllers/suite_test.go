@@ -51,18 +51,20 @@ import (
 var logger = logf.Log.WithName("suite_test")
 
 const (
-	hardDeleteTimeoutForAllTests    = time.Second * 1
-	deleteRequestTimeoutForAllTests = time.Millisecond * 200
-	testRsaKeyBits                  = 512
-	resourceAdded                   = "added"
-	resourceUpdated                 = "updated"
-	resourceDeleted                 = "deleted"
-	defaultNamespace                = "default"
-	kymaNamespace                   = "kyma-system"
-	defaultChartPath                = "./testdata/test-module-chart"
-	defaultResourcesPath            = "./testdata/test-module-resources"
-	chartUpdatePath                 = "./testdata/module-chart-update"
-	resourcesUpdatePath             = "./testdata/module-resources-update"
+	hardDeleteTimeoutForAllTests         = time.Second * 1
+	deleteRequestTimeoutForAllTests      = time.Millisecond * 200
+	statusUpdateTimeoutForAllTests       = time.Millisecond * 200
+	statusUpdateCheckIntervalForAllTests = time.Millisecond * 20
+	testRsaKeyBits                       = 512
+	resourceAdded                        = "added"
+	resourceUpdated                      = "updated"
+	resourceDeleted                      = "deleted"
+	defaultNamespace                     = "default"
+	kymaNamespace                        = "kyma-system"
+	defaultChartPath                     = "./testdata/test-module-chart"
+	defaultResourcesPath                 = "./testdata/test-module-resources"
+	chartUpdatePath                      = "./testdata/module-chart-update"
+	resourcesUpdatePath                  = "./testdata/module-resources-update"
 )
 
 var (
@@ -185,6 +187,12 @@ var _ = SynchronizedBeforeSuite(func() {
 	ResourcesPath = defaultResourcesPath
 	certs.SetRsaKeyBits(testRsaKeyBits)
 
+	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
+	if useExistingClusterEnv != "true" {
+		StatusUpdateTimeout = statusUpdateTimeoutForAllTests
+		StatusUpdateCheckInterval = statusUpdateCheckIntervalForAllTests
+	}
+
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -205,7 +213,6 @@ var _ = SynchronizedBeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
 
-	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
 	if useExistingClusterEnv != "true" {
 		deploymentController := newDeploymentController(cfg, k8sManager)
 		ctxForDeploymentController, cancelDeploymentController = context.WithCancel(ctx)
