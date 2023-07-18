@@ -52,7 +52,7 @@ jobs:
         run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
 
       - name: Install BTP operator
-        run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ci"
+        run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} dummy ci"
 
 
   run-e2e-upgrade-tests:
