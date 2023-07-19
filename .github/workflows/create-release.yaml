@@ -49,12 +49,8 @@ jobs:
           BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          image-tag: ${{ inputs.name }}
-          module-tag: v${{ inputs.name }}
-          image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-          module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
-        run: "./scripts/await_artifacts.sh ${{ image-tag }} ${{ module-tag }} ${{ skip-templates }}"
+        run: "./scripts/await_artifacts.sh ${{ inputs.name }}v${{ inputs.name }}"
 
       - name: Install BTP operator
         run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} dummy ci"
