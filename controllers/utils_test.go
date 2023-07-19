@@ -102,6 +102,66 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 	return c.Client.DeleteAllOf(ctx, obj, opts...)
 }
 
+type lazyK8sClient struct {
+	client.Client
+	requiredRetries int
+	getRetries      int
+	updateRetries   int
+	errorOnGet      bool
+	errorOnUpdate   bool
+}
+
+func newLazyK8sClient(c client.Client, requiredRetries int) *lazyK8sClient {
+	return &lazyK8sClient{
+		Client:          c,
+		requiredRetries: 0,
+		getRetries:      0,
+		updateRetries:   0,
+		errorOnGet:      false,
+		errorOnUpdate:   false,
+	}
+}
+
+func (c *lazyK8sClient) EnableErrorOnGet() {
+	c.errorOnGet = true
+}
+
+func (c *lazyK8sClient) EnableErrorOnUpdate() {
+	c.errorOnUpdate = true
+}
+
+func (c *lazyK8sClient) DisableErrorOnGet() {
+	c.errorOnGet = false
+}
+
+func (c *lazyK8sClient) DisableErrorOnUpdate() {
+	c.errorOnUpdate = false
+}
+
+func (c *lazyK8sClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if c.errorOnGet {
+		return errors.New("expected client.Get terminating error")
+	}
+	if c.getRetries >= c.requiredRetries {
+		c.getRetries = 0
+		return c.Client.Get(ctx, key, obj, opts...)
+	}
+	c.getRetries++
+	return errors.New("expected client.Get retry error")
+}
+
+func (c *lazyK8sClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	if c.errorOnUpdate {
+		return errors.New("expected permanent client.Update error")
+	}
+	if c.updateRetries >= c.requiredRetries {
+		c.updateRetries = 0
+		return c.Client.Update(ctx, obj, opts...)
+	}
+	c.updateRetries++
+	return errors.New("expected retryable client.Update error")
+}
+
 // module-resources paths
 func getApplyPath() string {
 	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
