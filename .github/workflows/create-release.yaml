@@ -36,11 +36,6 @@ jobs:
     name: Stress tests
     needs: run-unit-tests
     runs-on: ubuntu-latest
-    env:
-      image-tag: ${{ github.event.inputs.name }}
-      module-tag: v${{ github.event.inputs.name }}
-      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
     steps:
       - name: Checkout code
@@ -54,15 +49,15 @@ jobs:
           BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          image-tag: ${{ github.event.inputs.name }}
-          module-tag: v${{ github.event.inputs.name }}
+          image-tag: ${{ inputs.name }}
+          module-tag: v${{ inputs.name }}
           image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
           module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
         run: |
-          echo ${{ inputs.image-tag }}
-          echo ${{ inputs.module-tag }}
-          ./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}
+          echo ${{ image-tag }}
+          echo ${{ module-tag }}
+          ./scripts/await_artifacts.sh ${{ image-tag }} ${{ module-tag }} ${{ skip-templates }}
 
       - name: Install BTP operator
         run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} dummy ci"
