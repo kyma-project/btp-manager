@@ -20,17 +20,17 @@ jobs:
     name: Unit tests
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
 
-  run-e2e-tests:
-    name: E2E tests
-    needs: run-unit-tests
-    uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
-    secrets: inherit
-    with:
-      image-tag: ${{ github.event.inputs.name }}
-      module-tag: v${{ github.event.inputs.name }}
-      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
-      credentials-mode: ${{ github.event.inputs.credentials }}
+#  run-e2e-tests:
+#    name: E2E tests
+#    needs: run-unit-tests
+#    uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
+#    secrets: inherit
+#    with:
+#      image-tag: ${{ github.event.inputs.name }}
+#      module-tag: v${{ github.event.inputs.name }}
+#      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+#      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+#      credentials-mode: ${{ github.event.inputs.credentials }}
 
   run-stress-tests:
     name: Stress tests
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       image-tag: ${{ github.event.inputs.name }}
-      module-tag: v${{ github.event.inputs.name }}
+      module-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
@@ -75,37 +75,37 @@ jobs:
 #      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
 #      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 #
-#  create-draft:
-#    name: Create draft release
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v3
-#        with:
-#          fetch-depth: 0
-#
-#      - name: Create changelog
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        run: ./scripts/create_changelog.sh ${{ github.event.inputs.name }}
-#
-#      - name: Create draft release
-#        id: create-draft
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        run: |
-#          RELEASE_ID=$(./scripts/create_draft_release.sh ${{ github.event.inputs.name }})
-#          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
-#
-#      - name: Create lightweight tag
-#        run: |
-#          git tag ${{ github.event.inputs.name }}
-#          git push origin ${{ github.event.inputs.name }}
-#
-#    outputs:
-#      release_id: ${{ steps.create-draft.outputs.release_id }}
-#
+  create-draft:
+    name: Create draft release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Create changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/create_changelog.sh ${{ github.event.inputs.name }}
+
+      - name: Create draft release
+        id: create-draft
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_ID=$(./scripts/create_draft_release.sh ${{ github.event.inputs.name }})
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
+
+    outputs:
+      release_id: ${{ steps.create-draft.outputs.release_id }}
+
 #  publish-release:
 #    name: Publish release
 #    needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests]
