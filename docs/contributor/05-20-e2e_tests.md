@@ -1,4 +1,4 @@
-# E2E tests of btp-manager installation from OCI module image
+# E2E tests of BTP Manager installation from OCI module image
 
 ## Overview
 
