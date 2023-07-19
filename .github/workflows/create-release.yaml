@@ -1,5 +1,8 @@
 name: "Create release"
 
+env:
+  MODULE_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
 on:
   workflow_dispatch:
     inputs:
@@ -14,9 +17,7 @@ on:
         options:
           - dummy
           - real
-env:
-  MODULE_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
-  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+
 jobs:
   run-unit-tests:
     name: Unit tests
