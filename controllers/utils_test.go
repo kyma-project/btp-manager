@@ -51,15 +51,19 @@ import (
 )
 
 const (
-	btpOperatorName       = "btp-operator-test"
-	btpOperatorKind       = "BtpOperator"
-	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
-	secretYamlPath        = "testdata/test-secret.yaml"
-	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
-	k8sOpsTimeout         = time.Second * 3
-	k8sOpsPollingInterval = time.Millisecond * 200
-	extraLabelKey         = "reconciler.kyma-project.io/managed-by"
-	extraLabelValue       = "reconciler"
+	btpOperatorName                = "btp-operator-test"
+	btpOperatorKind                = "BtpOperator"
+	btpOperatorApiVersion          = `operator.kyma-project.io\v1alpha1`
+	secretYamlPath                 = "testdata/test-secret.yaml"
+	priorityClassYamlPath          = "testdata/test-priorityclass.yaml"
+	k8sOpsTimeout                  = time.Second * 3
+	k8sOpsPollingInterval          = time.Millisecond * 200
+	extraLabelKey                  = "reconciler.kyma-project.io/managed-by"
+	extraLabelValue                = "reconciler"
+	k8sClientGetPermanentErrMsg    = "expected permanent client.Get error"
+	k8sClientGetRetryableErrMsg    = "expected retryable client.Get error"
+	k8sClientUpdatePermanentErrMsg = "expected permanent client.Update error"
+	k8sClientUpdateRetryableErrMsg = "expected retryable client.Update error"
 )
 
 // fake K8s clients with overridden behavior
@@ -140,26 +144,26 @@ func (c *lazyK8sClient) DisableErrorOnUpdate() {
 
 func (c *lazyK8sClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	if c.errorOnGet {
-		return errors.New("expected client.Get terminating error")
+		return errors.New(k8sClientGetPermanentErrMsg)
 	}
 	if c.getRetries >= c.requiredRetries {
 		c.getRetries = 0
 		return c.Client.Get(ctx, key, obj, opts...)
 	}
 	c.getRetries++
-	return errors.New("expected client.Get retry error")
+	return errors.New(k8sClientGetRetryableErrMsg)
 }
 
 func (c *lazyK8sClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 	if c.errorOnUpdate {
-		return errors.New("expected permanent client.Update error")
+		return errors.New(k8sClientUpdatePermanentErrMsg)
 	}
 	if c.updateRetries >= c.requiredRetries {
 		c.updateRetries = 0
 		return c.Client.Update(ctx, obj, opts...)
 	}
 	c.updateRetries++
-	return errors.New("expected retryable client.Update error")
+	return errors.New(k8sClientUpdateRetryableErrMsg)
 }
 
 // module-resources paths
