@@ -45,7 +45,7 @@ then
   exit 1
 fi
 
-restarts=$(kubectl get po -n kyma-system -l app.kubernetes.io/name=sap-btp-operator -o 'jsonpath={..items[0].status.containerStatuses[?(@.name=="manager")].restartsCount}')
+restarts=$(kubectl get po -n kyma-system -l app.kubernetes.io/name=sap-btp-operator -o 'jsonpath={..items[0].status.containerStatuses[?(@.name=="manager")].restartCount}')
 if [ "${restarts}" != '0' ]
 then
   echo "BTP operator was restarted $restarts times"
