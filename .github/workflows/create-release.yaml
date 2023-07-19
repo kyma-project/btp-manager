@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       image-tag: ${{ github.event.inputs.name }}
-      module-tag: ${{ github.event.inputs.name }}
+      module-tag: v${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
@@ -54,6 +54,11 @@ jobs:
           BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          image-tag: ${{ github.event.inputs.name }}
+          module-tag: v${{ github.event.inputs.name }}
+          image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+          module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+
         run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
 
       - name: Install BTP operator
