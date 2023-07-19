@@ -38,7 +38,7 @@ time {
 echo -e "\n---${N} service bindings and instances created - let them be for a while... ${LIFE_SPAN}s"
 sleep ${LIFE_SPAN}
 
-restarts= $(kubectl get po -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io -o 'jsonpath={..items[0].status.containerStatuses[0].restartCount}')
+restarts=$(kubectl get po -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io -o 'jsonpath={..items[0].status.containerStatuses[0].restartCount}')
 if [ "${restarts}" != '0' ]
 then
   echo "BTP manager was restarted $restarts times"
