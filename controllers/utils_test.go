@@ -166,6 +166,38 @@ func (c *lazyK8sClient) Update(ctx context.Context, obj client.Object, opts ...c
 	return errors.New(k8sClientUpdateRetryableErrMsg)
 }
 
+func (c *lazyK8sClient) Status() client.SubResourceWriter {
+	return &fakeSubResourceClient{c}
+}
+
+// see fakeSubResourceClient at https://github.com/kubernetes-sigs/controller-runtime/blob/main/pkg/client/fake/client.go
+type fakeSubResourceClient struct {
+	client.Client
+}
+
+func (sw *fakeSubResourceClient) Get(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceGetOption) error {
+	panic("fakeSubResourceClient does not support get")
+}
+
+func (sw *fakeSubResourceClient) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	panic("fakeSubResourceWriter does not support create")
+}
+
+func (sw *fakeSubResourceClient) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	updateOptions := client.SubResourceUpdateOptions{}
+	updateOptions.ApplyOptions(opts)
+
+	body := obj
+	if updateOptions.SubResourceBody != nil {
+		body = updateOptions.SubResourceBody
+	}
+	return sw.Client.Update(ctx, body, &updateOptions.UpdateOptions)
+}
+
+func (sw *fakeSubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+	panic("fakeSubResourceWriter does not support patch")
+}
+
 // module-resources paths
 func getApplyPath() string {
 	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
