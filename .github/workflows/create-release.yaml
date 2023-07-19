@@ -56,7 +56,7 @@ jobs:
         run: "./scripts/await_artifacts.sh ${{ inputs.name }} v${{ inputs.name }}"
 
       - name: Install BTP operator
-        run: "./scripts/testing/install.sh ${{ MODULE_REPO }}:v${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install.sh $MODULE_REPO:v${{ inputs.name }} dummy ci"
 
       - name: Run tests
         run: ./scripts/testing/./stress-mem.sh 500 50
