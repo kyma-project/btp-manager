@@ -37,7 +37,7 @@ jobs:
 
   run-stress-tests:
     name: Stress tests
-    needs: run-unit-tests
+#    needs: run-unit-tests
     runs-on: ubuntu-latest
 
     steps:
