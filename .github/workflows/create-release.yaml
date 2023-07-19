@@ -46,8 +46,8 @@ jobs:
 
       - name: Wait for artifacts
         env:
-          BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
-          BTP_MANAGER_REPO: ${{ inputs.image-repo }}
+          BTP_OPERATOR_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+          BTP_MANAGER_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
         run: "./scripts/await_artifacts.sh ${{ inputs.name }} v${{ inputs.name }}"
