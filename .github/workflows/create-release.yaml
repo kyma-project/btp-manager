@@ -50,7 +50,7 @@ jobs:
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-        run: "./scripts/await_artifacts.sh ${{ inputs.name }}v${{ inputs.name }}"
+        run: "./scripts/await_artifacts.sh ${{ inputs.name }} v${{ inputs.name }}"
 
       - name: Install BTP operator
         run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} dummy ci"
