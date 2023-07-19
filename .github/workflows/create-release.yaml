@@ -59,7 +59,10 @@ jobs:
           image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
           module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
-        run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
+        run: |
+          echo ${{ inputs.image-tag }}
+          echo ${{ inputs.module-tag }}
+          ./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}
 
       - name: Install BTP operator
         run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} dummy ci"
