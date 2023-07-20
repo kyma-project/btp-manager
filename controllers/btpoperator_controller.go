@@ -296,7 +296,7 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			if k8serrors.IsNotFound(err) {
 				return nil
 			}
-			logger.Error(err, "cannot get the BtpOperator to update the status. Retrying in 500 ms...")
+			logger.Error(err, fmt.Sprintf("cannot get the BtpOperator to update the status. Retrying in %s...", StatusUpdateCheckInterval.String()))
 			time.Sleep(StatusUpdateCheckInterval)
 			continue
 		}
@@ -309,13 +309,13 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
 		}
 		if err = r.Status().Update(ctx, cr); err != nil {
-			logger.Error(err, "cannot update the status of the BtpOperator. Retrying in 500 ms...")
+			logger.Error(err, fmt.Sprintf("cannot update the status of the BtpOperator. Retrying in %s...", StatusUpdateCheckInterval.String()))
 			time.Sleep(StatusUpdateCheckInterval)
 			continue
 		}
 		time.Sleep(StatusUpdateCheckInterval)
 	}
-	logger.Error(err, "timed out while waiting for the BtpOperator status change.")
+	logger.Error(err, fmt.Sprintf("timed out while waiting %s for the BtpOperator status change.", StatusUpdateTimeout.String()))
 
 	return err
 }
