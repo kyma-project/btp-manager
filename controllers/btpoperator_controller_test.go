@@ -75,6 +75,28 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 		assert.Equal(t, 0, len(currentBtpOperator.Status.Conditions))
 	})
 
+	t.Run("should time out", func(t *testing.T) {
+		// given
+		disabledUpdatek8sClient := newLazyK8sClient(fakeK8sClient, 3)
+		btpOperatorReconciler := NewBtpOperatorReconciler(disabledUpdatek8sClient, scheme, nil, nil)
+		disabledUpdatek8sClient.DisableUpdate()
+
+		// when
+		err := btpOperatorReconciler.UpdateBtpOperatorStatus(ctx, btpOperator, v1alpha1.StateProcessing, conditions.Initialized, "test")
+
+		// then
+		require.NoError(t, err)
+
+		// when
+		currentBtpOperator := &v1alpha1.BtpOperator{}
+		err = fakeK8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), currentBtpOperator)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "", string(currentBtpOperator.Status.State))
+		assert.Equal(t, 0, len(currentBtpOperator.Status.Conditions))
+	})
+
 	t.Run("should update BtpOperator status after a few retries", func(t *testing.T) {
 		// given
 		retryK8sClient := newLazyK8sClient(fakeK8sClient, 3)
@@ -95,5 +117,62 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 		assert.Equal(t, string(v1alpha1.StateProcessing), string(currentBtpOperator.Status.State))
 		assert.Equal(t, 1, len(currentBtpOperator.Status.Conditions))
 		assert.True(t, currentBtpOperator.IsReasonStringEqual(string(conditions.Initialized)))
+	})
+
+	t.Run("should update BtpOperator status three times", func(t *testing.T) {
+		// given
+		retryK8sClient := newLazyK8sClient(fakeK8sClient, 3)
+		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, scheme, nil, nil)
+		conditionMsg1 := "test1"
+		conditionMsg2 := "test2"
+		conditionMsg3 := "test3"
+
+		// when
+		err := btpOperatorReconciler.UpdateBtpOperatorStatus(ctx, btpOperator, v1alpha1.StateProcessing, conditions.Initialized, conditionMsg1)
+
+		// then
+		require.NoError(t, err)
+
+		// when
+		currentBtpOperator := &v1alpha1.BtpOperator{}
+		err = fakeK8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), currentBtpOperator)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, string(v1alpha1.StateProcessing), string(currentBtpOperator.Status.State))
+		assert.Equal(t, 1, len(currentBtpOperator.Status.Conditions))
+		assert.True(t, currentBtpOperator.IsMsgForGivenReasonEqual(string(conditions.Initialized), conditionMsg1))
+
+		// when
+		err = btpOperatorReconciler.UpdateBtpOperatorStatus(ctx, btpOperator, v1alpha1.StateReady, conditions.ReconcileSucceeded, conditionMsg2)
+
+		// then
+		require.NoError(t, err)
+
+		// when
+		currentBtpOperator = &v1alpha1.BtpOperator{}
+		err = fakeK8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), currentBtpOperator)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, string(v1alpha1.StateReady), string(currentBtpOperator.Status.State))
+		assert.Equal(t, 1, len(currentBtpOperator.Status.Conditions))
+		assert.True(t, currentBtpOperator.IsMsgForGivenReasonEqual(string(conditions.ReconcileSucceeded), conditionMsg2))
+
+		// when
+		err = btpOperatorReconciler.UpdateBtpOperatorStatus(ctx, btpOperator, v1alpha1.StateReady, conditions.ReconcileSucceeded, conditionMsg3)
+
+		// then
+		require.NoError(t, err)
+
+		// when
+		currentBtpOperator = &v1alpha1.BtpOperator{}
+		err = fakeK8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), currentBtpOperator)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, string(v1alpha1.StateReady), string(currentBtpOperator.Status.State))
+		assert.Equal(t, 1, len(currentBtpOperator.Status.Conditions))
+		assert.True(t, currentBtpOperator.IsMsgForGivenReasonEqual(string(conditions.ReconcileSucceeded), conditionMsg3))
 	})
 }

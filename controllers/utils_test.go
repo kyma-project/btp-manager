@@ -113,6 +113,7 @@ type lazyK8sClient struct {
 	updateRetries   int
 	errorOnGet      bool
 	errorOnUpdate   bool
+	disableUpdate   bool
 }
 
 func newLazyK8sClient(c client.Client, requiredRetries int) *lazyK8sClient {
@@ -123,6 +124,7 @@ func newLazyK8sClient(c client.Client, requiredRetries int) *lazyK8sClient {
 		updateRetries:   0,
 		errorOnGet:      false,
 		errorOnUpdate:   false,
+		disableUpdate:   false,
 	}
 }
 
@@ -142,6 +144,14 @@ func (c *lazyK8sClient) DisableErrorOnUpdate() {
 	c.errorOnUpdate = false
 }
 
+func (c *lazyK8sClient) EnableUpdate() {
+	c.disableUpdate = false
+}
+
+func (c *lazyK8sClient) DisableUpdate() {
+	c.disableUpdate = true
+}
+
 func (c *lazyK8sClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	if c.errorOnGet {
 		return errors.New(k8sClientGetPermanentErrMsg)
@@ -157,6 +167,9 @@ func (c *lazyK8sClient) Get(ctx context.Context, key client.ObjectKey, obj clien
 func (c *lazyK8sClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 	if c.errorOnUpdate {
 		return errors.New(k8sClientUpdatePermanentErrMsg)
+	}
+	if c.disableUpdate {
+		return nil
 	}
 	if c.updateRetries >= c.requiredRetries {
 		c.updateRetries = 0
