@@ -53,5 +53,5 @@ then
 fi
 
 
-#echo -e "\n---Deleting e2e-test-btpoperator"
-#kubectl delete btpoperators/e2e-test-btpoperator
+echo -e "\n---Deleting e2e-test-btpoperator"
+kubectl delete btpoperators/e2e-test-btpoperator
