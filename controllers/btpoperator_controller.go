@@ -300,7 +300,7 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			time.Sleep(StatusUpdateCheckInterval)
 			continue
 		}
-		if cr.Status.State == newState && cr.IsReasonStringEqual(string(reason)) {
+		if cr.Status.State == newState && cr.IsMsgForGivenReasonEqual(string(reason), message) {
 			return nil
 		}
 		cr.Status.WithState(newState)

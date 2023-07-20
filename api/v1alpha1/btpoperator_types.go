@@ -120,6 +120,15 @@ func (o *BtpOperator) IsReasonStringEqual(reason string) bool {
 	return false
 }
 
+func (o *BtpOperator) IsMsgForGivenReasonEqual(reason, message string) bool {
+	for _, cnd := range o.Status.Conditions {
+		if cnd != nil && cnd.Reason == reason && cnd.Message == message {
+			return true
+		}
+	}
+	return false
+}
+
 //+kubebuilder:object:root=true
 
 // BtpOperatorList contains a list of BtpOperator
