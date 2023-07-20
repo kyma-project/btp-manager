@@ -51,15 +51,19 @@ import (
 )
 
 const (
-	btpOperatorName       = "btp-operator-test"
-	btpOperatorKind       = "BtpOperator"
-	btpOperatorApiVersion = `operator.kyma-project.io\v1alpha1`
-	secretYamlPath        = "testdata/test-secret.yaml"
-	priorityClassYamlPath = "testdata/test-priorityclass.yaml"
-	k8sOpsTimeout         = time.Second * 3
-	k8sOpsPollingInterval = time.Millisecond * 200
-	extraLabelKey         = "reconciler.kyma-project.io/managed-by"
-	extraLabelValue       = "reconciler"
+	btpOperatorName                = "btp-operator-test"
+	btpOperatorKind                = "BtpOperator"
+	btpOperatorApiVersion          = `operator.kyma-project.io\v1alpha1`
+	secretYamlPath                 = "testdata/test-secret.yaml"
+	priorityClassYamlPath          = "testdata/test-priorityclass.yaml"
+	k8sOpsTimeout                  = time.Second * 3
+	k8sOpsPollingInterval          = time.Millisecond * 200
+	extraLabelKey                  = "reconciler.kyma-project.io/managed-by"
+	extraLabelValue                = "reconciler"
+	k8sClientGetPermanentErrMsg    = "expected permanent client.Get error"
+	k8sClientGetRetryableErrMsg    = "expected retryable client.Get error"
+	k8sClientUpdatePermanentErrMsg = "expected permanent client.Update error"
+	k8sClientUpdateRetryableErrMsg = "expected retryable client.Update error"
 )
 
 // fake K8s clients with overridden behavior
@@ -100,6 +104,111 @@ func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opt
 	}
 
 	return c.Client.DeleteAllOf(ctx, obj, opts...)
+}
+
+type lazyK8sClient struct {
+	client.Client
+	requiredRetries int
+	getRetries      int
+	updateRetries   int
+	errorOnGet      bool
+	errorOnUpdate   bool
+	disableUpdate   bool
+}
+
+func newLazyK8sClient(c client.Client, requiredRetries int) *lazyK8sClient {
+	return &lazyK8sClient{
+		Client:          c,
+		requiredRetries: 0,
+		getRetries:      0,
+		updateRetries:   0,
+		errorOnGet:      false,
+		errorOnUpdate:   false,
+		disableUpdate:   false,
+	}
+}
+
+func (c *lazyK8sClient) EnableErrorOnGet() {
+	c.errorOnGet = true
+}
+
+func (c *lazyK8sClient) EnableErrorOnUpdate() {
+	c.errorOnUpdate = true
+}
+
+func (c *lazyK8sClient) DisableErrorOnGet() {
+	c.errorOnGet = false
+}
+
+func (c *lazyK8sClient) DisableErrorOnUpdate() {
+	c.errorOnUpdate = false
+}
+
+func (c *lazyK8sClient) EnableUpdate() {
+	c.disableUpdate = false
+}
+
+func (c *lazyK8sClient) DisableUpdate() {
+	c.disableUpdate = true
+}
+
+func (c *lazyK8sClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if c.errorOnGet {
+		return errors.New(k8sClientGetPermanentErrMsg)
+	}
+	if c.getRetries >= c.requiredRetries {
+		c.getRetries = 0
+		return c.Client.Get(ctx, key, obj, opts...)
+	}
+	c.getRetries++
+	return errors.New(k8sClientGetRetryableErrMsg)
+}
+
+func (c *lazyK8sClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	if c.errorOnUpdate {
+		return errors.New(k8sClientUpdatePermanentErrMsg)
+	}
+	if c.disableUpdate {
+		return nil
+	}
+	if c.updateRetries >= c.requiredRetries {
+		c.updateRetries = 0
+		return c.Client.Update(ctx, obj, opts...)
+	}
+	c.updateRetries++
+	return errors.New(k8sClientUpdateRetryableErrMsg)
+}
+
+func (c *lazyK8sClient) Status() client.SubResourceWriter {
+	return &fakeSubResourceClient{c}
+}
+
+// see fakeSubResourceClient at https://github.com/kubernetes-sigs/controller-runtime/blob/main/pkg/client/fake/client.go
+type fakeSubResourceClient struct {
+	client.Client
+}
+
+func (sw *fakeSubResourceClient) Get(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceGetOption) error {
+	panic("fakeSubResourceClient does not support get")
+}
+
+func (sw *fakeSubResourceClient) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	panic("fakeSubResourceWriter does not support create")
+}
+
+func (sw *fakeSubResourceClient) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	updateOptions := client.SubResourceUpdateOptions{}
+	updateOptions.ApplyOptions(opts)
+
+	body := obj
+	if updateOptions.SubResourceBody != nil {
+		body = updateOptions.SubResourceBody
+	}
+	return sw.Client.Update(ctx, body, &updateOptions.UpdateOptions)
+}
+
+func (sw *fakeSubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+	panic("fakeSubResourceWriter does not support patch")
 }
 
 // module-resources paths
