@@ -105,7 +105,7 @@ jobs:
 
   publish-release:
     name: Publish release
-    needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests]
+    needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests]
     runs-on: ubuntu-latest
 
     steps:
