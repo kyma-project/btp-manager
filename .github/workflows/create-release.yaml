@@ -1,5 +1,8 @@
 name: "Create release"
 
+env:
+  MODULE_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
 on:
   workflow_dispatch:
     inputs:
@@ -31,6 +34,31 @@ jobs:
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
+
+  run-stress-tests:
+    name: Stress tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          BTP_OPERATOR_REPO: $MODULE_REPO
+          BTP_MANAGER_REPO: $IMAGE_REPO
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_artifacts.sh ${{ inputs.name }} v${{ inputs.name }}"
+
+      - name: Install BTP operator
+        run: "./scripts/testing/install.sh $MODULE_REPO:v${{ inputs.name }} dummy ci"
+
+      - name: Run tests
+        run: ./scripts/testing/./stress-mem.sh 500 30
+
 
   run-e2e-upgrade-tests:
     name: E2E upgrade tests

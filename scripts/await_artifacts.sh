@@ -20,6 +20,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 #             BTP_OPERATOR_REPO - btp-operator OCI module image repository
 #             GITHUB_TOKEN - github token
 
+
 export IMAGE_TAG=$1
 export MODULE_TAG=$2
 
