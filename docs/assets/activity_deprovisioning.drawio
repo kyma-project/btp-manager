@@ -1,4 +1,4 @@
-<mxfile host="Electron" modified="2023-07-21T06:47:55.448Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.6.1 Chrome/112.0.5615.204 Electron/24.6.1 Safari/537.36" etag="OCIQzYVH3LnmC_Oh18G1" version="21.6.1" type="device">
+<mxfile host="Electron" modified="2023-07-24T08:26:33.581Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.6.1 Chrome/112.0.5615.204 Electron/24.6.1 Safari/537.36" etag="4sn2dUGWGvWiarqTX7Ap" version="21.6.1" type="device">
   <diagram id="lu0qVTgI4R-YYrcZuvKL" name="Strona-1">
     <mxGraphModel dx="2222" dy="764" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
@@ -10,7 +10,7 @@
         <mxCell id="O6QXdMl-xdjii7lvghlq-54" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#000000;" parent="1" source="9s4blzP_cOgsW_nrXSzR-4" target="9s4blzP_cOgsW_nrXSzR-12" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="9s4blzP_cOgsW_nrXSzR-4" value="CR" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#0a6ec7;strokeColor=#0a6ec7;" parent="1" vertex="1">
+        <mxCell id="9s4blzP_cOgsW_nrXSzR-4" value="CR" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#FFFFFF;strokeColor=#666666;" parent="1" vertex="1">
           <mxGeometry x="-624" y="344" width="66" height="66" as="geometry" />
         </mxCell>
         <mxCell id="9s4blzP_cOgsW_nrXSzR-6" value="DELETE" style="endArrow=classic;html=1;rounded=1;labelPosition=center;verticalLabelPosition=top;align=center;verticalAlign=bottom;strokeColor=#666666;" parent="1" edge="1">
