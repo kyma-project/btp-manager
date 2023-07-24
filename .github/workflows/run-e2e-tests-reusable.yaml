@@ -58,5 +58,5 @@ jobs:
         run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ${{ inputs.credentials-mode }} ci"
 
       - name: Run tests
-        run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ci"
+        run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
 
