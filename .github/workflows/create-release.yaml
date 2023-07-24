@@ -37,6 +37,7 @@ jobs:
 
   run-stress-tests:
     name: Stress tests
+    secrets: inherit
     runs-on: ubuntu-latest
 
     steps:
