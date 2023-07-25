@@ -24,7 +24,7 @@ the prerequisites yourself.
 
 ### Process
 
-![Provisioning diagram](/docs/assets/deprovisioning.svg)
+![Provisioning diagram](/docs/assets/provisioning.svg)
 
 The provisioning process is part of a module reconciliation. To trigger the reconciliation, create a [BtpOperator CR](/api/v1alpha1/btpoperator_types.go):
 
@@ -41,7 +41,7 @@ The BtpOperator reconciler picks up the created CR and determines whether it sho
 module status. The BtpOperator CR reflects the status of the operand, that is, SAP BTP Service Operator, only when it is
 the oldest CR present in the cluster. In that case a finalizer is added, the CR is set to `Processing` state and the
 reconciliation proceeds.
-Otherwise, it is given an `Error` state with the condition reason `OlderCRExists` and message containing details
+Otherwise, it is given the `Error` state with the condition reason `OlderCRExists` and message containing details
 about the CR responsible for reconciling the operand.
 
 Next, the reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace. This Secret contains Service
