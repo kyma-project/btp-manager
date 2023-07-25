@@ -11,49 +11,11 @@ The BTP Manager release pipeline creates proper artifacts:
 
 ### Create a release
 
-```mermaid
-   sequenceDiagram
-      actor User
-      participant GitHub Actions
-      participant unit tests job
-      participant E2E tests jobs
-      participant GitHub repository
-      participant post-btp-manager-build
-      participant post-btp-manager-module-build
-      participant Docker registry
-      User->>GitHub Actions: initiates
-      activate GitHub Actions   
-      GitHub Actions->>GitHub repository: create tag and draft release
-      GitHub Actions->>unit tests job: initiate
-      activate unit tests job
-      GitHub repository->>post-btp-manager-build: triggers
-      activate post-btp-manager-build
-      Note over post-btp-manager-build: builds binary image
-      GitHub repository->>post-btp-manager-module-build: triggers
-      deactivate unit tests job
-      unit tests job->>GitHub Actions: returns result
-      activate post-btp-manager-module-build
-      Note over post-btp-manager-module-build: builds OCI module image and creates yaml artifacts
-      post-btp-manager-build->>Docker registry: uploads binary image 
-      deactivate post-btp-manager-build
-      post-btp-manager-module-build->>Docker registry: uploads OCI module image
-      post-btp-manager-module-build->>GitHub repository: uploads yaml artifacts
-      deactivate post-btp-manager-module-build
-      loop Every 10s
-        E2E tests jobs-->Docker registry: images available?
-      end
-      activate E2E tests jobs
-      Docker registry->>E2E tests jobs: fetch binary image, module image
-      Note over E2E tests jobs: create k3s cluster and runs E2E tests
-      E2E tests jobs->>GitHub Actions: return result
-      deactivate E2E tests jobs
-      GitHub Actions->>GitHub repository: publish release
-      deactivate GitHub Actions
-```
-<br>
+![Release diagram](../assets/release.svg)
+
 To create a release, follow these steps:
 
-1. Run GitHub action **Create release**: 
+1. Run GitHub action **Create release**:  
    i.  go to the **Actions** tab  
    ii. click on **Create release** workflow   
    iii. click  **Run workflow** on the right  
