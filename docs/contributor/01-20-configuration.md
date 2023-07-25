@@ -62,6 +62,8 @@ kind: ConfigMap
 metadata:
   name: sap-btp-manager
   namespace: kyma-system
+  labels:
+    app.kubernetes.io/managed-by: btp-manager
 data:
   ChartPath: ./module-chart/chart
   ChartNamespace: kyma-system
