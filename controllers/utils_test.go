@@ -398,6 +398,7 @@ func initConfig(data map[string]string) *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConfigName,
 			Namespace: ChartNamespace,
+			Labels:    map[string]string{managedByLabelKey: operatorName},
 		},
 		Data: data,
 	}

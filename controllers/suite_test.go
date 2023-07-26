@@ -154,6 +154,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		Scheme:                 scheme.Scheme,
 		MetricsBindAddress:     "0",
 		HealthProbeBindAddress: "0",
+		NewCache:               CacheCreator,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
