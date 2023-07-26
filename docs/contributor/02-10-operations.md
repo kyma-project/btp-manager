@@ -46,7 +46,7 @@ reconciliation proceeds.
 Otherwise, it is given an `Error` state with the condition reason `OlderCRExists` and message containing details
 about the CR responsible for reconciling the operand.
 
-Next, the reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace with label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains Service
+Next, the reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the Service
 Manager credentials for SAP BTP Service Operator and should be delivered to the cluster by KEB. If the Secret is
 missing, an error is thrown, the reconciler sets `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
 is created. When the Secret is present in the cluster, the reconciler verifies whether it contains required data. The
