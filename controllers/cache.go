@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
@@ -21,6 +22,8 @@ func CacheCreator(conf *rest.Config, opts cache.Options) (cache.Cache, error) {
 	opts.SelectorsByObject = map[client.Object]cache.ObjectSelector{
 		&corev1.Secret{}:    objSelector,
 		&corev1.ConfigMap{}: objSelector,
+		&admissionregistrationv1.ValidatingWebhookConfiguration{}: objSelector,
+		&admissionregistrationv1.MutatingWebhookConfiguration{}:   objSelector,
 	}
 
 	return cache.New(conf, opts)
