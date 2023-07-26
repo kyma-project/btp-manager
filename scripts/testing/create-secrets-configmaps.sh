@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Stress testing in regard to memory consumption - could cause OOM (but should not).
-# Creates btp-operator and numerous service instances and service bindings in current context.
+# Creates btp-operator and numerous Service Instances and Service Bindings in the current context.
 #
 # The script has the following arguments:
-#     - number of config maps and secrets (the provided number is multiplied by 10)
+#     - number of Config Maps and Secrets (the provided number is multiplied by 10)
 # Example (creates 1000 CMs and Secrets):
 #     ./stress-mem.sh 100
 
