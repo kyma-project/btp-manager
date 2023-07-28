@@ -72,29 +72,30 @@ condition that allows the reconciler to set the CR in the `Ready` state.
 
 ![Deprovisioning diagram](/docs/assets/deprovisioning.svg)
 
-To start the deprovisioning process, use the following command:
+1. To start the deprovisioning process, use the following command:
 
-```
-kubectl delete btpoperator {BTPOPERATOR_CR_NAME}
-```
+   ```
+   kubectl delete btpoperator {BTPOPERATOR_CR_NAME}
+   ```
 
-The command triggers the deletion of the module resources in the cluster. By default, the existing Service Instances or Service Bindings block the deletion. To unblock it, you must remove the existing Service Instances and Service Bindings. Then, after a maximum of 15-minute reconciliation time, the BTP Operator resource is gone.
+   The command triggers the deletion of the module resources in the cluster. By default, the existing ServiceInstances or ServiceBindings block the deletion. To unblock it, you must remove the existing ServiceInstances and ServiceBindings. Then, after the reconciliation, the BTP Operator resource is gone.
 
-You can force the deletion by adding this label to the BTP Operator resource:
-```
-force-delete: "true"
-```
-If you use the label, all the existing Service Instances and Service Bindings are deleted automatically.
+   You can force the deletion by adding this label to the BTP Operator resource:
+   ```
+   force-delete: "true"
+   ```
+   If you use the label, all the existing Service Instances and Service Bindings are deleted automatically.
 
-At first, the deprovisioning process tries to perform the deletion in a hard delete mode. It tries to delete all 
-Service Bindings and Service Instances across all Namespaces. The time limit for the hard delete is 20 minutes. 
-After this time, or in case of an error, the process goes into soft delete mode, which runs deletion of finalizers from Service Instances and Service Bindings.
-
-In order to delete finalizers the reconciler deletes module deployment and webhooks.
-Regardless of mode, in the next step, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager`
-label are deleted. The deletion process of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](/module-resources).
-If the process succeeds, the finalizer on BtpOperator CR itself is removed and the resource is deleted.
-If an error occurs during the deprovisioning, state of BtpOperator CR is set to `Error`. 
+2. At first, the deprovisioning process tries to perform the deletion in a hard delete mode. It tries to delete all ServiceBindings and ServiceInstances across all Namespaces. The time limit for the hard delete is 20 minutes. 
+3. Then it checks if there are any leftover ServiceBindings or ServiceInstances. 
+4. The hard delete is unsuccessful if a timeout is reached, if some resources are still present, or in case of an error. Then the process goes into the soft delete mode.
+5. The soft delete mode begins with deleting SAP BTP Service Operator module deployment and webhooks.
+6. The reconciler removes finalizers from ServiceBindings and deletes the related Secrets.
+7. The reconciler checks if there are any ServiceBindings left.
+8. Then it removes finalizers from ServiceInstances.
+9. The last step in the hard delete mode is checking for any leftover ServiceInstances.
+10. If any of steps 5-9 fail because of an error or unsuccessful resource deletion, the process throws a respective error, and the reconciliation starts again.
+11. Regardless of the mode, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager` label are deleted. The deletion of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](/module-resources). If the process succeeds, the finalizer on BtpOperator CR itself is removed, and the resource is deleted. If an error occurs during the deprovisioning (11a), the state of BtpOperator CR is set to `Error`.
 
 ## Conditions
 The state of BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/declarative/v2/object.go#L23) that comprises State
