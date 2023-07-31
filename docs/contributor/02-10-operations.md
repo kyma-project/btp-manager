@@ -6,7 +6,7 @@ BTP Manager performs the following operations:
 
 - provisioning of SAP BTP Service Operator
 - update of SAP BTP Service Operator
-- deprovisioning of SAP BTP Service Operator and its resources, Service Instances, and Service Bindings
+- deprovisioning of SAP BTP Service Operator and its resources, ServiceInstances, and ServiceBindings
 
 ## Provisioning
 
@@ -44,10 +44,7 @@ module status.
 the oldest CR present in the cluster. Otherwise, it is given the `Error` state (3a) with the condition reason `OlderCRExists` and the message containing details about the CR responsible for reconciling the operand.
 4. For the only or the oldest CR present in the cluster,  a finalizer is added, the CR is set to the `Processing` state, and the
 reconciliation proceeds.
-5. The reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the Service
-
-Manager credentials for SAP BTP Service Operator and should be delivered to the cluster by KEB. If the Secret is
-missing, an error is thrown (5a), and the reconciler sets the `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
+5. The reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` Namespace with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the Service Manager credentials for SAP BTP Service Operator and should be delivered to the cluster by KEB. If the Secret is missing, an error is thrown (5a), and the reconciler sets the `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret
 is created. 
 6. When the Secret is present in the cluster, the reconciler verifies whether it contains the required data. The
 Secret should contain the following keys: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, `cluster_id`. None of the
@@ -85,7 +82,7 @@ condition that allows the reconciler to set the CR in the `Ready` state.
    ```
    force-delete: "true"
    ```
-   If you use the label, all the existing Service Instances and Service Bindings are deleted automatically.
+   If you use the label, all the existing ServiceInstances and ServiceBindings are deleted automatically.
 
 2. At first, the deprovisioning process tries to perform the deletion in a hard delete mode. It tries to delete all ServiceBindings and ServiceInstances across all Namespaces. The time limit for the hard delete is 20 minutes. 
 3. Then it checks if there are any leftover ServiceBindings or ServiceInstances. 
