@@ -51,7 +51,7 @@ Secret should contain the following keys: `clientid`, `clientsecret`, `sm_url`, 
 key values should be empty. If some required data is missing, the reconciler throws an error (6a) with the message about
 missing keys/values, sets the CR in the `Error` state (reason `InvalidSecret`), and stops the reconciliation until there is a change in the required
 Secret.
-7. After checking the Secret, the reconciler applies and deletes operations of the [module resources](/module-resources).
+7. After checking the Secret, the reconciler performs the apply and delete operations of the [module resources](/module-resources).
 One of GitHub Actions creates the `module-resources` directory, which contains manifests for applying and deleting operations. See [workflows](04-10-workflows.md#auto-update-chart-and-resources) for more details. First, the reconciler deletes outdated module resources stored as manifests in [to-delete.yml](/module-resources/delete/to-delete.yml).
 8. After all outdated resources are deleted successfully, the reconciler prepares current resources from manifests in the [apply](/module-resources/apply) directory to be applied to the cluster.
 The reconciler prepares certificates (regenerated if needed) and webhook configurations and adds these to the list of current resources. 
@@ -91,7 +91,7 @@ condition that allows the reconciler to set the CR in the `Ready` state.
 6. The reconciler removes finalizers from ServiceBindings and deletes the related Secrets.
 7. The reconciler checks if there are any ServiceBindings left.
 8. Then it removes finalizers from ServiceInstances.
-9. The last step in the hard delete mode is checking for any leftover ServiceInstances.
+9. The last step in the soft delete mode is checking for any leftover ServiceInstances.
 10. If any of steps 5-9 fail because of an error or unsuccessful resource deletion, the process throws a respective error, and the reconciliation starts again.
 11. Regardless of the mode, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager` label are deleted. The deletion of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](/module-resources). If the process succeeds, the finalizer on BtpOperator CR itself is removed, and the resource is deleted. If an error occurs during the deprovisioning (11a), the state of BtpOperator CR is set to `Error`.
 
