@@ -39,13 +39,13 @@ To enable the BTP Operator module from the latest release, you must install BTP 
    ```sh
    kubectl get btpoperators btpoperator
    ```
-   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to manage SAP BTP Service Operator](/docs/user/02-10-usage.md#create-and-install-a-secret).
+   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
 
-For more installation options, read the [Install and uninstall BTP Manager](/docs/contributor/01-10-installation.md) document.
+For more installation options, read the [Install and uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
 ## Usage
 
-Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, read the [usage](docs/user/02-10-usage.md) document.
+Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, read the [usage](./docs/user/02-10-usage.md) document.
 
 ## Uninstallation
 
@@ -57,14 +57,14 @@ kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/do
 
 ## Read more
 
-If you want to provide new features for BTP Manager, visit the [`contributor`](/docs/contributor) folder. You will find detailed information on BTP Manager's:
+If you want to provide new features for BTP Manager, visit the [`contributor`](./docs/contributor) folder. You will find detailed information on BTP Manager's:
 
-- [configuration](/docs/contributor/01-20-configuration.md)
-- [operations](/docs/contributor/02-10-operations.md)
-- [release pipeline](/docs/contributor/03-10-release.md)
-- [GitHub Actions workflows](/docs/contributor/04-10-workflows.md)
-- [unit tests](/docs/contributor/05-10-testing.md)
-- [E2E tests](/docs/contributor/05-20-e2e_tests.md)
-- [certification management](/docs/contributor/06-10-certs.md)
+- [configuration](./docs/contributor/01-20-configuration.md)
+- [operations](./docs/contributor/02-10-operations.md)
+- [release pipeline](./docs/contributor/03-10-release.md)
+- [GitHub Actions workflows](./docs/contributor/04-10-workflows.md)
+- [unit tests](./docs/contributor/05-10-testing.md)
+- [E2E tests](./docs/contributor/05-20-e2e_tests.md)
+- [certification management](./docs/contributor/06-10-certs.md)
 
-Visit the [`user`](/docs/user) folder if you want to know more about [BTP Operator](/docs/user/README.md), and [how to use the module](/docs/user/02-10-usage.md).
+Visit the [`user`](./docs/user) folder if you want to know more about [BTP Operator](./docs/user/README.md), and [how to use the module](./docs/user/02-10-usage.md).
