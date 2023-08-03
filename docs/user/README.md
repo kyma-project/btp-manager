@@ -2,7 +2,7 @@
 
 ## Overview
 
-Within the BTP Operator module, [BTP Manager](https://github.com/kyma-project/btp-manager) installs [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md).
+Within the BTP Operator module, [BTP Manager](../../README.md) installs [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md).
 
 ### BTP Manager
 
