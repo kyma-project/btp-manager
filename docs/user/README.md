@@ -21,4 +21,4 @@ Read [BTP Manager operations](../contributor/02-10-operations.md) and the [SAP B
 ## Read more
 
 This directory contains the end user documentation of the BTP Operator module.  
-For the module's usage details, read the [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md) document.
+For the module's usage details, read the [Use BTP Manager to manage SAP BTP Service Operator](./02-10-usage.md) document.
