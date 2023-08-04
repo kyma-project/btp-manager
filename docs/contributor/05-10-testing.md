@@ -7,7 +7,7 @@ To run the unit tests from the command line, use the following command from the 
 ```shell
 make test
 ```
-The details concerning the `test` rule (prerequisites and recipe) are defined in [`Makefile`](/Makefile).
+The details concerning the `test` rule (prerequisites and recipe) are defined in [`Makefile`](../../Makefile).
 
 By default, the unit tests are run using the envtest cluster. 
 Some of the unit tests are implemented using the [Gingko](https://onsi.github.io/ginkgo/#top) library, but all the unit tests are invoked using the `go test ./... <some options>`.
@@ -40,7 +40,7 @@ GINKGO_VERBOSE_FLAG="ginkgo.vv" make test
 ### Filtering labels
 You can use the Ginkgo library labeling features to filter which tests specs are to be executed. 
 For more details, see [Spec Labels](https://onsi.github.io/ginkgo/#spec-labels) in Ginkgo documentation. To use labels for filtering, 
-you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in the [BtpOperator-controller `test.go`](/controllers) files with labels, for example:
+you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in the [BtpOperator-controller `test.go`](../../controllers) files with labels, for example:
 ```go
 	Describe("Provisioning", Label("test-provisioning", "smoke-test"), func() {
 ```
@@ -60,7 +60,7 @@ GINKGO_LABEL_FILTER="test-provisioning,test-deprovisioning" make test
 
 ### Environment variables
 
-All the above-mentioned environment variables can also be set in the [set-env-vars.sh](/scripts/testing/set-env-vars.sh) file. The script sets the default values for all the environment variables used in the `go test` invocation. 
+All the above-mentioned environment variables can also be set in the [set-env-vars.sh](../../scripts/testing/set-env-vars.sh) file. The script sets the default values for all the environment variables used in the `go test` invocation. 
 Changing the script contents is recommended if a more complex filtering expression is required, or if you frequently reuse the setting. However, you should not push the changes without considering 
 how this affects Github Actions workflows.
 

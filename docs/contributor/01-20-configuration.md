@@ -54,7 +54,7 @@ Usage of ./manager:
     	Zap time encoding (one of 'epoch', 'millis', 'nano', 'iso8601', 'rfc3339' or 'rfc3339nano'). Defaults to 'epoch'.
 ```
 
-To configure BTP Manager with a `ConfigMap`, follow this [example](/examples/btp-operator-configmap.yaml).  
+To configure BTP Manager with a `ConfigMap`, follow this [example](../../examples/btp-operator-configmap.yaml).  
 You should get a result similar to this one:
 ```yaml
 apiVersion: v1

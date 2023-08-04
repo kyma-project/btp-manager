@@ -6,7 +6,7 @@ To create a real BTP Manager Secret, follow these steps:
 1. Clone the `btp-manager` repository to your local file system.
 2. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
 3. Copy and save the access credentials into your `hack/creds.json` file in the cloned `btp-manager` repository.
-4. Call [`create-secret-file.sh`](../../hack/create-secret-file.sh). 
+4. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh). 
 5. Apply the Secret in your cluster. 
  
    ```sh
@@ -27,11 +27,11 @@ btpoperator          Ready
 
 ## Deploy an SAP BTP service in your Kyma cluster
 
-After successfully installing your Secret, you can create a Service Instance and a Service Binding.
+After successfully installing your Secret, you can create a ServiceInstance and a ServiceBinding.
 
 > **NOTE:** This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
 
-1. To create a Service Instance, run the following script:
+1. To create a ServiceInstance, run the following script:
 
     ```yaml
     kubectl create -f - <<EOF
@@ -57,7 +57,7 @@ After successfully installing your Secret, you can create a Service Instance and
 
     You see the status `created` and the message `ServiceInstance provisioned successfully`.
 
-3. To create a Service Binding, run this script:
+3. To create a ServiceBinding, run this script:
 
     ```yaml
     kubectl create -f - <<EOF
