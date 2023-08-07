@@ -2,18 +2,31 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 const (
 	metricsNamespace = "btpmanager"
 )
 
-type Metrics struct{}
+type Metrics struct {
+	certsRegenerationsCounter prometheus.Counter
+}
 
 func (m *Metrics) registerMetrics() {
 	//register new custom metrics here, for example:
 	//counter := prometheus.NewCounter(....)
 	//metrics.Registry.MustRegister(counter)
+	certRegenCounter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: buildMetricName("", "certs_regenerations_count"),
+		Help: "Count of certs regenerations",
+	})
+	m.certsRegenerationsCounter = certRegenCounter
+	metrics.Registry.MustRegister(certRegenCounter)
+}
+
+func (m *Metrics) IncreaseCertsRegenerationsCounter() {
+	m.certsRegenerationsCounter.Inc()
 }
 
 func NewMetrics() *Metrics {

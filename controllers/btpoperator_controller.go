@@ -1480,6 +1480,7 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 		return err
 	}
 	if certificatesRegenerationDone {
+		r.metrics.IncreaseCertsRegenerationsCounter()
 		return nil
 	}
 
@@ -1488,6 +1489,7 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 		return err
 	}
 	if certificatesRegenerationDone {
+		r.metrics.IncreaseCertsRegenerationsCounter()
 		return nil
 	}
 
@@ -1496,6 +1498,7 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 		return err
 	}
 	if certificatesRegenerationDone {
+		r.metrics.IncreaseCertsRegenerationsCounter()
 		return nil
 	}
 
@@ -1504,6 +1507,7 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 		return err
 	}
 	if certificatesRegenerationDone {
+		r.metrics.IncreaseCertsRegenerationsCounter()
 		return nil
 	}
 
@@ -1512,6 +1516,7 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 		return err
 	}
 	if certificatesRegenerationDone {
+		r.metrics.IncreaseCertsRegenerationsCounter()
 		return nil
 	}
 
