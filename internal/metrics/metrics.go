@@ -10,7 +10,7 @@ const (
 )
 
 type Metrics struct {
-	certsRegeerationsCounter prometheus.Counter
+	certsRegenerationsCounter prometheus.Counter
 }
 
 func (m *Metrics) registerMetrics() {
@@ -20,12 +20,12 @@ func (m *Metrics) registerMetrics() {
 	certRegenCounter := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: buildMetricName("", "certs_regenerations_count"),
 	})
-	m.certsRegeerationsCounter = certRegenCounter
+	m.certsRegenerationsCounter = certRegenCounter
 	metrics.Registry.MustRegister(certRegenCounter)
 }
 
 func (m *Metrics) IncreaseCertsRegenerationsCounter() {
-	m.certsRegeerationsCounter.Inc()
+	m.certsRegenerationsCounter.Inc()
 }
 
 func NewMetrics() *Metrics {
