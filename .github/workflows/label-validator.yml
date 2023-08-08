@@ -2,7 +2,7 @@ name: Label validator
 
 on:
   pull_request:
-    types: ["opened", "labeled", "unlabeled", "closed"]
+    types: ["opened", "reopened", "edited", "closed", "labeled", "unlabeled"]
     branches: [ "main" ]
   merge_group:
     types: [checks_requested]
