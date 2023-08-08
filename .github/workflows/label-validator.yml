@@ -17,4 +17,4 @@ jobs:
           fetch-depth: 0
 
       - name: Validate labels
-        run: ./scripts/label_validator.sh
+        run: "./scripts/label_validator.sh ${{ github.event.pull_request.number }}"
