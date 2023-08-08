@@ -1,0 +1,16 @@
+name: Label validator
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  merge_group:
+    types: [checks_requested]
+
+jobs:
+  validate-tags:
+    name: Validate labels
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate labels
+        run: /scripts/label_validator.sh
