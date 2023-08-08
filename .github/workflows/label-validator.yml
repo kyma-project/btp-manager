@@ -8,11 +8,6 @@ on:
     types: [checks_requested]
 
 jobs:
-  if_merged:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-    - run: exit 1
   validate-tags:
     name: Validate labels
     runs-on: ubuntu-latest
