@@ -4,8 +4,6 @@ on:
   pull_request:
     types: ["opened", "reopened", "edited", "closed", "labeled", "unlabeled"]
     branches: [ "main" ]
-  merge_group:
-    types: [checks_requested]
 
 jobs:
   validate-tags:
