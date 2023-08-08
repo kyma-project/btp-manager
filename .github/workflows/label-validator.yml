@@ -2,10 +2,8 @@ name: Label validator
 
 on:
   pull_request:
-    types: ["labeled", "unlabeled"]
+    types: ["opened", "labeled", "unlabeled"]
     branches: [ "main" ]
-  merge_group:
-    types: [checks_requested]
 
 jobs:
   validate-tags:
