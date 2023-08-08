@@ -50,6 +50,5 @@ then
   exit 1
 fi
 
-
 echo -e "\n---Deleting e2e-test-btpoperator"
 kubectl delete btpoperators/e2e-test-btpoperator
