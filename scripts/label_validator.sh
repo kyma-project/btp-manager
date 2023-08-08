@@ -13,7 +13,7 @@ PR_ID=$1
 current_labels=$(curl -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                https://api.github.com/repos/kyma-project/btp-manager/pulls/${PR_ID} | 
+                https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
                 jq -r '.labels[] | objects | .name')
 
 while IFS= read -r label; do
