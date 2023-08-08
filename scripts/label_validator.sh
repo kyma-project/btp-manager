@@ -12,10 +12,10 @@ PR_ID=$1
 kind_labels=()
 
 available_labels=$(curl -L \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/ukff/btp-manager/labels |
-  jq -r '.[] | objects | .name')
+                    -H "Accept: application/vnd.github+json" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    https://api.github.com/repos/ukff/btp-manager/labels |
+                    jq -r '.[] | objects | .name')
 
 while IFS= read -r label; do
     #echo "$label"
@@ -28,10 +28,10 @@ echo "supported labels are:"
 echo "${kind_labels[@]}"
 
 present_labels=$(curl -L \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
-                jq -r '.labels[] | objects | .name')
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
+                  jq -r '.labels[] | objects | .name')
 
 count_of_required_labels=0
 while IFS= read -r label; do
