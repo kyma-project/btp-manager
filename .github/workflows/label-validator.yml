@@ -14,4 +14,4 @@ jobs:
 
     steps:
       - name: Validate labels
-        run: /scripts/label_validator.sh
+        run: ./scripts/label_validator.sh
