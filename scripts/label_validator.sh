@@ -6,23 +6,29 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-labels=("kind/feature" "kind/enhancement" "kind/bug")
-
 PR_ID=$1
 
-current_labels=$(curl -L \
+REQUIRED_LABELS=("kind/feature" "kind/enhancement" "kind/bug")
+
+present_labels=$(curl -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
                 jq -r '.labels[] | objects | .name')
 
+count_of_required_labels=0
 while IFS= read -r label; do
-    if [[ " ${labels[*]} " =~ " ${label} " ]]; then
+    if [[ " ${REQUIRED_LABELS[*]} " =~ " ${label} " ]]; then
       echo "found label: ${label}"
-      exit 0
+      ((count_of_required_labels=count_of_required_labels+1))
     fi
-done <<< "$current_labels"
+done <<< "$present_labels"
 
-echo "one of following labels must be added to each PR before merge:"
-echo "${labels[@]}"
+if [[ $count_of_required_labels -eq 1 ]]; then 
+  echo "label validation OK"
+  exit 0
+fi
+
+echo "only one of following labels must be added to each PR before merge:"
+echo "${REQUIRED_LABELS[@]}"
 exit 1
