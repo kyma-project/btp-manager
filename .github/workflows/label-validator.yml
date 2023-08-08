@@ -6,7 +6,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  validate-tags:
+  validate-labels:
     name: Validate labels
     runs-on: ubuntu-latest
 
