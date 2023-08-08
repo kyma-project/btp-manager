@@ -2,7 +2,7 @@ changelog:
   categories:
     - title: New features
       labels:
-        -  kind/feature
+        - kind/feature
     - title: Enhancements
       labels:
         - kind/enhancement
