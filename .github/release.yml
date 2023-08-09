@@ -3,9 +3,18 @@ changelog:
     - title: New features
       labels:
         - kind/feature
+    - title: Enhancement
+      labels:
+        - kind/enhancement
     - title: Fixed bugs
       labels:
         - kind/bug
+    - title: Code cleanuo
+      labels:
+        - kind/cleanup
+    - title: chore
+      labels:
+        - kind/chore
     - title: Miscellaneous
       labels:
         - "*"

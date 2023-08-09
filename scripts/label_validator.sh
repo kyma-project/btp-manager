@@ -8,24 +8,15 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 PR_ID=$1
 
-#kind_labels=("kind/feature" "kind/enhancement" "kind/bug")
 kind_labels=()
 
-available_labels=$(curl -L \
-                    -H "Accept: application/vnd.github+json" \
-                    -H "X-GitHub-Api-Version: 2022-11-28" \
-                    https://api.github.com/repos/ukff/btp-manager/labels |
-                    jq -r '.[] | objects | .name')
-
+relase_notes_supported_labels=$(yq eval '.changelog.categories.[].labels' ./.github/release.yml)
 while IFS= read -r label; do
-    #echo "$label"
-    if [[ $label == kind* ]]; then
-      kind_labels+=("${label}")
-    fi
-done <<< "$available_labels"
-
-echo "supported labels are:"
-echo "${kind_labels[@]}"
+  clean_label=$(echo "$label" | sed 's/-//g' | sed 's/ //g')
+  if [[ $clean_label == kind* ]]; then
+    kind_labels+=("$clean_label")
+  fi
+done <<< "$relase_notes_supported_labels"
 
 present_labels=$(curl -L \
                   -H "Accept: application/vnd.github+json" \
@@ -46,6 +37,6 @@ if [[ $count_of_required_labels -eq 1 ]]; then
   exit 0
 fi
 
-echo "only one of following labels must be added to each PR before merge:"
+echo "error: only 1 of following labels must be added to each PR before merge but found $count_of_required_labels:"
 echo "${kind_labels[@]}"
 exit 1
