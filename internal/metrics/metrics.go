@@ -18,8 +18,8 @@ func (m *Metrics) registerMetrics() {
 	//counter := prometheus.NewCounter(....)
 	//metrics.Registry.MustRegister(counter)
 	certRegenCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: buildMetricName("", "certs_regenerations_count"),
-		Help: "Count of certs regenerations",
+		Name: buildMetricName("", "certs_regenerations_total"),
+		Help: "Total number of certs regenerations",
 	})
 	m.certsRegenerationsCounter = certRegenCounter
 	metrics.Registry.MustRegister(certRegenCounter)
