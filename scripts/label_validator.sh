@@ -6,6 +6,9 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+#From Github API Docs:
+#You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
+
 PR_ID=$1
 
 kind_labels=()
@@ -20,27 +23,37 @@ done <<< "$relase_notes_supported_labels"
 
 msg="Please use one of following labels for this PR: ${kind_labels[*]}"
 
+echo $msg
+
 comments=$(curl -L \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/ukff/btp-manager/pulls/comments |
+            https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments |
             jq -r '.[] | objects | .body')
 
 if [[ ! " ${comments[*]} " =~ " ${msg} " ]]; then
+
+JSON_PAYLOAD=$(jq -n \
+  --arg body "$msg" \
+  '{
+    "body": $body,
+  }') 
+
   response=$(curl -L \
               -X POST \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer $GITHUB_TOKEN" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID}/comments \
-              -d "{'body':'$msg'}")
+              https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments \
+              -d "$JSON_PAYLOAD")
+
   echo "$response"
 fi
 
 present_labels=$(curl -L \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
+                  https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID} | 
                   jq -r '.labels[] | objects | .name')
 
 count_of_required_labels=0
