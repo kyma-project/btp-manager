@@ -8,30 +8,40 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 PR_ID=$1
 
-#kind_labels=("kind/feature" "kind/enhancement" "kind/bug")
 kind_labels=()
 
-available_labels=$(curl -L \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/ukff/btp-manager/labels |
-  jq -r '.[] | objects | .name')
-
+relase_notes_supported_labels=$(yq eval '.changelog.categories.[].labels' ./.github/release.yml)
 while IFS= read -r label; do
-    #echo "$label"
-    if [[ $label == kind* ]]; then
-      kind_labels+=("${label}")
-    fi
-done <<< "$available_labels"
+  clean_label=$(echo "$label" | sed -e 's/-//g ; s/ //g')
+  if [[ $clean_label == kind* ]]; then
+    kind_labels+=("$clean_label")
+  fi
+done <<< "$relase_notes_supported_labels"
 
-echo "supported labels are:"
-echo "${kind_labels[@]}"
+msg="Please use one of following labels for this PR: ${kind_labels[*]}"
+
+comments=$(curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/ukff/btp-manager/pulls/comments |
+            jq -r '.[] | objects | .body')
+
+if [[ ! " ${comments[*]} " =~ " ${msg} " ]]; then
+  response=$(curl -L \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID}/comments \
+              -d "{'body':'$msg'}")
+  echo "$response"
+fi
 
 present_labels=$(curl -L \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
-                jq -r '.labels[] | objects | .name')
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
+                  jq -r '.labels[] | objects | .name')
 
 count_of_required_labels=0
 while IFS= read -r label; do
@@ -46,6 +56,6 @@ if [[ $count_of_required_labels -eq 1 ]]; then
   exit 0
 fi
 
-echo "only one of following labels must be added to each PR before merge:"
+echo "error: only 1 of following labels must be added to each PR before merge but found $count_of_required_labels:"
 echo "${kind_labels[@]}"
 exit 1

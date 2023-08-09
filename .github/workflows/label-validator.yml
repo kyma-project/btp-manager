@@ -6,7 +6,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  validate-tags:
+  validate-labels:
     name: Validate labels
     runs-on: ubuntu-latest
 
@@ -17,4 +17,6 @@ jobs:
           fetch-depth: 0
 
       - name: Validate labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/label_validator.sh ${{ github.event.pull_request.number }}"
