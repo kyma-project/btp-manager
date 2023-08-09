@@ -12,16 +12,35 @@ kind_labels=()
 
 relase_notes_supported_labels=$(yq eval '.changelog.categories.[].labels' ./.github/release.yml)
 while IFS= read -r label; do
-  clean_label=$(echo "$label" | sed 's/-//g' | sed 's/ //g')
+  clean_label=$(echo "$label" | sed -e 's/-//g ; s/ //g')
   if [[ $clean_label == kind* ]]; then
     kind_labels+=("$clean_label")
   fi
 done <<< "$relase_notes_supported_labels"
 
+msg="Please use one of following labels for this PR: ${kind_labels[*]}"
+
+comments=$(curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/ukff/btp-manager/pulls/comments |
+            jq -r '.[] | objects | .body')
+
+if [[ ! " ${comments[*]} " =~ " ${msg} " ]]; then
+  response=$(curl -L \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID}/comments \
+              -d "{'body':'$msg'}")
+  echo "$response"
+fi
+
 present_labels=$(curl -L \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/kyma-project/btp-manager/pulls/${PR_ID} | 
+                  https://api.github.com/repos/ukff/btp-manager/pulls/${PR_ID} | 
                   jq -r '.labels[] | objects | .name')
 
 count_of_required_labels=0

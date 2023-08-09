@@ -12,6 +12,9 @@ changelog:
     - title: Code cleanup
       labels:
         - kind/cleanup
+    - title: Deprecation
+      labels:
+        - kind/deprecation
     - title: Chore
       labels:
         - kind/chore
