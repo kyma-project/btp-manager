@@ -9,10 +9,10 @@ changelog:
     - title: Fixed bugs
       labels:
         - kind/bug
-    - title: Code cleanuo
+    - title: Code cleanup
       labels:
         - kind/cleanup
-    - title: chore
+    - title: Chore
       labels:
         - kind/chore
     - title: Miscellaneous
