@@ -7,67 +7,61 @@ set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 #From Github API Docs:
-#You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
+#   You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
 
 PR_ID=$1
 
-kind_labels=()
+supported_labels=()
 
-relase_notes_supported_labels=$(yq eval '.changelog.categories.[].labels' ./.github/release.yml)
+help_message="**Add one of following label** <br/><br/>"
+
 while IFS= read -r label; do
-  clean_label=$(echo "$label" | sed -e 's/-//g ; s/ //g')
-  if [[ $clean_label == kind* ]]; then
-    kind_labels+=("$clean_label")
-  fi
-done <<< "$relase_notes_supported_labels"
-
-msg="Please use one of following labels for this PR: ${kind_labels[*]}"
+  label_part=$(echo "$label" | cut -d "#" -f 1); help_message_part=$(echo "$label" | cut -d "#" -f 2)
+  help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
+  supported_labels+=("$label_part")
+done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
 
 
-comments=$(curl -L \
+comments=$(curl -sL \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/kyma-project/btp-manager/issues/${PR_ID}/comments |
+            https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments |
             jq -r '.[] | objects | .body')
 
-if [[ ! " ${comments[*]} " =~ " ${msg} " ]]; then
+if [[ ! " ${comments[*]} " =~ " ${help_message} " ]]; then
 
   payload=$(jq -n \
-    --arg body "$msg" \
+    --arg body "$help_message" \
     '{
       "body": $body,
     }') 
 
-  response=$(curl -L \
+  http_code=$(curl -sL \
+              -w "%{http_code}" --output /dev/null \
               -X POST \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer $GITHUB_TOKEN" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/kyma-project/btp-manager/issues/${PR_ID}/comments \
+              https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments \
               -d "$payload")
-
-  echo "$response"
+  if [[ "$http_code" != "201" ]]; then
+    echo "Unable to create comment with help text. $http_code"
+    exit 1
+  fi
 fi
 
-present_labels=$(curl -L \
+present_labels=$(curl -sL \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/kyma-project/btp-manager/issues/${PR_ID} | 
+                  https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID} | 
                   jq -r '.labels[] | objects | .name')
 
-count_of_required_labels=0
-while IFS= read -r label; do
-    if [[ " ${kind_labels[*]} " =~ " ${label} " ]]; then
-      echo "found label: ${label}"
-      ((count_of_required_labels=count_of_required_labels+1))
-    fi
-done <<< "$present_labels"
-
+count_of_required_labels=$(grep -o -w -F -c "${supported_labels[*]}" <<< "$present_labels")
 if [[ $count_of_required_labels -eq 1 ]]; then 
   echo "label validation OK"
   exit 0
 fi
 
 echo "error: only 1 of following labels must be added to each PR before merge but found $count_of_required_labels:"
-echo "${kind_labels[@]}"
+echo "${supported_labels[@]}"
 exit 1

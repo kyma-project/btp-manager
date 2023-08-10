@@ -1,23 +1,11 @@
 changelog:
   categories:
-    - title: New features
+    - title: New feature 
       labels:
-        - kind/feature
-    - title: Enhancement
+        - kind/feature # Use it when you want to submit a new feature
+    - title: Enhancement 
       labels:
-        - kind/enhancement
+        - kind/enhancement # Use it when you modify or improve an existing feature
     - title: Fixed bugs
       labels:
-        - kind/bug
-    - title: Code cleanup
-      labels:
-        - kind/cleanup
-    - title: Deprecation
-      labels:
-        - kind/deprecation
-    - title: Chore
-      labels:
-        - kind/chore
-    - title: Miscellaneous
-      labels:
-        - "*"
+        - kind/bug # Use it when you fix a bug
