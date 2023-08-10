@@ -27,7 +27,7 @@ msg="Please use one of following labels for this PR: ${kind_labels[*]}"
 comments=$(curl -L \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments |
+            https://api.github.com/repos/kyma-project/btp-manager/issues/${PR_ID}/comments |
             jq -r '.[] | objects | .body')
 
 if [[ ! " ${comments[*]} " =~ " ${msg} " ]]; then
@@ -43,7 +43,7 @@ if [[ ! " ${comments[*]} " =~ " ${msg} " ]]; then
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer $GITHUB_TOKEN" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments \
+              https://api.github.com/repos/kyma-project/btp-manager/issues/${PR_ID}/comments \
               -d "$payload")
 
   echo "$response"
@@ -52,7 +52,7 @@ fi
 present_labels=$(curl -L \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID} | 
+                  https://api.github.com/repos/kyma-project/btp-manager/issues/${PR_ID} | 
                   jq -r '.labels[] | objects | .name')
 
 count_of_required_labels=0
