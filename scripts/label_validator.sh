@@ -23,7 +23,6 @@ done <<< "$relase_notes_supported_labels"
 
 msg="Please use one of following labels for this PR: ${kind_labels[*]}"
 
-echo $msg
 
 comments=$(curl -L \
             -H "Accept: application/vnd.github+json" \
@@ -33,11 +32,11 @@ comments=$(curl -L \
 
 if [[ ! " ${comments[*]} " =~ " ${msg} " ]]; then
 
-JSON_PAYLOAD=$(jq -n \
-  --arg body "$msg" \
-  '{
-    "body": $body,
-  }') 
+  payload=$(jq -n \
+    --arg body "$msg" \
+    '{
+      "body": $body,
+    }') 
 
   response=$(curl -L \
               -X POST \
@@ -45,7 +44,7 @@ JSON_PAYLOAD=$(jq -n \
               -H "Authorization: Bearer $GITHUB_TOKEN" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments \
-              -d "$JSON_PAYLOAD")
+              -d "$payload")
 
   echo "$response"
 fi
