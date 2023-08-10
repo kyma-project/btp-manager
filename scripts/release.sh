@@ -29,9 +29,16 @@ uploadFile() {
   fi
 }
 
-echo "PULL_BASE_REF ${PULL_BASE_REF}"
+IMG=${IMG_REGISTRY}/btp-manager:$PULL_BASE_REF
+echo "Referring to image: ${IMG}"
 
-MODULE_VERSION=${PULL_BASE_REF} make module-build
+## prepare security scanning configuration for the module template
+SCAN_CONFIG_FILE=module_scanners_config.yaml
+scripts/create_scan_config.sh ${IMG} ${SCAN_CONFIG_FILE}
+
+MODULE_VERSION=${PULL_BASE_REF} SECURITY_SCAN_OPTIONS="--sec-scanners-config ${SCAN_CONFIG_FILE}" make module-build
+
+rm -rf ${SCAN_CONFIG_FILE}
 
 echo "Generated template.yaml:"
 cat template.yaml
