@@ -28,7 +28,7 @@ To create a release, follow these steps:
 6. `post-btp-manager-module-build` runs the `kyma alpha create module` command, which creates a Kyma module and pushes the image to the registry. Kyma CLI is called with the `--sec-scanners-config` flag and uses a dynamically created file to configure security scanning settings in the module template. Finally, the job uploads the `template.yaml`,`template_control_plane.yaml`, `btp-manager.yaml` and `btp-operator-default-cr.yaml` files to the btp-manager release as release assets.
 7. The GitHub action waits for the `template.yaml` asset in the GitHub release and for images in the Docker registry.
 8. The GitHub action fetches the module image and runs E2E tests on the k3s cluster with the specified credentials. 
-9. If unit tests and E2E tests are completed successfully, GitHub action publishes the release.
+9. If the unit tests and E2E tests are completed successfully, the GitHub action publishes the release.
 
 
 ### Replace an existing release
