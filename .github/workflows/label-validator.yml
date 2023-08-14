@@ -19,4 +19,4 @@ jobs:
       - name: Validate labels
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/label_validator.sh ${{ github.event.pull_request.number }}"
+        run: ./scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}

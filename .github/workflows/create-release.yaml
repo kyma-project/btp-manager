@@ -54,6 +54,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate Labels
+        run : ./scripts/label_validator.sh "RELEASE" ${{ github.event.inputs.name }}
+
       - name: Create draft release
         id: create-draft
         env:
