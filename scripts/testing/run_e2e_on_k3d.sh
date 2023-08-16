@@ -34,7 +34,7 @@ MODULE_NAME=component-descriptors/kyma.project.io/module/btp-operator
 echo "Creating binary image and pushing to registry: ${LOCAL_REGISTRY}"
 make module-image LOCAL_REGISTRY=${LOCAL_REGISTRY} IMG=${LOCAL_REGISTRY}/${IMG_NAME}
 
-echo "Creating OCI module image and pushing to registry: ${LOCAL_REGISTRY}"
+echo "Creating OCI module image and pushing to registry (no security scanning configuration in module template): ${LOCAL_REGISTRY}"
 make module-build IMG=${K3D_REGISTRY}/${IMG_NAME} MODULE_REGISTRY=${LOCAL_REGISTRY} MODULE_VERSION=${MODULE_VERSION}
 
 echo "Running E2E tests"
