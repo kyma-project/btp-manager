@@ -14,14 +14,14 @@ PARAM=$2
 
 function runOnRealase() {
   latest=$(curl -H "X-GitHub-Api-Version: 2022-11-28" \
-                -sS "https://api.github.com/repos/kyma-project/btp-manager/releases/latest" | 
+                -sS "https://api.github.com/repos/ukff/btp-manager/releases/latest" | 
                 jq -r '.tag_name')
   notValidPrs=()
   while read -r commit; do
     pr_id=$(curl -L \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/search/issues?q=$commit+repo:kyma-project/btp-manager+type:pr" |
+              "https://api.github.com/search/issues?q=$commit+repo:ukff/btp-manager+type:pr" |
               jq 'if (.items | length) == 1 then .items[0].number else empty end')
 
     if [[ -z $pr_id ]]; then
@@ -32,14 +32,14 @@ function runOnRealase() {
     pr_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
-                    https://api.github.com/repos/kyma-project/btp-manager/issues/${pr_id} | 
+                    https://api.github.com/repos/ukff/btp-manager/issues/${pr_id} | 
                     jq -r '.labels[] | objects | .name')
     kind_labels=$(grep -o kind <<< ${pr_labels[*]} | wc -l)
     if [[ $kind_labels -ne 1 ]]; then 
       notValidPrs+=("$pr_id")
     fi
-  done <<< "$(git log $latest..origin/main --pretty=tformat:"%h")"
-  echo "x"
+  done <<< "$(git log $latest..HEAD --pretty=tformat:"%h")"
+
   if [ ${#notValidPrs[@]} -gt 0 ]; then
       echo "followings PRs dont have any kind label"
       echo "${notValidPrs[@]}"
