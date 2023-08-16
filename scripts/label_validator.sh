@@ -6,22 +6,25 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+GITHUB_ORG="kyma-project"
+
 # From Github API Docs why using API for Issue.
 #   You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
 
+# Event which trigger execution of script. Can be RELEASE or PR
 EVENT=$1 
 PARAM=$2
 
-function runOnRealase() {
+function runOnRelease() {
   latest=$(curl -H "X-GitHub-Api-Version: 2022-11-28" \
-                -sS "https://api.github.com/repos/ukff/btp-manager/releases/latest" | 
+                -sS "https://api.github.com/repos/$GITHUB_ORG/btp-manager/releases/latest" | 
                 jq -r '.tag_name')
   notValidPrs=()
   while read -r commit; do
     pr_id=$(curl -L \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/search/issues?q=$commit+repo:ukff/btp-manager+type:pr" |
+              "https://api.github.com/search/issues?q=$commit+repo:$GITHUB_ORG/btp-manager+type:pr" |
               jq 'if (.items | length) == 1 then .items[0].number else empty end')
 
     if [[ -z $pr_id ]]; then
@@ -32,13 +35,13 @@ function runOnRealase() {
     pr_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
-                    https://api.github.com/repos/ukff/btp-manager/issues/${pr_id} | 
+                    https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${pr_id} | 
                     jq -r '.labels[] | objects | .name')
     kind_labels=$(grep -o kind <<< ${pr_labels[*]} | wc -l)
     if [[ $kind_labels -ne 1 ]]; then 
       notValidPrs+=("$pr_id")
     fi
-  done <<< "$(git log $latest..HEAD --pretty=tformat:"%h")"
+  done <<< "$(git log "$latest"..HEAD --pretty=tformat:"%h")"
 
   if [ ${#notValidPrs[@]} -gt 0 ]; then
       echo "followings PRs dont have any kind label"
@@ -54,10 +57,12 @@ function runOnPr() {
   PR_ID=$1
   supported_labels=()
 
-  help_message="**Add one of following label** <br/><br/>"
+  help_message="**Add one of following labels** <br/><br/>"
 
   while IFS= read -r label; do
-    label_part=$(echo "$label" | cut -d "#" -f 1); help_message_part=$(echo "$label" | cut -d "#" -f 2)
+    parts=$(tr "#" " " <<< "$label")
+    set "$parts"
+    label_part=$1; help_message_part=$2
     help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
     supported_labels+=("$label_part")
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
@@ -66,7 +71,7 @@ function runOnPr() {
   comments=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments |
+              https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments |
               jq -r '.[] | objects | .body')
 
   if [[ ! " ${comments[*]} " =~ " ${help_message} " ]]; then
@@ -83,7 +88,7 @@ function runOnPr() {
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID}/comments \
+                https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments \
                 -d "$payload")
     if [[ "$http_code" != "201" ]]; then
       echo "Unable to create comment with help text. $http_code"
@@ -94,7 +99,7 @@ function runOnPr() {
   present_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
-                    https://api.github.com/repos/ukff/btp-manager/issues/${PR_ID} | 
+                    https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID} | 
                     jq -r '.labels[] | objects | .name')
 
   count_of_required_labels=$(grep -o -w -F -c "${supported_labels[*]}" <<< "$present_labels")
@@ -110,13 +115,13 @@ function runOnPr() {
 
 case $EVENT in
   "RELEASE")
-    runOnRealase "$PARAM"
+    runOnRelease "$PARAM"
     ;;
   "PR")
     runOnPr "$PARAM"
     ;;
   *)
-    echo "unsupported event: $EVENT"
+    echo "unsupported trigger event: $EVENT"
     exit 1
     ;;
 esac
