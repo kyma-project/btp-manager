@@ -21,7 +21,8 @@ JSON_PAYLOAD=$(jq -n \
     "tag_name": $tag_name,
     "name": $name,
     "body": $body,
-    "draft": true
+    "draft": true,
+    "generate_release_notes": true,
   }')
 
 CURL_RESPONSE=$(curl -L \
