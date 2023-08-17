@@ -22,7 +22,7 @@ JSON_PAYLOAD=$(jq -n \
     "name": $name,
     "body": $body,
     "draft": true,
-    "generate_release_notes": true,
+    "generate_release_notes": true
   }')
 
 CURL_RESPONSE=$(curl -L \
