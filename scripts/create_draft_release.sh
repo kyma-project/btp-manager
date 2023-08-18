@@ -20,7 +20,6 @@ JSON_PAYLOAD=$(jq -n \
   '{
     "tag_name": $tag_name,
     "name": $name,
-    "body": $body,
     "draft": true,
     "generate_release_notes": true
   }')
