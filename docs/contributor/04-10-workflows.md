@@ -28,7 +28,7 @@ This workflow is triggered by PRs on the `main` branch. Then it calls the reusab
 
 ## Markdown links check workflow
 
-This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered by PRs on the `main` branch. It checks for dead links in the repository.
+This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered daily at midnight and by each PR on the `main` branch. It checks for dead links in the repository.
 
 ## Reusable workflows
 
