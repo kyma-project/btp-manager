@@ -13,7 +13,7 @@ GITHUB_ORG="ukff"
 
 # Event which trigger execution of script. Can be RELEASE or PR
 TRIGGER_EVENT=$1 
-PR_ID=$2
+PR_ID=${2:-NA}
 
 function runOnRelease() {
   latest=$(curl -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -58,6 +58,11 @@ function runOnRelease() {
 } 
 
 function runOnPr() {
+  if [[ $PR_ID == "NA" ]]; then
+    echo "PR ID not given"
+    exit 1
+  fi
+
   supported_labels=()
 
   help_message="**Add one of following labels** <br/><br/>"
