@@ -26,6 +26,10 @@ This workflow is triggered by pull requests (PRs) on the `main` branch. It uses 
 
 This workflow is triggered by PRs on the `main` branch. Then it calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml).
 
+## Markdown links check workflow
+
+This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered by PRs on the `main` branch. It checks for dead links in the repository.
+
 ## Reusable workflows
 
 There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
