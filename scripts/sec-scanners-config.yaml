@@ -1,0 +1,9 @@
+module-name: btp-manager
+protecode:
+  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:0.4.9
+whitesource:
+  language: golang-mod
+  subprojects: false
+  exclude:
+    - "**/*_test.go"
+
