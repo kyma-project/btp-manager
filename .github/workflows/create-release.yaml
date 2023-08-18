@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate Labels
-        run : ./scripts/label_validator.sh "RELEASE" ${{ github.event.inputs.name }}
+        run : ./scripts/label_validator.sh "RELEASE"
   
   run-unit-tests:
     name: Unit tests
