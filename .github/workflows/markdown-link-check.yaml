@@ -1,6 +1,10 @@
 name: Markdown link check
 
-on: [pull_request]
+on: 
+    pull_request:
+    schedule:
+      - cron: '0 0 * * *' 
+
 jobs:
   markdown-link-check:
     runs-on: ubuntu-latest
