@@ -6,50 +6,45 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-GITHUB_ORG="kyma-project"
+GITHUB_ORG="ukff"
 
 # From Github API Docs why using API for Issue.
 #   You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
 
 # Event which trigger execution of script. Can be RELEASE or PR
-EVENT=$1 
+TRIGGER_EVENT=$1 
 PR_ID=$2
 
 function runOnRelease() {
   latest=$(curl -H "X-GitHub-Api-Version: 2022-11-28" \
                 -sS "https://api.github.com/repos/$GITHUB_ORG/btp-manager/releases/latest" | 
                 jq -r '.tag_name')
+
   notValidPrs=()
   while read -r commit; do
-    echo $commit
+
     pr_id=$(curl -L \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "https://api.github.com/search/issues?q=$commit+repo:$GITHUB_ORG/btp-manager+type:pr" |
               jq 'if (.items | length) == 1 then .items[0].number else empty end')
-    echo "1"
-    echo $pr_id
 
     if [[ -z $pr_id ]]; then
       echo "not found PR number for given commit $commit"
       continue
     fi 
-    echo "2"
 
     pr_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${pr_id} | 
                     jq -r '.labels[] | objects | .name')
-     echo "3"
-      echo $pr_labels
-    kind_labels=$(grep -o kind <<< ${pr_labels[*]} | wc -l)
-        echo "4"
 
+    kind_labels=$(grep -o kind <<< ${pr_labels[*]} | wc -l)
     if [[ $kind_labels -ne 1 ]]; then 
-        echo "5"
       notValidPrs+=("$pr_id")
     fi
+    
   done <<< "$(git log "$latest"..HEAD --pretty=tformat:"%h")"
 
   if [ ${#notValidPrs[@]} -gt 0 ]; then
@@ -120,7 +115,7 @@ function runOnPr() {
   exit 1
 }
 
-case $EVENT in
+case $TRIGGER_EVENT in
   "RELEASE")
     runOnRelease
     ;;
@@ -128,7 +123,7 @@ case $EVENT in
     runOnPr
     ;;
   *)
-    echo "unsupported trigger event: $EVENT"
+    echo "unsupported trigger event: $TRIGGER_EVENT"
     exit 1
     ;;
 esac
