@@ -19,8 +19,22 @@ on:
           - real
 
 jobs:
+  validate-release:
+    name: Validate release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Validate Labels
+        run : ./scripts/label_validator.sh "RELEASE" ${{ github.event.inputs.name }}
+  
   run-unit-tests:
     name: Unit tests
+    needs: validate-release
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
 
   run-e2e-tests:
@@ -37,6 +51,7 @@ jobs:
 
   run-stress-tests:
     name: Stress tests
+    needs: validate-release
     runs-on: ubuntu-latest
 
     steps:
@@ -94,6 +109,7 @@ jobs:
 
   create-draft:
     name: Create draft release
+    needs: validate-release
     runs-on: ubuntu-latest
 
     steps:
@@ -101,11 +117,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
-      - name: Create changelog
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/create_changelog.sh ${{ github.event.inputs.name }}
 
       - name: Create draft release
         id: create-draft
