@@ -1,4 +1,4 @@
-module-name: keda-manager
+module-name: btp-manager
 protecode:
   - europe-docker.pkg.dev/kyma-project/prod/btp-manager:0.4.9
 whitesource:
