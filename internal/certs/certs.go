@@ -126,7 +126,6 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
 
-// test
 func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, error) {
 	caCertificateDecoded, err := TryDecodeCertificate(caCertificate)
 	if err != nil {
