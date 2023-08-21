@@ -70,6 +70,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 	return newCertificatePem.Bytes(), newCertificatePrivateKeyPem.Bytes(), nil
 }
 
+// test
 func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePrivateKey []byte) ([]byte, []byte, error) {
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber: getRandomInt(),
