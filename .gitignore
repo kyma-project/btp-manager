@@ -18,6 +18,7 @@ Dockerfile.cross
 
 # Kubernetes Generated files - skip generated files, except for vendored files
 !vendor/**/zz_generated.*
+vendor/**
 
 # editor and IDE paraphernalia
 .idea
@@ -34,3 +35,8 @@ Dockerfile.cross
 /module-chart/chart/manifest/
 /controllers/testdata/test-module-chart/
 /controllers/testdata/test-module-resources/
+/downloaded_module/
+/temp/
+/charts/
+
+/vendor

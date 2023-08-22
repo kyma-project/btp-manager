@@ -1,0 +1,11 @@
+changelog:
+  categories:
+    - title: New feature 
+      labels:
+        - kind/feature # Use it when you want to submit a new feature
+    - title: Enhancement 
+      labels:
+        - kind/enhancement # Use it when you modify or improve an existing feature
+    - title: Fixed bugs
+      labels:
+        - kind/bug # Use it when you fix a bug

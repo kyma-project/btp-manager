@@ -86,8 +86,14 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: test
-test: manifests kustomize generate fmt vet envtest ## Run tests.
-	. ./testing/set-env-vars.sh; go test ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v
+test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run tests.
+	@. ./scripts/testing/set-env-vars.sh; \
+	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
+	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) -v controllers; else $(GINKGO) -v -p controllers; fi
+
+.PHONY: test-docs
+test-docs:
+	go run cmd/autodoc/main.go
 
 ##@ Build
 
@@ -142,7 +148,7 @@ module-image: docker-build docker-push ## Build the Module Image and push it to 
 .PHONY: module-build
 module-build: kyma kustomize ## Build the Module and push it to a registry defined in MODULE_REGISTRY
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	@$(KYMA) alpha create module --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path . $(MODULE_CREATION_FLAGS)
+	$(KYMA) alpha create module $(SECURITY_SCAN_OPTIONS) --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path . $(MODULE_CREATION_FLAGS)
 
 .PHONY: module-template-push
 module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODULE_REGISTRY
@@ -196,7 +202,14 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download & Build envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20230403212152-53057ba616d1
+
+########## ginkgo ###########
+GINKGO ?= $(LOCALBIN)/ginkgo
+.PHONY: ginkgo
+ginkgo: $(GINKGO) ## Download & Build ginkgo locally if necessary.
+$(GINKGO): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.9.2
 
 ##@ Checks
 

@@ -1,0 +1,12 @@
+apiVersion: operator.kyma-project.io/v1alpha1
+kind: BtpOperator
+metadata:
+  labels:
+    app.kubernetes.io/name: e2e-test-btpoperator
+    app.kubernetes.io/instance: btpoperator
+    app.kubernetes.io/part-of: btp-manager
+    app.kubernetes.io/managed-by: btp-manager
+    app.kubernetes.io/created-by: btp-manager
+  name: e2e-test-btpoperator
+spec:
+# fields can be added here

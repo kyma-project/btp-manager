@@ -1,8 +1,8 @@
 name: Auto update chart/resources
 
 env:
-  ORG: kyma-project
-  BTP_MANAGER_REPO: btp-manager
+  KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
+  SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
 on:
@@ -11,133 +11,46 @@ on:
     - cron: '0 0 * * *' 
 
 jobs:
- 
   auto-bump-chart:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-    - uses: actions/checkout@v3
+      - name: Compare tags
+        run: |
+          latest=$(scripts/update/get-latest-chart-version.sh)
+          current=$(yq '.version' ./module-chart/chart/Chart.yaml)
+          if [[ $latest == $current ]]; then
+            echo "versions are the same: $latest=$current"
+            echo "CONTINUE_JOB=false" >> $GITHUB_ENV
+          else
+            echo "version update from $current to $latest"
+            echo "CONTINUE_JOB=true" >> $GITHUB_ENV
+            echo "TAG=${latest}" >> $GITHUB_ENV
+            echo "BRANCH_NAME=chart-${latest}" >> $GITHUB_ENV
+            echo "MSG=Update module chart and resources to ${latest}" >> $GITHUB_ENV
+          fi
 
-    - name: Compare Tags
-      run: |
-        chmod +x hack/update/get-latest-chart-version.sh 
-        latest=$(hack/update/get-latest-chart-version.sh)
-        current=$(yq '.version' ./module-chart/chart/Chart.yaml)
-        if [[ $latest == $current ]]; then
-          echo "version are the same: $latest=$current"
-          echo "CONTINUE_JOB=false" >> $GITHUB_ENV
-        else
-          echo "version update from $current to $latest"
-          echo "CONTINUE_JOB=true" >> $GITHUB_ENV
-          echo "TAG=${latest}" >> $GITHUB_ENV
-        fi
+      - name: Update chart and module resources
+        if: env.CONTINUE_JOB == 'true'
+        run: |
+          scripts/update/make-module-chart.sh $TAG
+          scripts/update/make-module-resources.sh $TAG
 
-    - name: Update chart
-      if: env.CONTINUE_JOB == 'true'
-      run: |
-        chmod +x hack/update/make-module-chart.sh
-        hack/update/make-module-chart.sh $TAG
-
-    - name: Make templates
-      if: env.CONTINUE_JOB == 'true'
-      run: |
-        chmod +x hack/update/make-module-resources.sh
-        hack/update/make-module-resources.sh $TAG
-
-    - name: Configure Git
-      if: env.CONTINUE_JOB == 'true'
-      run: |
-        git config --global user.email $GIT_EMAIL
-        git config --global user.name $GIT_NAME
- 
-        echo "BRANCH_NAME=chart-$TAG" >> $GITHUB_ENV
-        echo "MSG=Update module chart and resources to $TAG" >> $GITHUB_ENV
-
-    - name: Check if there are changes
-      if: env.CONTINUE_JOB == 'true'
-      shell: bash
-      run: |
-        prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-        if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
-          echo "open pr already exists, no need to create new one"
-          echo "CONTINUE_JOB=false" >> $GITHUB_ENV
-        elif [ -z "$(git status --porcelain)" ]; then
-          echo "nothing changed, exiting"
-          echo "CONTINUE_JOB=false" >> $GITHUB_ENV
-        else
-          echo "CONTINUE_JOB=true" >> $GITHUB_ENV
-        fi
-      env:
-        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
-
-    - name: Pass changes
-      if: env.CONTINUE_JOB == 'true'
-      run: |
-        git add module-chart/* 
-        git add module-resources/* 
-        git add controllers/btpoperator_controller.go
-        git add config/rbac/role.yaml 
-        git stash push --staged
-
-    - uses: actions/checkout@v3
-      if: env.CONTINUE_JOB == 'true'
-      with:
-        ref: main
-
-    - name: Create PR
-      if: env.CONTINUE_JOB == 'true'
-      run: |
-        set -euo pipefail
-
-        git checkout -B $BRANCH_NAME
-        git stash apply
-        git add module-chart/* 
-        git add module-resources/*
-        git add controllers/btpoperator_controller.go
-        git add config/rbac/role.yaml 
-        git commit -m "$MSG"
-        git remote set-url origin https://x-access-token:${{ secrets.BOT_TOKEN }}@github.com/$ORG/$BTP_MANAGER_REPO.git
-        git push --set-upstream origin $BRANCH_NAME -f
-        pr_link=$(gh pr create -B main --title "$MSG" --body "" | tail -n 1)
-        echo "received PR link ${pr_link}"
-
-        # link the PR from ^^ to gopher project board
-        pr_number=$(echo "$pr_link" | awk -F '/' '{print($NF)}')
-        pr_id=$(gh api repos/kyma-project/btp-manager/pulls/"$pr_number" | jq -r '.node_id')
-
-        # gopher board node_id 
-        project_board_id=PVT_kwDOAlVvc84AEv0v
-        # todo column on gopher board node_id 
-        todo_column_id=834c7033
-        # order in todo column on gopher board node_id
-        status_field=PVTSSF_lADOAlVvc84AEv0vzgCvCtY
-
-        # insert projectv2 item (card on the gopher board)
-        resp=$(gh api graphql -f query='mutation{ addProjectV2ItemById(input:{projectId: "'${project_board_id}'" contentId: "'${pr_id}'"}){ item{id} }}' )
-        echo "response from insterting projectv2 item: $resp"
-        card_id=$(echo "$resp" | jq -r '.data.addProjectV2ItemById.item.id')
-
-        # move projectv2 item (card on the gopher board) to the top of the "todo" column
-        # due to GitHub internal GraphQL limitation, adding item and update has to be two separate calls
-        # https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects#updating-projects
-        gh api graphql -f query="$(cat << EOF
-          mutation {
-            set_status: updateProjectV2ItemFieldValue(input: {
-              projectId: "$project_board_id"
-              itemId: "$card_id"
-              fieldId: "$status_field"
-              value: {
-                singleSelectOptionId: "$todo_column_id"
-              }
-            }){projectV2Item {id}}
-            set_position: updateProjectV2ItemPosition(input: {
-              projectId: "$project_board_id"
-              itemId: "$card_id"
-            }){items {totalCount}}
-          }
-        EOF
-        )"
-
-      env:
-        GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+      - name: Create PR if anything changed
+        if: env.CONTINUE_JOB == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+          if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+            echo "PR already exists, no need to create a new one"
+          elif [ -z "$(git status --porcelain)" ]; then
+            echo "nothing changed, no need to create PR"
+          else
+            scripts/update/create_pr.sh
+          fi

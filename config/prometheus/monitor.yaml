@@ -1,20 +1,15 @@
-
-# Prometheus Monitor Service (Metrics)
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+# Prometheus Service (Metrics)
+apiVersion: v1
+kind: Service
 metadata:
   labels:
     app.kubernetes.io/component: btp-manager.kyma-project.io
-  name: controller-manager-metrics-monitor
-  namespace: system
+  name: metrics-service
+  namespace: kyma-system
 spec:
-  endpoints:
-    - path: /metrics
-      port: https
-      scheme: https
-      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-      tlsConfig:
-        insecureSkipVerify: true
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
   selector:
-    matchLabels:
-      app.kubernetes.io/component: btp-manager.kyma-project.io
+    app.kubernetes.io/component: btp-manager.kyma-project.io

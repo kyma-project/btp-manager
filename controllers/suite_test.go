@@ -25,13 +25,14 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/internal/certs"
+	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
-	gomegatypes "github.com/onsi/gomega/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -41,9 +42,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"github.com/kyma-project/module-manager/pkg/types"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -53,66 +51,35 @@ import (
 var logger = logf.Log.WithName("suite_test")
 
 const (
-	hardDeleteTimeout = time.Millisecond * 200
-	resourceAdded     = "added"
-	resourceUpdated   = "updated"
-	resourceDeleted   = "deleted"
+	hardDeleteTimeoutForAllTests         = time.Second * 1
+	deleteRequestTimeoutForAllTests      = time.Millisecond * 200
+	statusUpdateTimeoutForAllTests       = time.Millisecond * 200
+	statusUpdateCheckIntervalForAllTests = time.Millisecond * 20
+	testRsaKeyBits                       = 512
+	resourceAdded                        = "added"
+	resourceUpdated                      = "updated"
+	resourceDeleted                      = "deleted"
+	defaultNamespace                     = "default"
+	kymaNamespace                        = "kyma-system"
+	defaultChartPath                     = "./testdata/test-module-chart"
+	defaultResourcesPath                 = "./testdata/test-module-resources"
+	chartUpdatePath                      = "./testdata/module-chart-update"
+	resourcesUpdatePath                  = "./testdata/module-resources-update"
 )
 
 var (
-	cfg                  *rest.Config
-	k8sClient            client.Client
-	k8sClientFromManager client.Client
-	k8sManager           manager.Manager
-	testEnv              *envtest.Environment
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	reconciler           *BtpOperatorReconciler
-	updateCh             chan resourceUpdate = make(chan resourceUpdate, 1000)
+	cfg                        *rest.Config
+	k8sClient                  client.Client
+	k8sClientFromManager       client.Client
+	k8sManager                 manager.Manager
+	testEnv                    *envtest.Environment
+	ctx                        context.Context
+	ctxForDeploymentController context.Context
+	cancel                     context.CancelFunc
+	cancelDeploymentController context.CancelFunc
+	reconciler                 *BtpOperatorReconciler
+	updateCh                   chan resourceUpdate = make(chan resourceUpdate, 1000)
 )
-
-type resourceUpdate struct {
-	Cr     *v1alpha1.BtpOperator
-	Action string
-}
-
-func resourceUpdateHandler(obj any, t string) {
-	if cr, ok := obj.(*v1alpha1.BtpOperator); ok {
-		logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions)
-		updateCh <- resourceUpdate{Cr: cr, Action: t}
-	}
-}
-
-func matchState(state types.State) gomegatypes.GomegaMatcher {
-	return MatchFields(IgnoreExtras, Fields{
-		"Action": Equal(resourceUpdated),
-		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
-			"Status": MatchFields(IgnoreExtras, Fields{
-				"State": Equal(state),
-			}),
-		})),
-	})
-}
-
-func matchReadyCondition(state types.State, status metav1.ConditionStatus, reason Reason) gomegatypes.GomegaMatcher {
-	return MatchFields(IgnoreExtras, Fields{
-		"Action": Equal(resourceUpdated),
-		"Cr": PointTo(MatchFields(IgnoreExtras, Fields{
-			"Status": MatchFields(IgnoreExtras, Fields{
-				"State": Equal(state),
-				"Conditions": ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
-					"Type":   Equal(ReadyType),
-					"Reason": Equal(string(reason)),
-					"Status": Equal(status),
-				}))),
-			}),
-		})),
-	})
-}
-
-func matchDeleted() gomegatypes.GomegaMatcher {
-	return MatchFields(IgnoreExtras, Fields{"Action": Equal(resourceDeleted)})
-}
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -127,6 +94,7 @@ func TestAPIs(t *testing.T) {
 	} else {
 		SetDefaultEventuallyTimeout(time.Second * 5)
 	}
+
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
 
@@ -146,14 +114,20 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
 }
 
-var _ = BeforeSuite(func() {
-
+var _ = SynchronizedBeforeSuite(func() {
+	// runs only on process #1
+	ChartPath = "../module-chart/chart"
+	ResourcesPath = "../module-resources"
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, defaultChartPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, defaultResourcesPath)).To(Succeed())
+}, func() {
+	// runs on all processes
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
 		o.Development = true
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
 	}))
-
 	ctx, cancel = context.WithCancel(context.TODO())
+	ctxForDeploymentController, cancelDeploymentController = ctx, cancel
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -177,27 +151,62 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme.Scheme,
+		Scheme:                 scheme.Scheme,
+		MetricsBindAddress:     "0",
+		HealthProbeBindAddress: "0",
+		NewCache:               CacheCreator,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
+
+	metrics := btpmanagermetrics.NewMetrics()
+	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
+	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), cleanupReconciler, metrics)
+
 	k8sClientFromManager = k8sManager.GetClient()
-	HardDeleteTimeout = hardDeleteTimeout
-	HardDeleteCheckInterval = hardDeleteTimeout / 20
-	ChartPath = "../module-chart/chart"
-	ResourcesPath = "../module-resources"
+
+	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {
+		HardDeleteTimeout, err = time.ParseDuration(hardDeleteTimeoutFromEnv)
+		Expect(err).NotTo(HaveOccurred())
+	} else {
+		HardDeleteTimeout = hardDeleteTimeoutForAllTests
+	}
+	if hardDeleteCheckIntervalFromEnv := os.Getenv("HARD_DELETE_CHECK_INTERVAL"); hardDeleteCheckIntervalFromEnv != "" {
+		HardDeleteCheckInterval, err = time.ParseDuration(hardDeleteCheckIntervalFromEnv)
+		Expect(err).NotTo(HaveOccurred())
+	} else {
+		HardDeleteCheckInterval = hardDeleteTimeoutForAllTests / 20
+	}
+	if deleteRequestTimeoutFromEnv := os.Getenv("DELETE_REQUEST_TIMEOUT"); deleteRequestTimeoutFromEnv != "" {
+		DeleteRequestTimeout, err = time.ParseDuration(deleteRequestTimeoutFromEnv)
+		Expect(err).NotTo(HaveOccurred())
+	} else {
+		DeleteRequestTimeout = deleteRequestTimeoutForAllTests
+	}
+	ChartPath = defaultChartPath
+	ResourcesPath = defaultResourcesPath
+	certs.SetRsaKeyBits(testRsaKeyBits)
+
+	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
+	if useExistingClusterEnv != "true" {
+		StatusUpdateTimeout = statusUpdateTimeoutForAllTests
+		StatusUpdateCheckInterval = statusUpdateCheckIntervalForAllTests
+	}
 
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})
 	Expect(err).ToNot(HaveOccurred())
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(o any) { resourceUpdateHandler(o, resourceAdded) },
 		UpdateFunc: func(o, n any) { resourceUpdateHandler(n, resourceUpdated) },
 		DeleteFunc: func(o any) { resourceUpdateHandler(o, resourceDeleted) },
 	})
+	Expect(err).ToNot(HaveOccurred())
+
+	Expect(createPrereqs()).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()
@@ -205,13 +214,34 @@ var _ = BeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
 
+	if useExistingClusterEnv != "true" {
+		deploymentController := newDeploymentController(cfg, k8sManager)
+		ctxForDeploymentController, cancelDeploymentController = context.WithCancel(ctx)
+		go func() {
+			defer GinkgoRecover()
+			<-k8sManager.Elected()
+			err = deploymentController.Start(ctxForDeploymentController)
+			Expect(err).ToNot(HaveOccurred(), "failed to run deployment controller")
+		}()
+
+		apiServerAddressAndPort := fmt.Sprintf("%s:%s", testEnv.ControlPlane.APIServer.Address, testEnv.ControlPlane.APIServer.Port)
+		etcdAddressAndPort := testEnv.ControlPlane.Etcd.URL.Host
+		ginkgoProcessInfoMsg := fmt.Sprintf("Process: %d, ApiServer: %s, etcd: %s", GinkgoParallelProcess(), apiServerAddressAndPort, etcdAddressAndPort)
+		GinkgoWriter.Println(ginkgoProcessInfoMsg)
+	}
+
 	k8sManager.GetCache().WaitForCacheSync(ctx)
 })
 
-var _ = AfterSuite(func() {
+var _ = SynchronizedAfterSuite(func() {
+	// runs on all processes
 	Eventually(func() int { return reconciler.workqueueSize }).Should(Equal(0))
+	cancelDeploymentController()
 	cancel()
 	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
+	Expect(testEnv.Stop()).To(Succeed())
+}, func() {
+	// runs only on process #1
+	Expect(os.RemoveAll(defaultChartPath)).To(Succeed())
+	Expect(os.RemoveAll(defaultResourcesPath)).To(Succeed())
 })

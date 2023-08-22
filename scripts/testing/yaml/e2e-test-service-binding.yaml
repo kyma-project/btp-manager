@@ -1,0 +1,8 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: ${SB_NAME}
+spec:
+  serviceInstanceName: ${SI_NAME}
+  externalName: ${SB_NAME}-external
+  secretName: ${SB_NAME}-secret

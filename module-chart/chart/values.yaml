@@ -14,7 +14,7 @@ manager:
   management_namespace:
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.3.9
+    tag: v0.5.0
     sha: ""
   secret:
     b64encoded: false
@@ -31,7 +31,7 @@ manager:
     image:
       repository: quay.io/brancz/kube-rbac-proxy
       sha: ""
-      tag: v0.11.0
+      tag: v0.14.2
     memory_limit: ""
     cpu_limit: ""
     req_memory_limit: ""
@@ -51,7 +51,7 @@ manager:
   #        host: myhost1
   certificates:
     # Configure if https://github.com/jetstack/cert-manager is used
-    # certManager: true
+    certManager: true
     # Configure if self-generated, self-signed certificates are used
     # selfSigned: {}
     # selfSigned:
@@ -87,3 +87,9 @@ manager:
     enabled: false
 cluster:
   id:
+externalImages:
+  kubectl:
+    image:
+      repository: bitnami/kubectl
+      sha: ""
+      tag: latest

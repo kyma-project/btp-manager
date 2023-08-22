@@ -1,74 +1,151 @@
-
-name: "Create a release"
+name: "Create release"
 
 env:
-  BTP_MANAGER_REPO: docker://europe-docker.pkg.dev/kyma-project/prod/btp-manager
-  BTP_OPERATOR_REPO: docker://europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
-
+  MODULE_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
 on:
   workflow_dispatch:
     inputs:
       name:
-        description: 'Release version'
+        description: 'Create release'
         default: ""
         required: true
+      credentials:
+        type: choice
+        description: SM credentials
+        default: real
+        options:
+          - dummy
+          - real
 
 jobs:
-  create-release:
+  validate-release:
+    name: Validate release
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Create changelog
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.inputs.name }}
-        run: |
-          chmod +x scripts/create_changelog.sh
-          scripts/create_changelog.sh
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.name }}
-          release_name: Release ${{ github.event.inputs.name }}
-          body_path: CHANGELOG.md
-          draft: false
-          prerelease: false
-  wait-for-prow-jobs:
-    # this step waits until proper Prow job uploads the template.yaml file, docker image and module OCI image
+
+      - name: Validate Labels
+        run : ./scripts/label_validator.sh "RELEASE"
+  
+  run-unit-tests:
+    name: Unit tests
+    needs: validate-release
+    uses: "./.github/workflows/run-unit-tests-reusable.yaml"
+
+  run-e2e-tests:
+    name: E2E tests
+    needs: run-unit-tests
+    uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
+    secrets: inherit
+    with:
+      image-tag: ${{ github.event.inputs.name }}
+      module-tag: v${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+      credentials-mode: ${{ github.event.inputs.credentials }}
+
+  run-stress-tests:
+    name: Stress tests
+    needs: validate-release
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+
     steps:
-      - name: Wait for template.yaml
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
+          BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_artifacts.sh ${{ inputs.name }} v${{ inputs.name }}"
+
+      - name: Install BTP operator
+        timeout-minutes: 2
+        run: "./scripts/testing/install.sh $MODULE_REPO:v${{ inputs.name }} dummy ci"
+
+      - name: BTP Manager controller resources usage
+        run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
+
+      - name: Run tests
+        run: ./scripts/testing/./stress-mem.sh 500 30
+
+      - name: Check BTP manager restarts
+        run: "./scripts/testing/check_btp-manager_restarts.sh"
+
+      - name: BTP Manager controller resources usage
+        run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
+
+      - name: Prepare stress data - Secrets and ConfigMaps
+        run: "./scripts/testing/create-secrets-configmaps.sh 120"
+
+      - name: BTP Manager controller resources usage
+        run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
+
+      - name: Check BTP manager restarts
         run: |
-          until $(curl --output /dev/null --silent --head --fail https://github.com/kyma-project/btp-manager/releases/download/${{ github.event.inputs.name }}/template.yaml); do
-            echo 'waiting...'
-            sleep 15
-          done
-      - name: Wait for btp-operator module
-        # Prow job which uploads the template.yaml also pushes the OCI module image to the registry, so there is no need to make retries for btp-operator module image. It must exist.
+          sleep 15
+          ./scripts/testing/check_btp-manager_restarts.sh
+
+  run-e2e-upgrade-tests:
+    name: E2E upgrade tests
+    needs: run-unit-tests
+    secrets: inherit
+    if: ${{ inputs.credentials == 'real' }}
+    uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
+    with:
+      image-tag: ${{ github.event.inputs.name }}
+      module-tag: v${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
+
+  create-draft:
+    name: Create draft release
+    needs: validate-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Create draft release
+        id: create-draft
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          found=$(skopeo list-tags $BTP_OPERATOR_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
-          if [ $found == "false" ]; then
-            echo "Image $BTP_OPERATOR_REPO:${{ github.event.inputs.name }} not found"
-            exit 1
-          else
-            echo "Image found"
-          fi
-      - name: check btp manager
+          RELEASE_ID=$(./scripts/create_draft_release.sh ${{ github.event.inputs.name }})
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+
+      - name: Create lightweight tag
         run: |
-          found=false
-          while [ $found == "false" ]
-          do
-            found=$(skopeo list-tags $BTP_MANAGER_REPO | jq '.Tags|any(. == "${{ github.event.inputs.name }}")')
-            echo "Waiting for btp-operator image: $BTP_MANAGER_REPO:${{ github.event.inputs.name }}"
-            sleep 10
-          done
-          echo "BTP-manager image found"
-      
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
+
+    outputs:
+      release_id: ${{ steps.create-draft.outputs.release_id }}
+
+  publish-release:
+    name: Publish release
+    needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}

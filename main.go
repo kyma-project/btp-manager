@@ -18,8 +18,8 @@ package main
 
 import (
 	"flag"
+	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	"os"
-
 	//test
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -72,6 +72,7 @@ func main() {
 	flag.DurationVar(&controllers.ReadyCheckInterval, "ready-check-interval", controllers.ReadyCheckInterval, "Ready check retry interval.")
 	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
 	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
+	flag.DurationVar(&controllers.DeleteRequestTimeout, "delete-request-timeout", controllers.DeleteRequestTimeout, "Delete request timeout in hard delete.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -80,31 +81,25 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restCfg := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "ec023d38.kyma-project.io",
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
+		MetricsBindAddress:     metricsAddr,
+		HealthProbeBindAddress: probeAddr,
+		Port:                   9443,
+		NewCache:               controllers.CacheCreator,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme)
+	signalContext := ctrl.SetupSignalHandler()
+	metrics := btpmanagermetrics.NewMetrics()
+	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
+	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler, metrics)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
@@ -122,7 +117,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(signalContext); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
