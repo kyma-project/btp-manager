@@ -68,5 +68,7 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 - [unit tests](./docs/contributor/05-10-testing.md)
 - [E2E tests](./docs/contributor/05-20-e2e_tests.md)
 - [certification management](./docs/contributor/06-10-certs.md)
+- [informer's cache](./docs/contributor/07-10-informer-cache.md)
+- [metrics](./docs/contributor/08-10-metrics.md)
 
 Visit the [`user`](./docs/user) folder if you want to know more about [BTP Operator](./docs/user/README.md), and [how to use the module](./docs/user/02-10-usage.md).
