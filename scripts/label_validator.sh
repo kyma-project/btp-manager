@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # standard bash error handling
-#set -o nounset  # treat unset variables as an error and exit immediately.
-#set -o errexit  # exit immediately when a command fails.
-#set -E          # must be set if you want the ERR trap
-#set -o pipefail # prevents errors in a pipeline from being masked
+set -o nounset  # treat unset variables as an error and exit immediately.
+set -o errexit  # exit immediately when a command fails.
+set -E          # must be set if you want the ERR trap
+set -o pipefail # prevents errors in a pipeline from being masked
 
-GITHUB_ORG="kyma-project"
+GITHUB_ORG="ukff"
 
 # From Github API Docs on why use API for Issue
 #   You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
