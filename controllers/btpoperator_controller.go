@@ -95,7 +95,6 @@ const (
 	forceDeleteLabelKey                = "force-delete"
 )
 
-// debug, test1
 const (
 	btpOperatorGroup           = "services.cloud.sap.com"
 	btpOperatorApiVer          = "v1"
