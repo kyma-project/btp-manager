@@ -39,6 +39,10 @@ vendor/**
 /temp/
 /charts/
 
+<<<<<<< HEAD
 /vendor
 
 debug.sh
+=======
+/vendor
+>>>>>>> origin/main
