@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # standard bash error handling
-<<<<<<< HEAD
 #set -o nounset  # treat unset variables as an error and exit immediately.
 #set -o errexit  # exit immediately when a command fails.
 #set -E          # must be set if you want the ERR trap
@@ -13,19 +12,6 @@ GITHUB_ORG="kyma-project"
 #   You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
 
 # Event which triggers execution of script. Can be RELEASE or PR
-=======
-set -o nounset  # treat unset variables as an error and exit immediately.
-set -o errexit  # exit immediately when a command fails.
-set -E          # must be set if you want the ERR trap
-set -o pipefail # prevents errors in a pipeline from being masked
-
-GITHUB_ORG="ukff"
-
-# From Github API Docs why using API for Issue.
-#   You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
-
-# Event which trigger execution of script. Can be RELEASE or PR
->>>>>>> origin/main
 TRIGGER_EVENT=$1 
 PR_ID=${2:-NA}
 
@@ -40,10 +26,7 @@ function runOnRelease() {
 
   echo "latest release found: $latest"
 
-<<<<<<< HEAD
   supported_labels=$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g' | cut -d "#" -f 1)
-=======
->>>>>>> origin/main
   notValidPrs=()
   while read -r commit; do
     if [[ -z $commit ]]; then 
@@ -63,44 +46,26 @@ function runOnRelease() {
       continue
     fi 
 
-<<<<<<< HEAD
     echo "for commit $commit found PR $PR_ID"
 
-=======
->>>>>>> origin/main
     if [[ " ${notValidPrs[*]} " =~ " ${pr_id} " ]]; then
        continue
     fi
 
-<<<<<<< HEAD
     present_labels=$(curl -sL \
-=======
-    echo "for commit $commit found PR $PR_ID"
-
-    pr_labels=$(curl -sL \
->>>>>>> origin/main
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${pr_id} | 
                     jq -r 'if (.labels | length) > 0 then .labels[] | objects | .name else empty end')
     
-<<<<<<< HEAD
     if [[ -z $present_labels ]]; then 
-=======
-    if [[ -z $pr_labels ]]; then 
->>>>>>> origin/main
       echo "PR $pr_id dosent have any label"
       notValidPrs+=("$pr_id")
       continue
     fi 
 
-<<<<<<< HEAD
     count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
     if [[ $count_of_required_labels -ne 1 ]]; then 
-=======
-    kind_labels=$(grep -o kind <<< ${pr_labels[*]} | wc -l)
-    if [[ $kind_labels -ne 1 ]]; then 
->>>>>>> origin/main
       echo "PR $pr_id dosent have any /kind label"
       notValidPrs+=("$pr_id")
     fi
@@ -135,17 +100,11 @@ function runOnPr() {
     set $parts
     label_part=$1; help_message_part=$2
     help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
-<<<<<<< HEAD
     supported_labels+=($label_part)
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
 
   supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
 
-=======
-    supported_labels+=("$label_part")
-  done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
-
->>>>>>> origin/main
   comments=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -160,7 +119,6 @@ function runOnPr() {
         "body": $body,
       }') 
 
-<<<<<<< HEAD
     response=$(curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
@@ -170,20 +128,6 @@ function runOnPr() {
             -d "$payload")
 
     echo "create comment with help result: $response"
-=======
-    http_code=$(curl -sL \
-                -w "%{http_code}" --output /dev/null \
-                -X POST \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments \
-                -d "$payload")
-    if [[ "$http_code" != "201" ]]; then
-      echo "Unable to create comment with help text. $http_code"
-      exit 1
-    fi
->>>>>>> origin/main
   fi
 
   present_labels=$(curl -sL \
@@ -191,13 +135,8 @@ function runOnPr() {
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID} | 
                     jq -r '.labels[] | objects | .name')
-<<<<<<< HEAD
   
   count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
-=======
-
-  count_of_required_labels=$(grep -o -w -F -c "${supported_labels[*]}" <<< "$present_labels")
->>>>>>> origin/main
   if [[ $count_of_required_labels -eq 1 ]]; then 
     echo "label validation OK"
     exit 0
