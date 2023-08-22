@@ -2,57 +2,69 @@
 
 ## Overview
 
-BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator) based on [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator](https://github.com/kyma-project/btp-manager/blob/main/operator/config/crd/bases/operator.kyma-project.io_btpoperators.yaml) CRD which allows to manage SAP BTP Service Operator resource through CR.
-
-## Prerequisites
-
-- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-- Kubernetes cluster (you can use [k3d](https://k3d.io)) 
+BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator) based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator](/config/crd/bases/operator.kyma-project.io_btpoperators.yaml) CRD which allows you to manage SAP BTP Service Operator resource through CR. 
 
 ## Installation
-The following commands describe how to run BTP Manager locally. All `make` commands are referring to [Makefile](./operator/Makefile) in `operator` directory.
 
-```sh
-cd operator
-make install
-make run
-```
+To enable the BTP Operator module from the latest release, you must install BTP Manager and SAP BTP Service Operator.
+
+### Prerequisites
+
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- Kubernetes cluster, or [k3d](https://k3d.io) for local installation
+- [jq](https://github.com/stedolan/jq) 
+
+>**CAUTION:** You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
+> ```bash
+> kubectl create namespace kyma-system
+> ```
+
+### Steps
+ 
+1. To install BTP Manager, use the following commands:
+
+    ```bash
+    kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
+    ```
+    > **TIP:** Use the same command to upgrade the module to the latest version.
+
+<br>
+
+ 2. To install SAP BTP Service Operator, apply the sample BtpOperator CR:
+
+    ```bash
+    kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator-default-cr.yaml
+    ```
+3. To check the `BtpOperator` CR status, run the following command:
+   ```sh
+   kubectl get btpoperators btpoperator
+   ```
+   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
+
+For more installation options, read the [Install and uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
 ## Usage
 
-#### The following commands describe how to install SAP BTP Service Operator.
+Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, read the [usage](./docs/user/02-10-usage.md) document.
+
+## Uninstallation
+
+To uninstall SAP BTP Service Operator, run the following commands:
 ```sh
-kubectl apply -f deployments/prerequisites.yaml
-kubectl apply -f examples/btp-manager-secret.yaml
-kubectl apply -f examples/btp-operator.yaml
-```
-```
-namespace/kyma-system created
-priorityclass.scheduling.k8s.io/kyma-system created
-secret/sap-btp-manager created
-btpoperator.operator.kyma-project.io/btpoperator-sample created
+kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator-default-cr.yaml
+kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 ```
 
-Check `BtpOperator` CR status.
-```sh
-kubectl get btpoperators btpoperator-sample
-```
+## Read more
 
-Expected result.
-```
-NAME                 STATE
-btpoperator-sample   Ready
-```
+If you want to provide new features for BTP Manager, visit the [`contributor`](./docs/contributor) folder. You will find detailed information on BTP Manager's:
 
-#### The following commands describe how to uninstall SAP BTP Service Operator.
-```sh
-kubectl delete -f examples/btp-operator.yaml
-kubectl delete -f examples/btp-manager-secret.yaml
-kubectl delete -f deployments/prerequisites.yaml
-```
-```
-btpoperator.operator.kyma-project.io "btpoperator-sample" deleted
-secret "sap-btp-manager" deleted
-namespace "kyma-system" deleted
-priorityclass.scheduling.k8s.io "kyma-system" deleted
-```
+- [configuration](./docs/contributor/01-20-configuration.md)
+- [operations](./docs/contributor/02-10-operations.md)
+- [release pipeline](./docs/contributor/03-10-release.md)
+- [GitHub Actions workflows](./docs/contributor/04-10-workflows.md)
+- [unit tests](./docs/contributor/05-10-testing.md)
+- [E2E tests](./docs/contributor/05-20-e2e_tests.md)
+- [certification management](./docs/contributor/06-10-certs.md)
+
+Visit the [`user`](./docs/user) folder if you want to know more about [BTP Operator](./docs/user/README.md), and [how to use the module](./docs/user/02-10-usage.md).

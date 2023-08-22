@@ -1,0 +1,16 @@
+domain: kyma-project.io
+layout:
+- go.kubebuilder.io/v3
+projectName: btp-manager
+repo: github.com/kyma-project/btp-manager
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kyma-project.io
+  group: operator
+  kind: BtpOperator
+  path: github.com/kyma-project/btp-manager/api/v1alpha1
+  version: v1alpha1
+version: "3"

@@ -1,0 +1,11 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: test-binding
+spec:
+  serviceInstanceName: test-service-instance
+  externalName: test-binding-external
+  secretName: test-service-binding-secret
+  parameters:
+    key1: val1
+    key2: val2

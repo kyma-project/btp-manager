@@ -1,0 +1,8 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  name: ${SI_NAME}
+spec:
+  serviceOfferingName: auditlog-management
+  servicePlanName: default
+  externalName: ${SI_NAME}-external
