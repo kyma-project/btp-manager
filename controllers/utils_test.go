@@ -806,6 +806,7 @@ type deploymentReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// A
 func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.Controller {
 	appsV1Client, err := v1.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
