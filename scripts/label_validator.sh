@@ -30,9 +30,8 @@ function runOnRelease() {
   echo "latest release found: $latest"
 
   supported_labels=$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g' | cut -d "#" -f 1)
-  supported_labels=$(echo "${supported_labels[*]}")
+  supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
 
-  echo "$supported_labels"
   notValidPrs=()
   while read -r commit; do
     if [[ -z $commit ]]; then 
