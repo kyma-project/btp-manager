@@ -102,7 +102,6 @@ const (
 	btpOperatorServiceBinding  = "ServiceBinding"
 )
 
-// 1
 var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
