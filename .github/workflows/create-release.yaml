@@ -30,6 +30,8 @@ jobs:
           fetch-depth: 0
 
       - name: Validate Labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run : ./scripts/label_validator.sh "RELEASE"
   
   run-unit-tests:
