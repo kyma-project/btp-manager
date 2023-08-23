@@ -20,9 +20,9 @@ function runOnRelease() {
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                 -sS "https://api.github.com/repos/$GITHUB_ORG/btp-manager/releases/latest" | 
-                jq -r '.tag_name')
+                jq -r 'if has("tag_name") then .tag_name else empty end')
 
-  if [[ -z $latest || $latest == "null" ]]; then 
+  if [[ -z $latest ]]; then 
     echo 'not found latest release, nothing to compare'
     exit 1
   fi 
