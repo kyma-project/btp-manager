@@ -1,3 +1,4 @@
+//A
 /*
 Copyright 2022.
 
@@ -13,15 +14,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions  and
 limitations under the License.
 */
+//B
 
 package main
 
 import (
 	"flag"
-	"os"
-
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
-
+	"os"
 	//test
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)

@@ -40,7 +40,7 @@ function runOnRelease() {
     
     echo "checking commit: $commit"
     
-    pr_id=$(curl -L \
+    pr_id=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               -H "Authorization: Bearer ${GITHUB_TOKEN}" \
