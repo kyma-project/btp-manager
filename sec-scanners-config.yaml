@@ -1,4 +1,5 @@
 module-name: btp-manager
+rc-tag: 0.4.9
 protecode:
   - europe-docker.pkg.dev/kyma-project/prod/btp-manager:0.4.9
 whitesource:
@@ -6,4 +7,3 @@ whitesource:
   subprojects: false
   exclude:
     - "**/*_test.go"
-
