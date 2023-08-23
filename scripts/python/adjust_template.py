@@ -4,7 +4,7 @@ import os
 
 channel_name = os.environ["CHANNEL"]
 doc_url_key = "operator.kyma-project.io/doc-url"
-doc_url_value = "https://github.com/kyma-project/btp-manager"
+doc_url_value = "https://kyma-project.io/#/btp-manager/user/README"
 
 filename = sys.argv[1]
 
