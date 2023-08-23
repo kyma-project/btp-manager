@@ -58,12 +58,11 @@ function runOnRelease() {
        continue
     fi
 
-  present_labels=$(curl -sL \
+    present_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
-                    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${pr_id} | 
-                    jq -r '.labels[] | objects | .name')
+                    jq -r 'if (.labels | length) > 0 then .labels[] | objects | .name else empty end')
                     
     if [[ -z $present_labels ]]; then 
       echo "PR $pr_id dosent have any label"
@@ -71,9 +70,7 @@ function runOnRelease() {
       continue
     fi 
 
-    echo "gs"
     count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
-    echo "ge"
     if [[ $count_of_required_labels -eq 0 ]]; then 
       echo "PR $pr_id dosent have any /kind label"
       notValidPrs+=("$pr_id")
