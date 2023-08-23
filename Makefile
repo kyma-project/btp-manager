@@ -148,7 +148,7 @@ module-image: docker-build docker-push ## Build the Module Image and push it to 
 .PHONY: module-build
 module-build: kyma kustomize ## Build the Module and push it to a registry defined in MODULE_REGISTRY
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KYMA) alpha create module $(SECURITY_SCAN_OPTIONS) --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path . $(MODULE_CREATION_FLAGS)
+	$(KYMA) alpha create module --kubebuilder-project $(SECURITY_SCAN_OPTIONS) --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path . $(MODULE_CREATION_FLAGS)
 
 .PHONY: module-template-push
 module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODULE_REGISTRY
