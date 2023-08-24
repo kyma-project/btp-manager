@@ -6,7 +6,7 @@ metadata:
   name: pre-delete-job
   namespace: kyma-system
   labels:
-    release: v0.5.0
+    release: v0.5.1
   annotations:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-weight": "0"
