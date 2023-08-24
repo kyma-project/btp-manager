@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # standard bash error handling
-#set -o nounset  # treat unset variables as an error and exit immediately.
-#set -o errexit  # exit immediately when a command fails.
-#set -E          # must be set if you want the ERR trap
-#set -o pipefail # prevents errors in a pipeline from being masked
+set -o nounset  # treat unset variables as an error and exit immediately.
+set -o errexit  # exit immediately when a command fails.
+set -E          # must be set if you want the ERR trap
+set -o pipefail # prevents errors in a pipeline from being masked
 
 GITHUB_ORG="kyma-project"
 
@@ -18,8 +18,10 @@ PR_ID=${2:-NA}
 function runOnRelease() {
   latest=$(curl -L \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                 -sS "https://api.github.com/repos/$GITHUB_ORG/btp-manager/releases/latest" | 
-                jq -r '.tag_name')
+                jq -r 'if has("tag_name") then .tag_name else empty end')
+
   if [[ -z $latest ]]; then 
     echo 'not found latest release, nothing to compare'
     exit 1
@@ -28,9 +30,8 @@ function runOnRelease() {
   echo "latest release found: $latest"
 
   supported_labels=$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g' | cut -d "#" -f 1)
-  supported_labels=$(echo "${supported_labels[*]}")
+  supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
 
-  echo "$supported_labels"
   notValidPrs=()
   while read -r commit; do
     if [[ -z $commit ]]; then 
@@ -42,6 +43,7 @@ function runOnRelease() {
     pr_id=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               "https://api.github.com/search/issues?q=$commit+repo:$GITHUB_ORG/btp-manager+type:pr" |
               jq 'if (.items | length) == 1 then .items[0].number else empty end')
 
@@ -61,7 +63,7 @@ function runOnRelease() {
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${pr_id} | 
                     jq -r 'if (.labels | length) > 0 then .labels[] | objects | .name else empty end')
-    
+                    
     if [[ -z $present_labels ]]; then 
       echo "PR $pr_id dosent have any label"
       notValidPrs+=("$pr_id")
@@ -116,6 +118,7 @@ function runOnPr() {
   comments=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments |
               jq -r '.[] | objects | .body')
 
@@ -130,7 +133,7 @@ function runOnPr() {
     response=$(curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${BOT_TOKEN}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments \
             -d "$payload")
@@ -141,9 +144,10 @@ function runOnPr() {
   present_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
+                    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID} | 
                     jq -r '.labels[] | objects | .name')
-  
+
   count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
   if [[ $count_of_required_labels -eq 1 ]]; then 
     echo "label validation OK"
