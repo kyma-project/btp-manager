@@ -115,7 +115,7 @@ function runOnPr() {
     parts=$(tr "#" " " <<< "$label")
     set $parts
     label_part=$1; help_message_part=$@
-    help_message="${help_message} - $lgitabel_part -> $help_message_part <br/><br/>"
+    help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
     supported_labels+=($label_part)
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
   supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
