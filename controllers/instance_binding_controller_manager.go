@@ -65,7 +65,7 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 	contextWithCancel, cancel := context.WithCancel(r.ctx)
 	r.stopper = cancel
 	go func() {
-		err = r.mgr.Start(contextWithCancel)
+		err := r.mgr.Start(contextWithCancel)
 		if err != nil {
 			logger.Error(err, "unable to start SI SB controller")
 		} else {
