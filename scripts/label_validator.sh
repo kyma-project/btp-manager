@@ -6,7 +6,7 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-GITHUB_ORG="kyma-project"
+GITHUB_ORG="ukff"
 
 # From Github API Docs on why use API for Issue
 #   You can use the REST API to create comments on issues and pull requests. Every pull request is an issue, but not every issue is a pull request.
@@ -16,7 +16,7 @@ TRIGGER_EVENT=$1
 PR_ID=${2:-NA}
 
 function runOnRelease() {
-  latest=$(curl -L \
+  latest=$(curl -sL \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                 -sS "https://api.github.com/repos/$GITHUB_ORG/btp-manager/releases/latest" | 
@@ -38,7 +38,7 @@ function runOnRelease() {
       continue
     fi
     
-    echo "checking commit: $commit"
+    #echo "checking commit: $commit"
     
     pr_id=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
@@ -97,7 +97,7 @@ function runOnRelease() {
 
 function runOnPr() {
   if [[ $PR_ID == "NA" ]]; then
-    echo "PR ID not given"
+    echo "PR ID not passed"
     exit 1
   fi
 
@@ -124,7 +124,7 @@ function runOnPr() {
               -H "X-GitHub-Api-Version: 2022-11-28" \
               -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments |
-              jq -r '.[] | objects | .body')
+              jq -r 'if (.[] | length) > 0 then .[] | objects | .body else empty end')
 
   if [[ ! " ${comments[*]} " =~ " ${help_message} " ]]; then
 
@@ -134,7 +134,7 @@ function runOnPr() {
         "body": $body,
       }') 
 
-    response=$(curl -L \
+    response=$(curl -sL \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${BOT_TOKEN}" \
@@ -151,8 +151,8 @@ function runOnPr() {
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID} | 
-                    jq -r '.labels[] | objects | .name')
-  echo "2"
+                    jq -r 'if (.labels | length) > 0 then .labels[] | objects | .name else empty end')
+
   count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
   echo "3"
   if [[ $count_of_required_labels -eq 1 ]]; then 

@@ -1,7 +1,7 @@
 name: Label validator
 on:
   pull_request:
-    types: ["opened", "reopened", "edited", "closed", "labeled", "unlabeled"]
+    types: ["opened", "labeled", "unlabeled"]
     branches: [ "main" ]
 jobs:
   validate-labels:
