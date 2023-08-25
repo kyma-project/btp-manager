@@ -37,9 +37,7 @@ function runOnRelease() {
     if [[ -z $commit ]]; then 
       continue
     fi
-    
-    #echo "checking commit: $commit"
-    
+        
     pr_id=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
