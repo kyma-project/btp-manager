@@ -48,7 +48,7 @@ function runOnRelease() {
               jq 'if (.items | length) == 1 then .items[0].number else empty end')
 
     if [[ -z $pr_id ]]; then
-      echo "not found PR number for given commit $commit"
+      echo "not found PR for commit $commit"
       continue
     fi 
 
@@ -70,16 +70,18 @@ function runOnRelease() {
       continue
     fi 
 
-    count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
+    count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels" || true)
     if [[ $count_of_required_labels -eq 0 ]]; then 
       echo "PR $pr_id dosent have any /kind label"
       notValidPrs+=("$pr_id")
+      continue
     fi
     if [[ $count_of_required_labels -gt 1 ]]; then 
-      echo "PR $pr_id have $count_of_required_labels /kind labels"
+      (echo -n "PR $pr_id have $count_of_required_labels /kind labels -> " && echo $present_labels | tr "," "\t")
       notValidPrs+=("$pr_id")
+      continue
     fi
-    
+    echo "commit $commit in PR $pr_id have 1 label $present_labels"
   done <<< "$(git log "$latest"..HEAD --pretty=tformat:"%h")"
 
   if [ ${#notValidPrs[@]} -gt 0 ]; then
@@ -112,11 +114,10 @@ function runOnPr() {
   while IFS= read -r label; do
     parts=$(tr "#" " " <<< "$label")
     set $parts
-    label_part=$1; help_message_part=$2
+    label_part=$1; help_message_part=$@
     help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
     supported_labels+=($label_part)
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
-
   supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
 
   comments=$(curl -sL \
@@ -153,8 +154,7 @@ function runOnPr() {
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID} | 
                     jq -r 'if (.labels | length) > 0 then .labels[] | objects | .name else empty end')
 
-  count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
-  echo "3"
+  count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels" || true)
   if [[ $count_of_required_labels -eq 1 ]]; then 
     echo "label validation OK"
     exit 0
