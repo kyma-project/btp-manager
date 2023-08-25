@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	. "github.com/onsi/ginkgo/v2"
@@ -10,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,8 +34,10 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 			chartPathForProcess = fmt.Sprintf("%s-%d-%d", defaultChartPath, GinkgoParallelProcess(), rand.Intn(999))
 			resourcesPathForProcess = fmt.Sprintf("%s-%d-%d", defaultResourcesPath, GinkgoParallelProcess(), rand.Intn(999))
-			createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, chartPathForProcess)
-			createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, resourcesPathForProcess)
+			err = createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, chartPathForProcess)
+			Expect(err).To(BeNil())
+			err = createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, resourcesPathForProcess)
+			Expect(err).To(BeNil())
 			ChartPath = chartPathForProcess
 			ResourcesPath = resourcesPathForProcess
 

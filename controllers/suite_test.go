@@ -215,12 +215,12 @@ var _ = SynchronizedBeforeSuite(func() {
 	}()
 
 	if useExistingClusterEnv != "true" {
-		deploymentController := newDeploymentController(cfg, k8sManager)
 		ctxForDeploymentController, cancelDeploymentController = context.WithCancel(ctx)
 		go func() {
+			deploymentController := newDeploymentController(cfg, k8sManager)
 			defer GinkgoRecover()
 			<-k8sManager.Elected()
-			err = deploymentController.Start(ctxForDeploymentController)
+			err := deploymentController.Start(ctxForDeploymentController)
 			Expect(err).ToNot(HaveOccurred(), "failed to run deployment controller")
 		}()
 
