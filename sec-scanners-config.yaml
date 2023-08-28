@@ -1,4 +1,4 @@
-module-name: btp-manager
+module-name: btp-operator
 rc-tag: 0.5.0
 protecode:
   - europe-docker.pkg.dev/kyma-project/prod/btp-manager:0.5.0
