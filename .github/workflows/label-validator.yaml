@@ -1,4 +1,4 @@
-name: Label validator
+name: Label validator New
 on:
   pull_request:
     types: ["opened", "labeled", "unlabeled"]
