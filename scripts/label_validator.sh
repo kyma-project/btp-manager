@@ -141,14 +141,16 @@ function runOnPr() {
     echo "create comment with help result: $response"
   fi
 
+  echo "1"
   present_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID} | 
                     jq -r '.labels[] | objects | .name')
-
+  echo "2"
   count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
+  echo "3"
   if [[ $count_of_required_labels -eq 1 ]]; then 
     echo "label validation OK"
     exit 0
