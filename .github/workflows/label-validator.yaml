@@ -4,6 +4,6 @@ on:
     types: ["opened", "labeled", "unlabeled"]
     branches: [ "main" ]
 jobs:
-  run-unit-tests:
+  label-validator:
     uses: ./.github/workflows/label-validator-reusable.yml
     secrets: inherit
