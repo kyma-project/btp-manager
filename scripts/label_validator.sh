@@ -101,10 +101,6 @@ function runOnPr() {
     exit 1
   fi
 
-  if [[ -z $BOT_TOKEN ]]; then 
-    echo "empty"
-  fi 
-
   supported_labels=()
 
   help_message="**Add one of following labels** <br/><br/>"
@@ -144,7 +140,6 @@ function runOnPr() {
     echo "create comment with help result: $response"
   fi
 
-  echo "1"
   present_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
