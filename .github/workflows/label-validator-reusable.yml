@@ -1,10 +1,13 @@
 name: Label validator Reusable
-permissions: write-all
 on:
   workflow_call:
 jobs:
   label-validator: 
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
