@@ -3,19 +3,19 @@ on:
   pull_request:
     types: ["opened", "labeled", "unlabeled"]
 jobs:
-      label-validator: 
-        runs-on: ubuntu-latest
-        permissions:
-          contents: write
-          pull-requests: write
-          repository-projects: write
-        steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
-          with:
-            fetch-depth: 0
-        - name: Validate labels
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
+  label-validator: 
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Validate labels
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
