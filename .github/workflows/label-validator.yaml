@@ -2,7 +2,6 @@ name: Label validator New
 on:
   pull_request:
     types: ["opened", "labeled", "unlabeled"]
-    branches: [ "main" ]
 jobs:
   label-validator:
     uses: ./.github/workflows/label-validator-reusable.yml
