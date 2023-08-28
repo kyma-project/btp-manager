@@ -101,6 +101,10 @@ function runOnPr() {
     exit 1
   fi
 
+  if [[ -z $BOT_TOKEN ]]; then 
+    echo "empty"
+  fi 
+
   supported_labels=()
 
   help_message="**Add one of following labels** <br/><br/>"
