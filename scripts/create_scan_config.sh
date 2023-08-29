@@ -16,7 +16,7 @@ set -o pipefail # prevents errors in a pipeline from being maskedPORT=5001
 IMAGE=${1}
 echo "Creating security scan configuration file:"
 cat <<EOF | tee ${FILENAME}
-module-name: btp-manager
+module-name: btp-operator
 protecode:
   - ${IMAGE}
 whitesource:
