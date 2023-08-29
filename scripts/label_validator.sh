@@ -113,7 +113,7 @@ function runOnPr() {
     supported_labels+=($label_part)
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
   supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
-
+  
   comments=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -136,12 +136,7 @@ function runOnPr() {
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments \
             -d "$payload")
-    response2=$(gh api \
-              --method POST \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments \
-              -f "$payload")
+
     echo "create comment with help result: $response"
     echo "create comment with help result: $response2"
   fi
@@ -160,7 +155,7 @@ function runOnPr() {
   fi
 
   echo "error: only 1 of following labels must be added to each PR before merge but found $count_of_required_labels:"
-  echo "${supported_labels[@]}"
+  echo "${supported_labels}"
   exit 1
 }
 
