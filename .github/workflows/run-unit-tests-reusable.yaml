@@ -1,0 +1,21 @@
+# Call this workflow from other jobs to execute unit tests in the current context
+
+name: Run unit tests (reusable)
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up go environment
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Run make test
+      run: make test
