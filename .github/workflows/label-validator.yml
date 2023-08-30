@@ -5,7 +5,6 @@ on:
 jobs:
   validate-labels: 
     runs-on: ubuntu-latest
-    permissions: write-all
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -14,5 +13,4 @@ jobs:
     - name: Validate labels
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}

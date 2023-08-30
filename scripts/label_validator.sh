@@ -138,16 +138,6 @@ function runOnPr() {
             -d "$payload")
 
     echo "create comment with help result: $response"
-
-    response2=$(curl -sL \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${BOT_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments \
-            -d "$payload")
-
-    echo "create comment with help result: $response2"
   fi
 
   present_labels=$(curl -sL \
