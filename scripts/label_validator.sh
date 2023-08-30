@@ -16,7 +16,7 @@ TRIGGER_EVENT=$1
 PR_ID=${2:-NA}
 
 function runOnRelease() {
-  latest=$(curl -L \
+  latest=$(curl -sL \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                 -sS "https://api.github.com/repos/$GITHUB_ORG/btp-manager/releases/latest" | 
@@ -37,9 +37,7 @@ function runOnRelease() {
     if [[ -z $commit ]]; then 
       continue
     fi
-    
-    echo "checking commit: $commit"
-    
+        
     pr_id=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -48,7 +46,7 @@ function runOnRelease() {
               jq 'if (.items | length) == 1 then .items[0].number else empty end')
 
     if [[ -z $pr_id ]]; then
-      echo "not found PR number for given commit $commit"
+      echo "not found PR for commit $commit"
       continue
     fi 
 
@@ -70,16 +68,18 @@ function runOnRelease() {
       continue
     fi 
 
-    count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
+    count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels" || true)
     if [[ $count_of_required_labels -eq 0 ]]; then 
       echo "PR $pr_id dosent have any /kind label"
       notValidPrs+=("$pr_id")
+      continue
     fi
     if [[ $count_of_required_labels -gt 1 ]]; then 
-      echo "PR $pr_id have $count_of_required_labels /kind labels"
+      (echo -n "PR $pr_id have $count_of_required_labels /kind labels -> " && echo $present_labels | tr "," "\t")
       notValidPrs+=("$pr_id")
+      continue
     fi
-    
+    echo "commit $commit in PR $pr_id have 1 label $present_labels"
   done <<< "$(git log "$latest"..HEAD --pretty=tformat:"%h")"
 
   if [ ${#notValidPrs[@]} -gt 0 ]; then
@@ -97,7 +97,7 @@ function runOnRelease() {
 
 function runOnPr() {
   if [[ $PR_ID == "NA" ]]; then
-    echo "PR ID not given"
+    echo "PR ID not passed"
     exit 1
   fi
 
@@ -108,19 +108,18 @@ function runOnPr() {
   while IFS= read -r label; do
     parts=$(tr "#" " " <<< "$label")
     set $parts
-    label_part=$1; help_message_part=$2
+    label_part=$1; help_message_part=$@
     help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
     supported_labels+=($label_part)
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
-
   supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
-
+  
   comments=$(curl -sL \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments |
-              jq -r '.[] | objects | .body')
+              jq -r 'if (.[] | length) > 0 then .[] | objects | .body else empty end')
 
   if [[ ! " ${comments[*]} " =~ " ${help_message} " ]]; then
 
@@ -130,7 +129,7 @@ function runOnPr() {
         "body": $body,
       }') 
 
-    response=$(curl -L \
+    response=$(curl -sL \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
@@ -146,16 +145,16 @@ function runOnPr() {
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                     https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID} | 
-                    jq -r '.labels[] | objects | .name')
+                    jq -r 'if (.labels | length) > 0 then .labels[] | objects | .name else empty end')
 
-  count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels")
+  count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels" || true)
   if [[ $count_of_required_labels -eq 1 ]]; then 
     echo "label validation OK"
     exit 0
   fi
 
   echo "error: only 1 of following labels must be added to each PR before merge but found $count_of_required_labels:"
-  echo "${supported_labels[@]}"
+  echo "${supported_labels}"
   exit 1
 }
 

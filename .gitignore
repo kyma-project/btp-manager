@@ -40,3 +40,5 @@ vendor/**
 /charts/
 
 /vendor
+
+debug.sh

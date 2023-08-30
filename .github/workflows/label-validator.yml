@@ -1,18 +1,17 @@
 name: Label validator
 on:
   pull_request:
-    types: ["opened", "reopened", "edited", "closed", "labeled", "unlabeled"]
+    types: ["opened", "labeled", "unlabeled"]
     branches: [ "main" ]
 jobs:
-  validate-labels:
+  validate-labels: 
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Validate labels
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Validate labels
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
