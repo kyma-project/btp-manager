@@ -2,6 +2,7 @@ name: Label validator
 on:
   pull_request:
     types: ["opened", "labeled", "unlabeled"]
+    branches: [ "main" ]
 jobs:
   validate-labels: 
     runs-on: ubuntu-latest
