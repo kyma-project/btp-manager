@@ -28,20 +28,61 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      
+      - name: Check for existing artifacts from previous release runs
+        env:
+          BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
+          BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }} v${{ inputs.name }}"
 
       - name: Validate Labels
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run : ./scripts/label_validator.sh "RELEASE"
+        run: ./scripts/label_validator.sh "RELEASE"
+
+  wait-for-prow-jobs:
+    name: Wait for prow jobs
+    needs: create-draft
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wait for post-btp-manager-module-build status
+        uses: autotelic/action-wait-for-status-check@6556cf50c8fb6608412945382eae73581f56cbb4
+        id: wait-for-module-build-status
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          statusName: "post-btp-manager-module-build"
+          timeoutSeconds: "300"
+
+      - name: Check if post-btp-manager-module-build status is success
+        if: steps.wait-for-module-build-status.state != 'success'
+        run: |
+            echo 'post-btp-manager-module-build failed.'
+            exit 1
+
+      - name: Wait for post-btp-manager-build status
+        uses: autotelic/action-wait-for-status-check@6556cf50c8fb6608412945382eae73581f56cbb4
+        id: wait-for-image-build-status
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          statusName: "post-btp-manager-build"
+          timeoutSeconds: "300"
+
+      - name: Check if post-btp-manager-build status is success
+        if: steps.wait-for-image-build-status.state != 'success'
+        run: |
+          echo 'post-btp-manager-build failed.'
+          exit 1
   
   run-unit-tests:
     name: Unit tests
-    needs: validate-release
+    needs: create-draft
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
 
   run-e2e-tests:
     name: E2E tests
-    needs: run-unit-tests
+    needs: wait-for-prow-jobs
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -53,7 +94,7 @@ jobs:
 
   run-stress-tests:
     name: Stress tests
-    needs: validate-release
+    needs: wait-for-prow-jobs
     runs-on: ubuntu-latest
 
     steps:
@@ -99,7 +140,7 @@ jobs:
 
   run-e2e-upgrade-tests:
     name: E2E upgrade tests
-    needs: run-unit-tests
+    needs: wait-for-prow-jobs
     secrets: inherit
     if: ${{ inputs.credentials == 'real' }}
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
