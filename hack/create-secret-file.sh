@@ -14,6 +14,8 @@ type: Opaque
 metadata:
   name: sap-btp-manager
   namespace: kyma-system
+  labels:
+    app.kubernetes.io/managed-by: kcp-kyma-environment-broker
 data:
   clientid: $(jq --raw-output '.clientid | @base64' creds.json)
   clientsecret: $(jq --raw-output '.clientsecret | @base64' creds.json)
