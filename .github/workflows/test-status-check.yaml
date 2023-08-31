@@ -1,4 +1,4 @@
-name: Label validator
+name: Status check
 on:
   pull_request:
     types: ["opened", "reopened", "edited", "closed", "labeled", "unlabeled"]
