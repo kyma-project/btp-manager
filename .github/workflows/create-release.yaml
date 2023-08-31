@@ -56,7 +56,7 @@ jobs:
           timeoutSeconds: "300"
 
       - name: Check if post-btp-manager-module-build status is success
-        if: steps.wait-for-module-build-status.state != 'success'
+        if: steps.wait-for-module-build-status.outputs.state != 'success'
         run: |
             echo 'post-btp-manager-module-build failed.'
             exit 1
@@ -70,7 +70,7 @@ jobs:
           timeoutSeconds: "300"
 
       - name: Check if post-btp-manager-build status is success
-        if: steps.wait-for-image-build-status.state != 'success'
+        if: steps.wait-for-image-build-status.outputs.state != 'success'
         run: |
           echo 'post-btp-manager-build failed.'
           exit 1
