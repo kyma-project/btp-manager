@@ -26,6 +26,8 @@ jobs:
 
       - name: Update chart and module resources
         run: |
+          rm sec-scanners-config.yaml
+          ls -l
           scripts/create_scan_config.sh ${{ inputs.name }}
           sleep 5
           ls -l
