@@ -15,19 +15,6 @@ set -o pipefail # prevents errors in a pipeline from being maskedPORT=5001
 
 IMAGE=${1}
 echo "Creating security scan configuration file:"
-echo ${FILENAME}
-cat <<EOF | tee ${FILENAME}
-module-name: btp-operator
-rc-tag: ${IMAGE}
-protecode:
-  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:${IMAGE}
-whitesource:
-  language: golang-mod
-  subprojects: false
-  exclude:
-    - "**/*_test.go"
-EOF
-
 cat <<EOF | tee "sec-scanners-config.yaml"
 module-name: btp-operator
 rc-tag: ${IMAGE}
