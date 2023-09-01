@@ -39,8 +39,12 @@ jobs:
           git stash apply
           git add sec-scanners-config.yaml
           git commit -m "Test commit"
-          git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}}@github.com/MarekMichali/btp-manager.git
+          echo "remote"
+          git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}}@github.com/${{ github.repository_owner }}/btp-manager.git
+          echo "push"
           git push --set-upstream origin sec_config_${{ inputs.name }} -f
+          echo "pr"
           resp=$(gh pr create -B main --title "Test title" --body "Test body" | tail -n 1)
+          echo "resp"
           echo $resp
           
