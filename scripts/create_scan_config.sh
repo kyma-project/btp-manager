@@ -27,3 +27,15 @@ whitesource:
   exclude:
     - "**/*_test.go"
 EOF
+
+cat <<EOF | tee "sec-scanners-config.yaml"
+module-name: btp-operator
+rc-tag: ${IMAGE}
+protecode:
+  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:${IMAGE}
+whitesource:
+  language: golang-mod
+  subprojects: false
+  exclude:
+    - "**/*_test.go"
+EOF
