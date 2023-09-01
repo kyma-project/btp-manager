@@ -32,17 +32,18 @@ jobs:
           echo $prs
           scripts/create_scan_config.sh ${{ inputs.name }}
 
-          git config --global user.email marek.michali@sap.com
-          git config --global user.name MarekMichali
+          
           git add sec-scanners-config.yaml
           git stash push --staged
           git checkout --force -B main refs/remotes/origin/main
           git checkout -B sec_config_${{ inputs.name }}
           git stash apply
           git add sec-scanners-config.yaml
+          git config --global user.email marek.michali@sap.com
+          git config --global user.name MarekMichali
           git commit -m "Test commit"
           echo "remote"
-          git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}}@github.com/${{ github.repository_owner }}/btp-manager.git
+          git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}}@github.com/MarekMichali/btp-manager.git
           echo "push"
           git push --set-upstream origin sec_config_${{ inputs.name }} -f
           echo "pr"
