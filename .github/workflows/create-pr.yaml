@@ -41,5 +41,6 @@ jobs:
           git commit -m "Test commit"
           git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}}@github.com/MarekMichali/btp-manager.git
           git push --set-upstream origin sec_config_${{ inputs.name }} -f
-          gh pr create -B main --title "Test title" --body "Test body" | tail -n 1
+          resp=$(gh pr create -B main --title "Test title" --body "Test body" | tail -n 1)
+          echo $resp
           
