@@ -27,6 +27,7 @@ jobs:
       - name: Update chart and module resources
         run: |
           scripts/create_scan_config.sh ${{ inputs.name }}
+          git status
           git add sec-scanners-config.yaml
           git stash push --staged
           git checkout --force -B main refs/remotes/origin/main
