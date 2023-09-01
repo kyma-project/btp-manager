@@ -17,8 +17,9 @@ IMAGE=${1}
 echo "Creating security scan configuration file:"
 cat <<EOF | tee ${FILENAME}
 module-name: btp-operator
+rc-tag: ${IMAGE}
 protecode:
-  - ${IMAGE}
+  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:${IMAGE}
 whitesource:
   language: golang-mod
   subprojects: false

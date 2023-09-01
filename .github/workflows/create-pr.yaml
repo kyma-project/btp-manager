@@ -1,0 +1,40 @@
+name: "Create PR"
+
+on:
+    workflow_dispatch:
+      inputs:
+        name:
+          description: 'Create PR'
+          default: ""
+          required: true
+        credentials:
+          type: boolean
+          description: Create PR during release
+          default: true
+
+
+jobs:
+  validate-release:
+    name: Validate release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Update chart and module resources
+        run: |
+          scripts/update/create_scan_config.sh ${{ inputs.name }}
+          git add sec-scanners-config.yaml
+          git stash push --staged
+          git checkout --force -B main refs/remotes/origin/main
+          git checkout -B sec_config_${{ inputs.name }}
+          git stash apply
+          git add sec-scanners-config.yaml
+          git commit -m "Test commit"
+          git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}}@github.com/MarekMichali/btp-manager.git
+          git push --set-upstream origin sec_config_${{ inputs.name }} -f
+          gh pr create -B main --title "Test title" --body "Test body" | tail -n 1
+          
