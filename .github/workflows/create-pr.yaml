@@ -29,6 +29,7 @@ jobs:
           scripts/create_scan_config.sh ${{ inputs.name }}
           sleep 5
           ls -l
+          cat sec-scanners-config.yaml
           git status
           git add sec-scanners-config.yaml
           git stash push --staged
