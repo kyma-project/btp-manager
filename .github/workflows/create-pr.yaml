@@ -25,6 +25,8 @@ jobs:
           fetch-depth: 0
 
       - name: Update chart and module resources
+        env:
+          GH_TOKEN: ${{ secrets.GH_TEST }}
         run: |
           scripts/create_scan_config.sh ${{ inputs.name }}
 
