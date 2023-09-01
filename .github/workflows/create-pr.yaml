@@ -46,7 +46,7 @@ jobs:
           echo "push"
           git push --set-upstream origin sec_config_${{ inputs.name }} -f
           echo "pr"
-          resp=$(gh pr create -B main --title "Test title" --body "Test body" | tail -n 1)
+          resp=$(gh pr create -B main --title "Test commit" --body "Test body" | tail -n 1)
           echo "resp"
           echo $resp
           
