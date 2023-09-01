@@ -31,7 +31,7 @@ jobs:
           prs=$(gh pr list -A MarekMichali --state open --json headRefName | jq -r '.[] | .headRefName')
           echo $prs
           scripts/create_scan_config.sh ${{ inputs.name }}
-
+          echo "BRANCH_NAME=sec_config_${{ inputs.name }}" >> $GITHUB_ENV
           
           git add sec-scanners-config.yaml
           git stash push --staged
@@ -43,7 +43,7 @@ jobs:
           git config --global user.name MarekMichali
           git commit -m "Test commit"
           echo "remote"
-          git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}}@github.com/MarekMichali/btp-manager.git
+          git remote set-url origin https://x-access-token:${{ secrets.GH_TEST }}@github.com/MarekMichali/btp-manager.git
           echo "push"
           git push --set-upstream origin sec_config_${{ inputs.name }} -f
           echo "pr"
