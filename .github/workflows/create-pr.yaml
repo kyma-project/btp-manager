@@ -29,6 +29,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TEST }}
         run: |
           prs=$(gh pr list -A MarekMichali --state open --json headRefName | jq -r '.[] | .headRefName')
+          echo $prs
           scripts/create_scan_config.sh ${{ inputs.name }}
 
           git config --global user.email marek.michali@sap.com
