@@ -16,6 +16,8 @@ set -o pipefail # prevents errors in a pipeline from being masked# link the PR f
 #   BRANCH_NAME                   - branch with updated resources
 #   TAG                           - new chart version
 
+TAG=$1
+
 # add changed files to stage
 git add sec-scanners-config.yaml
 
@@ -35,10 +37,10 @@ git config --global user.email ${GIT_EMAIL}
 git config --global user.name ${GIT_NAME}
 
 #commit and push changes
-git commit -m "Test commit"
+git commit -m "Bump sec-scanners-config.yaml to ${TAG}"
 git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${KYMA_BTP_MANAGER_REPO}.git
 git push --set-upstream origin ${BRANCH_NAME} -f
 
 #create PR
-pr_link=$(gh pr create -B main --title "Test commit" --body "Test body" | tail -n 1)
+pr_link=$(gh pr create -B main --title "Bump sec-scanners-config.yaml to ${TAG}" --body "" | tail -n 1)
 echo "Link for created PR: ${pr_link}"

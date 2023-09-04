@@ -29,11 +29,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Update chart and module resources
+      - name: Bump 
         env:
           GH_TOKEN: ${{ secrets.GH_TEST }}
         run: |
           scripts/create_scan_config.sh ${{ inputs.name }}
-          scripts/create_pr.sh ${{ inputs.name }}
+          prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+          if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
+            echo "PR already exists, no need to create a new one"
+          elif [ -z "$(git status --porcelain)" ]; then
+            echo "nothing changed, no need to create PR"
+          else
+            scripts/create_pr.sh ${{ inputs.name }}
+          fi 
 
           
