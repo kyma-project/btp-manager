@@ -3,6 +3,11 @@ name: "Create release"
 env:
   MODULE_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
   IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+  KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
+  GIT_EMAIL: marek.michali@sap.com
+  GIT_NAME: MarekMichali
+  BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +22,10 @@ on:
         options:
           - dummy
           - real
+      sec-scanners-config:
+        type: boolean
+        description: 'Create PR with sec-scanners-config bump'
+        default: true
 
 jobs:
   validate-release:
@@ -40,6 +49,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/label_validator.sh "RELEASE"
+  
+  bump-sec-scanners-config:
+    name: Create PR with sec-scanners-config bump
+    needs: validate-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Update sec-scanners-config.yaml
+        run: scripts/create_scan_config.sh ${{ inputs.name }} 
+
+      - name: Create PR if anything changed
+        env:
+          GH_TOKEN: ${{ secrets.GH_TEST }}
+        run: |
+          prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+          if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
+            echo "PR already exists, no need to create a new one"
+          elif [ -z "$(git status --porcelain)" ]; then
+            echo "nothing changed, no need to create PR"
+          else
+            scripts/create_pr.sh ${{ inputs.name }}
+          fi 
 
   wait-for-prow-jobs:
     name: Wait for prow jobs
@@ -152,7 +188,7 @@ jobs:
 
   create-draft:
     name: Create draft release
-    needs: validate-release
+    needs: bump-sec-scanners-config
     runs-on: ubuntu-latest
 
     steps:
