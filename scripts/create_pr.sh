@@ -5,7 +5,7 @@
 set -o nounset  # treat unset variables as an error and exit immediately.
 set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
-set -o pipefail # prevents errors in a pipeline from being masked# link the PR from ^^ to gopher project board
+set -o pipefail # prevents errors in a pipeline from being masked
 
 # Expected variables passed (passed from CI):
 #   GH_TOKEN                      - GitHub token for GitHub CLI
@@ -44,3 +44,6 @@ git push --set-upstream origin ${BRANCH_NAME} -f
 #create PR
 pr_link=$(gh pr create -B main --title "Bump sec-scanners-config.yaml to ${TAG}" --body "" | tail -n 1)
 echo "Link for created PR: ${pr_link}"
+
+pr_number=$(echo "$pr_link" | awk -F'/' '{print $NF}')
+return pr_number
