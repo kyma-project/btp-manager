@@ -75,6 +75,7 @@ jobs:
             echo "nothing changed, no need to create PR"
           else
             PR_NUMBER=$(scripts/create_pr.sh ${{ inputs.name }})
+            echo $PR_NUMBER
             scripts/await_pr_merge.sh $PR_NUMBER
           fi 
 
