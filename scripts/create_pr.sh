@@ -46,4 +46,4 @@ pr_link=$(gh pr create -B main --title "Bump sec-scanners-config.yaml to ${TAG}"
 echo "Link for created PR: ${pr_link}"
 
 pr_number=$(echo "$pr_link" | awk -F'/' '{print $NF}')
-return pr_number
+echo "$pr_number"

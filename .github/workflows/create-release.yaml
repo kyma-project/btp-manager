@@ -74,7 +74,8 @@ jobs:
           elif [ -z "$(git status --porcelain)" ]; then
             echo "nothing changed, no need to create PR"
           else
-            scripts/create_pr.sh ${{ inputs.name }}
+            PR_NUMBER=$(scripts/create_pr.sh ${{ inputs.name }})
+            scripts/await_pr_merge.sh $PR_NUMBER
           fi 
 
   wait-for-prow-jobs:
