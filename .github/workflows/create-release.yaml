@@ -51,7 +51,7 @@ jobs:
         run: ./scripts/label_validator.sh "RELEASE"
   
   bump-sec-scanners-config:
-    name: Create PR with sec-scanners-config bump
+    name: Bump sec-scanners-config
     needs: validate-release
     runs-on: ubuntu-latest
 
