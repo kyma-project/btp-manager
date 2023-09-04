@@ -16,12 +16,12 @@ set -o pipefail # prevents errors in a pipeline from being masked# link the PR f
 #   BRANCH_NAME                   - branch with updated resources
 #   TAG                           - new chart version
 
-
+TAG=$1
 
 git add sec-scanners-config.yaml
 git stash push --staged
 git checkout --force -B main refs/remotes/origin/main
-git checkout -B ${BRANCH_NAME}
+git checkout -B sec_config_${TAG}
 git stash apply
 git add sec-scanners-config.yaml
 git config --global user.email marek.michali@sap.com
@@ -30,7 +30,7 @@ git commit -m "Test commit"
 echo "remote"
 git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/MarekMichali/btp-manager.git
 echo "push"
-git push --set-upstream origin ${BRANCH_NAME} -f
+git push --set-upstream origin sec_config_${TAG} -f
 echo "pr"
 resp=$(gh pr create -B main --title "Test commit" --body "Test body" | tail -n 1)
 echo "resp"
