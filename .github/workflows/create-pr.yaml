@@ -37,6 +37,7 @@ jobs:
           prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
             echo "PR already exists, no need to create a new one"
+            scripts/await_pr_merge.sh pr_number
           elif [ -z "$(git status --porcelain)" ]; then
             echo "nothing changed, no need to create PR"
           else
