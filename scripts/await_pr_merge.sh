@@ -10,7 +10,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 PR_NUMBER=$1
 
 timeout 5m bash -c "
-  until $(gh pr view ${PR_NUMBER} --json closed | jq -r '.closed'); do
+  until gh pr view ${PR_NUMBER} --json closed | jq -r '.closed'; do
     echo 'Waiting for PR #${PR_NUMBER} to be merged'
     sleep 10
   done
