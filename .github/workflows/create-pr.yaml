@@ -1,5 +1,10 @@
 name: "Create PR"
 
+env:
+    KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
+    GIT_EMAIL: marek.michali@sap.com
+    GIT_NAME: MarekMichali
+    BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
 on:
     workflow_dispatch:
       inputs:
@@ -29,7 +34,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TEST }}
         run: |
           scripts/create_scan_config.sh ${{ inputs.name }}
-          echo "BRANCH_NAME=sec_config_${{ inputs.name }}" >> $GITHUB_ENV
           scripts/create_pr.sh ${{ inputs.name }}
 
           
