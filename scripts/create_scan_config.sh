@@ -13,12 +13,16 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being maskedPORT=5001
 
-IMAGE=${1}
+# Expected variables passed (passed from CI):
+#   IMAGE_REPO                     - Repository with image to be scanned
+
+TAG=${1}
 echo "Creating security scan configuration file:"
 cat <<EOF | tee ${FILENAME}
 module-name: btp-operator
+rc-tag: ${TAG}
 protecode:
-  - ${IMAGE}
+  - ${IMAGE_REPO}:${TAG}
 whitesource:
   language: golang-mod
   subprojects: false
