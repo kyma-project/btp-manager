@@ -4,7 +4,7 @@
 #                       binary image reference (mandatory)
 #                       filename of file to be created (optional)
 #                       release tag (optional)
-# ./create_scan_config image temp_scan_congitfig.yaml           - use when building module image
+# ./create_scan_config image temp_scan_congitfig.yaml          - use when building module image
 # ./create_scan_config image temp_scan_congitfig.yaml tag      - use when bumping the config on the main branch
 
 FILENAME=${2-../sec-scanners-config.yaml}
