@@ -71,7 +71,7 @@ jobs:
 
       - name: Update sec-scanners-config.yaml
         if: ${{ inputs.sec-scanners-config }}
-        run: scripts/create_scan_config.sh ${{ inputs.name }} "sec-scanners-config.yaml"
+        run: scripts/create_scan_config.sh ${{env.IMAGE_REPO}}:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
 
       - name: Create PR if anything changed
         if: ${{ inputs.sec-scanners-config }}
