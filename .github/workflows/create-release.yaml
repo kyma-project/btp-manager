@@ -3,6 +3,11 @@ name: "Create release"
 env:
   MODULE_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
   IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+  KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
+  GIT_EMAIL: team-gopher+1@sap.com
+  GIT_NAME: kyma-btp-manager-bot
+  BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +22,10 @@ on:
         options:
           - dummy
           - real
+      sec-scanners-config:
+        type: boolean
+        description: 'Create PR with sec-scanners-config bump'
+        default: true
 
 jobs:
   validate-release:
@@ -29,6 +38,13 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Check if tag already exists
+        run: |
+          if [ $(git tag -l ${{ inputs.name }}) ]; then
+            echo "::error ::Tag ${{ inputs.name }} already exists"
+            exit 1
+          fi
+
       - name: Check for existing artifacts from previous release runs
         env:
           BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
@@ -40,6 +56,51 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/label_validator.sh "RELEASE"
+  
+  bump-sec-scanners-config:
+    name: Bump sec-scanners-config
+    needs: validate-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        if: ${{ inputs.sec-scanners-config }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Update sec-scanners-config.yaml
+        if: ${{ inputs.sec-scanners-config }}
+        run: scripts/create_scan_config.sh ${{ inputs.name }} "sec-scanners-config.yaml"
+
+      - name: Create PR if anything changed
+        if: ${{ inputs.sec-scanners-config }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_TEST }}
+        run: |
+          prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+          if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
+            echo "PR already exists, no need to create a new one"
+            echo "PR_NUMBER=$(gh pr list --search "base:main head:${{ env.BRANCH_NAME }}" --json number | jq -r '.[] | .number')" >> $GITHUB_ENV
+          elif [ -z "$(git status --porcelain)" ]; then
+            echo "Nothing changed, no need to create PR"
+            echo "PR_NUMBER=-1" >> $GITHUB_ENV
+          else
+            PR_STATUS=$(scripts/create_sec_scanner_bump_pr.sh ${{ inputs.name }})
+            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV          
+          fi
+          
+      - name: Await PR merge
+        if: ${{ inputs.sec-scanners-config }}
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ secrets.GH_TEST }}
+        run: | 
+          if [ "$PR_NUMBER" -gt 0 ]; then
+            scripts/await_pr_merge.sh
+          else
+            echo "Step skipped"
+          fi
 
   wait-for-prow-jobs:
     name: Wait for prow jobs
@@ -152,7 +213,7 @@ jobs:
 
   create-draft:
     name: Create draft release
-    needs: validate-release
+    needs: bump-sec-scanners-config
     runs-on: ubuntu-latest
 
     steps:
