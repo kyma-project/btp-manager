@@ -59,7 +59,7 @@ This script sets appropriate environment variables and invokes `make module-buil
 The registry URL and component name are predefined. 
 
 > **NOTE:**
-> For PR workflow runs, the module image tag has the form `0.0.0-PR-<PR number>` due to component description requirements imposed by the tooling used.
+> For PR workflow runs, the module image tag has the form `v0.0.0-PR-<PR number>` due to component description requirements imposed by the tooling used.
  
 The GitHub Actions workflows execute the two tests:
 - [`run-e2e-tests-reusable.yaml`](../../scripts/testing/run_e2e_module_tests.sh) 
@@ -94,7 +94,7 @@ PR_NAME=PR-234 ./scripts/testing/run_e2e_on_k3d.sh
 
 The script:
 1. Creates the binary `btp-manager:${PR_NAME}` image, and pushes it to the k3d registry.
-2. Creates the OCI module image `component-descriptors/kyma.project.io/module/btp-operator:0.0.0-${PR_NAME}`, and pushes the module to the k3d registry.
+2. Creates the OCI module image `component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-${PR_NAME}`, and pushes the module to the k3d registry.
 3. Downloads the btp-operator OCI module image from k3d registry.
 4. Installs BTP Manager, BTP Operator, Service Instance, and Service Binding.
 5. Verifies states of resources.
