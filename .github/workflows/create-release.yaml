@@ -76,7 +76,7 @@ jobs:
       - name: Create PR if anything changed
         if: ${{ inputs.sec-scanners-config }}
         env:
-          GH_TOKEN: ${{ secrets.GH_TEST }}
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
@@ -94,7 +94,7 @@ jobs:
         if: ${{ inputs.sec-scanners-config }}
         timeout-minutes: 10
         env:
-          GH_TOKEN: ${{ secrets.GH_TEST }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: | 
           if [ "$PR_NUMBER" -gt 0 ]; then
             scripts/await_pr_merge.sh
