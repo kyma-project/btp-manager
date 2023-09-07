@@ -17,26 +17,12 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being maskedPORT=5001
 
-# registry access from local machine
-LOCAL_REGISTRY=${LOCAL_REGISTRY:-localhost:5001}
+echo "Building images and pushing to the local registry"
 
-#registry access from k3d cluster
-K3D_REGISTRY=${K3D_REGISTRY:-k3d-kyma-registry:5000}
-
-PR_NAME=${PR_NAME:-PR-undefined}
-IMG_NAME=btp-manager:${PR_NAME}
-
-MODULE_PREFIX=${MODULE_PREFIX:-0.0.0}
-MODULE_VERSION=${MODULE_PREFIX}-${PR_NAME}
-EXTENDED_MODULE_VERSION=v${MODULE_VERSION}
-MODULE_NAME=component-descriptors/kyma.project.io/module/btp-operator
-
-echo "Creating binary image and pushing to registry: ${LOCAL_REGISTRY}"
-make module-image LOCAL_REGISTRY=${LOCAL_REGISTRY} IMG=${LOCAL_REGISTRY}/${IMG_NAME}
-
-echo "Creating OCI module image and pushing to registry (no security scanning configuration in module template): ${LOCAL_REGISTRY}"
-make module-build IMG=${K3D_REGISTRY}/${IMG_NAME} MODULE_REGISTRY=${LOCAL_REGISTRY} MODULE_VERSION=${MODULE_VERSION}
+# sets MODULE_REFERENCE variable as a side effect - hence sourcing
+. ./scripts/build_and_push_locally.sh
 
 echo "Running E2E tests"
-./scripts/testing/run_e2e_module_tests.sh ${LOCAL_REGISTRY}/${MODULE_NAME}:${EXTENDED_MODULE_VERSION} dummy ${CI}
+
+./scripts/testing/run_e2e_module_tests.sh "${MODULE_REFERENCE}" dummy "${CI}"
 
