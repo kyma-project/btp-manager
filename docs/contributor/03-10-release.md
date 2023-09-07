@@ -33,7 +33,7 @@ To create a release, follow these steps:
 9. The GitHub action asynchronously initiates stress tests jobs and E2E tests jobs upon Prow job success status. E2E upgrade tests run only with real credentials for Service Manager.
 10. The GitHub action waits for the `template.yaml` asset in the GitHub release and for images in the Docker registry.
 11. The GitHub action fetches the module image and runs E2E tests on the k3s cluster with the specified credentials. 
-12. If the unit tests, stress testss and E2E tests are completed successfully, the GitHub action publishes the release.
+12. If the unit tests, stress tests and E2E tests are completed successfully, the GitHub action publishes the release.
 
 
 ### Replace an existing release
