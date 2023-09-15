@@ -76,9 +76,9 @@ condition that allows the reconciler to set the CR in the `Ready` state.
    kubectl delete btpoperator {BTPOPERATOR_CR_NAME}
    ```
 
-   The command triggers the deletion of the module resources in the cluster. By default, the existing ServiceInstances or ServiceBindings block the deletion. To unblock it, you must remove the existing ServiceInstances and ServiceBindings. Then, after the reconciliation, the BTP Operator resource is gone.
+   The command triggers the deletion of the module resources in the cluster. By default, the existing ServiceInstances or ServiceBindings block the deletion. To unblock it, you must remove the existing ServiceInstances and ServiceBindings. Then, after the reconciliation, the SAP BTP Operator resource is gone.
 
-   You can force the deletion by adding this label to the BTP Operator resource:
+   You can force the deletion by adding this label to the SAP BTP Operator resource:
    ```
    force-delete: "true"
    ```
@@ -96,7 +96,7 @@ condition that allows the reconciler to set the CR in the `Ready` state.
 11. Regardless of the mode, all SAP BTP Service Operator resources marked with the `app.kubernetes.io/managed-by:btp-manager` label are deleted. The deletion of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../../module-resources). If the process succeeds, the finalizer on BtpOperator CR itself is removed, and the resource is deleted. If an error occurs during the deprovisioning (11a), the state of BtpOperator CR is set to `Error`.
 
 ## Conditions
-The state of BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/declarative/v2/object.go#L23) that comprises State
+The state of SAP BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/declarative/v2/object.go#L23) that comprises State
 and Conditions.
 Only one Condition of type `Ready` is used.
 

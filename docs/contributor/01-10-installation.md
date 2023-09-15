@@ -91,8 +91,8 @@ It results in:
 - downloading and using Kyma CLI to provision the k3d cluster
 - deploying Lifecycle Manager
 - applying the BTP Manager `template.yaml` provided by the user
-- enabling the BTP Operator module
-- displaying the BTP Manager and BTP Operator status
+- enabling the SAP BTP Operator module
+- displaying the BTP Manager and SAP BTP Operator status
 
 ### Delete k3d cluster
 

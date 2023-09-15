@@ -1,3 +1,3 @@
 - [Home](/)
-- [BTP Operator module](README.md)
+- [SAP BTP Operator module](README.md)
 - [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md)
