@@ -8,6 +8,7 @@ updates:
       - "go"
       - "skip-review"
       - "area/dependency"
+      - "kind/enhancement"
     schedule:
       interval: "daily"
     commit-message:
@@ -18,6 +19,7 @@ updates:
     labels:
       - "docker"
       - "area/dependency"
+      - "kind/enhancement"
     schedule:
       interval: "daily"
     commit-message:
