@@ -98,6 +98,7 @@ jobs:
         run: | 
           if [ "$PR_NUMBER" -gt 0 ]; then
             scripts/await_pr_merge.sh
+            sleep 15
           else
             echo "Step skipped"
           fi
