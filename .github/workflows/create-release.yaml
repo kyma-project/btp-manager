@@ -232,6 +232,7 @@ jobs:
 
       - name: Create lightweight tag
         run: |
+          sleep 15
           git tag ${{ github.event.inputs.name }}
           git push origin ${{ github.event.inputs.name }}
 
