@@ -233,6 +233,7 @@ jobs:
 
       - name: Create lightweight tag
         run: |
+          git pull
           git tag ${{ github.event.inputs.name }}
           git push origin ${{ github.event.inputs.name }}
 
