@@ -17,7 +17,6 @@ updates:
   - package-ecosystem: "docker"
     directory: "/"
     labels:
-      - "docker"
       - "area/dependency"
       - "kind/enhancement"
     schedule:
