@@ -5,7 +5,6 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     labels:
-      - "go"
       - "skip-review"
       - "area/dependency"
       - "kind/enhancement"
