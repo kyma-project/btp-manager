@@ -1,0 +1,50 @@
+name: Promote to channel via module-manifests
+
+env:
+  # repositories urls
+  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+  MODULES_REPO: "https://github.tools.sap/kyma/modules-manifests"
+  MODULE_MANIFESTS_WITH_USER: "https://kyma-btp-manager-serviceuser:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@github.tools.sap/kyma/module-manifests.git"
+  DOC_URL: "https://kyma-project.io/#/btp-manager/user/README"
+  BTP_MANAGER_REPO_URL: "https://api.github.com/repos/kyma-project/btp-manager"
+
+  #File names
+  TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
+  DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
+  MANIFEST_FILENAME: btp-manager.yaml
+  SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
+
+  # git configuration
+  GIT_EMAIL: <>
+  GIT_NAME: kyma-btp-manager-serviceuser
+
+  # needed by gh cli for gihtub enterprise
+  GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+  GH_HOST: github.tools.sap
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseTag:
+        description: "Release Tag"
+        default: 'use latest release'
+        required: true
+      channel:
+        description: "Channel"
+        type: choice
+        options:
+          - fast
+          - regular
+        required: true
+        default: fast
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate required environment variables
+        shell: bash
+        run: |
+          [ -z "${DOC_URL}" ] && echo "DOC_URL should be defined" && exit 1 
+          echo "Validated"
