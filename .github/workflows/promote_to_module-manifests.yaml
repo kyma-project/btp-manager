@@ -21,6 +21,9 @@ env:
   MANIFEST_FILENAME: btp-manager.yaml
   SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
 
+  # directory prefix
+  CHANNEL_DIR: modules/btp-operator/${{ inputs.channel }}
+
   # needed by gh cli for GitHub enterprise
   GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
   GH_HOST: github.tools.sap
@@ -95,10 +98,10 @@ jobs:
           git fetch upstream
           git merge upstream/main
           git checkout -B ${BRANCH_NAME}
-          mkdir -p modules/${{ inputs.channel }}
+          mkdir -p $CHANNEL_DIR}
 
       - name: Download artifacts
-        working-directory: module-manifests/modules/${{ inputs.channel }}
+        working-directory: module-manifests/${CHANNEL_DIR}
         run: |
           curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${MANIFEST_FILENAME}
           curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${DEFAULT_CR_FILENAME}
@@ -106,7 +109,7 @@ jobs:
       - name: Create module configuration
         env:
           CHANNEL: ${{ inputs.channel }}
-        working-directory: module-manifests/modules/${{ inputs.channel }}
+        working-directory: module-manifests/${CHANNEL_DIR}
         run: |
           echo "Creating module configuration file:"
 
@@ -123,7 +126,7 @@ jobs:
           EOF
 
       - name: Create security configuration
-        working-directory: module-manifests/modules/${{ inputs.channel }}
+        working-directory: module-manifests/${CHANNEL_DIR}
         env:
           CHANNEL: ${{ inputs.channel }}
         run: |
