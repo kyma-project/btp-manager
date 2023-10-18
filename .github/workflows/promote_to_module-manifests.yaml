@@ -98,7 +98,7 @@ jobs:
           git fetch upstream
           git merge upstream/main
           git checkout -B ${BRANCH_NAME}
-          mkdir -p $CHANNEL_DIR}
+          mkdir -p ${CHANNEL_DIR}
 
       - name: Download artifacts
         working-directory: module-manifests/${CHANNEL_DIR}
