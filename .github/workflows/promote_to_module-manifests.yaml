@@ -25,7 +25,7 @@ env:
   GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
   GH_HOST: github.tools.sap
 
-  # to be moved to repo environment
+  # to be moved to repository environment
   DOC_URL: "https://kyma-project.io/#/btp-manager/user/README"
 
 on:
