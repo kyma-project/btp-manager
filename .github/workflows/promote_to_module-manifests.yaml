@@ -1,17 +1,10 @@
 name: Promote to channel via module-manifests
 
 env:
-  # git configuration
-  GIT_USER_EMAIL: <>
-  GIT_USER_NAME: kyma-btp-manager-serviceuser
-
-  # image registry
-  IMAGE_REPO: "europe-docker.pkg.dev/kyma-project/prod/btp-manager"
 
   # GitHub repositories
-  MODULES_REPO: "https://github.tools.sap/kyma/module-manifests"
-  MODULE_MANIFESTS_WITH_USER:  "https://${GIT_USER_NAME}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@github.tools.sap/kyma/module-manifests.git"
-  FORK_ORIGIN: "https://kyma-btp-manager-serviceuser:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@github.tools.sap/kyma-btp-manager-serviceuser/module-manifests.git"
+  MODULE_MANIFESTS_WITH_USER:  "https://${GIT_USER_NAME}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${GIT_TOOLS_HOST}/kyma/${MODULE_MANIFESTS_REPO}.git"
+
   BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
   BTP_MANAGER_DOWNLOAD_URL: "https://github.com/kyma-project/btp-manager/releases/download"
 
@@ -23,10 +16,6 @@ env:
 
   # needed by gh cli for GitHub enterprise
   GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-  GH_HOST: github.tools.sap
-
-  # to be moved to repository environment
-  DOC_URL: "https://kyma-project.io/#/btp-manager/user/README"
 
 on:
   workflow_dispatch:
@@ -53,7 +42,11 @@ jobs:
         shell: bash
         run: |
           [ -z "${DOC_URL}" ] && echo "DOC_URL is required" && exit 1 
-          echo "DOC_URL=${DOC_URL}"
+          [ -z "${GIT_USER_EMAIL}" ] && echo "GIT_USER_EMAIL is required" && exit 1 
+          [ -z "${GIT_USER_NAME}" ] && echo "GIT_USER_NAME is required" && exit 1 
+          [ -z "${GIT_TOOLS_HOST}" ] && echo "GIT_TOOLS_HOST is required" && exit 1 
+          [ -z "${IMAGE_REPO}" ] && echo "IMAGE_REPO is required" && exit 1 
+          [ -z "${MODULE_MANIFESTS_REPO}" ] && echo "MODULE_MANIFESTS_REPO is required" && exit 1 
           echo "Validated"
 
       - name: Use default (latest) Release Tag
@@ -143,6 +136,8 @@ jobs:
 
       - name: Commit and push changes
         working-directory: module-manifests
+        env:
+          FORK_ORIGIN: "https://${GIT_USER_NAME}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${GIT_TOOLS_HOST}/${GIT_USER_NAME}/${MODULE_MANIFESTS_REPO}.git"
         run: |
           git add .
           git commit -m "Update either ${MANIFEST_FILENAME} or ${TEMPLATE_FILENAME} or ${DEFAULT_CR_FILENAME} or ${SCAN_CONFIG_FILENAME}"
@@ -154,12 +149,13 @@ jobs:
         shell: bash
         env:
           CHANNEL: ${{ inputs.channel }}
+          MODULE_MANIFESTS_REPO_URL: "https://${GH_TOOLS_HOST}/kyma/${MODULE_MANIFESTS_REPO}"
         run: |
-          prs=$(gh pr list -R ${MODULES_REPO}/ -A ${GIT_USER_NAME} --state open --json headRefName | jq -r '.[] | .headRefName')
+          prs=$(gh pr list -R ${MODULE_MANIFESTS_REPO_URL} -A ${GIT_USER_NAME} --state open --json headRefName | jq -r '.[] | .headRefName')
 
           if  echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
 
-          gh pr create -B main -R ${MODULES_REPO} --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
+          gh pr create -B main -R ${MODULE_MANIFESTS_REPO_URL} --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
