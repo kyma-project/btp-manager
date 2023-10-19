@@ -1,26 +1,21 @@
 name: Promote to channel via module-manifests
 
 env:
-  # repositories urls
-  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-  MODULES_REPO: "https://github.tools.sap/kyma/modules-manifests"
-  MODULE_MANIFESTS_WITH_USER: "https://kyma-btp-manager-serviceuser:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@github.tools.sap/kyma/module-manifests.git"
-  DOC_URL: "https://kyma-project.io/#/btp-manager/user/README"
-  BTP_MANAGER_REPO_URL: "https://api.github.com/repos/kyma-project/btp-manager"
 
-  #File names
+  # GitHub repositories
+  MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
+
+  BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
+  BTP_MANAGER_DOWNLOAD_URL: "https://github.com/kyma-project/btp-manager/releases/download"
+
+  # File names
   TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
   DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
   MANIFEST_FILENAME: btp-manager.yaml
   SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
 
-  # git configuration
-  GIT_EMAIL: <>
-  GIT_NAME: kyma-btp-manager-serviceuser
-
-  # needed by gh cli for gihtub enterprise
+  # needed by gh cli for GitHub enterprise
   GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-  GH_HOST: github.tools.sap
 
 on:
   workflow_dispatch:
@@ -46,5 +41,121 @@ jobs:
       - name: Validate required environment variables
         shell: bash
         run: |
-          [ -z "${DOC_URL}" ] && echo "DOC_URL should be defined" && exit 1 
+          [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1 
+          [ -z "${{ vars.GIT_USER_EMAIL }}" ] && echo "GIT_USER_EMAIL is required" && exit 1 
+          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1 
+          [ -z "${{ vars.GH_TOOLS_HOST }}" ] && echo "GH_TOOLS_HOST is required" && exit 1 
+          [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1 
+          [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1 
           echo "Validated"
+
+      - name: Use default (latest) Release Tag
+        if: inputs.releaseTag == 'use latest release'
+        shell: bash
+        run: |
+          latest=$(curl -s -H "Accept: application/vnd.github+json" ${BTP_MANAGER_API_URL}/releases/latest | jq -r '.tag_name') 
+          echo "TAG=${latest}" >> $GITHUB_ENV
+
+      - name: Validate given release tag
+        if: inputs.releaseTag != 'use latest release'
+        shell: bash
+        run: |
+          tags=$(curl -s -H "Accept: application/vnd.github+json" ${BTP_MANAGER_API_URL}/tags | jq -r '.[] | .name')
+          
+          if  echo $tags | tr " " '\n' | grep -F -q -x ${{ inputs.releaseTag }}; then
+              echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
+              echo "tag found"
+          else
+              echo "tag not found: ${{ inputs.releaseTag }}"
+              exit 1  
+          fi
+
+      - name: Set branch name
+        run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}" >> $GITHUB_ENV
+
+      - name: Setup git and clone repo
+        run: |
+          git config --global user.email ${{ vars.GIT_USER_EMAIL }}
+          git config --global user.name ${{ vars.GIT_USER_NAME }}
+          git clone ${MODULE_MANIFESTS_WITH_USER}
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+
+      - name: Sync Repo and create branch
+        working-directory: module-manifests
+        run: |
+          git remote add upstream ${MODULE_MANIFESTS_WITH_USER}
+          git fetch upstream
+          git merge upstream/main
+          git checkout -B ${BRANCH_NAME}
+          mkdir -p modules/btp-manager/${{ inputs.channel }}
+
+      - name: Download artifacts
+        working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
+
+        run: |
+          curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${MANIFEST_FILENAME}
+          curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${DEFAULT_CR_FILENAME}
+
+      - name: Create module configuration
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
+        run: |
+          echo "Creating module configuration file:"
+
+          cat <<EOF | tee module-config.yaml
+          name: kyma-project.io/module/btp-operator
+          channel: ${CHANNEL}
+          version: v${TAG}
+          manifest: ${MANIFEST_FILENAME}
+          defaultCR: ${DEFAULT_CR_FILENAME}
+          annotations:
+            "operator.kyma-project.io/doc-url": "${{ vars.DOC_URL }}"
+          moduleRepo: https://github.com/kyma-project/btp-manager.git
+          moduleSecurityScanConfig: true
+          EOF
+
+      - name: Create security configuration
+        working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          echo "Creating security configuration file:"
+          cat <<EOF | tee ${SCAN_CONFIG_FILENAME}
+          module-name: btp-operator
+          rc-tag: ${TAG}
+          protecode:
+            - ${{ vars.IMAGE_REPO }}:${TAG}
+          whitesource:
+            language: golang-mod
+            subprojects: false
+            exclude:
+              - "**/*_test.go"
+          EOF
+
+      - name: Commit and push changes
+        working-directory: module-manifests
+        env:
+          FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
+        run: |
+          git add .
+          git commit -m "Update either ${MANIFEST_FILENAME} or ${TEMPLATE_FILENAME} or ${DEFAULT_CR_FILENAME} or ${SCAN_CONFIG_FILENAME}"
+          git remote set-url origin ${FORK_ORIGIN}
+          git push --set-upstream origin ${BRANCH_NAME} -f
+
+      - name: Create PR if needed
+        working-directory: module-manifests
+        shell: bash
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
+        run: |
+          prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+
+          if  echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
+              echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
+              exit 0
+          fi
+
+          gh pr create -B main -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
