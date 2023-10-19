@@ -3,7 +3,7 @@ name: Promote to channel via module-manifests
 env:
 
   # GitHub repositories
-  MODULE_MANIFESTS_WITH_USER:  "https://${GIT_USER_NAME}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${GIT_TOOLS_HOST}/kyma/${MODULE_MANIFESTS_REPO}.git"
+  MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GIT_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO }}.git"
 
   BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
   BTP_MANAGER_DOWNLOAD_URL: "https://github.com/kyma-project/btp-manager/releases/download"
@@ -41,12 +41,12 @@ jobs:
       - name: Validate required environment variables
         shell: bash
         run: |
-          [ -z "${DOC_URL}" ] && echo "DOC_URL is required" && exit 1 
-          [ -z "${GIT_USER_EMAIL}" ] && echo "GIT_USER_EMAIL is required" && exit 1 
-          [ -z "${GIT_USER_NAME}" ] && echo "GIT_USER_NAME is required" && exit 1 
-          [ -z "${GIT_TOOLS_HOST}" ] && echo "GIT_TOOLS_HOST is required" && exit 1 
-          [ -z "${IMAGE_REPO}" ] && echo "IMAGE_REPO is required" && exit 1 
-          [ -z "${MODULE_MANIFESTS_REPO}" ] && echo "MODULE_MANIFESTS_REPO is required" && exit 1 
+          [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1 
+          [ -z "${{ vars.GIT_USER_EMAIL }}" ] && echo "GIT_USER_EMAIL is required" && exit 1 
+          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1 
+          [ -z "${{ vars.GIT_TOOLS_HOST }}" ] && echo "GIT_TOOLS_HOST is required" && exit 1 
+          [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1 
+          [ -z "${{ vars.MODULE_MANIFESTS_REPO }}" ] && echo "MODULE_MANIFESTS_REPO is required" && exit 1 
           echo "Validated"
 
       - name: Use default (latest) Release Tag
@@ -111,7 +111,7 @@ jobs:
           manifest: ${MANIFEST_FILENAME}
           defaultCR: ${DEFAULT_CR_FILENAME}
           annotations:
-            "operator.kyma-project.io/doc-url": "${DOC_URL}"
+            "operator.kyma-project.io/doc-url": "${{ vars.DOC_URL }}"
           moduleRepo: https://github.com/kyma-project/btp-manager.git
           moduleSecurityScanConfig: true
           EOF
@@ -137,7 +137,7 @@ jobs:
       - name: Commit and push changes
         working-directory: module-manifests
         env:
-          FORK_ORIGIN: "https://${GIT_USER_NAME}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${GIT_TOOLS_HOST}/${GIT_USER_NAME}/${MODULE_MANIFESTS_REPO}.git"
+          FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GIT_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO }}.git"
         run: |
           git add .
           git commit -m "Update either ${MANIFEST_FILENAME} or ${TEMPLATE_FILENAME} or ${DEFAULT_CR_FILENAME} or ${SCAN_CONFIG_FILENAME}"
@@ -149,7 +149,7 @@ jobs:
         shell: bash
         env:
           CHANNEL: ${{ inputs.channel }}
-          MODULE_MANIFESTS_REPO_URL: "https://${GH_TOOLS_HOST}/kyma/${MODULE_MANIFESTS_REPO}"
+          MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO }}"
         run: |
           prs=$(gh pr list -R ${MODULE_MANIFESTS_REPO_URL} -A ${GIT_USER_NAME} --state open --json headRefName | jq -r '.[] | .headRefName')
 
