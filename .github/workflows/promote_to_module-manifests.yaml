@@ -1,7 +1,13 @@
 name: Promote to channel via module-manifests
+#  Workflow requires following variables to be defined
+#     DOC_URL - location of btp-manager documentation
+#     GIT_USER_NAME - user creating head branch and PR
+#     GIT_USER_EMAIL - this user email
+#     GH_TOOLS_HOST - tools host
+#     IMAGE_REPO - name of binary image of the btp-manager executable
+#     MODULE_MANIFESTS_REPO_NAME - repository of modules manifests
 
 env:
-
   # GitHub repositories
   MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
 
@@ -150,6 +156,7 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
+          HEAD: ${BRANCH_NAME}
         run: |
           prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
 
@@ -158,4 +165,4 @@ jobs:
               exit 0
           fi
 
-          gh pr create -B main -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
+          gh pr create -B main -H ${HEAD} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
