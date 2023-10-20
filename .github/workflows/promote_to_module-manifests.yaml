@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Set branch name
-        run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}" >> $GITHUB_ENV
+        run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}-test" >> $GITHUB_ENV
 
       - name: Setup git and clone repo
         run: |
@@ -164,5 +164,7 @@ jobs:
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-
+          
+          echo "Creating pull request"
+          echo gh pr create -B main -H ${HEAD} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
           gh pr create -B main -H ${HEAD} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
