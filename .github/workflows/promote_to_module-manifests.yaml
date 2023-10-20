@@ -91,8 +91,8 @@ jobs:
         working-directory: module-manifests
         run: |
           git remote add upstream ${MODULE_MANIFESTS_WITH_USER}
-#          git fetch upstream
-#          git merge upstream/main
+          git fetch upstream
+          git merge upstream/main
           git checkout -B ${BRANCH_NAME}
           mkdir -p modules/btp-manager/${{ inputs.channel }}
 
