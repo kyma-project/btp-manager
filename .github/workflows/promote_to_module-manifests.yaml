@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Set branch name
-        run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}-test" >> $GITHUB_ENV
+        run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}" >> $GITHUB_ENV
 
       - name: Setup git and clone repo
         run: |
@@ -156,7 +156,7 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
-          HEAD: "${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}:${BRANCH_NAME}"
+          HEAD: "${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}:btp-manager-1.0.0-fast"
         run: |
           prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
 
