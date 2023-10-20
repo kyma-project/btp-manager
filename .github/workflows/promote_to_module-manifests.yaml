@@ -54,12 +54,14 @@ jobs:
           [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1 
           [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1 
           echo "Validated"
+
       - name: Use default (latest) Release Tag
         if: inputs.releaseTag == 'use latest release'
         shell: bash
         run: |
           latest=$(curl -s -H "Accept: application/vnd.github+json" ${BTP_MANAGER_API_URL}/releases/latest | jq -r '.tag_name') 
           echo "TAG=${latest}" >> $GITHUB_ENV
+
       - name: Validate given release tag
         if: inputs.releaseTag != 'use latest release'
         shell: bash
@@ -73,6 +75,7 @@ jobs:
               echo "tag not found: ${{ inputs.releaseTag }}"
               exit 1  
           fi
+
       - name: Set branch name
         run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}" >> $GITHUB_ENV
 
@@ -92,18 +95,21 @@ jobs:
           git merge upstream/main
           git checkout -B ${BRANCH_NAME}
           mkdir -p modules/btp-manager/${{ inputs.channel }}
+
       - name: Download artifacts
         working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
 
         run: |
           curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${MANIFEST_FILENAME}
           curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${DEFAULT_CR_FILENAME}
+
       - name: Create module configuration
         env:
           CHANNEL: ${{ inputs.channel }}
         working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
         run: |
           echo "Creating module configuration file:"
+
           cat <<EOF | tee module-config.yaml
           name: kyma-project.io/module/btp-operator
           channel: ${CHANNEL}
@@ -115,6 +121,7 @@ jobs:
           moduleRepo: https://github.com/kyma-project/btp-manager.git
           moduleSecurityScanConfig: true
           EOF
+
       - name: Create security configuration
         working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
         env:
@@ -132,6 +139,7 @@ jobs:
             exclude:
               - "**/*_test.go"
           EOF
+
       - name: Commit and push changes
         working-directory: module-manifests
         env:
@@ -146,6 +154,7 @@ jobs:
           git branch -vva
           git push --set-upstream origin ${BRANCH_NAME} -f
           echo "Changes pushed"
+
       - name: Create PR if needed
         working-directory: module-manifests
         shell: bash
