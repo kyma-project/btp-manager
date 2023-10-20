@@ -165,6 +165,6 @@ jobs:
               exit 0
           fi
           
-          echo "Creating pull request"
+          echo "Creating pull request between main and ${BRANCH_NAME}"
           echo gh pr create -B main -H ${HEAD} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
           gh pr create -B main -H ${HEAD} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
