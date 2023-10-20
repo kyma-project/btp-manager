@@ -146,7 +146,7 @@ jobs:
           FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
           git add .
-          git commit -m "Update either ${MANIFEST_FILENAME} or ${TEMPLATE_FILENAME} or ${DEFAULT_CR_FILENAME} or ${SCAN_CONFIG_FILENAME}"
+          git commit -m "Update configuration files"
           git remote set-url origin ${FORK_ORIGIN}
           git push --set-upstream origin ${BRANCH_NAME} -f
 
@@ -156,7 +156,6 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
-          HEAD: "${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}:btp-manager-1.0.0-fast"
           MODULES_REPO: "https://github.tools.sap/kyma/module-manifests"
         run: |
           prs=$(gh pr list -R ${MODULES_REPO}/ -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
