@@ -164,4 +164,4 @@ jobs:
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-          gh pr create -B main -R ${MODULE_MANIFESTS_REPO_URL} --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
+          gh pr create -B main -R https://github.tools.sap/kyma/module-manifests/ --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
