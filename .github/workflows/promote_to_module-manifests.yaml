@@ -148,12 +148,7 @@ jobs:
           git add .
           git commit -m "Update configuration files"
           git remote set-url origin ${FORK_ORIGIN}
-          echo "Pushing upstream"
-          git remote -v
-          git status
-          git branch -vva
           git push --set-upstream origin ${BRANCH_NAME} -f
-          echo "Changes pushed"
 
       - name: Create PR if needed
         working-directory: module-manifests
