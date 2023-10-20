@@ -157,15 +157,12 @@ jobs:
           CHANNEL: ${{ inputs.channel }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
           HEAD: "${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}:btp-manager-1.0.0-fast"
+          MODULES_REPO: "https://github.tools.sap/kyma/module-manifests"
         run: |
-          prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
-
+          prs=$(gh pr list -R ${MODULES_REPO}/ -A ${GIT_USER_NAME} --state open --json headRefName | jq -r '.[] | .headRefName')
+          prs=$(gh pr list -R ${MODULES_REPO}/ -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
           if  echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-          
-          echo "Creating pull request between main and ${BRANCH_NAME}"
-          echo "${HEAD}"
-          echo gh pr create -B main -H ${HEAD} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
-          gh pr create -B main -H ${HEAD} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
+          gh pr create -B main -R ${MODULES_REPO} --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
