@@ -159,7 +159,6 @@ jobs:
           HEAD: "${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}:btp-manager-1.0.0-fast"
           MODULES_REPO: "https://github.tools.sap/kyma/module-manifests"
         run: |
-          prs=$(gh pr list -R ${MODULES_REPO}/ -A ${GIT_USER_NAME} --state open --json headRefName | jq -r '.[] | .headRefName')
           prs=$(gh pr list -R ${MODULES_REPO}/ -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
           if  echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
