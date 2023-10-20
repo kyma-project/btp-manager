@@ -91,8 +91,8 @@ jobs:
         working-directory: module-manifests
         run: |
           git remote add upstream ${MODULE_MANIFESTS_WITH_USER}
-          git fetch upstream
-          git merge upstream/main
+#          git fetch upstream
+#          git merge upstream/main
           git checkout -B ${BRANCH_NAME}
           mkdir -p modules/btp-manager/${{ inputs.channel }}
 
@@ -149,9 +149,6 @@ jobs:
           git commit -m "Update configuration files"
           git remote set-url origin ${FORK_ORIGIN}
           echo "Pushing upstream"
-          git remote -v
-          git status
-          git branch -vva
           git push --set-upstream origin ${BRANCH_NAME} -f
           echo "Changes pushed"
 
