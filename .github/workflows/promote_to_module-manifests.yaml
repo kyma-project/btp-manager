@@ -156,7 +156,7 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
-          HEAD: ${BRANCH_NAME}
+          HEAD: "${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}:${BRANCH_NAME}"
         run: |
           prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
 
