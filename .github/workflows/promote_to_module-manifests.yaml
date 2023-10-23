@@ -8,6 +8,11 @@ name: Promote to channel via module-manifests
 #     MODULE_MANIFESTS_REPO_NAME - repository of modules manifests
 
 env:
+
+  # DO NOT CHANGE THIS VALUE - the change will cause inconsistency on landscapes
+  # since there would be "old-named" and "new-named" modules and LM would switch between those infinitely
+  FULL_MODULE_NAME: kyma-project.io/module/btp-operator
+
   # GitHub repositories
   MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
 
@@ -111,7 +116,7 @@ jobs:
           echo "Creating module configuration file:"
 
           cat <<EOF | tee module-config.yaml
-          name: kyma-project.io/module/btp-operator
+          name: ${FULL_MODULE_NAME}
           channel: ${CHANNEL}
           version: v${TAG}
           manifest: ${MANIFEST_FILENAME}
