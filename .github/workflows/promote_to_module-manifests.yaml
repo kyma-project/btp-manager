@@ -1,7 +1,13 @@
 name: Promote to channel via module-manifests
+#  Workflow requires following variables to be defined
+#     DOC_URL - location of btp-manager documentation
+#     GIT_USER_NAME - user creating head branch and PR
+#     GIT_USER_EMAIL - this user email
+#     GH_TOOLS_HOST - tools host
+#     IMAGE_REPO - name of binary image of the btp-manager executable
+#     MODULE_MANIFESTS_REPO_NAME - repository of modules manifests
 
 env:
-
   # GitHub repositories
   MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
 
@@ -140,7 +146,7 @@ jobs:
           FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
           git add .
-          git commit -m "Update either ${MANIFEST_FILENAME} or ${TEMPLATE_FILENAME} or ${DEFAULT_CR_FILENAME} or ${SCAN_CONFIG_FILENAME}"
+          git commit -m "Configuration files update"
           git remote set-url origin ${FORK_ORIGIN}
           git push --set-upstream origin ${BRANCH_NAME} -f
 
@@ -157,5 +163,4 @@ jobs:
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-
-          gh pr create -B main -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
+          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
