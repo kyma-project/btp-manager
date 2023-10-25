@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -15,11 +16,11 @@ func CacheCreator(conf *rest.Config, opts cache.Options) (cache.Cache, error) {
 	if err != nil {
 		panic(fmt.Sprintf("unable to parse label selector: %s", err))
 	}
-	objSelector := cache.ObjectSelector{
+	objSelector := cache.ByObject{
 		Label: labelSelector,
 	}
 
-	opts.SelectorsByObject = map[client.Object]cache.ObjectSelector{
+	opts.ByObject = map[client.Object]cache.ByObject{
 		&corev1.Secret{}:    objSelector,
 		&corev1.ConfigMap{}: objSelector,
 		&admissionregistrationv1.ValidatingWebhookConfiguration{}: objSelector,
