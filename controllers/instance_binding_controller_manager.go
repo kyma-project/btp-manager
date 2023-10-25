@@ -9,6 +9,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 // InstanceBindingControllerManager runs and stops the ServiceInstance controller
@@ -45,7 +46,7 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 	}
 	mgr, err := ctrl.NewManager(r.cfg, ctrl.Options{
 		Scheme:                 r.Scheme,
-		MetricsBindAddress:     "0",
+		Metrics:                server.Options{BindAddress: "0"},
 		HealthProbeBindAddress: "0",
 	})
 	if err != nil {

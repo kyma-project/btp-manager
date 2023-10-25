@@ -2,10 +2,10 @@ package controllers
 
 import (
 	"context"
+	"time"
+
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-	"time"
 
 	"github.com/kyma-project/btp-manager/internal/conditions"
 
@@ -96,7 +96,7 @@ func (r *ServiceInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(si,
 			builder.WithPredicates(r.deletionPredicate())).
-		Watches(&source.Kind{Type: sb},
+		Watches(sb,
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(r.deletionPredicate())).
 		WithOptions(controller.Options{RateLimiter: workqueue.NewItemExponentialFailureRateLimiter(10*time.Millisecond, 1000*time.Second)}).
