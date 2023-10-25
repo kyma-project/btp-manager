@@ -25,6 +25,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -152,7 +153,7 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme.Scheme,
-		MetricsBindAddress:     "0",
+		Metrics:                server.Options{BindAddress: "0"},
 		HealthProbeBindAddress: "0",
 		NewCache:               CacheCreator,
 	})

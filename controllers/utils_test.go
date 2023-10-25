@@ -820,7 +820,7 @@ func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.C
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	Expect(deploymentController.Watch(&source.Kind{Type: &appsv1.Deployment{}},
+	Expect(deploymentController.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}),
 		&handler.EnqueueRequestForObject{},
 		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate())).
 		To(Succeed())

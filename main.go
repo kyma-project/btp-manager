@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	"os"
 	//test
 
@@ -32,9 +31,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
+	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -86,9 +87,8 @@ func main() {
 		Scheme:                 scheme,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "ec023d38.kyma-project.io",
-		MetricsBindAddress:     metricsAddr,
+		Metrics:                server.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
-		Port:                   9443,
 		NewCache:               controllers.CacheCreator,
 	})
 	if err != nil {
