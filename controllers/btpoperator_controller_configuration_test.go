@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -12,7 +13,7 @@ var _ = Describe("BTP Operator controller - configuration", func() {
 		It("should adjust configuration settings in the operator accordingly", func() {
 			GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 			cm := initConfig(map[string]string{"ProcessingStateRequeueInterval": "10s"})
-			reconciler.reconcileConfig(cm)
+			reconciler.reconcileConfig(context.TODO(), cm)
 			Expect(ProcessingStateRequeueInterval).To(Equal(time.Second * 10))
 		})
 	})
