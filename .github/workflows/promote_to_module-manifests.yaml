@@ -99,10 +99,10 @@ jobs:
           git fetch upstream
           git merge upstream/main
           git checkout -B ${BRANCH_NAME}
-          mkdir -p modules/btp-manager/${{ inputs.channel }}
+          mkdir -p modules/btp-operator/${{ inputs.channel }}
 
       - name: Download artifacts
-        working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
+        working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
 
         run: |
           curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${MANIFEST_FILENAME}
@@ -111,7 +111,7 @@ jobs:
       - name: Create module configuration
         env:
           CHANNEL: ${{ inputs.channel }}
-        working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
+        working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
         run: |
           echo "Creating module configuration file:"
 
@@ -128,7 +128,7 @@ jobs:
           EOF
 
       - name: Create security configuration
-        working-directory: module-manifests/modules/btp-manager/${{ inputs.channel }}
+        working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
         env:
           CHANNEL: ${{ inputs.channel }}
         run: |
