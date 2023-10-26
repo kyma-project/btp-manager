@@ -102,7 +102,7 @@ jobs:
             echo "Step skipped"
           fi
 
-      - name: Pull latest commit ref
+      - name: Save latest commit ref
         id: pull-ref
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
