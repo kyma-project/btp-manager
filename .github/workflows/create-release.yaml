@@ -98,14 +98,27 @@ jobs:
         run: | 
           if [ "$PR_NUMBER" -gt 0 ]; then
             scripts/await_pr_merge.sh
-            sleep 15
           else
             echo "Step skipped"
           fi
 
+      - name: Pull latest commit ref
+        id: pull-ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout main
+          git pull
+          LATEST_COMMIT=$(git rev-parse HEAD)
+          echo "latest_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+          echo "Latest commit ref $LATEST_COMMIT"
+
+    outputs:
+      latest_commit: ${{ steps.pull-ref.outputs.latest_commit }}  
+
   wait-for-prow-jobs:
     name: Wait for prow jobs
-    needs: create-draft
+    needs: [create-draft, bump-sec-scanners-config]
     runs-on: ubuntu-latest
 
     steps:
@@ -116,6 +129,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           statusName: "post-btp-manager-module-build"
           timeoutSeconds: "300"
+          ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
 
       - name: Check if post-btp-manager-module-build status is success
         if: steps.wait-for-module-build-status.outputs.state != 'success'
@@ -130,6 +144,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           statusName: "post-btp-manager-build"
           timeoutSeconds: "300"
+          ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
 
       - name: Check if post-btp-manager-build status is success
         if: steps.wait-for-image-build-status.outputs.state != 'success'
@@ -222,6 +237,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
 
       - name: Create draft release
         id: create-draft
@@ -233,7 +249,6 @@ jobs:
 
       - name: Create lightweight tag
         run: |
-          git pull
           git tag ${{ github.event.inputs.name }}
           git push origin ${{ github.event.inputs.name }}
 
