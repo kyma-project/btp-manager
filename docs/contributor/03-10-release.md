@@ -27,7 +27,7 @@ To create a release, follow these steps:
 4. A code owner approves the PR. 
 5. The GitHub action creates a GitHub tag and draft release with the provided name.
 6. The GitHub action asynchronously initiates unit tests and an await for Prow Jobs status.
-7. The tag creation triggers Prow Jobs, `post-btp-manager-module-build` and `post-btp-manager-build`, defined in [btp-manager-build.yaml](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/btp-manager/btp-manager-build.yaml).
+7. The tag creation triggers Prow Jobs, `post-btp-manager-module-build` and `post-btp-manager-build`, defined in [`btp-manager-build.yaml`](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/kyma-project/btp-manager/btp-manager-build.yaml).
 8. `post-btp-manager-build` builds a Docker image tagged with the release name.
 9. `post-btp-manager-module-build` runs the `kyma alpha create module` command, which creates a Kyma module and pushes the image to the registry. Kyma CLI is called with the `--sec-scanners-config` flag and uses a dynamically created file to configure security scanning settings in the module template. Finally, the job uploads the `template.yaml`,`template_control_plane.yaml`, `btp-manager.yaml` and `btp-operator-default-cr.yaml` files to the btp-manager release as release assets.
 10. The GitHub action asynchronously initiates stress tests jobs and E2E tests jobs upon Prow job success status. E2E upgrade tests run only with real credentials for Service Manager.
