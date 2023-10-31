@@ -31,13 +31,23 @@ on:
         type: string
 
 jobs:
-  run-e2e-tests:
+  prepare-tests:
     # job waits until Prow job uploads docker image, module OCI image and optionally artifacts
     runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.get-versions.outputs.k3s_versions }
     timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - id: get-versions
+        name: Get K3s versions
+        run: |
+          VERSIONS=($(./get-latest-k3s-releases.sh))
+          echo ${VERSIONS[*]}
+          MATRIX_AS_JSON=$(echo ${VERSIONS[*]} | awk 'END {printf "{\"include\":[";for (i = 1; i < NF; i++) printf "{\"version\":%s},",$i;printf "{\"version\":%s}]}",$i }'|jq -c)
+          echo "k3s_versions=${MATRIX_AS_JSON}" >> "${GITHUB_OUTPUT}"
 
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
@@ -60,3 +70,12 @@ jobs:
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
 
+  run-e2e-tests:
+    runs-on: ubuntu-latest
+    needs: prepare-tests
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
+    steps:
+      - name: Run Lola run
+        run: |
+          echo ${{ matrix.version }}
