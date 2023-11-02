@@ -24,4 +24,4 @@ jobs:
       module-repo: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       skip-templates: --skip-templates
       credentials-mode: dummy
-      last-k3s-versions: ${{ env.LAST }}
+      last-k3s-versions: ${{ envs.LAST }}
