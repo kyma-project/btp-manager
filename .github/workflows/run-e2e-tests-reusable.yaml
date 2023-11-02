@@ -42,12 +42,6 @@ jobs:
     outputs:
       versions: ${{ steps.get-versions.outputs.k3s_versions }}
     steps:
-      - name: Validate required environment variables
-        shell: bash
-        run: |
-          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1 
-          [ -z "${{ vars.LAST_K3S_VERSIONS }}" ] && echo "LAST_K3S_VERSIONS is required" && exit 1 
-          echo "Validated"
       - name: Checkout code
         uses: actions/checkout@v3
 
