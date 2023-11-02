@@ -2,7 +2,8 @@
 #  The action is triggered on pull requests to the main branch of the repository.
 
 name: Run E2E tests on the cluster
-
+env:
+  LAST=${{ vars.LAST_K3S_VERSIONS }}
 on:
   pull_request:
     branches: [ main ]
@@ -21,6 +22,6 @@ jobs:
       module-tag: v0.0.0-PR-${{ github.event.number }}
       image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
-      last-k3s-versions: ${{ vars.LAST_K3S_VERSIONS }}
       skip-templates: --skip-templates
       credentials-mode: dummy
+      last-k3s-versions: ${LAST}
