@@ -13,6 +13,12 @@ on:
       - ready_for_review
 
 jobs:
+  show-vars:
+    name: Validate release
+    runs-on: ubuntu-latest
+    steps:
+      - name: first
+        run: echo ${{ vars.LAST_K3S_VERSIONS }}
 
   run-e2e-tests:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
