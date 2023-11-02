@@ -21,7 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: first
-        run: echo $LAST_K3S_VERSIONS
+        run: |
+          echo $LAST_K3S_VERSIONS
+          echo ${{ vars.IMAGE_REPO }}
+          echo ${{ secrets.JP_PESEL }}
 
   run-e2e-tests:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
