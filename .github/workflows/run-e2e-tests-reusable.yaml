@@ -44,12 +44,11 @@ jobs:
       - id: get-versions
         name: Get K3s versions
         run: |
-          VERSIONS=($(./scripts/testing/get-latest-k3s-releases.sh))
-          echo ${VERSIONS[*]}
+          VERSIONS=($(./scripts/testing/get-latest-k3s-releases.sh 2))
           MATRIX_AS_JSON=$(echo ${VERSIONS[*]} | awk 'END {printf "{\"include\":[";for (i = 1; i < NF; i++) printf "{\"version\":%s},",$i;printf "{\"version\":%s}]}",$i }'|jq -c)
           echo "k3s_versions=${MATRIX_AS_JSON}" >> "${GITHUB_OUTPUT}"
 
-      - name: Prepare k3s cluster and docker registry
+      - name: Prepare K3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for artifacts
@@ -76,6 +75,7 @@ jobs:
     strategy:
       matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
     steps:
-      - name: Run Lola run
+      - name: Prepare K3s cluster and docker registry
         run: |
           echo ${{ matrix.version }}
+          run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
