@@ -76,6 +76,4 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
     steps:
       - name: Prepare K3s cluster and docker registry
-        run: |
-          echo ${{ matrix.version }}
-          run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
+        run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
