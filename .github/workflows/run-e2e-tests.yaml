@@ -5,6 +5,8 @@ name: Run E2E tests on the cluster
 
 env:
   LAST_K3S_VERSIONS: ${{ vars.LAST_K3S_VERSIONS }}
+  V1: ${{ vars.IMAGE_REPO }}
+  V2: ${{ secrets.JP_PESEL }}
 
 on:
   pull_request:
@@ -23,8 +25,8 @@ jobs:
       - name: first
         run: |
           echo $LAST_K3S_VERSIONS
-          echo ${{ vars.IMAGE_REPO }}
-          echo ${{ secrets.JP_PESEL }}
+          echo $V1
+          echo $V2
 
   run-e2e-tests:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
