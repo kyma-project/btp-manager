@@ -1,4 +1,4 @@
-# Call this workflow from other jobs to execute unit tests in the current context
+# Call this workflow from other jobs to execute e2e tests
 
 name: Run E2E tests on the cluster (reusable)
 
@@ -29,6 +29,11 @@ on:
         description: wait for images only, skip template artifacts
         required: false
         type: string
+      last-k3s-versions:
+        description: number of the most recent K3s versions to be used
+        required: false
+        default: 2
+        type: number
 
 jobs:
   prepare-tests:
@@ -49,7 +54,7 @@ jobs:
       - id: get-versions
         name: Get K3s versions
         run: |
-          VERSIONS=($(./scripts/testing/get-latest-k3s-releases.sh ${{ vars.LAST_K3S_VERSIONS }}))
+          VERSIONS=($(./scripts/testing/get-latest-k3s-releases.sh ${{ inputs.last-k3s-versions }}))
           MATRIX_AS_JSON=$(echo ${VERSIONS[*]} | awk 'END {printf "{\"include\":[";for (i = 1; i < NF; i++) printf "{\"version\":%s},",$i;printf "{\"version\":%s}]}",$i }'|jq -c)
           echo "k3s_versions=${MATRIX_AS_JSON}" >> "${GITHUB_OUTPUT}"
 
