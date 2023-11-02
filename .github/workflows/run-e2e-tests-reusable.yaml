@@ -32,8 +32,8 @@ on:
       last-k3s-versions:
         description: number of the most recent K3s versions to be used
         required: false
-        default: 1
-        type: number
+        default: "1"
+        type: string
 
 jobs:
   prepare-tests:

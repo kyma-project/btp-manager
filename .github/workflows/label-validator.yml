@@ -14,6 +14,4 @@ jobs:
     - name: Validate labels
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
-        echo ${{ vars.IMAGE_REPO }}
+      run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
