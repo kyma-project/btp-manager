@@ -3,6 +3,9 @@
 
 name: Run E2E tests on the cluster
 
+env:
+  LAST_K3S_VERSIONS: ${{ vars.LAST_K3S_VERSIONS }}
+
 on:
   pull_request:
     branches: [ main ]
@@ -18,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: first
-        run: echo ${{ vars.LAST_K3S_VERSIONS }}
+        run: echo $LAST_K3S_VERSIONS
 
   run-e2e-tests:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
@@ -30,4 +33,4 @@ jobs:
       module-repo: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       skip-templates: --skip-templates
       credentials-mode: dummy
-      last-k3s-versions: 3
+      last-k3s-versions: $LAST_K3S_VERSIONS
