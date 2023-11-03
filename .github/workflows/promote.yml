@@ -1,45 +1,22 @@
 
 name: Promote to channel
 
-env:
-  BOT_ORG: kyma-btp-manager-bot
-  KYMA_ORG: kyma-project
-  BTP_MANAGER_REPO: btp-manager
-  KYMA_REPO: kyma
-  TEMPLATE_NAME_FROM_RELEASE: template.yaml
-  TEMPLATE_NAME_FOR_KYMA: moduletemplate-btp-operator.yaml
-  GIT_EMAIL: <>
-  GIT_NAME: kyma-btp-manager-serviceuser
-  MODULES_REPO: "https://github.tools.sap/kyma/kyma-modules"
-  DOC_URL: "https://github.com/kyma-project/btp-manager"
-
-  # needed by gh cli for gihtub enterprise
-  GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-  GH_HOST: github.tools.sap
-
 on:
   workflow_dispatch:
-    inputs:
-      releaseTag:
-        description: 'Release Tag'
-        default: use latest available release
-        required: true
-      channel:
-        description: 'Channel'
-        type: choice
-        options:
-          - fast
-          - regular
-        required: true
-        default: fast
+  pull_request:
+    branches: [ main ]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
 
 jobs:
   promote:
     runs-on: ubuntu-latest
-
     steps:
       - name: Print Vars
         shell: bash
         run: |
           echo "IMAGE_REPO=${{ vars.IMAGE_REPO }}
-          echo "LAST_K8S_VERSIONS=${{ vars.LAST_K3S_VERSIONS }}
+          echo "LAST_K3S_VERSIONS=${{ vars.LAST_K3S_VERSIONS }}
