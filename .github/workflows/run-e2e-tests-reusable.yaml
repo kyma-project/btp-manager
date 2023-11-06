@@ -90,7 +90,7 @@ jobs:
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
 
-  run-e2e-tests:
+  finish-e2e-tests:
     runs-on: ubuntu-latest
     needs: run-e2e-matrix
     steps:
