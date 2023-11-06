@@ -47,6 +47,13 @@ jobs:
 
       - id: get-versions
         name: Get K3s versions
+        # prepare json representing GitHub matrix:
+        # {"include": [
+        #    {"version":"v1.28.1+k3s1"}
+        #      ...
+        #    {"version":"v1.28.3+k3s1"}
+        # ]
+        # }
         run: |
           VERSIONS=($(./scripts/testing/get-latest-k3s-releases.sh ${{ inputs.last-k3s-versions }}))
           MATRIX_AS_JSON=$(echo ${VERSIONS[*]} | awk 'END {printf "{\"include\":[";for (i = 1; i < NF; i++) printf "{\"version\":%s},",$i;printf "{\"version\":%s}]}",$i }'|jq -c)
