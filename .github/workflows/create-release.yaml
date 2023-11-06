@@ -168,6 +168,7 @@ jobs:
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
+      last-k3s-versions: ${{ vars.LAST_K3S_VERSIONS }}
 
   run-stress-tests:
     name: Stress tests

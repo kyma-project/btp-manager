@@ -1,4 +1,4 @@
-# Call this workflow from other jobs to execute unit tests in the current context
+# Call this workflow from other jobs to execute e2e tests
 
 name: Run E2E tests on the cluster (reusable)
 
@@ -29,18 +29,35 @@ on:
         description: wait for images only, skip template artifacts
         required: false
         type: string
+      last-k3s-versions:
+        description: number of the most recent K3s versions to be used
+        required: false
+        default: "1"
+        type: string
 
 jobs:
-  run-e2e-tests:
+  prepare-tests:
     # job waits until Prow job uploads docker image, module OCI image and optionally artifacts
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    outputs:
+      versions: ${{ steps.get-versions.outputs.k3s_versions }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Prepare k3s cluster and docker registry
-        run: "./scripts/testing/k3s-setup.sh --wait"
+      - id: get-versions
+        name: Get K3s versions
+        # prepare json representing GitHub matrix:
+        # {"include": [
+        #    {"version":"v1.28.1+k3s1"},
+        #      ...
+        #    {"version":"v1.28.3+k3s1"}
+        # ]
+        # }
+        run: |
+          VERSIONS=($(./scripts/testing/get-latest-k3s-releases.sh ${{ inputs.last-k3s-versions }}))
+          MATRIX_AS_JSON=$(echo ${VERSIONS[*]} | awk 'END {printf "{\"include\":[";for (i = 1; i < NF; i++) printf "{\"version\":%s},",$i;printf "{\"version\":%s}]}",$i }'|jq -c)
+          echo "k3s_versions=${MATRIX_AS_JSON}" >> "${GITHUB_OUTPUT}"
 
       - name: Wait for artifacts
         env:
@@ -48,6 +65,19 @@ jobs:
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
+
+  run-e2e-matrix:
+    runs-on: ubuntu-latest
+    needs: prepare-tests
+    timeout-minutes: 5
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Prepare K3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
 
       - name: Install BTP operator
         env:
@@ -60,3 +90,9 @@ jobs:
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
 
+  finish-e2e-tests:
+    runs-on: ubuntu-latest
+    needs: run-e2e-matrix
+    steps:
+      - name: Final step
+        run: echo "All finished"

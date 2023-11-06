@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 
-WAIT_OPT=$1
+DEFAULT_K3S_VERSION="v1.26.6+k3s1"
+
+if [ "${1}" == "--wait" ]
+then
+  WAIT_OPT=$1
+  K3S_VERSION=${2:-${DEFAULT_K3S_VERSION}}
+else
+  WAIT_OPT=$2
+  K3S_VERSION=${1:-${DEFAULT_K3S_VERSION}}
+fi
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -18,8 +27,8 @@ docker run -d \
 -v "$PWD/registry:/var/lib/registry" \
 registry:2
 
-echo "Starting K3s cluster"
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.26.6+k3s1" K3S_KUBECONFIG_MODE=777 INSTALL_K3S_EXEC="server --disable traefik" sh -
+echo "Starting K3s cluster (K3s version: ${K3S_VERSION})"
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} K3S_KUBECONFIG_MODE=777 INSTALL_K3S_EXEC="server --disable traefik" sh -
 mkdir -p ~/.kube
 cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 chmod 600 ~/.kube/config
