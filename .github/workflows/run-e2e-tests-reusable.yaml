@@ -66,7 +66,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
 
-  run-e2e-tests:
+  run-e2e-matrix:
     runs-on: ubuntu-latest
     needs: prepare-tests
     timeout-minutes: 5
@@ -90,9 +90,9 @@ jobs:
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
 
-  finish-e2e-tests:
+  run-e2e-tests:
     runs-on: ubuntu-latest
-    needs: run-e2e-tests
+    needs: run-e2e-matrix
     steps:
       - name: Final step
         run: echo "All finished"
