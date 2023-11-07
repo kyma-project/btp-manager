@@ -275,5 +275,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "skipping push for testing purposes"
-          #./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
+          echo "skipping push for testing purposes" #./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
