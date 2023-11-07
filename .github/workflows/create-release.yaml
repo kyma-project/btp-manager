@@ -7,7 +7,6 @@ env:
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
-  LAST_K3S_VERSIONS_COUNT: ${{ github.event.inputs.k3s-versions || vars.LAST_K3S_VERSIONS }}
 
 on:
   workflow_dispatch:
@@ -172,7 +171,7 @@ jobs:
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
-      last-k3s-versions: ${{ github.event.inputs.k3s-versions }}
+      last-k3s-versions: ${{ github.event.inputs.k3s-versions || vars.LAST_K3S_VERSIONS }}
 
   run-stress-tests:
     name: Stress tests
