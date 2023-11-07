@@ -162,7 +162,7 @@ jobs:
 
   run-e2e-tests:
     name: E2E tests
-    needs: wait-for-prow-jobs
+    #needs: wait-for-prow-jobs
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -235,6 +235,7 @@ jobs:
     name: Create draft release
     needs: bump-sec-scanners-config
     runs-on: ubuntu-latest
+    if: ${{ inputs.credentials == 'really' }}
 
     steps:
       - name: Checkout code
@@ -263,6 +264,7 @@ jobs:
     name: Publish release
     needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests]
     runs-on: ubuntu-latest
+    if: ${{ inputs.credentials == 'really' }}
 
     steps:
       - name: Checkout code
@@ -273,5 +275,4 @@ jobs:
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: ${{ inputs.credentials == 'really' }}
         run: ./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
