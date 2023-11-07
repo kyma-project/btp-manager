@@ -59,6 +59,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/label_validator.sh "RELEASE"
+
+      - name: Validate settings
+        run: echo "Run E2E tests for ${{ github.event.inputs.k3s-versions || vars.LAST_K3S_VERSIONS }} last K3s releases"
   
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
@@ -162,7 +165,7 @@ jobs:
 
   run-e2e-tests:
     name: E2E tests
-    #needs: wait-for-prow-jobs
+    needs: wait-for-prow-jobs
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -235,7 +238,6 @@ jobs:
     name: Create draft release
     needs: bump-sec-scanners-config
     runs-on: ubuntu-latest
-    if: ${{ inputs.credentials == 'really' }}
 
     steps:
       - name: Checkout code
@@ -264,7 +266,6 @@ jobs:
     name: Publish release
     needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests]
     runs-on: ubuntu-latest
-    if: ${{ inputs.credentials == 'really' }}
 
     steps:
       - name: Checkout code
