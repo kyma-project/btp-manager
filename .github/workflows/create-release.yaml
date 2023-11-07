@@ -26,6 +26,10 @@ on:
         type: boolean
         description: 'Create PR with sec-scanners-config bump'
         default: true
+      k3s-versions:
+        type: number
+        description: 'Number of last k3s versions to be used for tests'
+        default: ${{ vars.LAST_K3S_VERSIONS }}
 
 jobs:
   validate-release:
@@ -168,7 +172,7 @@ jobs:
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
-      last-k3s-versions: ${{ vars.LAST_K3S_VERSIONS }}
+      last-k3s-versions: ${{ github.event.inputs.k3s-versions }}
 
   run-stress-tests:
     name: Stress tests
