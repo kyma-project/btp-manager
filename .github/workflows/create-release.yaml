@@ -7,6 +7,7 @@ env:
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-btp-manager-bot
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
+  LAST_K3S_VERSIONS_COUNT: ${{ github.event.inputs.k3s-versions || vars.LAST_K3S_VERSIONS }}
 
 on:
   workflow_dispatch:
@@ -29,7 +30,6 @@ on:
       k3s-versions:
         type: number
         description: 'Number of last k3s versions to be used for tests'
-        default: ${{ vars.LAST_K3S_VERSIONS }}
 
 jobs:
   validate-release:
@@ -274,4 +274,4 @@ jobs:
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
+        run: #./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
