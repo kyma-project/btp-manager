@@ -60,9 +60,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/label_validator.sh "RELEASE"
 
-      - name: Validate settings
-        run: echo "Run E2E tests for ${{ github.event.inputs.k3s-versions || vars.LAST_K3S_VERSIONS }} last K3s releases"
-  
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
     needs: validate-release
