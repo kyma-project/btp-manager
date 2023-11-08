@@ -1,6 +1,6 @@
 name: Label validator
 on:
-  pull_request:
+  pull_request_target:
     types: ["opened", "labeled", "unlabeled"]
     branches: [ "main" ]
 jobs:
