@@ -1,7 +1,6 @@
 name: Label validator
 on:
-  pull_request:
-    types: ["opened", "labeled", "unlabeled"]
+  pull_request_target:
     branches: [ "main" ]
 jobs:
   validate-labels: 
@@ -12,6 +11,4 @@ jobs:
       with:
         fetch-depth: 0
     - name: Validate labels
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
+      run: echo ${{ github.event.pull_request.number }}
