@@ -7,6 +7,8 @@ jobs:
   validate-labels: 
     runs-on: ubuntu-latest
     steps:
+    - name: Debug
+      run: echo ${{ github.event }}
     - name: Checkout code
       uses: actions/checkout@v3
       with:
