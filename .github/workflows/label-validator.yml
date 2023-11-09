@@ -7,8 +7,6 @@ jobs:
   validate-labels: 
     runs-on: ubuntu-latest
     steps:
-    - name: Debug
-      run: echo ${{ github.event }}
     - name: Checkout code
       uses: actions/checkout@v3
       with:
@@ -16,4 +14,4 @@ jobs:
     - name: Validate labels
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }}
+      run: scripts/label_validator.sh "PR" ${{ github.event.pull_request.number }} ${{ github.event.action }}
