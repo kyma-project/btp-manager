@@ -14,6 +14,7 @@ GITHUB_ORG="kyma-project"
 # Event which triggers execution of script. Can be RELEASE or PR
 TRIGGER_EVENT=$1 
 PR_ID=${2:-NA}
+EVENT_ACTION=${3:-NA}
 
 function runOnRelease() {
   latest=$(curl -sL \
@@ -108,20 +109,16 @@ function runOnPr() {
   while IFS= read -r label; do
     parts=$(tr "#" " " <<< "$label")
     set $parts
-    label_part=$1; help_message_part=$@
+    label_part=$1; 
+    shift
+    help_message_part=$*
     help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
     supported_labels+=($label_part)
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
   supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
   
-  comments=$(curl -sL \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments |
-              jq -r 'if (.[] | length) > 0 then .[] | objects | .body else empty end')
 
-  if [[ ! " ${comments[*]} " =~ " ${help_message} " ]]; then
+  if [[ $EVENT_ACTION == "opened" ]]; then
 
     payload=$(jq -n \
       --arg body "$help_message" \
