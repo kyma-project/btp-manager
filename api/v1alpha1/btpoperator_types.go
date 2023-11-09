@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// test
 const componentName = "btp-operator"
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
