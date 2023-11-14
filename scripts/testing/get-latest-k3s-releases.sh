@@ -29,7 +29,7 @@ GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
 LATEST_RELEASES=($(curl -sS "${GITHUB_URL}/releases" \
 | jq '.[] | select(.name|test("v[0-9]{1,2}.[0-9]{1,3}.[0-9]{1,3}\\+")) | .name' \
 | sort -rV\
-| awk -F. '{if ($2 != p) {print $0; p=$2}}' \
+| awk -F. '/k3s1/ {if ($2 != p) {print $0; p=$2}}' \
 | head -n ${LIST_LEN}))
 
 echo ${LATEST_RELEASES[*]}
