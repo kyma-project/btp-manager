@@ -3,7 +3,7 @@ module github.com/kyma-project/btp-manager
 go 1.20
 
 require (
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.3.0
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.30.0
 	github.com/prometheus/client_golang v1.17.0
