@@ -12,7 +12,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 REPOSITORY=k3s-io/k3s
 GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
 
-# selecting at most ${LIST_LEN} recent minor versions releases with maximal patch number for given minor
+# selecting at most ${LIST_LEN} recent minor version releases with maximal patch number for the given minor
 # Example
 #    given:
 #             "v1.24.17+k3s1"
