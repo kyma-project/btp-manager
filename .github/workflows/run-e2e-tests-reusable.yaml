@@ -49,7 +49,7 @@ jobs:
         name: Get K3s versions
         # prepare json representing GitHub matrix:
         # {"include": [
-        #    {"version":"v1.28.1+k3s1"},
+        #    {"version":"v1.26.10+k3s1"},
         #      ...
         #    {"version":"v1.28.3+k3s1"}
         # ]
