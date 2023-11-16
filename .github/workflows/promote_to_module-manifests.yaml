@@ -17,7 +17,7 @@ env:
   MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
 
   BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
-  BTP_MANAGER_DOWNLOAD_URL: "https://github.com/kyma-project/btp-manager/releases/download"
+  BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
 
   # File names
   TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
@@ -105,8 +105,8 @@ jobs:
         working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
 
         run: |
-          curl -OJL --clobber ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${MANIFEST_FILENAME}
-          curl -OJL --clobber ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${DEFAULT_CR_FILENAME}
+          curl -JL ${BTP_MANAGER_RELEASES_URL}/download/${TAG}/${MANIFEST_FILENAME} >${MANIFEST_FILENAME}
+          curl -JL ${BTP_MANAGER_RELEASES_URL}/download/${TAG}/${DEFAULT_CR_FILENAME} >${DEFAULT_CR_FILENAME}
 
       - name: Create module configuration
         env:
@@ -168,4 +168,4 @@ jobs:
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_API_URL}/releases/${TAG}"
+          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}"
