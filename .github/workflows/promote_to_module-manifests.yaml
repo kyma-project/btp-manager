@@ -105,8 +105,8 @@ jobs:
         working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
 
         run: |
-          curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${MANIFEST_FILENAME}
-          curl -OJL ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${DEFAULT_CR_FILENAME}
+          curl -OJL --clobber ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${MANIFEST_FILENAME}
+          curl -OJL --clobber ${BTP_MANAGER_DOWNLOAD_URL}/${TAG}/${DEFAULT_CR_FILENAME}
 
       - name: Create module configuration
         env:
