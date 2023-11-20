@@ -2,7 +2,7 @@
 name: Promote to channel
 
 env:
-  BOT_ORG: kyma-btp-manager-bot
+  BOT_ORG: kyma-gopher-bot
   KYMA_ORG: kyma-project
   BTP_MANAGER_REPO: btp-manager
   KYMA_REPO: kyma

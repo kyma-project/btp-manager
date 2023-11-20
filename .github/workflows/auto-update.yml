@@ -4,7 +4,7 @@ env:
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
   SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
   GIT_EMAIL: team-gopher+1@sap.com
-  GIT_NAME: kyma-btp-manager-bot
+  GIT_NAME: kyma-gopher-bot
 on:
   workflow_dispatch:
   schedule:
