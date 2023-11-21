@@ -39,18 +39,22 @@ There are reusable workflows created. Anyone with access to a reusable workflow 
 This [workflow](/.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3s cluster. 
 You pass the following parameters from the calling workflow:
 
-| Parameter name  | Required | Description |
-| ------------- | ------------- | ------------- |
-| **image-repo**  | yes  | binary image registry reference |
-| **module-repo**  | yes  |  OCI module image registry reference |
-| **image-tag**  | yes  |  binary image tag |
-| **module-tag**  | yes  |  OCI module image tag |
-| **skip-templates**  | no  |  wait for images only, skip other artifacts |
+| Parameter name  | Required | Description                                                          |
+| ------------- | ------------- |----------------------------------------------------------------------|
+| **image-repo**  | yes  | binary image registry reference                                      |
+| **module-repo**  | yes  | OCI module image registry reference                                  |
+| **image-tag**  | yes  | binary image tag                                                     |
+| **module-tag**  | yes  | OCI module image tag                                                 |
+| **skip-templates**  | no  | wait for images only, skip other artifacts                           |
+| **last-k3s-versions**  | no  | number of most recent k3s versions to be used for tests, default = `1` |
+
 
 The workflow:
-- prepares a k3s cluster and the Docker registry
+- fetches the **last-k3s-versions** tag versions of k3s releases 
+- prepares the **last-k3s-versions** k3s clusters with the Docker registries using the list of versions from the previous step
 - waits for the artifacts to be ready in the registry
-- runs the E2E tests on the cluster
+- runs the E2E tests on the clusters
+- waits for all tests to finish
 
 
 ### Unit tests
