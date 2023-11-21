@@ -50,7 +50,7 @@ You pass the following parameters from the calling workflow:
 
 
 The workflow:
-- fetches the `last-k3s-versions` tag versions of k3s releases 
+- fetches the **last-k3s-versions** tag versions of k3s releases 
 - prepares the `last-k3s-versions` k3s clusters with the Docker registries using the list of versions from previous step
 - waits for the artifacts to be ready in the registry
 - runs the E2E tests on the clusters
