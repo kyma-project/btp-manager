@@ -46,7 +46,7 @@ You pass the following parameters from the calling workflow:
 | **image-tag**  | yes  | binary image tag                                                     |
 | **module-tag**  | yes  | OCI module image tag                                                 |
 | **skip-templates**  | no  | wait for images only, skip other artifacts                           |
-| **last-k3s-versions**  | no  | number of most recent k3s versions to be used for tests, default = 1 |
+| **last-k3s-versions**  | no  | number of most recent k3s versions to be used for tests, default = `1` |
 
 
 The workflow:
