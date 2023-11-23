@@ -133,5 +133,5 @@ Only one Condition of type `Ready` is used.
 
 ## Updating
 
-The update process is almost the same as the provisioning process. The only difference is BtpOperator CR existence in the cluster. 
-For the update process, the custom resource should be present in the cluster with the `Ready` state.  
+The update process is almost the same as the provisioning process. The only difference is BtpOperator custom resource (CR) existence in the cluster. 
+For the update process, the CR should be present in the cluster with the `Ready` state.  

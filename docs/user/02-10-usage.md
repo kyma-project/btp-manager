@@ -14,7 +14,7 @@ To create a real BTP Manager Secret, follow these steps:
    kubectl apply -f hack/operator-secret.yaml
    ```
 
-To check the `BtpOperator` CR status, run the following command:
+To check the `BtpOperator` custom resource (CR) status, run the following command:
 ```sh
 kubectl get btpoperators btpoperator
 ```

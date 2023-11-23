@@ -18,35 +18,32 @@ make run
 
 There are three ways to install BTP Manager in your cluster:
 
-<details>
-<summary>With kubectl and <code>btp-manager.yaml</code> (recommended)</summary>
-<br>
+<!-- tabs:start -->
 
-### Prerequisites
+#### With kubectl and `btp-manager.yaml` (recommended)  
+
+You need the following prerequisites:
 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster (you can use [k3d](https://k3d.io)) 
 
-Use the following command to download and install BTP Manager from Kubernetes resources in your cluster.
+Use the following command to download and install BTP Manager from Kubernetes resources in your cluster:
 
 ```shell
 kubectl apply -f deployments/prerequisites.yaml
 kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 ```
 
-Use the following command to uninstall BTP Manager from your cluster.
+Use the following command to uninstall BTP Manager from your cluster:
 
 ```shell
 kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 kubectl delete -f deployments/prerequisites.yaml
 ```
-</details>
 
-<details>
-<summary>With Helm and <code>template.yaml</code></summary>
-<br>
+#### With Helm and `template.yaml`  
 
-### Prerequisites
+You need the following prerequisites:
 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Kubernetes cluster (you can use [k3d](https://k3d.io))
@@ -61,27 +58,23 @@ To install BTP Manager using a template file (the output of the [kyma alpha crea
 ./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
 ```
 
-Use the following command to uninstall BTP Manager from your cluster.
+Use the following command to uninstall BTP Manager from your cluster:
 ```shell
 helm uninstall btp-manager -n kyma-system
 ```
 
-</details>
-
-<details>
-<summary>With Lifecycle Manager</summary>
-<br>
+#### With Lifecycle Manager  
 
 > **NOTE:** This is an experimental way of installing BTP Manager in your cluster.
 
-### Prerequisites
+You need the following prerequisites:
 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - [k3d](https://k3d.io)
 
-### Quick-Start - Install script
+Here is the Quick-Start - Install script.
 
-Use the following command to run the BTP Manager with Lifecycle Manager. 
+Use the following command to run the BTP Manager with Lifecycle Manager: 
 
 ```shell
 ./hack/run_lifecycle_manager.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
@@ -94,10 +87,10 @@ It results in:
 - enabling the SAP BTP Operator module
 - displaying the BTP Manager and SAP BTP Operator status
 
-### Delete k3d cluster
+To delete your k3d cluster, use the following command:
 
 ```shell
 k3d cluster delete kyma
 ```
 
-</details> 
+<!-- tabs:end -->
