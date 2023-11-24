@@ -167,7 +167,7 @@ jobs:
     secrets: inherit
     with:
       image-tag: ${{ github.event.inputs.name }}
-      module-tag: v${{ github.event.inputs.name }}
+      module-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
@@ -227,7 +227,7 @@ jobs:
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
     with:
       image-tag: ${{ github.event.inputs.name }}
-      module-tag: v${{ github.event.inputs.name }}
+      module-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
