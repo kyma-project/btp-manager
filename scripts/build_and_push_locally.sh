@@ -25,7 +25,7 @@ IMG_NAME=btp-manager:${PR_NAME}
 
 MODULE_PREFIX=${MODULE_PREFIX:-0.0.0}
 MODULE_VERSION=${MODULE_PREFIX}-${PR_NAME}
-EXTENDED_MODULE_VERSION=v${MODULE_VERSION}
+EXTENDED_MODULE_VERSION=${MODULE_VERSION}
 MODULE_NAME=component-descriptors/kyma.project.io/module/btp-operator
 
 echo "Creating binary image and pushing to registry: ${LOCAL_REGISTRY}"

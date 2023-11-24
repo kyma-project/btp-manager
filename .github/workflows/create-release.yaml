@@ -53,7 +53,7 @@ jobs:
           BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
           BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }} v${{ inputs.name }}"
+        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }} ${{ inputs.name }}"
 
       - name: Validate Labels
         env:
@@ -190,11 +190,11 @@ jobs:
           BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
           BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_artifacts.sh ${{ inputs.name }} v${{ inputs.name }}"
+        run: "./scripts/await_artifacts.sh ${{ inputs.name }} ${{ inputs.name }}"
 
       - name: Install BTP operator
         timeout-minutes: 2
-        run: "./scripts/testing/install.sh $MODULE_REPO:v${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install.sh $MODULE_REPO:${{ inputs.name }} dummy ci"
 
       - name: BTP Manager controller resources usage
         run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
