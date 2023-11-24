@@ -27,7 +27,7 @@ the prerequisites yourself.
 ![Provisioning diagram](../assets/provisioning.svg)
 
 The provisioning process is part of a module reconciliation. 
-1. To trigger the reconciliation, create a [BtpOperator CR](../../api/v1alpha1/btpoperator_types.go):
+1. To trigger the reconciliation, create a [BtpOperator custom resource](../../api/v1alpha1/btpoperator_types.go) (CR):
 
    ```shell
    cat <<EOF | kubectl apply -f -
@@ -134,4 +134,4 @@ Only one Condition of type `Ready` is used.
 ## Updating
 
 The update process is almost the same as the provisioning process. The only difference is BtpOperator CR existence in the cluster. 
-For the update process, the custom resource should be present in the cluster with the `Ready` state.  
+For the update process, the CR should be present in the cluster with the `Ready` state.  
