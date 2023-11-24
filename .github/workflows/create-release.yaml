@@ -53,7 +53,7 @@ jobs:
           BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
           BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }} v${{ inputs.name }}"
+        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }} ${{ inputs.name }}"
 
       - name: Validate Labels
         env:
@@ -167,7 +167,7 @@ jobs:
     secrets: inherit
     with:
       image-tag: ${{ github.event.inputs.name }}
-      module-tag: v${{ github.event.inputs.name }}
+      module-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
@@ -190,11 +190,11 @@ jobs:
           BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
           BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_artifacts.sh ${{ inputs.name }} v${{ inputs.name }}"
+        run: "./scripts/await_artifacts.sh ${{ inputs.name }} ${{ inputs.name }}"
 
       - name: Install BTP operator
         timeout-minutes: 2
-        run: "./scripts/testing/install.sh $MODULE_REPO:v${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install.sh $MODULE_REPO:${{ inputs.name }} dummy ci"
 
       - name: BTP Manager controller resources usage
         run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
@@ -227,7 +227,7 @@ jobs:
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
     with:
       image-tag: ${{ github.event.inputs.name }}
-      module-tag: v${{ github.event.inputs.name }}
+      module-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
 
