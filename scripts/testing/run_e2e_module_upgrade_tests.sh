@@ -34,7 +34,7 @@ elif [[ $# -eq 2 ]]; then
   GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
   LATEST_RELEASE=$(curl -sS "${GITHUB_URL}/releases/latest" | jq -r '.tag_name')
   NEW_MODULE_IMAGE_NAME=$1
-  OLD_MODULE_IMAGE_NAME=${NEW_MODULE_IMAGE_NAME/:*/:v$LATEST_RELEASE}
+  OLD_MODULE_IMAGE_NAME=${NEW_MODULE_IMAGE_NAME/:*/:$LATEST_RELEASE}
   CI=${2-manual} # if called from any workflow "ci" is expected here
 else
   echo "wrong number of arguments" && exit 1
