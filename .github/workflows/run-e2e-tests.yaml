@@ -18,7 +18,7 @@ jobs:
     if: ${{ !github.event.pull_request.draft }}
     with:
       image-tag: PR-${{ github.event.number }}
-      module-tag: v0.0.0-PR-${{ github.event.number }}
+      module-tag: 0.0.0-PR-${{ github.event.number }}
       image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
       module-repo: europe-docker.pkg.dev/kyma-project/dev/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       skip-templates: --skip-templates
