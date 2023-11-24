@@ -118,7 +118,7 @@ jobs:
           cat <<EOF | tee module-config.yaml
           name: ${FULL_MODULE_NAME}
           channel: ${CHANNEL}
-          version: v${TAG}
+          version: ${TAG}
           manifest: ${MANIFEST_FILENAME}
           defaultCR: ${DEFAULT_CR_FILENAME}
           annotations:
