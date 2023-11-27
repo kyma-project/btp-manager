@@ -29,6 +29,10 @@ on:
       k3s-versions:
         type: number
         description: 'Number of last k3s versions to be used for tests'
+      dry-run:
+        type: boolean
+        description: 'Do not create draft, do not publish'
+        default: false
 
 jobs:
   validate-release:
@@ -233,6 +237,7 @@ jobs:
   create-draft:
     name: Create draft release
     needs: bump-sec-scanners-config
+    if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
 
     steps:
@@ -261,6 +266,7 @@ jobs:
   publish-release:
     name: Publish release
     needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests]
+    if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
 
     steps:

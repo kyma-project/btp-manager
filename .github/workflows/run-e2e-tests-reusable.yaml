@@ -33,7 +33,7 @@ on:
         description: number of the most recent K3s versions to be used
         required: false
         default: 1
-        type: number
+        type: string
 
 jobs:
   prepare-tests:
