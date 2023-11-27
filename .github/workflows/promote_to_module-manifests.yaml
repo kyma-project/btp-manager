@@ -127,24 +127,6 @@ jobs:
           moduleSecurityScanConfig: true
           EOF
 
-      - name: Create security configuration
-        working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
-        env:
-          CHANNEL: ${{ inputs.channel }}
-        run: |
-          echo "Creating security configuration file:"
-          cat <<EOF | tee ${SCAN_CONFIG_FILENAME}
-          module-name: btp-operator
-          rc-tag: ${TAG}
-          protecode:
-            - ${{ vars.IMAGE_REPO }}:${TAG}
-          whitesource:
-            language: golang-mod
-            subprojects: false
-            exclude:
-              - "**/*_test.go"
-          EOF
-
       - name: Commit and push changes
         working-directory: module-manifests
         env:
