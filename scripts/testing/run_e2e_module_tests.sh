@@ -5,8 +5,7 @@
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
-#     - ci to indicate call from CI pipeline (optional)
-# ./run_e2e_module_tests.sh real ci
+# ./run_e2e_module_tests.sh real
 #
 # The script requires the following environment variable set - these values are used to create unique SI and SB names:
 #      GITHUB_RUN_ID - a unique number for each workflow run within a repository
@@ -16,8 +15,6 @@
 #      SM_CLIENT_SECRET - client secret
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
-
-CI=${2-manual}  # if called from any workflow "ci" is expected here
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
