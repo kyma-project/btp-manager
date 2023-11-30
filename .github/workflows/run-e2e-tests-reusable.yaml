@@ -108,8 +108,5 @@ jobs:
     steps:
       - name: Final decision
         run: |
-          if [ "${{ needs.confirm-matrix-tests-succeeded.outputs.success }}" != "true" ]; then
-            echo "E2E tests failed"
-            exit 1
-          fi
+          [[ "${{ needs.confirm-matrix-tests-succeeded.outputs.success }}" != "true"  ]] && echo "E2E tests failed" && exit 1
           echo "E2E tests passed"
