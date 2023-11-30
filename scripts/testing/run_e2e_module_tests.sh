@@ -22,9 +22,6 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-# TODO remove after test
-exit 1
-
 CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
 
