@@ -90,9 +90,26 @@ jobs:
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
 
-  finish-e2e-tests:
+  confirm-matrix-tests-succeeded:
     runs-on: ubuntu-latest
     needs: run-e2e-matrix
+    if: success()
+    outputs:
+      success: ${{ steps.set-output.outputs.success }}
     steps:
-      - name: Final step
-        run: echo "All finished"
+      - name: Confirm that matrix tests succeeded
+        id: set-output
+        run: echo "success=true" >> "${GITHUB_OUTPUT}"
+
+  finish-e2e-tests:
+    runs-on: ubuntu-latest
+    needs: confirm-matrix-tests-succeeded
+    if: always()
+    steps:
+      - name: Final decision
+        run: |
+          if [ "${{ needs.confirm-matrix-tests-succeeded.outputs.success }}" != "true" ]; then
+            echo "E2E tests failed"
+            exit 1
+          fi
+          echo "E2E tests passed"
