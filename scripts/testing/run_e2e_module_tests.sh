@@ -5,7 +5,6 @@
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
-#     - ci to indicate call from CI pipeline (optional)
 # ./run_e2e_module_tests.sh real ci
 #
 # The script requires the following environment variable set - these values are used to create unique SI and SB names:
@@ -17,13 +16,14 @@
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
 
-CI=${2-manual}  # if called from any workflow "ci" is expected here
-
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
 set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
+
+# TODO remove after test
+exit 1
 
 CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
