@@ -5,7 +5,7 @@
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
-# ./run_e2e_module_tests.sh real ci
+# ./run_e2e_module_tests.sh real
 #
 # The script requires the following environment variable set - these values are used to create unique SI and SB names:
 #      GITHUB_RUN_ID - a unique number for each workflow run within a repository
