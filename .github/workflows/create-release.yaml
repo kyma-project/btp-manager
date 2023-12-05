@@ -59,10 +59,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }} ${{ inputs.name }}"
 
-      - name: Validate Labels
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install requirements
+        run: pip install -r scripts/python/requirements.txt
+
+      - name: Validate labels
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/label_validator.sh "RELEASE"
+          REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
+        run: python3 scripts/python/release_label_validator.py
 
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
