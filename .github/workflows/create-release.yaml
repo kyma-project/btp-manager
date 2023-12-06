@@ -1,4 +1,5 @@
 name: "Create release"
+run-name: Create release ${{ inputs.name }}
 
 env:
   MODULE_REPO: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
