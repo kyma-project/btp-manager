@@ -1,4 +1,4 @@
-# BTP Manager release pipeline
+# BTP Manager Release Pipeline
 
 ## Overview
 
@@ -7,9 +7,9 @@ The BTP Manager release pipeline creates proper artifacts:
  - btp-manager Docker image in the [registry](https://console.cloud.google.com/artifacts/docker/kyma-project/europe/prod/unsigned%2Fcomponent-descriptors%2Fkyma.project.io%2Fmodule%2Fbtp-operator)
  - `template.yaml`, `template_control_plane.yaml`, `btp-manager.yaml`, `btp-btp-operator-default-cr.yaml`
 
-## Run the pipeline
+## Run the Pipeline
 
-### Create a release
+### Create a Release
 
 ![Release diagram](../assets/release.svg)
 
@@ -36,7 +36,7 @@ To create a release, follow these steps:
 13. If the unit tests, stress tests, and E2E tests are completed successfully, the GitHub action publishes the release.
 
 
-### Replace an existing release
+### Replace an Existing Release
 
 To regenerate an existing release, perform the following steps:
 

@@ -1,4 +1,4 @@
-# Certification management
+# Certification Management
 
 ## Overview
 
@@ -6,11 +6,11 @@ BTP Manager maintains two Secrets, `ca-server-cert` and `webhook-server-cert`. T
 
 BTP Manager maintains the resources by creating, deleting, and updating them during the reconciliation. The goal is to keep `ca-server-cert`, `webhook-server-cert`, and the webhooks' CA Bundles in sync all the time. The reconciliation also checks the certificates’ expiration dates, and if it detects that a certificate expires soon, it regenerates it in advance so that the processes run smoothly.
 
-## Reconciliation mechanism
+## Reconciliation Mechanism
 
 ![Certification management diagram](../assets/certs.svg)
 
-1.	Certification reconciliation is triggered by one of the three events: scheduled reconciliation, editing [BtpOperator CR](/api/v1alpha1/btpoperator_types.go), or using custom watchers founded on Secret and Webhook resources. 
+1.	Certification reconciliation is triggered by one of the three events: scheduled reconciliation, editing [BtpOperator custom resource](/api/v1alpha1/btpoperator_types.go) (CR), or using custom watchers founded on Secret and Webhook resources. 
 2.	During provisioning, BTP Manager checks if a self-signed CA certificate, `ca-server-cert`, exists. If it doesn't exist:  
     a.	BTP Manager generates the certificate.  
     b.	Based on that, the application creates a signed certificate, `webhook-server-cert`, which is mounted under the deployment.  

@@ -1,6 +1,6 @@
-# Install and uninstall BTP Manager
+# Install and Uninstall BTP Manager
 
-## Install BTP Manager locally
+## Install BTP Manager Locally
 
 ### Prerequisites
 
@@ -14,7 +14,7 @@ make install
 make run
 ```
 
-## Install BTP Manager in your cluster
+## Install BTP Manager in Your Cluster
 
 There are three ways to install BTP Manager in your cluster:
 

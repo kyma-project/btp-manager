@@ -4,11 +4,11 @@
 
 ## Overview
 
-BTP Manager is an operator for [SAP BTP Service Operator](https://github.com/SAP/sap-btp-service-operator) based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator](/config/crd/bases/operator.kyma-project.io_btpoperators.yaml) CRD which allows you to manage SAP BTP Service Operator resource through CR. 
+BTP Manager is an operator for the [SAP BTP service operator](https://github.com/SAP/sap-btp-service-operator) based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator CustomResourceDefinition](/config/crd/bases/operator.kyma-project.io_btpoperators.yaml) (CRD), which allows you to manage the SAP BTP service operator resource through custom resource (CR). 
 
 ## Installation
 
-To enable the SAP BTP Operator module from the latest release, you must install BTP Manager and SAP BTP Service Operator.
+To enable the SAP BTP Operator module from the latest release, you must install BTP Manager and the SAP BTP service operator.
 
 ### Prerequisites
 
@@ -32,7 +32,7 @@ To enable the SAP BTP Operator module from the latest release, you must install 
 
 <br>
 
- 2. To install SAP BTP Service Operator, apply the sample BtpOperator CR:
+ 2. To install the SAP BTP service operator, apply the sample BtpOperator CR:
 
     ```bash
     kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator-default-cr.yaml
@@ -41,9 +41,9 @@ To enable the SAP BTP Operator module from the latest release, you must install 
    ```sh
    kubectl get btpoperators btpoperator
    ```
-   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
+   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
 
-For more installation options, read the [Install and uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
+For more installation options, read the [Install and Uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
 ## Usage
 
@@ -51,13 +51,13 @@ Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out h
 
 ## Uninstallation
 
-To uninstall SAP BTP Service Operator, run the following commands:
+To uninstall the SAP BTP service operator, run the following commands:
 ```sh
 kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator-default-cr.yaml
 kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 ```
 
-## Read more
+## Read More
 
 If you want to provide new features for BTP Manager, visit the [`contributor`](./docs/contributor) folder. You will find detailed information on BTP Manager's:
 
@@ -72,3 +72,18 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 - [metrics](./docs/contributor/08-10-metrics.md)
 
 Visit the [`user`](./docs/user) folder if you want to know more about [SAP BTP Operator](./docs/user/README.md), and [how to use the module](./docs/user/02-10-usage.md).
+
+## Contributing
+<!--- mandatory section - do not change this! --->
+
+See the [Contributing](CONTRIBUTING.md) guidelines.
+
+## Code of Conduct
+<!--- mandatory section - do not change this! --->
+
+See the [Code of Conduct](CODE_OF_CONDUCT.md) document.
+
+## Licensing
+<!--- mandatory section - do not change this! --->
+
+See the [license](./LICENSE) file.
