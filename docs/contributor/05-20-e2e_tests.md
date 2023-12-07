@@ -1,4 +1,4 @@
-# E2E tests of BTP Manager installation from OCI module image
+# E2E Tests of BTP Manager Installation from OCI Module Image
 
 ## Overview
 
@@ -9,7 +9,7 @@ There are two tests:
 
 The flows of the tests are similar. The upgrade tests contain extra steps for checking whether BTP Manager works as expected after upgrading to a new version. You can see the differences between the tests in the descriptions of the tests' flows below.
 
-#### E2E tests for installation and uninstallation flow
+#### E2E Tests for Installation and Uninstallation Flow
 1. Create an OCI module image.
 2. Push the image to the registry.
 3. Create a Kubernetes cluster.
@@ -28,7 +28,7 @@ The flows of the tests are similar. The upgrade tests contain extra steps for ch
 16. Verify if BTP Operator, ServiceInstance CRD and ServiceBinding CRD were deleted.
 17. Uninstall BTP Manager. 
 
-#### E2E tests for upgradability flow:
+#### E2E Tests for Upgradability Flow:
 1. Create an OCI module image.
 2. Push the image to the registry.
 3. Create a Kubernetes cluster.
@@ -53,7 +53,7 @@ The flows of the tests are similar. The upgrade tests contain extra steps for ch
 22. Verify if BTP Operator, ServiceInstance CRD and ServiceBinding CRD were deleted.
 23. Uninstall BTP Manager.
 
-### CI pipelines
+### CI Pipelines
 The Prow presubmit job, `pull-btp-manager-module-build`, creates the OCI module image. The [`create_module_image.sh`](../../scripts/create_module_image.sh) script does the actual execution.
 This script sets appropriate environment variables and invokes `make module-build`. In effect, the module is built, and the OCI module image is pushed to the registry. 
 The registry URL and component name are predefined. 
@@ -71,7 +71,7 @@ The workflows wait till the OCI module image is available for fetching.
 The scripts fetch the OCI module image from the registry. They create the required prerequisites, 
 get the BTP Manager and BTP Operator installed or upgraded, validate expected statuses, and get BTP Operator and BTP Manager uninstalled.
 
-### Run E2E tests locally on k3d cluster
+### Run E2E Tests Locally on k3d Cluster
 > **NOTE:**
 > Valid only for the installation and uninstallation e2e tests.
 

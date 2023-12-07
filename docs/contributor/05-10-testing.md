@@ -1,6 +1,6 @@
-# Run unit tests
+# Run Unit Tests
 
-## Run unit tests using CLI 
+## Run Unit Tests Using CLI 
 
 To run the unit tests from the command line, use the following command from the BTP Manager main directory: 
 
@@ -17,7 +17,7 @@ STEP: bootstrapping test environment @ 01/13/23 08:24:45.981
 2023-01-13T08:24:45.981+0100  DEBUG   controller-runtime.test-env     starting control plane
 ```
 
-### Run unit tests on existing cluster
+### Run Unit Tests on Existing Cluster
 
 You can run the tests on an existing cluster (not the envtest cluster) setting the value of the environment variable **USE_EXISTING_CLUSTER** to `true`.
 
@@ -27,7 +27,7 @@ USE_EXISTING_CLUSTER=true make test
 
 > **NOTE:** The test suite assumes the proper state of the cluster before running. If problems with left-over resources occur, you can recreate the cluster or remove resources manually.
 
-### Test output verbosity
+### Test Output Verbosity
 
 The setting for the `go test` verbosity is `-v` (verbose, print the full output event for passing tests). This can be changed in the `make` recipe. 
 For the `Ginkgo` tests execution, the default setting is `-ginkgo.v` (verbose). It can be changed, for example, for `very verbose` by setting the environment variable **GINKGO_VERBOSE_FLAG**.
@@ -37,7 +37,7 @@ The allowed values are: `ginkgo.succinct`, `ginkgo.v`, or `ginkgo.vv`. According
 GINKGO_VERBOSE_FLAG="ginkgo.vv" make test
 ```
 
-### Filtering labels
+### Filtering Labels
 You can use the Ginkgo library labeling features to filter which tests specs are to be executed. 
 For more details, see [Spec Labels](https://onsi.github.io/ginkgo/#spec-labels) in Ginkgo documentation. To use labels for filtering, 
 you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in the [BtpOperator-controller `test.go`](../../controllers) files with labels, for example:
@@ -58,13 +58,13 @@ Here is another example of a simple expression:
 GINKGO_LABEL_FILTER="test-provisioning,test-deprovisioning" make test
 ```
 
-### Environment variables
+### Environment Variables
 
 All the above-mentioned environment variables can also be set in the [set-env-vars.sh](../../scripts/testing/set-env-vars.sh) file. The script sets the default values for all the environment variables used in the `go test` invocation. 
 Changing the script contents is recommended if a more complex filtering expression is required, or if you frequently reuse the setting. However, you should not push the changes without considering 
 how this affects Github Actions workflows.
 
-## Run test suite with IDE
+## Run Test Suite with IDE
 
 You can define environment variables in Run Configuration, run tests, change logs verbosity and use filtering features on an existing cluster.
 

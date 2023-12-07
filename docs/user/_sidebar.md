@@ -1,3 +1,3 @@
-- [Home](/)
-- [SAP BTP Operator module](README.md)
-- [Use BTP Manager to manage SAP BTP Service Operator](02-10-usage.md)
+- [Back to Kyma Home](/)
+- [SAP BTP Operator Module](README.md)
+- [Use BTP Manager to Manage SAP BTP Service Operator](02-10-usage.md)

@@ -1,10 +1,10 @@
-# Use BTP Manager to manage SAP BTP Service Operator 
+# Use BTP Manager to Manage SAP BTP Service Operator 
 
-## Create and install Secret
+## Create and Install Secret
 
 To create a real BTP Manager Secret, follow these steps:
 1. Clone the `btp-manager` repository to your local file system.
-2. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP Service Operator documentation.
+2. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation.
 3. Copy and save the access credentials into your `hack/creds.json` file in the cloned `btp-manager` repository.
 4. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh). 
 5. Apply the Secret in your cluster. 
@@ -25,7 +25,7 @@ NAME                 STATE
 btpoperator          Ready
 ```
 
-## Deploy an SAP BTP service in your Kyma cluster
+## Deploy an SAP BTP Service in Your Kyma Cluster
 
 After successfully installing your Secret, you can create a ServiceInstance and a ServiceBinding.
 
@@ -47,7 +47,7 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     EOF
     ```
 
-    >**TIP:** You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP Cockpit. Click on the service's tile and find **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
+    >**TIP:** You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
 
 2. To check the output, run:
 

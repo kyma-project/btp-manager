@@ -1,6 +1,6 @@
-# GitHub Actions workflows
+# GitHub Actions Workflows
 
-## Auto update chart and resources
+## Auto Update Chart and Resources
 
 The goal of the workflow is to update the chart (`module-chart/chart`) to the newest version, render the resource templates from the newest chart, and create a PR with the changes. The workflow works on two shell scripts:
 
@@ -14,15 +14,15 @@ Both scripts are run from the workflow but can also be triggered manually from t
 
 To keep `module-chart/chart` in sync with the [upstream](https://github.com/SAP/sap-btp-service-operator), you must not apply any manual changes there.
 
-## Release workflow
+## Release Workflow
 
-See [BTP Manager release pipeline](03-10-release.md) to learn more about the release workflow.
+See [BTP Manager Release Pipeline](03-10-release.md) to learn more about the release workflow.
 
-## E2E tests workflow 
+## E2E Tests Workflow 
 
 This workflow is triggered by pull requests (PRs) on the `main` branch. It uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](/.github/workflows/run-e2e-tests-reusable.yaml). 
 
-## Unit tests workflow
+## Unit Tests Workflow
 
 This workflow is triggered by PRs on the `main` branch. Then it calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml).
 
@@ -34,7 +34,7 @@ This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered daily 
 
 There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
 
-### E2E tests
+### E2E Tests
 
 This [workflow](/.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3s cluster. 
 You pass the following parameters from the calling workflow:
@@ -57,7 +57,7 @@ The workflow:
 - waits for all tests to finish
 
 
-### Unit tests
+### Unit Tests
 
 This [workflow](/.github/workflows/run-unit-tests-reusable.yaml) runs the unit tests.
 No parameters are passed from the calling workflow (callee).
