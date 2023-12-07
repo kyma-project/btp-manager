@@ -1,4 +1,4 @@
-# BTP Manager release pipeline
+# BTP Manager Release Pipeline
 
 ## Overview
 
