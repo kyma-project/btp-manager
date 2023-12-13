@@ -213,6 +213,9 @@ jobs:
       - name: BTP Manager controller resources usage
         run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
 
+      - name: SAP BTP Operator controller resources usage
+        run: "kubectl top pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --containers"
+        
       - name: Run tests
         run: ./scripts/testing/./stress-mem.sh 500 30
 
@@ -221,12 +224,18 @@ jobs:
 
       - name: BTP Manager controller resources usage
         run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
+      
+      - name: SAP BTP Operator controller resources usage
+        run: "kubectl top pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --containers"
 
       - name: Prepare stress data - Secrets and ConfigMaps
         run: "./scripts/testing/create-secrets-configmaps.sh 120"
 
       - name: BTP Manager controller resources usage
         run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
+
+      - name: SAP BTP Operator controller resources usage
+        run: "kubectl top pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --containers"
 
       - name: Check BTP manager restarts
         run: |
