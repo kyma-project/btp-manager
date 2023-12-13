@@ -6,13 +6,13 @@
 #                       - number of service instances and service bindings to be created - default 500
 #                       - number of seconds to let them be before btp-operator is deleted - default 60
 # Example:
-#           ./stress-mem.sh 100 30
+#           ./stress-mem-instances-bindings.sh 100 30
 
 N=${1-500}
 YAML_DIR=./scripts/testing/yaml
 LIFE_SPAN=${2-60}
 
-echo -e "\n---Installing BTP operator"
+echo -e "\n---Applying BTP Operator with force-delete label"
 kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
 kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
@@ -36,19 +36,4 @@ done
 echo -e "\n---${N} service bindings and instances created - let them be for a while... ${LIFE_SPAN}s"
 sleep ${LIFE_SPAN}
 
-restarts=$(kubectl get po -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io -o 'jsonpath={..items[0].status.containerStatuses[0].restartCount}')
-if [ "${restarts}" != '0' ]
-then
-  echo "BTP manager was restarted $restarts times"
-  exit 1
-fi
-
-restarts=$(kubectl get po -n kyma-system -l app.kubernetes.io/name=sap-btp-operator -o 'jsonpath={..items[0].status.containerStatuses[?(@.name=="manager")].restartCount}')
-if [ "${restarts}" != '0' ]
-then
-  echo "BTP operator was restarted $restarts times"
-  exit 1
-fi
-
-echo -e "\n---Deleting e2e-test-btpoperator"
-kubectl delete btpoperators/e2e-test-btpoperator
+./check_pod_restarts.sh

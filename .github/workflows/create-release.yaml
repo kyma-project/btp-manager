@@ -206,41 +206,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_artifacts.sh ${{ inputs.name }} ${{ inputs.name }}"
 
-      - name: Install BTP operator
+      - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
         run: "./scripts/testing/install.sh $MODULE_REPO:${{ inputs.name }} dummy ci"
 
-      - name: BTP Manager controller resources usage
-        run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
-
-      - name: SAP BTP Operator controller resources usage
-        run: "kubectl top pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --containers"
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: ./scripts/testing/check_top.sh
         
-      - name: Run tests
-        run: ./scripts/testing/./stress-mem.sh 500 30
+      - name: Run stress test - instances and bindings
+        run: ./scripts/testing/./stress-mem-instances-bindings.sh 500 30
 
-      - name: Check BTP manager restarts
-        run: "./scripts/testing/check_btp-manager_restarts.sh"
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: ./scripts/testing/check_top.sh
 
-      - name: BTP Manager controller resources usage
-        run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
-      
-      - name: SAP BTP Operator controller resources usage
-        run: "kubectl top pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --containers"
+      - name: Run stress test - secrets and configmaps
+        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120"
 
-      - name: Prepare stress data - Secrets and ConfigMaps
-        run: "./scripts/testing/create-secrets-configmaps.sh 120"
-
-      - name: BTP Manager controller resources usage
-        run: "kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers"
-
-      - name: SAP BTP Operator controller resources usage
-        run: "kubectl top pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --containers"
-
-      - name: Check BTP manager restarts
-        run: |
-          sleep 15
-          ./scripts/testing/check_btp-manager_restarts.sh
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: ./scripts/testing/check_top.sh
 
   run-e2e-upgrade-tests:
     name: E2E upgrade tests
