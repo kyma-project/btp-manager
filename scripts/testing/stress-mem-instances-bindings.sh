@@ -36,4 +36,4 @@ done
 echo -e "\n---${N} service bindings and instances created - let them be for a while... ${LIFE_SPAN}s"
 sleep ${LIFE_SPAN}
 
-./check_pod_restarts.sh
+./scripts/testing/check_pod_restarts.sh

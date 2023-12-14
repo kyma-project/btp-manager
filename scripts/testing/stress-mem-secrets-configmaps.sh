@@ -35,4 +35,4 @@ do
   envsubst <secret.yaml | kubectl apply -f - >/dev/null
 done
 
-./check_pod_restarts.sh
+./scripts/testing/check_pod_restarts.sh
