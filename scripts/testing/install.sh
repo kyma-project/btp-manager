@@ -16,7 +16,7 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-MODULE_IMAGE_NAME="test"
+MODULE_IMAGE_NAME=$1
 YAML_DIR="scripts/testing/yaml"
 CREDENTIALS=$2
 
@@ -38,7 +38,7 @@ fi
 echo -e "\n--- Running module image: ${MODULE_IMAGE_NAME}"
 ./scripts/run_module_image.sh "${MODULE_IMAGE_NAME}" ${CI}
 
-# check if btp manager deployment is available
+# check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
 do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
 
@@ -49,10 +49,6 @@ kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
 
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
-
-# check if btp operator deployment is available
-while [[ $(kubectl get deployment/sap-btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
-do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
 
 # verifying whether service instance and service binding resources were created
 echo -e "\n---Checking if serviceinstances and servicebindings CRDs are created"
