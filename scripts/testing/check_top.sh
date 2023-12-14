@@ -9,6 +9,7 @@ TIMEOUT=30
 NEXT_TRY_WAIT=5
 
 echo -e "\n--- BTP Manager checking kubectl top" 
+
 SECONDS=0
 while ((SECONDS < $TIMEOUT )); do
      kubectl top pod -l app.kubernetes.io/component=btp-manager.kyma-project.io -n kyma-system --containers
@@ -17,6 +18,7 @@ while ((SECONDS < $TIMEOUT )); do
 done
 
 echo -e "\n--- BTP Operator checking kubectl top" 
+
 SECONDS=0
 while ((SECONDS < $TIMEOUT )); do
      kubectl top pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --containers
