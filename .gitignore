@@ -28,6 +28,8 @@ vendor/**
 
 /hack/creds.json
 /hack/operator-secret.yaml
+/hack/btp-access-credentials-secret.yaml
+
 /charts/btp-manager/
 /mod/
 /template.yaml
