@@ -8,11 +8,14 @@ To create a real BTP Manager Secret, follow these steps:
 3. Copy and save the access credentials into your `hack/creds.json` file in the cloned `btp-manager` repository.
 4. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh). 
 5. Apply the Secret in your cluster. 
- 
+
+   > **CAUTION:** The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
+
    ```sh
    ./hack/create-secret-file.sh
    kubectl apply -f hack/operator-secret.yaml
    ```
+  
 
 To check the `BtpOperator` custom resource (CR) status, run the following command:
 ```sh
@@ -97,3 +100,39 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     ```bash
     kubectl delete -f hack/operator-secret.yaml
     ```
+
+## Create a ServiceInstance with a Custom Secret
+
+To create a ServiceInstance, you must use the **btpAccessCredentialsSecret** field in the spec of the ServiceInstance. In it, you pass the Secret from the `kyma-system` namespace. The Secret is used to create your ServiceInstance. You can use different Secrets for different ServiceInstances.
+> **CAUTION:** Once you set a Secret name in the ServiceInstance, you cannot change it in the future.
+
+Adding the access credentials of the SAP BTP Service Manager Instance in your ServiceInstance results in displaying the subaccount ID to which the instance belongs in the status **subaccountID** field.
+
+To create a ServiceInstance with a custom Secret, follow these steps:
+
+1. Get the access credentials of the SAP BTP Service Manager Instance with a `service-operator-access` plan from its service binding. Copy them from the BTP cockpit as a JSON. 
+
+2. Go to `hack/creds.json` and insert the credentials there.
+
+3. To generate a Secret, call the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name** as the second parameter.
+
+   ```sh
+   ./hack/create-secret-file.sh operator test-secret
+    kubectl apply -f btp-access-credentials-secret.yaml
+   ```
+
+4. When you have your Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in spec pointing to the newly created `test-secret` Secret and with other parameters as needed.
+
+Here is an example of a ServiceInstance which you can apply:
+
+```yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  name: test-service-instance
+  namespace: default
+spec:
+  serviceOfferingName: xsuaa
+  servicePlanName: application
+  btpAccessCredentialsSecret: test-secret
+```
