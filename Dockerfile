@@ -9,6 +9,8 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
+RUN go mod tidy
+
 # Copy the go source
 COPY . ./
 
