@@ -18,15 +18,6 @@ jobs:
     - name: Run make test
       shell: bash
       run: |
-        OK=0
-        FAIL=0
         while true; do
           make -i test
-          if [ $? -eq 0 ]; then
-            ((OK++))
-            echo "(COUNT OF) OK -> $OK"
-          else
-            ((FAIL++))
-            echo "(COUNT OF) FAIL -> $FAIL"
-          fi
         done
