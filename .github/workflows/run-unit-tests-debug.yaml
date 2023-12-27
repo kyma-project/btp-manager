@@ -21,9 +21,11 @@ jobs:
         FAIL=0
         while true; do
           make -i -k test
-          if [ $? == 0 ]; then
-              echo "(COUNT OF) OK -> $OK"
+          if [ $? -eq 0 ]; then
+            ((OK++))
+            echo "(COUNT OF) OK -> $OK"
           else
-              echo "(COUNT OF) FAIL -> $FAIL
+            ((FAIL++))
+            echo "(COUNT OF) FAIL -> $FAIL"
           fi
         done
