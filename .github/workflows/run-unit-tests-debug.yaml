@@ -20,7 +20,7 @@ jobs:
         OK=0
         FAIL=0
         while true; do
-          make test
+          make -i -k test
           if [ $? == 0 ]; then
               echo "(COUNT OF) OK -> $OK"
           else
