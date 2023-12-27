@@ -17,11 +17,13 @@ jobs:
 
     - name: Run make test
       run: |
+        OK=0
+        FAIL=0
         while true; do
           make test
           if [ $? == 0 ]; then
-              echo "OK"
+              echo "(COUNT OF) OK -> $OK"
           else
-              echo "FAIL"
+              echo "(COUNT OF) FAIL -> $FAIL"
           fi
         done
