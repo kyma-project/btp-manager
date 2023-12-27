@@ -16,6 +16,7 @@ jobs:
         go-version-file: 'go.mod'
 
     - name: Run make test
+      shell: bash
       run: |
         OK=0
         FAIL=0
