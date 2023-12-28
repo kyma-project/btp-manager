@@ -36,7 +36,8 @@ skopeo copy ${TLS_OPTIONS} docker://${IMAGE_NAME} dir:${TARGET_DIRECTORY}
 
 FILENAME=$(./scripts/check_if_k8s_yaml.sh)
 echo $FILENAME
-if [[ -n "$FILENAME" ]]; 
+
+if [[ -n "$FILENAME" ]];
 then
   echo -e "\n--- Installing BTP Manager in ${NAMESPACE} namespace using kubectl apply"
 
