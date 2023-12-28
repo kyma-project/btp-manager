@@ -14,7 +14,7 @@ The flows of the tests are similar. The upgrade tests contain extra steps for ch
 2. Push the image to the registry.
 3. Create a Kubernetes cluster.
 4. Wait for the BtpOperator OCI module image to be available in the registry.
-5. Wait for the btp-manager image to be available in the registry.
+5. Wait for the BTP Manager image to be available in the registry.
 6. Download the BtpOperator OCI module image.
 7. Install the BTP Manager using `kubectl apply`.
 8. Verify if deployment is in the `Available` state.
@@ -32,8 +32,8 @@ The flows of the tests are similar. The upgrade tests contain extra steps for ch
 1. Create an OCI module image.
 2. Push the image to the registry.
 3. Create a Kubernetes cluster.
-4. Wait for the new btp-operator OCI module image to be available in the registry.
-5. Wait for the new btp-manager image to be available in the registry.
+4. Wait for the new BtpOperator OCI module image to be available in the registry.
+5. Wait for the new BTP Manager image to be available in the registry.
 6. Download the latest BtpOperator OCI module image.
 7. Install the latest release of BTP Manager using `kubectl apply`.
 8. Verify if deployment is in the `Available` state.
