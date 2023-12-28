@@ -3,16 +3,15 @@
 ## Create and Install a Secret
 
 To create a real BTP Manager Secret, follow these steps:
-1. Download the `btp-manager` repository to your local file system with the following command:
+1. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in point 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation.
+2. Copy and save the access credentials into your `hack/creds.json` file in your work directory. 
+3. In the same work directory, run the following script to create the Secret:
    
    ```sh
    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh
    ```
 
-2. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in point 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation.
-3. Copy and save the access credentials into your `hack/creds.json` file in the downloaded `btp-manager` repository.
-4. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh). 
-5. Apply the Secret in your cluster. 
+4. Apply the Secret in your cluster. 
 
    > **CAUTION:** The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
 
