@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 # This script has the following arguments:
 #     - link to a module image (required),
 #     - credentials mode, allowed values (required):

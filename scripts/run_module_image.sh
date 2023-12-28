@@ -8,6 +8,8 @@
 
 CI=${2-manual}  # if called from any workflow "ci" is expected here
 
+set -x
+
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
 set -o errexit  # exit immediately when a command fails.
