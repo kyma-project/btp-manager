@@ -181,7 +181,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	defer func() { r.workqueueSize -= 1 }()
 
 	logger := log.FromContext(ctx)
-
 	reconcileCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
 		if k8serrors.IsNotFound(err) {
