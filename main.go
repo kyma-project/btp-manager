@@ -19,10 +19,12 @@ package main
 import (
 	"flag"
 	"os"
+
 	//test
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -74,13 +76,12 @@ func main() {
 	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
 	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
 	flag.DurationVar(&controllers.DeleteRequestTimeout, "delete-request-timeout", controllers.DeleteRequestTimeout, "Delete request timeout in hard delete.")
-	opts := zap.Options{
-		Development: true,
-	}
+
+	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	//ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	restCfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
