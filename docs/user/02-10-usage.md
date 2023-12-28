@@ -1,11 +1,16 @@
 # Use BTP Manager to Manage SAP BTP Service Operator 
 
-## Create and Install Secret
+## Create and Install a Secret
 
 To create a real BTP Manager Secret, follow these steps:
-1. Clone the `btp-manager` repository to your local file system.
-2. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in points 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation.
-3. Copy and save the access credentials into your `hack/creds.json` file in the cloned `btp-manager` repository.
+1. Download the `btp-manager` repository to your local file system with the following command:
+   
+   ```sh
+   curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh
+   ```
+
+2. Create ServiceBinding to obtain the access credentials to the ServiceInstance as described in point 2 of the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation.
+3. Copy and save the access credentials into your `hack/creds.json` file in the downloaded `btp-manager` repository.
 4. Call [`create-secret-file.sh`](https://github.com/kyma-project/btp-manager/blob/main/hack/create-secret-file.sh). 
 5. Apply the Secret in your cluster. 
 
@@ -16,13 +21,14 @@ To create a real BTP Manager Secret, follow these steps:
    kubectl apply -f hack/operator-secret.yaml
    ```
   
-
 To check the `BtpOperator` custom resource (CR) status, run the following command:
+
 ```sh
 kubectl get btpoperators btpoperator
 ```
 
 The expected result is:
+
 ```
 NAME                 STATE
 btpoperator          Ready
@@ -104,13 +110,14 @@ After successfully installing your Secret, you can create a ServiceInstance and 
 ## Create a ServiceInstance with a Custom Secret
 
 To create a ServiceInstance, you must use the **btpAccessCredentialsSecret** field in the spec of the ServiceInstance. In it, you pass the Secret from the `kyma-system` namespace. The Secret is used to create your ServiceInstance. You can use different Secrets for different ServiceInstances.
+
 > **CAUTION:** Once you set a Secret name in the ServiceInstance, you cannot change it in the future.
 
 Adding the access credentials of the SAP BTP Service Manager Instance in your ServiceInstance results in displaying the subaccount ID to which the instance belongs in the status **subaccountID** field.
 
 To create a ServiceInstance with a custom Secret, follow these steps:
 
-1. Get the access credentials of the SAP BTP Service Manager Instance with a `service-operator-access` plan from its service binding. Copy them from the BTP cockpit as a JSON. 
+1. Get the access credentials of the SAP BTP Service Manager Instance with the `service-operator-access` plan from its ServiceBinding. Copy them from the BTP cockpit as a JSON. 
 
 2. Go to `hack/creds.json` and insert the credentials there.
 
