@@ -1,4 +1,4 @@
-name: Run unit tests - DEBUG
+name: Run unit tests (debugger)
 on:
   workflow_dispatch:
   #schedule:
