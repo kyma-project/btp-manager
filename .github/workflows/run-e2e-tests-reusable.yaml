@@ -79,6 +79,11 @@ jobs:
       - name: Prepare K3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
 
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
       - name: Install BTP operator
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
