@@ -22,10 +22,13 @@ jobs:
           
           while true; do
             # Execute the make test command
-            make test
+          
+            set -e
+            EXIT_CODE=0
+            make test || EXIT_CODE=$?
             
             # Check the exit status of the last command
-            if [ $? -eq 0 ]; then
+            if [ $EXIT_CODE -eq 0 ]; then
             ((count_success++))
             echo "Test succeeded"
             else
