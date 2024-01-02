@@ -89,7 +89,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run tests.
 	@. ./scripts/testing/set-env-vars.sh; \
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
-	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) --normal controllers; else $(GINKGO) --normal -p controllers; fi
+	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) --trace controllers; else $(GINKGO) --trace -p controllers; fi
 
 .PHONY: test-docs
 test-docs:
