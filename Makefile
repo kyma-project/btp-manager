@@ -24,6 +24,9 @@ SUITE_TIMEOUT ?= $${SUITE_TIMEOUT:-30s}
 # see `kyma alpha mod create --help for more info`
 # MODULE_CREDENTIALS ?= testuser:testpw
 
+# Manifest file
+MANIFEST=btp-manager.yaml
+
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY_PORT ?= 60765
 IMG_REGISTRY ?= op-skr-registry.localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
@@ -130,6 +133,12 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
+.PHONY: save-manifest-and-deploy
+deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | tee ${MANIFEST}
+#	$(KUSTOMIZE) build config/default | tee ${MANIFEST} | kubectl apply -f -
+
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
@@ -148,7 +157,7 @@ module-image: docker-build docker-push ## Build the Module Image and push it to 
 .PHONY: module-build
 module-build: kyma kustomize ## Build the Module and push it to a registry defined in MODULE_REGISTRY
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KYMA) alpha create module --kubebuilder-project $(SECURITY_SCAN_OPTIONS) --module-archive-version-overwrite --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path . $(MODULE_CREATION_FLAGS)
+	$(KYMA) alpha create module $(SECURITY_SCAN_OPTIONS) --module-archive-version-overwrite --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path . $(MODULE_CREATION_FLAGS)
 
 .PHONY: module-template-push
 module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODULE_REGISTRY
