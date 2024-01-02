@@ -108,8 +108,6 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 		reporterCfg.VeryVerbose = true
 	case verbosity == "ginkgo.succinct":
 		reporterCfg.Succinct = true
-	default:
-		reporterCfg.Succinct = true
 	}
 	suiteCfg.LabelFilter = os.Getenv("GINKGO_LABEL_FILTER")
 	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
