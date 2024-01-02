@@ -19,7 +19,7 @@ export SUITE_TIMEOUT=${SUITE_TIMEOUT:=30s}
 
 # setting verbose output for ginkgo
 # for very verbose set "ginkgo.vv"
-export GINKGO_VERBOSE_FLAG=${GINKGO_VERBOSE_FLAG:="ginkgo.v"}
+# export GINKGO_VERBOSE_FLAG=${GINKGO_VERBOSE_FLAG:="ginkgo.v"}
 
 # GINKGO_LABEL_FILTER="provisioning,test-update"
 export GINKGO_LABEL_FILTER=${GINKGO_LABEL_FILTER:=""}
