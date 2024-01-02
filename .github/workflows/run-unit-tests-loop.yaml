@@ -1,0 +1,42 @@
+name: Run unit tests (loop)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Run make test (no p)
+        shell: bash
+        run: |
+          count_success=0
+          count_fail=0
+          
+          while true; do
+            # Execute the make test command
+            make test
+            
+            # Check the exit status of the last command
+            if [ $? -eq 0 ]; then
+            ((count_success++))
+            echo "Test succeeded"
+            else
+            ((count_fail++))
+            echo "Test failed"
+            fi
+
+            # Print the current variables
+            echo "Number of successful tests: $count_success"
+            echo "Number of failed tests: $count_fail"
+
+            # Wait for 1 second before next iteration
+            sleep 1
+          done
