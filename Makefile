@@ -25,7 +25,8 @@ SUITE_TIMEOUT ?= $${SUITE_TIMEOUT:-30s}
 # MODULE_CREDENTIALS ?= testuser:testpw
 
 # btp-manager manifest file
-MANIFEST=manifests/btp-operator/rendered.yaml
+MANIFEST_PATH=./manifests/btp-operator
+MANIFEST_FILE=rendered.yaml
 
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY_PORT ?= 60765
@@ -136,7 +137,8 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: save-manifest-and-deploy
 save-manifest-and-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | tee ${MANIFEST} | kubectl apply -f -
+	mkdir -p ${MANIFEST_PATH}
+	$(KUSTOMIZE) build config/default | tee ${MANIFEST_PATH}/${MANIFEST_FILE} | kubectl apply -f -
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
