@@ -2,10 +2,10 @@ name: Run unit tests (debugger)
 on:
   workflow_dispatch:
   schedule:
-  #  - cron: '*/15 * * * *'
+    - cron: '*/15 * * * *'
     - cron: '*/5 * * * *'
-  #  - cron: '* * * * *'
-  #  - cron: '* * * * *'
+    - cron: '*/6 * * * *'
+    - cron: '* * * * *'
 jobs:
   build:
     runs-on: ubuntu-latest
