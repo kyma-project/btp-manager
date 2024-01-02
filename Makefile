@@ -24,8 +24,8 @@ SUITE_TIMEOUT ?= $${SUITE_TIMEOUT:-30s}
 # see `kyma alpha mod create --help for more info`
 # MODULE_CREDENTIALS ?= testuser:testpw
 
-# Manifest file
-MANIFEST=btp-manager.yaml
+# btp-manager manifest file
+MANIFEST=manifests/btp-operator/rendered.yaml
 
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY_PORT ?= 60765

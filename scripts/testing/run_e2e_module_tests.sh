@@ -144,7 +144,7 @@ echo -e "\n--- BTP Operator deprovisioning succeeded"
 echo -e "\n--- Uninstalling BTP Manager"
 
 # uninstall btp-manager
-./scripts/uninstall_btp_manager.sh
+make undeploy
 
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
