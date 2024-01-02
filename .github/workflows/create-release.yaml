@@ -55,10 +55,9 @@ jobs:
 
       - name: Check for existing artifacts from previous release runs
         env:
-          BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
           BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }} ${{ inputs.name }}"
+        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }}"
 
       - name: Setup python
         uses: actions/setup-python@v4
@@ -139,21 +138,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Wait for post-btp-manager-module-build status
-        uses: autotelic/action-wait-for-status-check@6556cf50c8fb6608412945382eae73581f56cbb4
-        id: wait-for-module-build-status
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          statusName: "post-btp-manager-module-build"
-          timeoutSeconds: "300"
-          ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
-
-      - name: Check if post-btp-manager-module-build status is success
-        if: steps.wait-for-module-build-status.outputs.state != 'success'
-        run: |
-            echo 'post-btp-manager-module-build failed.'
-            exit 1
-
       - name: Wait for post-btp-manager-build status
         uses: autotelic/action-wait-for-status-check@6556cf50c8fb6608412945382eae73581f56cbb4
         id: wait-for-image-build-status
@@ -181,9 +165,7 @@ jobs:
     secrets: inherit
     with:
       image-tag: ${{ github.event.inputs.name }}
-      module-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-      module-repo: europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator
       credentials-mode: ${{ github.event.inputs.credentials }}
       last-k3s-versions: ${{ github.event.inputs.k3s-versions || vars.LAST_K3S_VERSIONS }}
 
@@ -211,19 +193,19 @@ jobs:
         run: "./scripts/testing/install_module.sh $MODULE_REPO:${{ inputs.name }} dummy ci"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: ./scripts/testing/check_top.sh
+        run: "./scripts/testing/check_top.sh"
         
       - name: Run stress test - instances and bindings
-        run: ./scripts/testing/stress-mem-instances-bindings.sh 500 30
+        run: "./scripts/testing/stress-mem-instances-bindings.sh 500 30"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: ./scripts/testing/check_top.sh
+        run: "./scripts/testing/check_top.sh"
 
       - name: Run stress test - secrets and configmaps
         run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: ./scripts/testing/check_top.sh
+        run: "./scripts/testing/check_top.sh"
 
   run-e2e-upgrade-tests:
     name: E2E upgrade tests

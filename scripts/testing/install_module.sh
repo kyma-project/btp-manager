@@ -36,7 +36,7 @@ else
   kubectl apply -f ./examples/btp-manager-secret.yaml
 fi
 
-echo -e "\n--- Deploying module with image: ${IMAGE_NAME}"
+echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"
 IMG=${IMAGE_NAME} make save-manifest-and-deploy
 
 # check if deployment is available

@@ -9,16 +9,8 @@ on:
         description: Binary image registry reference
         required: true
         type: string
-      module-repo:
-        description: OCI module image registry reference
-        required: true
-        type: string
       image-tag:
         description: Binary image tag
-        required: true
-        type: string
-      module-tag:
-        description: OCI module image tag
         required: true
         type: string
       credentials-mode:
