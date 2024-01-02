@@ -1,9 +1,9 @@
-name: Run unit tests (p)
+name: Run unit tests - DEBUG
 on:
   workflow_dispatch:
   #schedule:
   #  - cron: '*/15 * * * *'
-  #  - cron: '*/5 * * * *'
+    - cron: '*/5 * * * *'
   #  - cron: '* * * * *'
   #  - cron: '* * * * *'
 jobs:
@@ -18,5 +18,5 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Run make test (p)
+      - name: Run make test (no p)
         run: make test
