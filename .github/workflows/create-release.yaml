@@ -208,7 +208,7 @@ jobs:
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
-        run: "./scripts/testing/install.sh $MODULE_REPO:${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install_module.sh $MODULE_REPO:${{ inputs.name }} dummy ci"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: ./scripts/testing/check_top.sh

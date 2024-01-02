@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # This script has the following arguments:
-#     - link to a module image (required),
+#     - link to a binary image (required),
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
 #     - ci to indicate call from CI pipeline (optional)
-# ./install.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-PR-999 real ci
+# ./install_module.sh europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-999 real ci
 
 CI=${3-manual}  # if called from any workflow "ci" is expected here
 
@@ -18,7 +18,7 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-MODULE_IMAGE_NAME=$1
+IMAGE_NAME=$1
 YAML_DIR="scripts/testing/yaml"
 CREDENTIALS=$2
 
@@ -36,9 +36,8 @@ else
   kubectl apply -f ./examples/btp-manager-secret.yaml
 fi
 
-# fetch OCI module image and install btp-manager in current cluster
-echo -e "\n--- Running module image: ${MODULE_IMAGE_NAME}"
-./scripts/run_module_image.sh "${MODULE_IMAGE_NAME}" ${CI}
+echo -e "\n--- Deploying module with image: ${IMAGE_NAME}"
+make save-manifest-and-deploy
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];

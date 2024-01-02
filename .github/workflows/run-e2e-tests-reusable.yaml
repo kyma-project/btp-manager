@@ -37,7 +37,7 @@ on:
 
 jobs:
   prepare-tests:
-    # job waits until Prow job uploads docker image, module OCI image and optionally artifacts
+    # job waits until Prow job uploads docker image
     runs-on: ubuntu-latest
     outputs:
       versions: ${{ steps.get-versions.outputs.k3s_versions }}
@@ -61,10 +61,9 @@ jobs:
 
       - name: Wait for artifacts
         env:
-          BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
+        run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.skip-templates }}"
 
   run-e2e-matrix:
     runs-on: ubuntu-latest
@@ -90,7 +89,7 @@ jobs:
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
-        run: "./scripts/testing/install.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"

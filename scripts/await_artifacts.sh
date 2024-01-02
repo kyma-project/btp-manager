@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SKIP_ASSETS=$3
+SKIP_ASSETS=$2
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -10,19 +10,16 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 # This script has the following arguments:
 #                       - BTP Manager binary image tag - mandatory
-#                       - BTP Operator OCI module image tag - mandatory
 #                       --skip-template - optional
 #
-# ./await_artifacts.sh 1.1.0 v1.1.0
+# ./await_artifacts.sh 1.1.0
 
 # Expected variables:
 #             BTP_MANAGER_REPO - btp-operator binary image repository
-#             BTP_OPERATOR_REPO - btp-operator OCI module image repository
 #             GITHUB_TOKEN - github token
 
 
 export IMAGE_TAG=$1
-export MODULE_TAG=$2
 
 PROTOCOL=docker://
 
@@ -39,13 +36,6 @@ then
   done
   echo "assets available"
 fi
-
-until $(skopeo list-tags ${PROTOCOL}${BTP_OPERATOR_REPO} | jq '.Tags|any(. == env.MODULE_TAG)'); do
-  echo "Waiting for BTP Operator OCI module image: ${BTP_OPERATOR_REPO}:${MODULE_TAG}"
-  sleep 10
-done
-
-echo "BTP Operator OCI module image available"
 
 until $(skopeo list-tags ${PROTOCOL}${BTP_MANAGER_REPO} | jq '.Tags|any(. == env.IMAGE_TAG)'); do
   echo "Waiting for BTP Manager binary image: ${BTP_MANAGER_REPO}:${IMAGE_TAG}"
