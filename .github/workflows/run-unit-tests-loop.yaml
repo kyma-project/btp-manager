@@ -26,7 +26,8 @@ jobs:
             set -e
             EXIT_CODE=0
             make test || EXIT_CODE=$?
-            
+            echo $EXIT_CODE
+          
             # Check the exit status of the last command
             if [ $EXIT_CODE -eq 0 ]; then
             ((count_success++))
