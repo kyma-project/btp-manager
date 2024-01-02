@@ -1,7 +1,7 @@
 name: Run unit tests (debugger)
 on:
   workflow_dispatch:
-  #schedule:
+  schedule:
   #  - cron: '*/15 * * * *'
     - cron: '*/5 * * * *'
   #  - cron: '* * * * *'
