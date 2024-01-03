@@ -2,6 +2,7 @@ name: Auto update chart/resources
 
 env:
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-gopher-bot
@@ -22,7 +23,7 @@ jobs:
           channel-id: 'gophers-development-temp'
           slack-message: "Slack API Test"
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.gopher-token }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: Checkout code
         uses: actions/checkout@v3
