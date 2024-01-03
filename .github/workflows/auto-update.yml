@@ -64,6 +64,7 @@ jobs:
           else
             scripts/update/create_pr.sh
           fi
+          exit 1
 
       - name: Post to a Slack channel failure
         if: ${{ failure() }}
