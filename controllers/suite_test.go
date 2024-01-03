@@ -109,6 +109,13 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 	case verbosity == "ginkgo.succinct":
 		reporterCfg.Succinct = true
 	}
+	// If not override Gingo will leave "Normal"
+
+	trace := os.Getenv("GINKGO_TRACE")
+	if trace != "" && trace != "trace" {
+		reporterCfg.FullTrace = true
+	}
+
 	suiteCfg.LabelFilter = os.Getenv("GINKGO_LABEL_FILTER")
 	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
 }
