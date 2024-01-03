@@ -183,14 +183,13 @@ jobs:
 
       - name: Wait for artifacts
         env:
-          BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
           BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.name }} ${{ inputs.name }}"
+        run: "./scripts/await_image.sh ${{ inputs.name }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $MODULE_REPO:${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install_module.sh ${{ env.IMAGE_REPO }}:${{ inputs.name }} dummy ci"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh"
@@ -215,7 +214,7 @@ jobs:
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
     with:
       image-tag: ${{ github.event.inputs.name }}
-      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      image-repo: ${{ env.IMAGE_REPO }}
 
   create-draft:
     name: Create draft release
