@@ -72,6 +72,6 @@ jobs:
         uses: slackapi/slack-github-action@v1.24.0
         with:
             channel-id: 'gophers-development-temp'
-            slack-message: "Slack API Test"
+            slack-message: "Auto-Update failed. Check details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}"
         env:
             SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
