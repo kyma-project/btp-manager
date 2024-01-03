@@ -37,7 +37,7 @@ else
 fi
 
 echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"
-IMG=${IMAGE_NAME} make save-manifest-and-deploy
+IMG=${IMAGE_NAME} make deploy
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
