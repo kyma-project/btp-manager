@@ -27,10 +27,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Compare tags
-        id: compareTages
         run: |
-          exit 1
-          echo ${{steps.*.outcome}}
           latest=$(scripts/update/get-latest-chart-version.sh)
           current=$(yq '.version' ./module-chart/chart/Chart.yaml)
           if [[ $latest == $current ]]; then
@@ -45,14 +42,12 @@ jobs:
           fi
 
       - name: Update chart and module resources
-        id: update
         if: env.CONTINUE_JOB == 'true'
         run: |
           scripts/update/make-module-chart.sh $TAG
           scripts/update/make-module-resources.sh $TAG
 
       - name: Create PR if anything changed
-        id: createPr
         if: env.CONTINUE_JOB == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
@@ -68,7 +63,6 @@ jobs:
 
       - name: Post to a Slack channel failure
         if: ${{ failure() }}
-        id: slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
             channel-id: 'gophers-development-temp'
