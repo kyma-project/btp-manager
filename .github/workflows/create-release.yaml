@@ -186,7 +186,7 @@ jobs:
           BTP_OPERATOR_REPO: ${{ env.MODULE_REPO }}
           BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_artifacts.sh ${{ inputs.name }} ${{ inputs.name }}"
+        run: "./scripts/await_image.sh ${{ inputs.name }} ${{ inputs.name }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2

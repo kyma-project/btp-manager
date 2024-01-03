@@ -19,7 +19,6 @@ jobs:
     with:
       image-tag: PR-${{ github.event.number }}
       image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
-      skip-templates: --skip-templates
       credentials-mode: dummy
       last-k3s-versions: 3
 

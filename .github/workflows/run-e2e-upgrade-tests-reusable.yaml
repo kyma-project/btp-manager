@@ -13,10 +13,6 @@ on:
         description: Binary image tag
         required: true
         type: string
-      skip-templates:
-        description: wait for images only, skip template artifacts
-        required: false
-        type: string
 jobs:
   run-e2e-upgrade-tests:
     runs-on: ubuntu-latest
@@ -32,7 +28,7 @@ jobs:
         env:
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.skip-templates }}"
+        run: "./scripts/await_imageX.sh ${{ inputs.image-tag }}"
 
       - name: Run tests
         env:
