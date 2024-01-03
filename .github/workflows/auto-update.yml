@@ -64,10 +64,9 @@ jobs:
           else
             scripts/update/create_pr.sh
           fi
-          echo ${{ steps.*.outcome }} 
 
       - name: Post to a Slack channel failure
-        if: always() && contains(steps.*.outcome, 'failure')
+        if: ${{ failure() }}
         id: slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
@@ -75,14 +74,3 @@ jobs:
             slack-message: "Slack API Test"
         env:
             SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-
-      - name: Post to a Slack channel success
-        if: always() && contains(steps.*.outcome, 'success')
-        id: slack2
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-            channel-id: 'gophers-development-temp'
-            slack-message: "Slack API Test"
-        env:
-            SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}       
-  
