@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
 # This script has the following arguments:
-#     - link to the upgrade module image (required),
-#     - link to the base module image (optional),
+#     - link to the binary image registry (required),
+#     - tag for the upgrade binary image (required),
+#     - tag for the base binary image (optional),
 #     - ci to indicate call from CI pipeline (optional)
-# ./run_e2e_module_upgrade_tests.sh europe-docker.pkg.dev/kyma-project/prod/unsigned/component-descriptors/kyma.project.io/module/btp-operator:v0.4.1 ci
+# ./run_e2e_module_upgrade_tests.sh europe-docker.pkg.dev/kyma-project/prod/btp-manager v1.0.0 ci
 #
 # The script requires the following environment variable set - these values are used to create unique SI and SB names:
 #      GITHUB_RUN_ID - a unique number for each workflow run within a repository
@@ -24,21 +25,24 @@ set -o pipefail # prevents errors in a pipeline from being masked
 [[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
 [[ -z ${GITHUB_JOB} ]] && echo "required variable GITHUB_JOB not set" && exit 1
 
-if [[ $# -eq 3 ]]; then
-  NEW_MODULE_IMAGE_NAME=$1
-  OLD_MODULE_IMAGE_NAME=$2
-  CI=${3-manual} # if called from any workflow "ci" is expected here
-elif [[ $# -eq 2 ]]; then
-  # get the latest release version
+REGISTRY=${1}
+NEW_TAG=${2}
+
+if [[ $# -eq 4 ]]; then
+  # previous versions explicitly stated
+  BASE_RELEASE=${3}
+  CI=${4-manual} # if called from any workflow "ci" is expected here
+elif [[ $# -eq 3 ]]; then
+  # upgrade from the latest
   REPOSITORY=${REPOSITORY:-kyma-project/btp-manager}
   GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
-  LATEST_RELEASE=$(curl -sS "${GITHUB_URL}/releases/latest" | jq -r '.tag_name')
-  NEW_MODULE_IMAGE_NAME=$1
-  OLD_MODULE_IMAGE_NAME=${NEW_MODULE_IMAGE_NAME/:*/:$LATEST_RELEASE}
-  CI=${2-manual} # if called from any workflow "ci" is expected here
+  BASE_RELEASE=$(curl -sS "${GITHUB_URL}/releases/latest" | jq -r '.tag_name')
+  CI=${3-manual} # if called from any workflow "ci" is expected here
 else
   echo "wrong number of arguments" && exit 1
 fi
+
+NEW_IMAGE_REF=${REGISTRY}:${NEW_TAG}
 
 YAML_DIR="scripts/testing/yaml"
 
@@ -49,9 +53,10 @@ kubectl apply -f ./deployments/prerequisites.yaml
 [ -n "${SM_CLIENT_ID}" ] && [ -n "${SM_CLIENT_SECRET}" ] && [ -n "${SM_URL}" ] && [ -n "${SM_TOKEN_URL}" ] || (echo "Missing credentials - failing test" && exit 1)
 envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 
-# fetch the latest OCI module image and install btp-manager in current cluster
-echo -e "\n--- Running module image: ${OLD_MODULE_IMAGE_NAME}"
-./scripts/run_module_image.sh "${OLD_MODULE_IMAGE_NAME}" ${CI}
+# fetch the latest manifest and install btp-manager in current cluster
+echo -e "\n--- Running base version: ${BASE_RELEASE}"
+#TODO fetch manifest from ${BASE_RELEASE}
+kubectl apply -f <${BASE_MANIFEST}
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
@@ -99,8 +104,9 @@ do echo -e "\n--- Waiting for ServiceBinding to be ready"; sleep 5; done
 echo -e "\n--- ServiceBinding is ready"
 
 echo -e "\n--- Upgrading the module"
-echo -e "\n--- Running module image: ${NEW_MODULE_IMAGE_NAME}"
-./scripts/run_module_image.sh "${NEW_MODULE_IMAGE_NAME}" ${CI}
+echo -e "\n--- Running version: ${NEW_TAG}"
+
+IMG=${NEW_IMAGE_REF} make deploy
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
@@ -212,7 +218,7 @@ echo -e "\n--- BTP Operator deprovisioning succeeded"
 echo -e "\n--- Uninstalling BTP Manager"
 
 # uninstall btp-manager
-./scripts/uninstall_btp_manager.sh
+make undeploy
 
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"

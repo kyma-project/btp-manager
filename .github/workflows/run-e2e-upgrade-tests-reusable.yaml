@@ -9,16 +9,8 @@ on:
         description: Binary image registry reference
         required: true
         type: string
-      module-repo:
-        description: OCI module image registry reference
-        required: true
-        type: string
       image-tag:
         description: Binary image tag
-        required: true
-        type: string
-      module-tag:
-        description: OCI module image tag
         required: true
         type: string
       skip-templates:
@@ -48,4 +40,4 @@ jobs:
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
-        run: "./scripts/testing/run_e2e_module_upgrade_tests.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ci"
+        run: "./scripts/testing/run_e2e_module_upgrade_tests.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ci"
