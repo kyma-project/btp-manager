@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Post to a Slack channel
+      - name: Post to a Slack channel failure
+        if: ${{ always() && contains(steps.*.result, 'failure') }}
         id: slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
@@ -24,6 +25,16 @@ jobs:
           slack-message: "Slack API Test"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Post to a Slack channel success
+        if: ${{ always() && contains(steps.*.result, 'success') }}
+        id: slack2
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: 'gophers-development-temp'
+          slack-message: "Slack API Test"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}       
 
       - name: Checkout code
         uses: actions/checkout@v3
@@ -36,6 +47,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Compare tags
+        id: compareTages
         run: |
           latest=$(scripts/update/get-latest-chart-version.sh)
           current=$(yq '.version' ./module-chart/chart/Chart.yaml)
@@ -51,12 +63,14 @@ jobs:
           fi
 
       - name: Update chart and module resources
+        id: update
         if: env.CONTINUE_JOB == 'true'
         run: |
           scripts/update/make-module-chart.sh $TAG
           scripts/update/make-module-resources.sh $TAG
 
       - name: Create PR if anything changed
+        id: createPr
         if: env.CONTINUE_JOB == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
