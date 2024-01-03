@@ -111,8 +111,8 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 		reporterCfg.Succinct = true
 	}
 
-	trace := os.Getenv("GINKGO_TRACE")
-	if trace != "" && trace != "trace" {
+	setTrace := os.Getenv("GINKGO_TRACE")
+	if setTrace == "trace" {
 		reporterCfg.FullTrace = true
 	}
 
