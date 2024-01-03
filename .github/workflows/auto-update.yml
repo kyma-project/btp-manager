@@ -28,6 +28,7 @@ jobs:
 
       - name: Compare tags
         run: |
+          exit 1
           latest=$(scripts/update/get-latest-chart-version.sh)
           current=$(yq '.version' ./module-chart/chart/Chart.yaml)
           if [[ $latest == $current ]]; then
@@ -65,7 +66,7 @@ jobs:
         if: ${{ failure() }}
         uses: slackapi/slack-github-action@v1.24.0
         with:
-            channel-id: 'gophers-development-temp'
+            channel-id: 'kyma-gopher-private-alerts'
             slack-message: "Auto-Update failed. Check details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
             SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
