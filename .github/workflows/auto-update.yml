@@ -49,6 +49,7 @@ jobs:
       - name: Compare tags
         id: compareTages
         run: |
+          echo ${{steps}}
           latest=$(scripts/update/get-latest-chart-version.sh)
           current=$(yq '.version' ./module-chart/chart/Chart.yaml)
           if [[ $latest == $current ]]; then
