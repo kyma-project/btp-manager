@@ -20,6 +20,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
       - name: Compare tags
         run: |
           latest=$(scripts/update/get-latest-chart-version.sh)
