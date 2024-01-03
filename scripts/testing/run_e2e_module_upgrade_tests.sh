@@ -54,8 +54,11 @@ envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 echo -e "\n--- Running base version: ${BASE_RELEASE}"
 
 BASE_MANIFEST_FILE="btp-manager.base.yaml"
-scripts/get_manifest.sh "${BASE_RELEASE}" >BASE_MANIFEST_FILE
-#TODO add check for not found
+scripts/get_manifest.sh "${BASE_RELEASE}" >${BASE_MANIFEST_FILE}
+
+if head output.txt|grep -q "Not Found"; then
+  echo "Cannot get manifest for base release: ${BASE_RELEASE}" && exit 1
+fi
 
 kubectl apply -f <${BASE_MANIFEST_FILE}
 rm ${BASE_MANIFEST_FILE}
