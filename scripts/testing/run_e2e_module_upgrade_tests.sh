@@ -4,8 +4,7 @@
 #     - link to the binary image registry (required),
 #     - tag for the upgrade binary image (required),
 #     - tag for the base binary image (optional),
-#     - ci to indicate call from CI pipeline (optional)
-# ./run_e2e_module_upgrade_tests.sh europe-docker.pkg.dev/kyma-project/prod/btp-manager v1.0.0 ci
+# ./run_e2e_module_upgrade_tests.sh europe-docker.pkg.dev/kyma-project/prod/btp-manager v1.0.0
 #
 # The script requires the following environment variable set - these values are used to create unique SI and SB names:
 #      GITHUB_RUN_ID - a unique number for each workflow run within a repository
@@ -29,15 +28,13 @@ REGISTRY=${1}
 NEW_TAG=${2}
 
 if [[ $# -eq 4 ]]; then
-  # previous versions explicitly stated
+  # base version explicitly stated
   BASE_RELEASE=${3}
-  CI=${4-manual} # if called from any workflow "ci" is expected here
 elif [[ $# -eq 3 ]]; then
   # upgrade from the latest
   REPOSITORY=${REPOSITORY:-kyma-project/btp-manager}
   GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
   BASE_RELEASE=$(curl -sS "${GITHUB_URL}/releases/latest" | jq -r '.tag_name')
-  CI=${3-manual} # if called from any workflow "ci" is expected here
 else
   echo "wrong number of arguments" && exit 1
 fi
@@ -55,8 +52,13 @@ envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 
 # fetch the latest manifest and install btp-manager in current cluster
 echo -e "\n--- Running base version: ${BASE_RELEASE}"
-#TODO fetch manifest from ${BASE_RELEASE}
-kubectl apply -f <${BASE_MANIFEST}
+
+BASE_MANIFEST_FILE="btp-manager.base.yaml"
+scripts/get_manifest.sh "${BASE_RELEASE}" >BASE_MANIFEST_FILE
+#TODO add check for not found
+
+kubectl apply -f <${BASE_MANIFEST_FILE}
+rm ${BASE_MANIFEST_FILE}
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];

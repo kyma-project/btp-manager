@@ -40,4 +40,4 @@ jobs:
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
-        run: "./scripts/testing/run_e2e_module_upgrade_tests.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ci"
+        run: "./scripts/testing/run_e2e_module_upgrade_tests.sh ${{ inputs.image-repo }} ${{ inputs.image-tag }}"
