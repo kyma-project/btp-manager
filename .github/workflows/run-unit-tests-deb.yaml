@@ -1,4 +1,4 @@
-name: Run unit tests (debugger)
+name: Run unit tests (deb)
 on:
   workflow_dispatch:
   schedule:
@@ -18,5 +18,5 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Run make test (no p)
+      - name: Run make test (deb)
         run: make test
