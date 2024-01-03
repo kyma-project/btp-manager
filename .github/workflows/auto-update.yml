@@ -29,6 +29,7 @@ jobs:
       - name: Compare tags
         id: compareTages
         run: |
+          exit 1
           echo ${{steps.*.outcome}}
           latest=$(scripts/update/get-latest-chart-version.sh)
           current=$(yq '.version' ./module-chart/chart/Chart.yaml)
@@ -64,7 +65,6 @@ jobs:
           else
             scripts/update/create_pr.sh
           fi
-          exit 1
 
       - name: Post to a Slack channel failure
         if: ${{ failure() }}
