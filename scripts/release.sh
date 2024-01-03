@@ -67,7 +67,7 @@ if [ -e "manifests/btp-operator/btp-manager.yaml" ]
 then
   uploadFile "manifests/btp-operator/btp-manager.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
 else
-  echo "Manifest file does not exists"
+  echo "Manifest file does not exist"
   exit 1
 fi
 
@@ -75,6 +75,6 @@ if [ -e "examples/btp-operator.yaml" ]
 then
   uploadFile "examples/btp-operator.yaml" "${UPLOAD_URL}?name=btp-operator-default-cr.yaml"
 else
-  echo "BTP operator CR does not exists"
+  echo "BTP operator CR does not exist"
   exit 1
 fi
