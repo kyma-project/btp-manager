@@ -47,34 +47,21 @@ CURL_RESPONSE=$(curl -w "%{http_code}" -sL \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
                 https://api.github.com/repos/kyma-project/btp-manager/releases)
+
 JSON_RESPONSE=$(sed '$ d' <<< "${CURL_RESPONSE}")
 HTTP_CODE=$(tail -n1 <<< "${CURL_RESPONSE}")
-if [[ "${HTTP_CODE}" != "200" ]]; then
-  echo "${JSON_RESPONSE}" && exit 1
-fi
+[[ "${HTTP_CODE}" != "200" ]] && echo "${JSON_RESPONSE}" && exit 1
 
 RELEASE_ID=$(jq <<< ${JSON_RESPONSE} --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .id')
 
-if [ -z "${RELEASE_ID}" ]
-then
-  echo "No release with tag = ${PULL_BASE_REF}"
-  exit 1
-fi
+[[ -z "${RELEASE_ID}" ]] && echo "No release with tag: ${PULL_BASE_REF}" && exit 1
 
 UPLOAD_URL="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${RELEASE_ID}/assets"
 
-if [ -e "manifests/btp-operator/btp-manager.yaml" ]
-then
-  uploadFile "manifests/btp-operator/btp-manager.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
-else
-  echo "Manifest file does not exist"
-  exit 1
-fi
+[[ ! -e "manifests/btp-operator/btp-manager.yaml" ]] && echo "Manifest file does not exist" && exit 1
 
-if [ -e "examples/btp-operator.yaml" ]
-then
-  uploadFile "examples/btp-operator.yaml" "${UPLOAD_URL}?name=btp-operator-default-cr.yaml"
-else
-  echo "BTP operator CR does not exist"
-  exit 1
-fi
+uploadFile "manifests/btp-operator/btp-manager.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
+
+[[ ! -e "examples/btp-operator.yaml" ]] && echo "BTP operator CR does not exist" && exit 1
+
+uploadFile "examples/btp-operator.yaml" "${UPLOAD_URL}?name=btp-operator-default-cr.yaml"
