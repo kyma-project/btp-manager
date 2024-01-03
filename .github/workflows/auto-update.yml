@@ -28,7 +28,6 @@ jobs:
 
       - name: Compare tags
         run: |
-          exit 1
           latest=$(scripts/update/get-latest-chart-version.sh)
           current=$(yq '.version' ./module-chart/chart/Chart.yaml)
           if [[ $latest == $current ]]; then
