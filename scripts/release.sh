@@ -40,15 +40,7 @@ MODULE_VERSION=${PULL_BASE_REF} SECURITY_SCAN_OPTIONS="--sec-scanners-config ${S
 
 rm -rf ${SCAN_CONFIG_FILE}
 
-echo "Generated template.yaml:"
-cat template.yaml
-
-sed 's/target: remote/target: control-plane/g' <template.yaml >template_control_plane.yaml
-
-echo "Generated template_control_plane.yaml:"
-cat template_control_plane.yaml
-
-echo "Updating github release with template.yaml, template_control_plane.yaml, btp-manager.yaml, btp-operator-default-cr.yaml"
+echo "Updating github release with btp-manager.yaml, btp-operator-default-cr.yaml"
 
 echo "Finding release id for: ${PULL_BASE_REF}"
 CURL_RESPONSE=$(curl -w "%{http_code}" -sL \
@@ -71,15 +63,12 @@ fi
 
 UPLOAD_URL="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${RELEASE_ID}/assets"
 
-uploadFile "template.yaml" "${UPLOAD_URL}?name=template.yaml"
-
-uploadFile "template_control_plane.yaml" "${UPLOAD_URL}?name=template_control_plane.yaml"
-
-if [ -e "manifests/btp-operator/rendered.yaml" ]
+if [ -e "manifests/btp-operator/btp-manager.yaml" ]
 then
-  uploadFile "manifests/btp-operator/rendered.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
+  uploadFile "manifests/btp-operator/btp-manager.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
 else
-  uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
+  echo "Manifest file does not exists"
+  exit 1
 fi
 
 if [ -e "examples/btp-operator.yaml" ]

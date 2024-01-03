@@ -26,7 +26,7 @@ SUITE_TIMEOUT ?= $${SUITE_TIMEOUT:-30s}
 
 # btp-manager manifest file
 MANIFEST_PATH=./manifests/btp-operator
-MANIFEST_FILE=rendered.yaml
+MANIFEST_FILE=btp-manager.yaml
 
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY_PORT ?= 60765
