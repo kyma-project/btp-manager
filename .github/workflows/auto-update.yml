@@ -66,6 +66,6 @@ jobs:
         uses: slackapi/slack-github-action@v1.24.0
         with:
             channel-id: 'kyma-gopher-private-alerts'
-            slack-message: "Auto-Update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            slack-message: "Auto-update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
             SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
