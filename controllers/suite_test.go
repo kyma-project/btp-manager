@@ -43,7 +43,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -101,6 +101,7 @@ func TestAPIs(t *testing.T) {
 
 func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgotypes.SuiteConfig) {
 	verbosity := os.Getenv("GINKGO_VERBOSE_FLAG")
+	// If not override Ginkgo verbosity then "Normal" option will be used.
 	switch {
 	case verbosity == "ginkgo.v":
 		reporterCfg.Verbose = true
@@ -108,9 +109,13 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 		reporterCfg.VeryVerbose = true
 	case verbosity == "ginkgo.succinct":
 		reporterCfg.Succinct = true
-	default:
-		reporterCfg.Verbose = true
 	}
+
+	setTrace := os.Getenv("GINKGO_TRACE")
+	if setTrace == "trace" {
+		reporterCfg.FullTrace = true
+	}
+
 	suiteCfg.LabelFilter = os.Getenv("GINKGO_LABEL_FILTER")
 	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
 }
@@ -145,7 +150,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
