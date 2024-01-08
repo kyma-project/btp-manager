@@ -62,7 +62,7 @@ jobs:
           fi
 
       - name: Notify slack channel about failure
-        if: ${{ failure() }}
+        if: ${{ failure() && env.SLACK_BOT_TOKEN != ''}}
         uses: slackapi/slack-github-action@v1.24.0
         with:
             channel-id: 'kyma-gopher-private-alerts'
