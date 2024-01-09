@@ -176,6 +176,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
