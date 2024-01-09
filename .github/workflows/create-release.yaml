@@ -55,7 +55,7 @@ jobs:
 
       - name: Check for existing artifacts from previous release runs
         env:
-          BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
+          BTP_MANAGER_REPO: ${IMAGE_REPO}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }}"
 
@@ -71,7 +71,7 @@ jobs:
       - name: Validate labels
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
+          REPOSITORY: ${KYMA_BTP_MANAGER_REPO}
         run: python3 scripts/python/release_label_validator.py
 
   bump-sec-scanners-config:
@@ -87,7 +87,7 @@ jobs:
 
       - name: Update sec-scanners-config.yaml
         if: ${{ inputs.sec-scanners-config }}
-        run: scripts/create_scan_config.sh ${{env.IMAGE_REPO}}:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
+        run: scripts/create_scan_config.sh ${IMAGE_REPO}:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
 
       - name: Create PR if anything changed
         if: ${{ inputs.sec-scanners-config }}
@@ -183,13 +183,13 @@ jobs:
 
       - name: Wait for artifacts
         env:
-          BTP_MANAGER_REPO: ${{ env.IMAGE_REPO }}
+          BTP_MANAGER_REPO: ${IMAGE_REPO}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_image.sh ${{ inputs.name }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ env.IMAGE_REPO }}:${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install_module.sh ${IMAGE_REPO}:${{ inputs.name }} dummy ci"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh"
@@ -214,7 +214,7 @@ jobs:
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
     with:
       image-tag: ${{ github.event.inputs.name }}
-      image-repo: ${{ env.IMAGE_REPO }}
+      image-repo: ${IMAGE_REPO}
 
   create-draft:
     name: Create draft release
