@@ -28,7 +28,7 @@ jobs:
         env:
           BTP_MANAGER_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_imageX.sh ${{ inputs.image-tag }}"
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Run tests
         env:
