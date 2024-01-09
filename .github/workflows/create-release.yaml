@@ -55,7 +55,6 @@ jobs:
 
       - name: Check for existing artifacts from previous release runs
         env:
-          BTP_MANAGER_REPO: $IMAGE_REPO
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }}"
 
@@ -71,7 +70,7 @@ jobs:
       - name: Validate labels
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: $KYMA_BTP_MANAGER_REPO
+          REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
         run: python3 scripts/python/release_label_validator.py
 
   bump-sec-scanners-config:
@@ -183,7 +182,6 @@ jobs:
 
       - name: Wait for artifacts
         env:
-          BTP_MANAGER_REPO: $IMAGE_REPO
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_image.sh ${{ inputs.name }}"
 
@@ -214,7 +212,7 @@ jobs:
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
     with:
       image-tag: ${{ github.event.inputs.name }}
-      image-repo: $IMAGE_REPO
+      image-repo: ${{ env.IMAGE_REPO }}
 
   create-draft:
     name: Create draft release

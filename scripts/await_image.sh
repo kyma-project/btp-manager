@@ -12,7 +12,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 # ./await_image.sh 1.1.0
 
 # Expected variables:
-#             BTP_MANAGER_REPO - btp-operator binary image repository
+#             IMAGE_REPO - btp-operator binary image repository
 #             GITHUB_TOKEN - github token
 
 
@@ -20,8 +20,8 @@ export IMAGE_TAG=$1
 
 PROTOCOL=docker://
 
-until $(skopeo list-tags ${PROTOCOL}${BTP_MANAGER_REPO} | jq '.Tags|any(. == env.IMAGE_TAG)'); do
-  echo "Waiting for BTP Manager binary image: ${BTP_MANAGER_REPO}:${IMAGE_TAG}"
+until $(skopeo list-tags ${PROTOCOL}${IMAGE_REPO} | jq '.Tags|any(. == env.IMAGE_TAG)'); do
+  echo "Waiting for BTP Manager binary image: ${IMAGE_REPO}:${IMAGE_TAG}"
   sleep 10
 done
 
