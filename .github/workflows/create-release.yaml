@@ -212,7 +212,7 @@ jobs:
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
     with:
       image-tag: ${{ github.event.inputs.name }}
-      image-repo: ${{ env.IMAGE_REPO }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
 
   create-draft:
     name: Create draft release
