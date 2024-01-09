@@ -27,10 +27,10 @@ set -o pipefail # prevents errors in a pipeline from being masked
 REGISTRY=${1}
 NEW_TAG=${2}
 
-if [[ $# -eq 4 ]]; then
+if [[ $# -eq 3 ]]; then
   # base version explicitly stated
   BASE_RELEASE=${3}
-elif [[ $# -eq 3 ]]; then
+elif [[ $# -eq 2 ]]; then
   # upgrade from the latest
   REPOSITORY=${REPOSITORY:-kyma-project/btp-manager}
   GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
