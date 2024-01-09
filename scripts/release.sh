@@ -29,18 +29,14 @@ uploadFile() {
   fi
 }
 
+MANIFEST_FILE="./manifests/btp-operator/btp-manager.yaml"
+
 IMG=${IMG_REGISTRY}/btp-manager:$PULL_BASE_REF
 echo "Referring to image: ${IMG}"
 
-## prepare security scanning configuration for the module template
-SCAN_CONFIG_FILE=module_scanners_config.yaml
-scripts/create_scan_config.sh ${IMG} ${SCAN_CONFIG_FILE}
+make save-manifest-and-deploy
 
-MODULE_VERSION=${PULL_BASE_REF} SECURITY_SCAN_OPTIONS="--sec-scanners-config ${SCAN_CONFIG_FILE}" make module-build
-
-rm -rf ${SCAN_CONFIG_FILE}
-
-echo "Updating github release with btp-manager.yaml, btp-operator-default-cr.yaml"
+echo "Updating github release with btp-manager.yaml and btp-operator-default-cr.yaml"
 
 echo "Finding release id for: ${PULL_BASE_REF}"
 CURL_RESPONSE=$(curl -w "%{http_code}" -sL \
@@ -58,9 +54,9 @@ RELEASE_ID=$(jq <<< ${JSON_RESPONSE} --arg tag "${PULL_BASE_REF}" '.[] | select(
 
 UPLOAD_URL="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${RELEASE_ID}/assets"
 
-[[ ! -e "manifests/btp-operator/btp-manager.yaml" ]] && echo "Manifest file does not exist" && exit 1
+[[ ! -e ${MANIFEST_FILE} ]] && echo "Manifest file does not exist" && exit 1
 
-uploadFile "manifests/btp-operator/btp-manager.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
+uploadFile "${MANIFEST_FILE}" "${UPLOAD_URL}?name=btp-manager.yaml"
 
 [[ ! -e "examples/btp-operator.yaml" ]] && echo "BTP operator CR does not exist" && exit 1
 
