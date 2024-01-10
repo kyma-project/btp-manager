@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This script has the following argument:
-#     - releaseID (mandatory),
+#     - releaseID (mandatory)
 # ./upload_release_assets.sh 12345678
 
 set -x
