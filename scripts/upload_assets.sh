@@ -2,9 +2,7 @@
 
 # This script has the following argument:
 #     - releaseID (mandatory)
-# ./upload_release_assets.sh 12345678
-
-set -x
+# ./upload_assets.sh 12345678
 
 RELEASE_ID=${1}
 

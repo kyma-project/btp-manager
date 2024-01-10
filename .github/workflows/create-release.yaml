@@ -250,7 +250,7 @@ jobs:
           BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make create-manifest
-          ./scripts/upload_release_assets.sh ${{ steps.create-draft.outputs.release_id }}
+          ./scripts/upload_assets.sh ${{ steps.create-draft.outputs.release_id }}
 
       - name: Create lightweight tag
         run: |
