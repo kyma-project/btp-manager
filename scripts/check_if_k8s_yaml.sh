@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 # This script returns the name of the raw Kubernetes YAML if present
 
 # standard bash error handling

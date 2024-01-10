@@ -8,6 +8,7 @@
 #     ./stress-mem-secrets-configmaps.sh 100
 
 N=${1-100}
+SIZE=4000
 YAML_DIR=./scripts/testing/yaml
 
 echo -e "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: kyma-system" | kubectl apply -f -
@@ -16,7 +17,7 @@ echo -e "\n---Creating the secret template"
 
 cat ${YAML_DIR}/secret.tmpl.yaml > secret.yaml
 cat ${YAML_DIR}/cm.tmpl.yaml > cm.yaml
-for ((i=1; i <= 4000 ; i++))
+for ((i=1; i <= SIZE ; i++))
 do
   echo "  key$i: \"data-01234567890123456789-abcdefgh-$i\"" >> secret.yaml
   echo "  key$i: \"data-01234567890123456789-abcdefgh-$i\"" >> cm.yaml

@@ -9,19 +9,20 @@ set -o pipefail # prevents errors in a pipeline from being masked
 # This script has the following arguments:
 #                       - BTP Manager binary image tag - mandatory
 #
-# ./check_artifacts_existence.sh 1.1.0
+# ./await_image.sh 1.1.0
 
 # Expected variables:
-#             IMAGE_REPO   - binary image repository
+#             IMAGE_REPO - btp-operator binary image repository
 #             GITHUB_TOKEN - github token
+
 
 export IMAGE_TAG=$1
 
 PROTOCOL=docker://
 
-if [ $(skopeo list-tags ${PROTOCOL}${IMAGE_REPO} | jq '.Tags|any(. == env.IMAGE_TAG)') == "true" ]
-then
-  echo "::warning ::BTP Manager binary image for tag ${IMAGE_TAG} already exists"
-else
-  echo "No previous BTP Manager binary image found for tag ${IMAGE_TAG}"
-fi
+until $(skopeo list-tags ${PROTOCOL}${IMAGE_REPO} | jq '.Tags|any(. == env.IMAGE_TAG)'); do
+  echo "Waiting for BTP Manager binary image: ${IMAGE_REPO}:${IMAGE_TAG}"
+  sleep 10
+done
+
+echo "BTP Manager binary image available"
