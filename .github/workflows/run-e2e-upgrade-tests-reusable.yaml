@@ -9,21 +9,9 @@ on:
         description: Binary image registry reference
         required: true
         type: string
-      module-repo:
-        description: OCI module image registry reference
-        required: true
-        type: string
       image-tag:
         description: Binary image tag
         required: true
-        type: string
-      module-tag:
-        description: OCI module image tag
-        required: true
-        type: string
-      skip-templates:
-        description: wait for images only, skip template artifacts
-        required: false
         type: string
 jobs:
   run-e2e-upgrade-tests:
@@ -33,15 +21,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for artifacts
         env:
-          BTP_OPERATOR_REPO: ${{ inputs.module-repo }}
-          BTP_MANAGER_REPO: ${{ inputs.image-repo }}
+          IMAGE_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_artifacts.sh ${{ inputs.image-tag }} ${{ inputs.module-tag }} ${{ inputs.skip-templates }}"
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Run tests
         env:
@@ -49,4 +41,4 @@ jobs:
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
-        run: "./scripts/testing/run_e2e_module_upgrade_tests.sh ${{ inputs.module-repo }}:${{ inputs.module-tag }} ci"
+        run: "./scripts/testing/run_e2e_module_upgrade_tests.sh ${{ inputs.image-repo }} ${{ inputs.image-tag }}"

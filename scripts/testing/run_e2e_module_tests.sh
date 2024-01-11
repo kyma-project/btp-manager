@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # This script has the following arguments:
-#     - link to a module image (required),
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
@@ -142,7 +141,7 @@ echo -e "\n--- BTP Operator deprovisioning succeeded"
 echo -e "\n--- Uninstalling BTP Manager"
 
 # uninstall btp-manager
-./scripts/uninstall_btp_manager.sh
+make undeploy
 
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"

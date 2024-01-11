@@ -29,63 +29,35 @@ uploadFile() {
   fi
 }
 
+MANIFEST_FILE="./manifests/btp-operator/btp-manager.yaml"
+
 IMG=${IMG_REGISTRY}/btp-manager:$PULL_BASE_REF
 echo "Referring to image: ${IMG}"
 
-## prepare security scanning configuration for the module template
-SCAN_CONFIG_FILE=module_scanners_config.yaml
-scripts/create_scan_config.sh ${IMG} ${SCAN_CONFIG_FILE}
+make save-manifest-and-deploy
 
-MODULE_VERSION=${PULL_BASE_REF} SECURITY_SCAN_OPTIONS="--sec-scanners-config ${SCAN_CONFIG_FILE}" make module-build
-
-rm -rf ${SCAN_CONFIG_FILE}
-
-echo "Generated template.yaml:"
-cat template.yaml
-
-sed 's/target: remote/target: control-plane/g' <template.yaml >template_control_plane.yaml
-
-echo "Generated template_control_plane.yaml:"
-cat template_control_plane.yaml
-
-echo "Updating github release with template.yaml, template_control_plane.yaml, btp-manager.yaml, btp-operator-default-cr.yaml"
+echo "Updating github release with btp-manager.yaml and btp-operator-default-cr.yaml"
 
 echo "Finding release id for: ${PULL_BASE_REF}"
 CURL_RESPONSE=$(curl -w "%{http_code}" -sL \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $BOT_GITHUB_TOKEN"\
                 https://api.github.com/repos/kyma-project/btp-manager/releases)
+
 JSON_RESPONSE=$(sed '$ d' <<< "${CURL_RESPONSE}")
 HTTP_CODE=$(tail -n1 <<< "${CURL_RESPONSE}")
-if [[ "${HTTP_CODE}" != "200" ]]; then
-  echo "${JSON_RESPONSE}" && exit 1
-fi
+[[ "${HTTP_CODE}" != "200" ]] && echo "${JSON_RESPONSE}" && exit 1
 
 RELEASE_ID=$(jq <<< ${JSON_RESPONSE} --arg tag "${PULL_BASE_REF}" '.[] | select(.tag_name == $ARGS.named.tag) | .id')
 
-if [ -z "${RELEASE_ID}" ]
-then
-  echo "No release with tag = ${PULL_BASE_REF}"
-  exit 1
-fi
+[[ -z "${RELEASE_ID}" ]] && echo "No release with tag: ${PULL_BASE_REF}" && exit 1
 
 UPLOAD_URL="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${RELEASE_ID}/assets"
 
-uploadFile "template.yaml" "${UPLOAD_URL}?name=template.yaml"
+[[ ! -e ${MANIFEST_FILE} ]] && echo "Manifest file does not exist" && exit 1
 
-uploadFile "template_control_plane.yaml" "${UPLOAD_URL}?name=template_control_plane.yaml"
+uploadFile "${MANIFEST_FILE}" "${UPLOAD_URL}?name=btp-manager.yaml"
 
-if [ -e "manifests/btp-operator/rendered.yaml" ]
-then
-  uploadFile "manifests/btp-operator/rendered.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
-else
-  uploadFile "charts/btp-operator/templates/rendered.yaml" "${UPLOAD_URL}?name=btp-manager.yaml"
-fi
+[[ ! -e "examples/btp-operator.yaml" ]] && echo "BTP operator CR does not exist" && exit 1
 
-if [ -e "examples/btp-operator.yaml" ]
-then
-  uploadFile "examples/btp-operator.yaml" "${UPLOAD_URL}?name=btp-operator-default-cr.yaml"
-else
-  echo "BTP operator CR does not exists"
-  exit 1
-fi
+uploadFile "examples/btp-operator.yaml" "${UPLOAD_URL}?name=btp-operator-default-cr.yaml"
