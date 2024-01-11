@@ -4,15 +4,14 @@
 
 To create a real BTP Manager Secret, follow these steps:
 1. Create a ServiceBinding to obtain the access credentials to the ServiceInstance as described in the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation (point 2: Obtain the access credentials for the SAP BTP service operator).
-2. Create a temporary working directory and name it `hack`. 
-3. Copy and save the access credentials into your `creds.json` file in your working directory. 
-4. In the same directory, run the following script to create the Secret:
+2. Copy and save the access credentials into your `creds.json` file in your working directory. 
+3. In the same directory, run the following script to create the Secret:
    
    ```sh
    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s
    ```
 
-5. Apply the Secret in your cluster. 
+4. Apply the Secret in your cluster. 
 
    > **CAUTION:** The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
 
@@ -101,9 +100,9 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     kubectl delete servicebindings.services.cloud.sap.com btp-audit-log-binding
     kubectl delete serviceinstances.services.cloud.sap.com btp-audit-log-instance
     ```
-    To remove the Secret, use the following command:
+    To remove the BTP Manager Secret, use the following command:
     ```bash
-    kubectl delete -f hack/operator-secret.yaml
+    kubectl delete -f operator-secret.yaml
     ```
 
 ## Create a ServiceInstance with a Custom Secret
@@ -118,12 +117,12 @@ To create a ServiceInstance with a custom Secret, follow these steps:
 
 1. Get the access credentials of the SAP BTP Service Manager Instance with the `service-operator-access` plan from its ServiceBinding. Copy them from the BTP cockpit as a JSON. 
 
-2. Go to `hack/creds.json` and insert the credentials there.
+2. Create the `creds.json` file in your working directory and insert the credentials there.
 
-3. To generate a Secret, call the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name** as the second parameter.
+3. In the same working directory, generate a Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name** as the second parameter.
 
    ```sh
-   ./hack/create-secret-file.sh operator test-secret
+    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh manager 'your-secret-name'| bash -s
     kubectl apply -f btp-access-credentials-secret.yaml
    ```
 
