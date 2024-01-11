@@ -25,7 +25,7 @@ To create a release, follow these steps:
 2. The GitHub action, defined in the [`create-release.yaml`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that will be part of this release are labeled correctly.
 3. If you chose in step 1.vi to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
 4. A code owner approves the PR. 
-5. The GitHub action creates a GitHub tag and draft release with the provided name, create release assets and uploads these.
+5. The GitHub action creates a GitHub tag and draft release with the provided name, creates release assets and uploads these.
 6. The GitHub action asynchronously initiates unit tests and an await for Prow Jobs status.
 7. The tag creation triggers Prow Job, `post-btp-manager-build`, defined in [`btp-manager-build.yaml`](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/kyma-project/btp-manager/btp-manager-build.yaml).
 8. `post-btp-manager-build` builds a Docker image tagged with the release name.
