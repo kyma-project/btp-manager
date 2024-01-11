@@ -55,32 +55,3 @@ The GitHub Actions workflows execute the two tests:
 The Kubernetes cluster is created, and the sources are checked out.
 The workflows wait till the binary image is available for fetching.
 The scripts create the required prerequisites, get the BTP Manager and BtpOperator installed or upgraded, validate expected statuses, and get BtpOperator and BTP Manager uninstalled.
-
-### Run E2E Tests Locally on k3d Cluster
-> **NOTE:**
-> Valid only for the installation and uninstallation e2e tests.
-
-For local tests, you can use the OCI module image from the official registry (that is, the module image created by the Prow presubmit job) 
-or you can use the local registry.
-The easiest way is to create a k3d cluster and a local registry by running the following command:
-
-```shell
-kyma provision k3d
-```
-
-The `k3d-kyma` cluster will be created along with the k3d registry `k3d-kyma-registry:5001`.
-
-Now you can run E2E tests. Setting PR_NAME allows you to control the image tag.
-If you want to tag the images with `PR-234`, run the following script:
-
-```shell
-PR_NAME=PR-234 ./scripts/testing/run_e2e_on_k3d.sh
-```
-
-The script:
-1. Creates the binary `btp-manager:${PR_NAME}` image, and pushes it to the k3d registry.
-2. Creates the OCI module image `component-descriptors/kyma.project.io/module/btp-operator:v0.0.0-${PR_NAME}`, and pushes the module to the k3d registry.
-3. Downloads the BtpOperator OCI module image from k3d registry.
-4. Installs BTP Manager, BtpOperator, ServiceInstance, and ServiceBinding.
-5. Verifies states of resources.
-6. Uninstalls BtpOperator and BTP Manager.
