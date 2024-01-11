@@ -1,8 +1,8 @@
-# E2E Tests of BTP Manager Installation from OCI Module Image
+# E2E Tests of BTP Manager Installation
 
 ## Overview
 
-The end-to-end (E2E) tests check if you can install, upgrade and uninstall BTP Manager using an OCI module image.
+The end-to-end (E2E) tests check if you can install, upgrade and uninstall BTP Manager.
 There are two tests:
 - `e2e-tests` for checking installation and uninstallation of a given BTP Manager version
 - `e2e-upgrade-tests` for checking BTP Manager upgradability from one version to another
@@ -10,56 +10,42 @@ There are two tests:
 The flows of the tests are similar. The upgrade tests contain extra steps for checking whether BTP Manager works as expected after upgrading to a new version. You can see the differences between the tests in the descriptions of the tests' flows below.
 
 #### E2E Tests for Installation and Uninstallation Flow
-1. Create an OCI module image.
-2. Push the image to the registry.
-3. Create a Kubernetes cluster.
-4. Wait for the BtpOperator OCI module image to be available in the registry.
-5. Wait for the BTP Manager image to be available in the registry.
-6. Download the BtpOperator OCI module image.
-7. Install the BTP Manager using `kubectl apply`.
-8. Verify if deployment is in the `Available` state.
-9. Install BtpOperator.
-10. Verify if BtpOperator has the `Ready` status equal to `True`.
-11. Create a ServiceInstance and ServiceBinding with either real or dummy credentials. 
-12. When real credentials are used, verify if the ServiceInstance and ServiceBinding have the `Ready` status set to `True`. If dummy credentials are used, verify if the `Ready` status for both of them is `NotProvisioned`.
-13. Try to uninstall BtpOperator without the `force delete` label.
-14. Verify if the deprovisioning safety measures work.
-15. Add the `force delete` label to BtpOperator custom resource (CR).
-16. Verify if BtpOperator, ServiceInstance CustomResourceDefinition (CRD) and ServiceBinding CRD were deleted.
-17. Uninstall BTP Manager. 
+1. Create a Kubernetes cluster.
+2. Wait for the BTP Manager image to be available in the registry.
+3. Install the BTP Manager using `make deploy`.
+4. Verify if deployment is in the `Available` state.
+5. Install BtpOperator. 
+6. Verify if BtpOperator has the `Ready` status equal to `True`. 
+7. Create a ServiceInstance and ServiceBinding with either real or dummy credentials. 
+8. When real credentials are used, verify if the ServiceInstance and ServiceBinding have the `Ready` status set to `True`. If dummy credentials are used, verify if the `Ready` status for both of them is `NotProvisioned`. 
+9. Try to uninstall BtpOperator without the `force delete` label. 
+10. Verify if the deprovisioning safety measures work. 
+11. Add the `force delete` label to BtpOperator custom resource (CR). 
+12. Verify if BtpOperator, ServiceInstance CustomResourceDefinition (CRD) and ServiceBinding CRD were deleted. 
+13. Uninstall BTP Manager. 
 
 #### E2E Tests for Upgradability Flow:
-1. Create an OCI module image.
-2. Push the image to the registry.
-3. Create a Kubernetes cluster.
-4. Wait for the new BtpOperator OCI module image to be available in the registry.
-5. Wait for the new BTP Manager image to be available in the registry.
-6. Download the latest BtpOperator OCI module image.
-7. Install the latest release of BTP Manager using `kubectl apply`.
-8. Verify if deployment is in the `Available` state.
-9. Install BtpOperator.
-10. Verify if BtpOperator has the `Ready` status equal to `True`.
-11. Create a ServiceInstance and ServiceBinding with real credentials.
-12. Verify if the ServiceInstance and ServiceBinding have the `Ready` status set to `True`.
-13. Download the new BtpOperator OCI module image.
-14. Upgrade BTP Manager to the new version using `kubectl apply`.
-15. Verify if deployment is in the `Available` state.
-16. Verify if the existing ServiceInstance and ServiceBinding have the `Ready` status set to `True`.
-17. Create a new ServiceBinding with real credentials.
-18. Verify if the new ServiceBinding has the `Ready` status set to `True`.
-19. Try to uninstall BtpOperator without the `force delete` label.
-20. Verify if the deprovisioning safety measures work.
-21. Add the `force delete` label to BtpOperator CR.
-22. Verify if BtpOperator, ServiceInstance CRD and ServiceBinding CRD were deleted.
-23. Uninstall BTP Manager.
+1. Create a Kubernetes cluster. 
+2. Wait for the new BTP Manager image to be available in the registry.
+3. Download the manifest for the latest release.
+4. Install the latest release of BTP Manager using `kubectl apply`.
+5. Verify if deployment is in the `Available` state.
+6. Install BtpOperator.
+7. Verify if BtpOperator has the `Ready` status equal to `True`.
+8. Create a ServiceInstance and ServiceBinding with real credentials.
+9. Verify if the ServiceInstance and ServiceBinding have the `Ready` status set to `True`.
+10. Upgrade BTP Manager to the new version using `make deploy`.
+11. Verify if deployment is in the `Available` state.
+12. Verify if the existing ServiceInstance and ServiceBinding have the `Ready` status set to `True`.
+13. Create a new ServiceBinding with real credentials.
+14. Verify if the new ServiceBinding has the `Ready` status set to `True`.
+15. Try to uninstall BtpOperator without the `force delete` label.
+16. Verify if the deprovisioning safety measures work.
+17. Add the `force delete` label to BtpOperator CR.
+18. Verify if BtpOperator, ServiceInstance CRD and ServiceBinding CRD were deleted.
+19. Uninstall BTP Manager.
 
 ### CI Pipelines
-The Prow presubmit job, `pull-btp-manager-module-build`, creates the OCI module image. The [`create_module_image.sh`](../../scripts/create_module_image.sh) script does the actual execution.
-This script sets appropriate environment variables and invokes `make module-build`. In effect, the module is built, and the OCI module image is pushed to the registry. 
-The registry URL and component name are predefined. 
-
-> **NOTE:**
-> For PR workflow runs, the module image tag has the form `v0.0.0-PR-<PR number>` due to component description requirements imposed by the tooling used.
  
 The GitHub Actions workflows execute the two tests:
 - [`run-e2e-tests-reusable.yaml`](../../scripts/testing/run_e2e_module_tests.sh) 
@@ -67,9 +53,8 @@ The GitHub Actions workflows execute the two tests:
 <br>
 
 The Kubernetes cluster is created, and the sources are checked out.
-The workflows wait till the OCI module image is available for fetching.
-The scripts fetch the OCI module image from the registry. They create the required prerequisites, 
-get the BTP Manager and BtpOperator installed or upgraded, validate expected statuses, and get BtpOperator and BTP Manager uninstalled.
+The workflows wait till the binary image is available for fetching.
+The scripts create the required prerequisites, get the BTP Manager and BtpOperator installed or upgraded, validate expected statuses, and get BtpOperator and BTP Manager uninstalled.
 
 ### Run E2E Tests Locally on k3d Cluster
 > **NOTE:**

@@ -42,17 +42,14 @@ You pass the following parameters from the calling workflow:
 | Parameter name  | Required | Description                                                          |
 | ------------- | ------------- |----------------------------------------------------------------------|
 | **image-repo**  | yes  | binary image registry reference                                      |
-| **module-repo**  | yes  | OCI module image registry reference                                  |
 | **image-tag**  | yes  | binary image tag                                                     |
-| **module-tag**  | yes  | OCI module image tag                                                 |
-| **skip-templates**  | no  | wait for images only, skip other artifacts                           |
 | **last-k3s-versions**  | no  | number of most recent k3s versions to be used for tests, default = `1` |
 
 
 The workflow:
 - fetches the **last-k3s-versions** tag versions of k3s releases 
 - prepares the **last-k3s-versions** k3s clusters with the Docker registries using the list of versions from the previous step
-- waits for the artifacts to be ready in the registry
+- waits for the binary image to be ready in the registry
 - runs the E2E tests on the clusters
 - waits for all tests to finish
 
