@@ -249,7 +249,7 @@ jobs:
         env:
           BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          make create-manifest
+          IMG=$IMAGE_REPO:${{ inputs.name }} make create-manifest
           ./scripts/upload_assets.sh ${{ steps.create-draft.outputs.release_id }}
 
       - name: Create lightweight tag
