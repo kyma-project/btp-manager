@@ -122,7 +122,7 @@ To create a ServiceInstance with a custom Secret, follow these steps:
 3. In the same working directory, generate a Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name** as the second parameter.
 
    ```sh
-    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh operator 'your-secret-name'| bash -s
+    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator 'your-secret-name'
     kubectl apply -f btp-access-credentials-secret.yaml
    ```
 
