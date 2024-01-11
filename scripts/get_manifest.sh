@@ -14,4 +14,4 @@ TAG=${1}
 MANIFEST_FILENAME="btp-manager.yaml"
 BTP_MANAGER_RELEASES_URL="https://github.com/kyma-project/btp-manager/releases"
 
-curl -sJL ${BTP_MANAGER_RELEASES_URL}/download/"${TAG}"/${MANIFEST_FILENAME}
+curl -sL ${BTP_MANAGER_RELEASES_URL}/download/"${TAG}"/${MANIFEST_FILENAME}
