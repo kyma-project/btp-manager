@@ -7,3 +7,4 @@ whitesource:
   subprojects: false
   exclude:
     - "**/*_test.go"
+
