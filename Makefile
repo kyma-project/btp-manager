@@ -1,15 +1,5 @@
-# Module Name used for bundling the OCI Image and later on for referencing in the Kyma Modules
-MODULE_NAME ?= btp-operator
-
 # Semantic Module Version used for identifying the build
 MODULE_VERSION ?= 0.0.1
-
-# Module Registry used for pushing the image
-MODULE_REGISTRY_PORT ?= 60770
-MODULE_REGISTRY ?= op-kcp-registry.localhost:$(MODULE_REGISTRY_PORT)/unsigned
-
-# Desired Channel of the Generated Module Template
-MODULE_CHANNEL ?= alpha
 
 # Operating system architecture
 OS_ARCH ?= $(shell uname -m)
@@ -20,17 +10,13 @@ OS_TYPE ?= $(shell uname)
 # This value is used only if SUITE_TIMEOUT is not exported in set-env-vars.sh and is not specified by the user during the make execution
 SUITE_TIMEOUT ?= $${SUITE_TIMEOUT:-30s}
 
-# Credentials used for authenticating into the module registry
-# see `kyma alpha mod create --help for more info`
-# MODULE_CREDENTIALS ?= testuser:testpw
-
 # btp-manager manifest file
 MANIFEST_PATH=./manifests/btp-operator
 MANIFEST_FILE=btp-manager.yaml
 
 # Image URL to use all building/pushing image targets
-IMG_REGISTRY_PORT ?= 60765
-IMG_REGISTRY ?= op-skr-registry.localhost:$(IMG_REGISTRY_PORT)/unsigned/operator-images
+IMG_REGISTRY_PORT ?= 5001
+IMG_REGISTRY ?= k3d-kyma-registry:$(IMG_REGISTRY_PORT)
 IMG ?= $(IMG_REGISTRY)/btp-manager:$(MODULE_VERSION)
 
 COMPONENT_CLI_VERSION ?= latest
@@ -46,18 +32,6 @@ endif
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
-
-# This will change the flags of the `kyma alpha module create` command in case we spot credentials
-# Otherwise we will assume http-based local registries without authentication (e.g. for k3d)
-ifneq (,$(PROW_JOB_ID))
-GCP_ACCESS_TOKEN=$(shell gcloud auth application-default print-access-token)
-MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) -c oauth2accesstoken:$(GCP_ACCESS_TOKEN)
-else ifeq (,$(MODULE_CREDENTIALS))
-MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) --insecure
-else
-MODULE_CREATION_FLAGS=--registry $(MODULE_REGISTRY) -c $(MODULE_CREDENTIALS)
-endif
-
 
 .PHONY: all
 all: build
@@ -139,8 +113,8 @@ create-manifest: manifests kustomize ## Deploy controller to the K8s cluster spe
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	mkdir -p ${MANIFEST_PATH}
 	$(KUSTOMIZE) build config/default > ${MANIFEST_PATH}/${MANIFEST_FILE}
-	grep "image:" ${MANIFEST_PATH}/${MANIFEST_FILE}
-	grep "^kind:" ${MANIFEST_PATH}/${MANIFEST_FILE}
+	@grep "image:" ${MANIFEST_PATH}/${MANIFEST_FILE}
+	@grep "^kind:" ${MANIFEST_PATH}/${MANIFEST_FILE}|sort
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
@@ -156,11 +130,6 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 .PHONY: module-image
 module-image: docker-build docker-push ## Build the Module Image and push it to a registry defined in IMG_REGISTRY
 	echo "built and pushed module image $(IMG)"
-
-.PHONY: module-build
-module-build: kyma kustomize ## Build the Module and push it to a registry defined in MODULE_REGISTRY
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KYMA) alpha create module --kubebuilder-project $(SECURITY_SCAN_OPTIONS) --module-archive-version-overwrite --channel=${MODULE_CHANNEL} --name kyma.project.io/module/$(MODULE_NAME) --version $(MODULE_VERSION) --path . $(MODULE_CREATION_FLAGS)
 
 .PHONY: module-template-push
 module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODULE_REGISTRY
@@ -181,25 +150,6 @@ KUSTOMIZE_VERSION ?= v4.5.6
 kustomize: $(KUSTOMIZE) ## Download & Build kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION)
-
-########## Kyma CLI ###########
-KYMA_STABILITY ?= unstable
-
-# $(call os_error, os-type, os-architecture)
-define os_error
-$(error Error: unsuported platform OS_TYPE:$1, OS_ARCH:$2; to mitigate this problem set variable KYMA with absolute path to kyma-cli binary compatible with your operating system and architecture)
-endef
-
-KYMA_FILE_NAME ?= $(shell ./hack/get_kyma_file_name.sh ${OS_TYPE} ${OS_ARCH})
-
-KYMA ?= $(LOCALBIN)/kyma-$(KYMA_STABILITY)
-kyma: $(LOCALBIN) $(KYMA) ## Download kyma locally if necessary.
-$(KYMA):
-	## Detect if operating system
-	$(if $(KYMA_FILE_NAME),,$(call os_error, ${OS_TYPE}, ${OS_ARCH}))
-	test -f $@ || curl -s -Lo $(KYMA) https://storage.googleapis.com/kyma-cli-$(KYMA_STABILITY)/$(KYMA_FILE_NAME)
-	chmod 0100 $(KYMA)
-
 
 ########## controller-gen ###########
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen

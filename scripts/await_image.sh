@@ -25,4 +25,4 @@ until $(skopeo list-tags ${PROTOCOL}${IMAGE_REPO} | jq '.Tags|any(. == env.IMAGE
   sleep 10
 done
 
-echo "Binary image available"
+echo "Binary image: ${IMAGE_REPO}:${IMAGE_TAG} available"
