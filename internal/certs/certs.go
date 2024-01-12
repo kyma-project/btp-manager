@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"math/big"
 	mathrand "math/rand"
 	"time"
@@ -41,10 +42,13 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		BasicConstraintsValid: true,
 	}
 
+	start := time.Now()
 	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
 	if err != nil {
 		return nil, nil, err
 	}
+	elapsed := time.Since(start)
+	log.Printf("RSA generation took -> %s", elapsed)
 
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, newCertificateTemplate, &newCertificatePrivateKey.PublicKey, newCertificatePrivateKey)
 	if err != nil {
