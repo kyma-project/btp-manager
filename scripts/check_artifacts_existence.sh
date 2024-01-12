@@ -7,7 +7,7 @@ set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 # This script has the following arguments:
-#                       - BTP Manager binary image tag - mandatory
+#                       - binary image tag - mandatory
 #
 # ./check_artifacts_existence.sh 1.1.0
 
@@ -21,7 +21,7 @@ PROTOCOL=docker://
 
 if [ $(skopeo list-tags ${PROTOCOL}${IMAGE_REPO} | jq '.Tags|any(. == env.IMAGE_TAG)') == "true" ]
 then
-  echo "::warning ::BTP Manager binary image for tag ${IMAGE_TAG} already exists"
+  echo "::warning ::Binary image for tag ${IMAGE_REPO}:${IMAGE_TAG} already exists"
 else
-  echo "No previous BTP Manager binary image found for tag ${IMAGE_TAG}"
+  echo "No previous binary image found for tag ${IMAGE_REPO}:${IMAGE_TAG}"
 fi

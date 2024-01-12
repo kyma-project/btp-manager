@@ -10,7 +10,6 @@ set -o pipefail # prevents errors in a pipeline from being masked
 #             KYMA_BTP_MANAGER_REPO - Kyma repository
 #             PR_NUMBER - Number of the PR with the changes to be merged
 
-
 until  $(gh pr view ${PR_NUMBER} --json closed | jq -r '.closed'); do
   echo "Waiting for https://github.com/${KYMA_BTP_MANAGER_REPO}/pull/${PR_NUMBER} to be merged"
   sleep 5

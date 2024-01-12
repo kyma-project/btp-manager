@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
 # This script has the following argument:
 #     - releaseID (mandatory)
 # ./upload_assets.sh 12345678
