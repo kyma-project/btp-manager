@@ -17,7 +17,9 @@ The flows of the tests are similar. The upgrade tests contain extra steps for ch
 5. Install BtpOperator. 
 6. Verify if BtpOperator has the `Ready` status equal to `True`. 
 7. Create a ServiceInstance and ServiceBinding with either real or dummy credentials. 
-8. When real credentials are used, verify if the ServiceInstance and ServiceBinding have the `Ready` status set to `True`. If dummy credentials are used, verify if the `Ready` status for both of them is `NotProvisioned`. 
+8. Verify if the ServiceInstance and ServiceBinding have the `Ready` status set to:
+     - `True` if you use real credentials.
+     - `NotProvisioned` if you use dummy credentials.
 9. Try to uninstall BtpOperator without the `force delete` label. 
 10. Verify if the deprovisioning safety measures work. 
 11. Add the `force delete` label to BtpOperator custom resource (CR). 
