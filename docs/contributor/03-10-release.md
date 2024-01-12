@@ -27,7 +27,7 @@ To create a release, follow these steps:
 4. A code owner approves the PR. 
 5. The GitHub action creates a GitHub tag and draft release with the provided name, creates release assets and uploads these.
 6. The GitHub action asynchronously initiates unit tests and an await for Prow Jobs status.
-7. The tag creation triggers Prow Job, `post-btp-manager-build`, defined in [`btp-manager-build.yaml`](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/kyma-project/btp-manager/btp-manager-build.yaml).
+7. The tag creation triggers the `post-btp-manager-build` Prow Job, defined in [`btp-manager-build.yaml`](https://github.com/kyma-project/test-infra/blob/main/prow/jobs/kyma-project/btp-manager/btp-manager-build.yaml).
 8. `post-btp-manager-build` builds a Docker image tagged with the release name.
 10. The GitHub action asynchronously initiates stress tests jobs and E2E tests jobs upon Prow job success status. E2E upgrade tests run only with real credentials for Service Manager.
 12. The GitHub action runs E2E tests in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable. 
