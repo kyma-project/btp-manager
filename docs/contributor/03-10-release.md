@@ -20,7 +20,7 @@ To create a release, follow these steps:
    iii. click  **Run workflow** on the right  
    iv. provide a version, for example, 1.2.0  
    v. choose real or dummy credentials for Service Manager  
-   vi. choose whether to bump or not to bump the security scanner config
+   vi. choose whether to bump or not to bump the security scanner config  
    vii. choose whether you want to publish the release
 2. The GitHub action, defined in the [`create-release.yaml`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that will be part of this release are labeled correctly.
 3. If you chose in step 1.vi to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
