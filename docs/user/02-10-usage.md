@@ -100,10 +100,6 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     kubectl delete servicebindings.services.cloud.sap.com btp-audit-log-binding
     kubectl delete serviceinstances.services.cloud.sap.com btp-audit-log-instance
     ```
-    To remove the BTP Manager Secret, use the following command:
-    ```bash
-    kubectl delete -f operator-secret.yaml
-    ```
 
 ## Create a ServiceInstance with a Custom Secret
 
@@ -122,7 +118,7 @@ To create a ServiceInstance with a custom Secret, follow these steps:
 3. In the same working directory, generate a Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name** as the second parameter.
 
    ```sh
-    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator 'your-secret-name'
+    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator 'test-secret'
     kubectl apply -f btp-access-credentials-secret.yaml
    ```
 
