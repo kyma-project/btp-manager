@@ -14,6 +14,10 @@ set -o pipefail # prevents errors in a pipeline from being masked
 REGISTRY_PROD=europe-docker.pkg.dev/kyma-project/prod/btp-manager
 REGISTRY_DEV=europe-docker.pkg.dev/kyma-project/dev/btp-manager
 
+#SemVer regular expression, see https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+# bash does not support '\d' character class, so it has been replaced with '[0-9]' range
+SEMVER_REGEX='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+
 if [[ $# -eq 2 ]]; then
   # upgrade from one given version to another given version
   UPGRADE_TAG=${1}
@@ -32,4 +36,16 @@ elif [[ $# -eq 0 ]]; then
   BASE_TAG=$(curl -sS "${GITHUB_URL}/tags" | jq -r '.[].name' | grep -A1 "${UPGRADE_TAG}" | grep -v "${UPGRADE_TAG}")
 else
   echo "wrong number of arguments" && exit 1
+fi
+
+if [[ ${UPGRADE_TAG} =~ ${SEMVER_REGEX} ]]; then
+  UPGRADE_IMAGE_REF=${REGISTRY_PROD}:${UPGRADE_TAG}
+else
+  UPGRADE_IMAGE_REF=${REGISTRY_DEV}:${UPGRADE_TAG}
+fi
+
+if [[ ${BASE_TAG} =~ ${SEMVER_REGEX} ]]; then
+  BASE_IMAGE_REF=${REGISTRY_PROD}:${BASE_TAG}
+else
+  BASE_IMAGE_REF=${REGISTRY_DEV}:${BASE_TAG}
 fi
