@@ -128,16 +128,16 @@ To create a ServiceInstance with a custom Secret, follow these steps:
 
 4. When you have the Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in spec pointing to the newly created `test-secret` Secret and with other parameters as needed.
 
-Here is an example of a ServiceInstance which you can apply:
+   Here is an example of a ServiceInstance which you can apply:
 
-```yaml
-apiVersion: services.cloud.sap.com/v1
-kind: ServiceInstance
-metadata:
-  name: test-service-instance
-  namespace: default
-spec:
-  serviceOfferingName: xsuaa
-  servicePlanName: application
-  btpAccessCredentialsSecret: test-secret
-```
+   ```yaml
+   apiVersion: services.cloud.sap.com/v1
+   kind: ServiceInstance
+   metadata:
+     name: test-service-instance
+     namespace: default
+   spec:
+     serviceOfferingName: xsuaa
+     servicePlanName: application
+     btpAccessCredentialsSecret: test-secret
+   ```
