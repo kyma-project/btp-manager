@@ -3,7 +3,7 @@
 ## Create and Install a Secret
 
 To create a real BTP Manager Secret, follow these steps:
-1. Create a ServiceBinding to obtain the access credentials to the ServiceInstance as described in the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation (point 2: Obtain the access credentials for the SAP BTP service operator).
+1. Create a ServiceBinding to obtain the access credentials to the ServiceInstance as described in the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation (go to the instruction on how to obtain the access credentials for the SAP BTP service operator).
 2. Copy and save the access credentials into your `creds.json` file in your working directory. 
 3. In the same directory, run the following script to create the Secret:
    
@@ -126,7 +126,7 @@ To create a ServiceInstance with a custom Secret, follow these steps:
     kubectl apply -f btp-access-credentials-secret.yaml
    ```
 
-4. When you have your Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in spec pointing to the newly created `test-secret` Secret and with other parameters as needed.
+4. When you have the Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in spec pointing to the newly created `test-secret` Secret and with other parameters as needed.
 
 Here is an example of a ServiceInstance which you can apply:
 
