@@ -13,6 +13,7 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 REGISTRY=europe-docker.pkg.dev/kyma-project/prod/btp-manager
+YAML_DIR="scripts/testing/yaml"
 
 if [[ $# -eq 2 ]]; then
   # upgrade from one given version to another given version
@@ -36,3 +37,7 @@ elif [[ $# -eq 0 ]]; then
 else
   echo "wrong number of arguments" && exit 1
 fi
+
+echo "--- E2E Module Upgrade Test when BtpOperator CR is in Deleting state"
+echo -e "\n--- FROM: ${BASE_IMAGE}"
+echo -e "\n--- TO: ${UPGRADE_IMAGE}"
