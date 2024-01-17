@@ -39,5 +39,22 @@ else
 fi
 
 echo "--- E2E Module Upgrade Test when BtpOperator CR is in Deleting state"
-echo -e "\n--- FROM: ${BASE_IMAGE}"
-echo -e "\n--- TO: ${UPGRADE_IMAGE}"
+echo "-- FROM: ${BASE_IMAGE}"
+echo "-- TO: ${UPGRADE_IMAGE}"
+
+scripts/testing/install_module.sh "${BASE_IMAGE}" dummy
+
+SI_NAME=auditlog-management-si-dummy
+export SI_NAME
+
+echo -e "\n--- Creating ServiceInstance: ${SI_NAME}"
+envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
+
+until kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME}; do echo -e "\n--- Waiting for ServiceInstance existence"; sleep 5; done
+
+# set BtpOperator CR in Deleting state
+echo -e "\n--- Deleting BtpOperator CR (setting Deleting state)"
+kubectl delete btpoperators/e2e-test-btpoperator &
+
+while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "FalseServiceInstancesAndBindingsNotCleaned" ]];
+do echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"; sleep 5; done
