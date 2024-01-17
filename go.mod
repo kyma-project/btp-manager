@@ -2,7 +2,7 @@ module github.com/kyma-project/btp-manager
 
 go 1.21
 
-toolchain go1.21.5
+toolchain go1.21.6
 
 require (
 	github.com/go-logr/logr v1.4.1
