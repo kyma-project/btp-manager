@@ -154,7 +154,7 @@ To create a ServiceInstance with a custom Secret, follow these steps:
     kubectl delete serviceinstances.services.cloud.sap.com test-service-instance
     ```
 
-  If you dont use `test-secret` for other ServiceInstances you can delete it by this command:
+    If you dont use `test-secret` for other ServiceInstances you can delete it by this command:
 
     ```bash
     kubectl delete secret test-secret -n kyma-system
