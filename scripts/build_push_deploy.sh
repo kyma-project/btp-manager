@@ -15,7 +15,7 @@ set -o pipefail # prevents errors in a pipeline from being maskedPORT=5001
 # registry access from local machine
 LOCAL_REGISTRY=${LOCAL_REGISTRY:-localhost:5001}
 
-#registry access from k3d cluster
+# registry access from k3d cluster
 K3D_REGISTRY=${K3D_REGISTRY:-k3d-kyma-registry:5000}
 
 PR_NAME=${PR_NAME:-PR-undefined}
