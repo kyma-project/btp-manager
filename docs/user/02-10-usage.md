@@ -138,15 +138,15 @@ To create a ServiceInstance with a custom Secret, follow these steps:
      btpAccessCredentialsSecret: test-secret
    ```
 
-5. To verify that ServiceInstance was created with success then run:
+5. To verify that the ServiceInstance has been created successfully, run:
 
     ```bash
-    kubectl get serviceinstances.services.cloud.sap.com test-service -o yaml
+    kubectl get serviceinstances.services.cloud.sap.com test-service-instance -o yaml
     ```
 
     You see the status `created` and the message `ServiceInstance provisioned successfully`.
-    Also you should see in one of spec field `btpAccessCredentialsSecret` the `test-secret` value.
-    In status section you should also see not empty field `subaccountId`.
+    You also see the `test-secret` value in the **btpAccessCredentialsSecret** spec field.
+    In the status section,  the **subaccountId** field must not be empty.
 
 6. Clean up your resources by running the following command:
 
@@ -154,7 +154,7 @@ To create a ServiceInstance with a custom Secret, follow these steps:
     kubectl delete serviceinstances.services.cloud.sap.com test-service-instance
     ```
 
-    If you dont use `test-secret` for other ServiceInstances you can delete it by this command:
+    If you are not using the `test-secret` Secret for other ServiceInstances, you can delete it with this command:
 
     ```bash
     kubectl delete secret test-secret -n kyma-system
