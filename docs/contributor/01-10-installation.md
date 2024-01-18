@@ -55,7 +55,7 @@ Here is the Quick-Start - Install script.
 Use the following command to run the BTP Manager with Lifecycle Manager: 
 
 ```shell
-./hack/run_lifecycle_manager.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
+./hack/run_lifecycle_manager.sh https://github.tools.sap/kyma/kyma-modules/blob/main/fast/moduletemplate-btp-operator.yaml
 ```
 
 It results in:
