@@ -41,28 +41,6 @@ kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/do
 kubectl delete -f deployments/prerequisites.yaml
 ```
 
-#### With Helm and `template.yaml`  
-
-You need the following prerequisites:
-
-- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-- Kubernetes cluster (you can use [k3d](https://k3d.io))
-- [Helm](https://github.com/helm/helm#install)
-- [skopeo](https://github.com/containers/skopeo) 
-- [jq](https://github.com/stedolan/jq) 
-- [yq](https://github.com/mikefarah/yq) 
-
-To install BTP Manager using a template file (the output of the [kyma alpha create module](https://github.com/kyma-project/cli/blob/main/docs/gen-docs/kyma_alpha_create_module.md) command) in your cluster, use the following command:
-
-```shell
-./hack/run_template.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
-```
-
-Use the following command to uninstall BTP Manager from your cluster:
-```shell
-helm uninstall btp-manager -n kyma-system
-```
-
 #### With Lifecycle Manager  
 
 > **NOTE:** This is an experimental way of installing BTP Manager in your cluster.
