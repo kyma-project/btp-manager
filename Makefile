@@ -131,11 +131,6 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 module-image: docker-build docker-push ## Build the Module Image and push it to a registry defined in IMG_REGISTRY
 	echo "built and pushed module image $(IMG)"
 
-.PHONY: module-template-push
-module-template-push: ## Pushes the ModuleTemplate referencing the Image on MODULE_REGISTRY
-	sh hack/local-template.sh
-	kubectl apply -f template.yaml
-
 ##@ Tools
 
 ## Location to install dependencies to
