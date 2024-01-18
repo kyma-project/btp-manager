@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This script has the following argument: a link to a template file, for example:
-# ./hack/run_lifecycle_manager.sh https://github.com/kyma-project/btp-manager/releases/latest/download/template.yaml
+# ./hack/run_lifecycle_manager.sh https://github.tools.sap/kyma/kyma-modules/blob/main/fast/moduletemplate-btp-operator.yaml
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
