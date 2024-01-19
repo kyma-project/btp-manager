@@ -1,0 +1,13 @@
+name: Run E2E upgrade while deleting tests
+on:
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  run-e2e-upgrade-while-deleting-tests-reusable:
+    name: E2E upgrade while deleting tests
+    if: ${{ !github.event.pull_request.draft }}
+    uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
+    secrets: inherit
+    with:
+      image-registry: europe-docker.pkg.dev/kyma-project/dev/btp-manager
+      image-tag: PR-${{ github.event.number }}
