@@ -1,0 +1,36 @@
+name: Run E2E upgrade while deleting tests on the cluster (reusable)
+on:
+  workflow_call:
+    inputs:
+      image-registry:
+        description: Binary image registry reference
+        required: true
+        type: string
+      image-tag:
+        description: Binary image tag
+        required: true
+        type: string
+jobs:
+  run-e2e-upgrade-while-deleting-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          IMAGE_REPO: ${{ inputs.image-repo }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
+
+      - name: Run tests
+        run: "./scripts/testing/run_e2e_module_upgrade_during_deletion_tests.sh ${{ inputs.image-registry }}:${{ inputs.image-tag }}"
