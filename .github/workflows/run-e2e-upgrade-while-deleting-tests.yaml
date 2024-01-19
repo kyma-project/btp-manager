@@ -1,7 +1,12 @@
 name: Run E2E upgrade while deleting tests
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
 jobs:
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
