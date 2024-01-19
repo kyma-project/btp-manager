@@ -220,6 +220,15 @@ jobs:
       image-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
 
+  run-e2e-upgrade-while-deleting-tests:
+    name: E2E upgrade while deleting tests
+    needs: wait-for-prow-jobs
+    secrets: inherit
+    uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
+    with:
+      image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      image-tag: ${{ github.event.inputs.name }}
+
   create-draft:
     name: Create draft release
     needs: bump-sec-scanners-config
