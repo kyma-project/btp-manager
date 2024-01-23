@@ -50,9 +50,6 @@ echo -e "\n--- PREPARING ENVIRONMENT"
 # deploy base image
 scripts/testing/install_module.sh "${BASE_IMAGE}" dummy
 
-BASE_SAP_BTP_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.labels.chart-version}')
-echo -e "\n--- SAP BTP Service Operator chart version before upgrade: ${BASE_SAP_BTP_OPERATOR_CHART_VER}"
-
 SI_NAME=auditlog-management-si-dummy
 export SI_NAME
 
@@ -70,6 +67,11 @@ echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseServiceInstancesAndBindingsNotCleaned" ]];
 do sleep 5; done
 
+BASE_SAP_BTP_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.labels.chart-version}')
+OLD_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.resourceVersion}')
+echo -e "\n--- SAP BTP Service Operator chart version before upgrade: ${BASE_SAP_BTP_OPERATOR_CHART_VER}"
+echo -e "\n--- Current ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment resource version: ${OLD_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}"
+
 echo -e "\n--- UPGRADING MODULE"
 
 # deploy upgrade image
@@ -83,13 +85,17 @@ do sleep 5; done
 echo -e "\n--- Expected SAP BTP Service Operator chart version after upgrade: ${EXPECTED_SAP_BTP_SERVICE_OPERATOR_CHART_VER}"
 
 ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER=""
+ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=""
 
 echo -e "\n--- Waiting for SAP BTP Service Operator deployment reconciliation"
-while [[ "${ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" != "${EXPECTED_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" ]];
+while [[ "${ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" != "${EXPECTED_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" || "${ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}" == "${OLD_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}" ]];
 do ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.labels.chart-version}');
+ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.resourceVersion}');
 sleep 5; done
 
-echo -e "\n--- SAP BTP Service Operator deployment has been reconciled. Current chart version: ${ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER}"
+echo -e "\n--- SAP BTP Service Operator deployment has been reconciled"
+echo "-- Current chart version: ${ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER}"
+echo "-- Current deployment resource version: ${ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}"
 
 echo -e "\n--- CLEANING UP"
 
