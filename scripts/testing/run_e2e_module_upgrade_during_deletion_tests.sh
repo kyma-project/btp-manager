@@ -88,10 +88,17 @@ ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER=""
 ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=""
 
 echo -e "\n--- Waiting for SAP BTP Service Operator deployment reconciliation"
-while [[ "${ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" != "${EXPECTED_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" || "${ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}" == "${OLD_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}" ]];
-do ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.labels.chart-version}');
-ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.resourceVersion}');
-sleep 5; done
+SECONDS=0
+TIMEOUT=120
+while [[ "${ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" != "${EXPECTED_SAP_BTP_SERVICE_OPERATOR_CHART_VER}" || "${ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}" == "${OLD_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}" ]]
+do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "timed out after ${TIMEOUT}s" && exit 1
+  fi
+  ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.labels.chart-version}')
+  ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.resourceVersion}')
+  sleep 5
+done
 
 echo -e "\n--- SAP BTP Service Operator deployment has been reconciled"
 echo "-- Current chart version: ${ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER}"
