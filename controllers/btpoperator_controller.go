@@ -722,6 +722,18 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		return err
 	}
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+		// reconcile resources to keep them up to date while CR is in Deleting state
+		secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
+		if errWithReason != nil {
+			logger.Error(errWithReason, "secret verification failed")
+		}
+		if err := r.deleteOutdatedResources(ctx); err != nil {
+			logger.Error(err, "outdated resources deletion failed")
+		}
+		if err := r.reconcileResources(ctx, secret); err != nil {
+			logger.Error(err, "resources reconciliation failed")
+		}
+
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
 			return err
