@@ -9,11 +9,6 @@
 # The script requires the following environment variable set - these values are used to create unique SI and SB names:
 #      GITHUB_RUN_ID - a unique number for each workflow run within a repository
 #      GITHUB_JOB - the ID of the current job from the workflow
-# The script requires the following environment variables if is called with "real" parameter - these should be real credentials base64 encoded:
-#      SM_CLIENT_ID - client ID
-#      SM_CLIENT_SECRET - client secret
-#      SM_URL - service manager url
-#      SM_TOKEN_URL - token url
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.

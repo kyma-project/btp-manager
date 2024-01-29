@@ -5,12 +5,13 @@
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
-#     - ci to indicate call from CI pipeline (optional)
-# ./install_module.sh europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-999 real ci
+# ./install_module.sh europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-999 real
 
-CI=${3-manual}  # if called from any workflow "ci" is expected here
-
-set -x
+# The script requires the following environment variables if is called with "real" parameter - these should be real credentials base64 encoded:
+#      SM_CLIENT_ID - client ID
+#      SM_CLIENT_SECRET - client secret
+#      SM_URL - service manager url
+#      SM_TOKEN_URL - token url
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
