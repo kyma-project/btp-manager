@@ -115,6 +115,9 @@ echo -e "\n--- Checking module resources reconciliation when BtpOperator CR is i
 echo "Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment"
 kubectl delete -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME}
 
+while [[ "$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} 2>&1)" != *"Error from server (NotFound)"* ]];
+do echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment deletion"; sleep 5; done
+
 echo -e "\n--- Triggering reconciliation by annotating BtpOperator CR"
 kubectl annotate --overwrite -f ${YAML_DIR}/e2e-test-btpoperator.yaml last-manual-reconciliation-timestamp="$(date -u -Iseconds)"
 
