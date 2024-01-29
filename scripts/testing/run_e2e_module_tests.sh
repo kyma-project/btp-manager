@@ -115,7 +115,7 @@ echo -e "\n--- Checking module resources reconciliation when BtpOperator CR is i
 echo "Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment"
 kubectl delete -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME}
 
-echo -e "\n--- Waiting for reconciliation (${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} recreation)"
+echo -e "\n--- Waiting for reconciliation (${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment existence)"
 SECONDS=0
 TIMEOUT=120
 until kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME}
