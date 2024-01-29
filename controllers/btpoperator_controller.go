@@ -718,21 +718,12 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	}
 
 	if err := r.handleDeprovisioning(ctx, cr); err != nil {
-		logger.Error(err, "deprovisioning failed")
+		logger.Error(err, "deprovisioning failed. Restoring resources")
+		r.reconcileResourcesWithoutChangingCrState(ctx, &logger)
 		return err
 	}
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		// reconcile resources to keep them up to date while CR is in Deleting state
-		secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
-		if errWithReason != nil {
-			logger.Error(errWithReason, "secret verification failed")
-		}
-		if err := r.deleteOutdatedResources(ctx); err != nil {
-			logger.Error(err, "outdated resources deletion failed")
-		}
-		if err := r.reconcileResources(ctx, secret); err != nil {
-			logger.Error(err, "resources reconciliation failed")
-		}
+		r.reconcileResourcesWithoutChangingCrState(ctx, &logger)
 
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
@@ -2000,5 +1991,18 @@ func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data m
 			Labels:    labels,
 		},
 		Data: data,
+	}
+}
+
+func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, logger *logr.Logger) {
+	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
+	if errWithReason != nil {
+		logger.Error(errWithReason, "secret verification failed")
+	}
+	if err := r.deleteOutdatedResources(ctx); err != nil {
+		logger.Error(err, "outdated resources deletion failed")
+	}
+	if err := r.reconcileResources(ctx, secret); err != nil {
+		logger.Error(err, "resources reconciliation failed")
 	}
 }
