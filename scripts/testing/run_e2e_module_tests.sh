@@ -18,6 +18,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
+SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
 
 [[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
 
@@ -108,6 +109,30 @@ else
 fi
 
 echo -e "\n--- Deprovisioning safety measures work"
+
+echo -e "\n--- Checking module resources reconciliation when BtpOperator CR is in Deleting state"
+
+echo "Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment"
+kubectl delete -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME}
+
+while [[ "$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} 2>&1)" != *"Error from server (NotFound)"* ]];
+do echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment deletion"; sleep 5; done
+
+echo -e "\n--- Triggering reconciliation by annotating BtpOperator CR"
+kubectl annotate --overwrite -f ${YAML_DIR}/e2e-test-btpoperator.yaml last-manual-reconciliation-timestamp="$(date -u -Iseconds)"
+
+echo -e "\n--- Waiting for reconciliation (${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment existence)"
+SECONDS=0
+TIMEOUT=120
+until kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME}
+do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "timed out after ${TIMEOUT}s" && exit 1
+  fi
+  sleep 5
+done
+
+echo -e "\n--- ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment has been reconciled"
 
 echo -e "\n--- Adding force delete label"
 kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true

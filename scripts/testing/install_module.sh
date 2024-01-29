@@ -20,8 +20,8 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 IMAGE_NAME=$1
-YAML_DIR="scripts/testing/yaml"
 CREDENTIALS=$2
+YAML_DIR="scripts/testing/yaml"
 
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
@@ -52,7 +52,7 @@ kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
-# verifying whether service instance and service binding resources were created
+# verifying whether service instance and service binding custom resources were created
 echo -e "\n---Checking if serviceinstances and servicebindings CRDs are created"
 
 CRDS=$(kubectl get crds|awk '/(servicebindings|serviceinstances)/{print $1}')
