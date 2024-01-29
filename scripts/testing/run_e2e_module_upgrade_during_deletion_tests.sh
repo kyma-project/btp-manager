@@ -87,6 +87,9 @@ echo -e "\n--- Expected SAP BTP Service Operator chart version after upgrade: ${
 ACTUAL_SAP_BTP_SERVICE_OPERATOR_CHART_VER=""
 ACTUAL_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=""
 
+echo -e "\n--- Triggering reconciliation by annotating BtpOperator CR"
+kubectl annotate --overwrite -f ${YAML_DIR}/e2e-test-btpoperator.yaml last-manual-reconciliation-timestamp="$(date -u -Iseconds)"
+
 echo -e "\n--- Waiting for SAP BTP Service Operator deployment reconciliation"
 SECONDS=0
 TIMEOUT=120
