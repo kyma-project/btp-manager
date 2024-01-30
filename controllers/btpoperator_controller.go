@@ -68,7 +68,7 @@ var (
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Minute * 15
 	ReadyTimeout                   = time.Minute * 1
-	ReadyCheckInterval             = time.Millisecond * 2
+	ReadyCheckInterval             = time.Second * 2
 	HardDeleteTimeout              = time.Minute * 20
 	HardDeleteCheckInterval        = time.Second * 10
 	DeleteRequestTimeout           = time.Minute * 5
@@ -671,7 +671,6 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				}
 			}
 			if progressingConditionStatus == "True" && availableConditionStatus == "True" {
-				logger.Info("Check deployment readiness " + u.GetName())
 				c <- true
 				return
 			}
@@ -695,7 +694,6 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
-			logger.Info("Check resource existence" + u.GetName())
 			c <- true
 			return
 		}
