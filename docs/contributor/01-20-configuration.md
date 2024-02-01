@@ -33,7 +33,7 @@ Usage of ./manager:
   -ready-timeout duration
     	Helm chart timeout. (default 1m0s)
   -ready-check-interval duration
-    	Ready check retry interval. (default 2s)
+    	Ready check retry interval. (default 1s)
   -hard-delete-timeout duration
     	Hard delete timeout. (default 20m)
   -hard-delete-check-interval duration
