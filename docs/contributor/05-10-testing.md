@@ -41,8 +41,8 @@ GINKGO_VERBOSE_FLAG="ginkgo.vv" make test
 ### Filtering Labels
 
 You can use the Ginkgo library labeling features to filter which tests specs are to be executed. 
-For more details, see [Spec Labels](https://onsi.github.io/ginkgo/#spec-labels) in Ginkgo documentation. To use labels for filtering, 
-you need to instrument the test Nodes (`Describe`, `It`, `When` et al.) in the [BtpOperator-controller `test.go`](../../controllers) files with labels, for example:
+For more details, see [Spec Labels](https://onsi.github.io/ginkgo/#spec-labels) in Ginkgo documentation. 
+To use labels for filtering, you need to instrument the test Nodes (`Describe`, `It`, `When` et al.) in the [BtpOperator-controller `test.go`](../../controllers) files with labels, for example:
 ```go
 	Describe("Provisioning", Label("test-provisioning", "smoke-test"), func() {
 ```
@@ -64,7 +64,7 @@ GINKGO_LABEL_FILTER="test-provisioning,test-deprovisioning" make test
 
 All the above-mentioned environment variables can also be set in the [set-env-vars.sh](../../scripts/testing/set-env-vars.sh) file. The script sets the default values for all the environment variables used in the `go test` invocation. 
 Changing the script contents is recommended if a more complex filtering expression is required, or if you frequently reuse the setting. 
-However, you should not push the changes without considering how this affects Github Actions workflows.
+However, you should not push the changes without considering how this affects GitHub Actions workflows.
 
 ## Run Test Suite with IDE
 
