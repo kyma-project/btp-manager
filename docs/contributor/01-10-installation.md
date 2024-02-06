@@ -35,4 +35,3 @@ Use the following command to uninstall BTP Manager from your cluster:
 kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 kubectl delete -f deployments/prerequisites.yaml
 ```
-

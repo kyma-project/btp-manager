@@ -1,6 +1,6 @@
 # Run Unit Tests
 
-## Run Unit Tests Using CLI 
+## Run Unit Tests Using Command Line Interface 
 
 To run the unit tests from the command line, use the following command from the BTP Manager main directory: 
 
@@ -25,7 +25,8 @@ You can run the tests on an existing cluster (not the envtest cluster) setting t
 USE_EXISTING_CLUSTER=true make test
 ```
 
-> **NOTE:** The test suite assumes the proper state of the cluster before running. If problems with left-over resources occur, you can recreate the cluster or remove resources manually.
+> [!NOTE] 
+> The test suite assumes the proper state of the cluster before running. If problems with left-over resources occur, you can recreate the cluster or remove resources manually.
 
 ### Test Output Verbosity
 
@@ -38,9 +39,10 @@ GINKGO_VERBOSE_FLAG="ginkgo.vv" make test
 ```
 
 ### Filtering Labels
+
 You can use the Ginkgo library labeling features to filter which tests specs are to be executed. 
 For more details, see [Spec Labels](https://onsi.github.io/ginkgo/#spec-labels) in Ginkgo documentation. To use labels for filtering, 
-you need to instrument the test nodes (`Describe`, `It`, `When` et al.) in the [BtpOperator-controller `test.go`](../../controllers) files with labels, for example:
+you need to instrument the test Nodes (`Describe`, `It`, `When` et al.) in the [BtpOperator-controller `test.go`](../../controllers) files with labels, for example:
 ```go
 	Describe("Provisioning", Label("test-provisioning", "smoke-test"), func() {
 ```
@@ -61,8 +63,8 @@ GINKGO_LABEL_FILTER="test-provisioning,test-deprovisioning" make test
 ### Environment Variables
 
 All the above-mentioned environment variables can also be set in the [set-env-vars.sh](../../scripts/testing/set-env-vars.sh) file. The script sets the default values for all the environment variables used in the `go test` invocation. 
-Changing the script contents is recommended if a more complex filtering expression is required, or if you frequently reuse the setting. However, you should not push the changes without considering 
-how this affects Github Actions workflows.
+Changing the script contents is recommended if a more complex filtering expression is required, or if you frequently reuse the setting. 
+However, you should not push the changes without considering how this affects Github Actions workflows.
 
 ## Run Test Suite with IDE
 

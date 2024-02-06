@@ -26,11 +26,11 @@ This workflow is triggered by pull requests (PRs) on the `main` branch. It uses 
 
 This workflow is triggered by PRs on the `main` branch. Then it calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml).
 
-## Markdown links check workflow
+## Markdown Links Check Workflow
 
 This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered daily at midnight and by each PR on the `main` branch. It checks for dead links in the repository.
 
-## Reusable workflows
+## Reusable Workflows
 
 There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
 
@@ -47,11 +47,11 @@ You pass the following parameters from the calling workflow:
 
 
 The workflow:
-- fetches the **last-k3s-versions** tag versions of k3s releases 
-- prepares the **last-k3s-versions** k3s clusters with the Docker registries using the list of versions from the previous step
-- waits for the binary image to be ready in the registry
-- runs the E2E tests on the clusters
-- waits for all tests to finish
+- Fetches the **last-k3s-versions** tag versions of k3s releases 
+- Prepares the **last-k3s-versions** k3s clusters with the Docker registries using the list of versions from the previous step
+- Waits for the binary image to be ready in the registry
+- Runs the E2E tests on the clusters
+- Waits for all tests to finish
 
 
 ### Unit Tests
@@ -60,6 +60,6 @@ This [workflow](/.github/workflows/run-unit-tests-reusable.yaml) runs the unit t
 No parameters are passed from the calling workflow (callee).
 
 The workflow:
-- checks out code and sets up the cache
-- sets up the Go environment
-- invokes `make test`
+- Checks out code and sets up the cache
+- Sets up the Go environment
+- Invokes `make test`

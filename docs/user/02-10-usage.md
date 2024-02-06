@@ -3,7 +3,7 @@
 ## Create and Install a Secret
 
 To create a real BTP Manager Secret, follow these steps:
-1. Create a ServiceBinding to obtain the access credentials to the ServiceInstance as described in the [Setup](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation (go to the instruction on how to obtain the access credentials for the SAP BTP service operator).
+1. Create a ServiceBinding to obtain the access credentials to the ServiceInstance as described in the [Setup: Obtain the access credentials for the SAP BTP service operator](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation.
 2. Copy and save the access credentials into your `creds.json` file in your working directory. 
 3. In the same directory, run the following script to create the Secret:
    
@@ -13,12 +13,13 @@ To create a real BTP Manager Secret, follow these steps:
 
 4. Apply the Secret in your cluster. 
 
-   > **CAUTION:** The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
-
    ```sh
    kubectl apply -f operator-secret.yaml
    ```
-  
+
+  > [!WARNING] 
+   >The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
+
 To check the `BtpOperator` custom resource (CR) status, run the following command:
 
 ```sh
@@ -36,7 +37,8 @@ btpoperator          Ready
 
 After successfully installing your Secret, you can create a ServiceInstance and a ServiceBinding.
 
-> **NOTE:** This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
+> [!NOTE] 
+> >This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
 
 1. To create a ServiceInstance, run the following script:
 
@@ -54,7 +56,8 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     EOF
     ```
 
-    >**TIP:** You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
+    > [!TIP] 
+    > You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
 
 2. To check the output, run:
 
@@ -105,7 +108,8 @@ After successfully installing your Secret, you can create a ServiceInstance and 
 
 To create a ServiceInstance, you must use the **btpAccessCredentialsSecret** field in the spec of the ServiceInstance. In it, you pass the Secret from the `kyma-system` namespace. The Secret is used to create your ServiceInstance. You can use different Secrets for different ServiceInstances.
 
-> **CAUTION:** Once you set a Secret name in the ServiceInstance, you cannot change it in the future.
+> [!WARNING] 
+> Once you set a Secret name in the ServiceInstance, you cannot change it in the future.
 
 Adding the access credentials of the SAP BTP Service Manager Instance in your ServiceInstance results in displaying the subaccount ID to which the instance belongs in the status **subaccountID** field.
 
@@ -113,7 +117,7 @@ To create a ServiceInstance with a custom Secret, follow these steps:
 
 1. Get the access credentials of the SAP BTP Service Manager Instance with the `service-operator-access` plan from its ServiceBinding. Copy them from the BTP cockpit as a JSON. 
 
-2. Create the `creds.json` file in your working directory and insert the credentials there.
+2. Create the `creds.json` file in your working directory and save the credentials there.
 
 3. In the same working directory, generate a Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name** as the second parameter.
 
