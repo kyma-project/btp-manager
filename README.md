@@ -16,7 +16,8 @@ To enable the SAP BTP Operator module from the latest release, you must install 
 - Kubernetes cluster, or [k3d](https://k3d.io) for local installation
 - [jq](https://github.com/stedolan/jq) 
 
->**CAUTION:** You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
+> [!WARNING] 
+> You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
 > ```bash
 > kubectl create namespace kyma-system
 > ```
@@ -41,7 +42,8 @@ To enable the SAP BTP Operator module from the latest release, you must install 
    ```sh
    kubectl get btpoperators btpoperator
    ```
-   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
+   > [!NOTE] 
+   > The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
 
 For more installation options, read the [Install and Uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
