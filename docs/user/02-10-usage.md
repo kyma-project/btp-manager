@@ -17,8 +17,8 @@ To create a real BTP Manager Secret, follow these steps:
    kubectl apply -f operator-secret.yaml
    ```
 
-  > [!WARNING] 
-   >The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
+   > [!WARNING] 
+   > The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
 
 To check the `BtpOperator` custom resource (CR) status, run the following command:
 
@@ -38,7 +38,7 @@ btpoperator          Ready
 After successfully installing your Secret, you can create a ServiceInstance and a ServiceBinding.
 
 > [!NOTE] 
-> >This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
+> This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
 
 1. To create a ServiceInstance, run the following script:
 
@@ -56,8 +56,8 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     EOF
     ```
 
-    > [!TIP] 
-    > You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
+   > [!TIP] 
+   > You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
 
 2. To check the output, run:
 
