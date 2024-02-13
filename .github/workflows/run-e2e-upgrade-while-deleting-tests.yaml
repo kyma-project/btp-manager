@@ -16,3 +16,4 @@ jobs:
     with:
       image-registry: europe-docker.pkg.dev/kyma-project/dev/btp-manager
       image-tag: PR-${{ github.event.number }}
+      release: "false"

@@ -22,6 +22,11 @@ on:
         required: false
         default: 1
         type: string
+      release:
+        description: 'Determines if the workflow is called from release'
+        default: "true"
+        type: string
+
 
 jobs:
   prepare-tests:
@@ -31,10 +36,34 @@ jobs:
       versions: ${{ steps.get-versions.outputs.k3s_versions }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files-specific
+        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
+        with:
+          files: |
+            api/**
+            cmd/**
+            config/**
+            controllers/**
+            deployments/**
+            examples/**
+            hack/**
+            internal/**
+            module-chart/**
+            module-resources/**
+            scripts/**
+            config.yaml
+            Dockerfile
+            go.mod
+            go.sum
+            main.go
+            Makefile
 
       - id: get-versions
         name: Get K3s versions
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         # prepare json representing GitHub matrix:
         # {"include": [
         #    {"version":"v1.26.10+k3s1"},
@@ -48,6 +77,7 @@ jobs:
           echo "k3s_versions=${MATRIX_AS_JSON}" >> "${GITHUB_OUTPUT}"
 
       - name: Wait for artifacts
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         env:
           IMAGE_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -61,17 +91,43 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files-specific
+        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
+        with:
+          files: |
+            api/**
+            cmd/**
+            config/**
+            controllers/**
+            deployments/**
+            examples/**
+            hack/**
+            internal/**
+            module-chart/**
+            module-resources/**
+            scripts/**
+            config.yaml
+            Dockerfile
+            go.mod
+            go.sum
+            main.go
+            Makefile
 
       - name: Prepare K3s cluster and docker registry
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
 
       - name: Set up go environment
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
 
       - name: Install BTP operator
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
@@ -80,6 +136,7 @@ jobs:
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
       - name: Run tests
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
 
   confirm-matrix-tests-succeeded:
@@ -98,7 +155,34 @@ jobs:
     needs: confirm-matrix-tests-succeeded
     if: always()
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files-specific
+        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
+        with:
+          files: |
+            api/**
+            cmd/**
+            config/**
+            controllers/**
+            deployments/**
+            examples/**
+            hack/**
+            internal/**
+            module-chart/**
+            module-resources/**
+            scripts/**
+            config.yaml
+            Dockerfile
+            go.mod
+            go.sum
+            main.go
+            Makefile
+
       - name: Final decision
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         run: |
           [[ "${{ needs.confirm-matrix-tests-succeeded.outputs.success }}" != "true"  ]] && echo "E2E tests failed" && exit 1
           echo "E2E tests passed"

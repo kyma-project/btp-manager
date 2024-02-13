@@ -10,27 +10,59 @@ on:
         description: Binary image tag
         required: true
         type: string
+      release:
+        description: 'Determines if the workflow is called from release'
+        default: "true"
+        type: string
+
 jobs:
   run-e2e-upgrade-while-deleting-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files-specific
+        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
+        with:
+          files: |
+            api/**
+            cmd/**
+            config/**
+            controllers/**
+            deployments/**
+            examples/**
+            hack/**
+            internal/**
+            module-chart/**
+            module-resources/**
+            scripts/**
+            config.yaml
+            Dockerfile
+            go.mod
+            go.sum
+            main.go
+            Makefile
 
       - name: Set up go environment
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
 
       - name: Prepare k3s cluster and docker registry
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for artifacts
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         env:
           IMAGE_REPO: ${{ inputs.image-registry }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Run tests
+        if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
         run: "./scripts/testing/run_e2e_module_upgrade_during_deletion_tests.sh ${{ inputs.image-registry }}:${{ inputs.image-tag }}"
