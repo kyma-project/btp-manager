@@ -68,7 +68,7 @@ var (
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Minute * 15
 	ReadyTimeout                   = time.Minute * 1
-	ReadyCheckInterval             = time.Second * 2
+	ReadyCheckInterval             = time.Second * 1
 	HardDeleteTimeout              = time.Minute * 20
 	HardDeleteCheckInterval        = time.Second * 10
 	DeleteRequestTimeout           = time.Minute * 5
