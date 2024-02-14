@@ -7,6 +7,7 @@ type ErrorWithReason struct {
 	reason  conditions.Reason
 }
 
+// test
 func NewErrorWithReason(reason conditions.Reason, message string) *ErrorWithReason {
 	return &ErrorWithReason{
 		message: message,
