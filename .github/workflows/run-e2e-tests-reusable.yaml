@@ -98,6 +98,7 @@ jobs:
         uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
         with:
           files: |
+            .github/**
             api/**
             cmd/**
             config/**
@@ -115,6 +116,8 @@ jobs:
             go.sum
             main.go
             Makefile
+            **/*.go
+            **/*.sh
 
       - name: Prepare K3s cluster and docker registry
         if: ${{ steps.changed-files-specific.outputs.any_modified == 'true' || inputs.release == 'true' }}
