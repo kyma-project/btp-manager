@@ -20,11 +20,51 @@ See [BTP Manager Release Pipeline](03-10-release.md) to learn more about the rel
 
 ## E2E Tests Workflow 
 
-This workflow is triggered by pull requests (PRs) on the `main` branch. It uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](/.github/workflows/run-e2e-tests-reusable.yaml). 
+This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](/.github/workflows/run-e2e-tests-reusable.yaml). It is triggered by pull requests (PRs) on the `main` branch that change at least one of the following:
+- `/.github` directory content
+- `/api` directory content
+- `/cmd` directory content
+- `/config` directory content
+- `/controllers` directory content
+- `/deployments` directory content
+- `/examples` directory conent
+- `/hack` directory conent
+- `/internal` directory conent
+- `/module-chart` directory conent
+- `/module-resources` directory conent
+- `/scripts` directory conent
+- `config.yaml` file
+- `Dockerfile` file 
+- `go.mod` file
+- `go.sum` file
+- `main.go` file
+- `Makefile` file
+- any `*.go` file
+- any `*.sh` file
 
 ## Unit Tests Workflow
 
-This workflow is triggered by PRs on the `main` branch. Then it calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml).
+This workflow calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml). It is triggered by PRs on the `main` branch that change at least one of the following:
+- `/.github` directory content
+- `/api` directory content
+- `/cmd` directory content
+- `/config` directory content
+- `/controllers` directory content
+- `/deployments` directory content
+- `/examples` directory conent
+- `/hack` directory conent
+- `/internal` directory conent
+- `/module-chart` directory conent
+- `/module-resources` directory conent
+- `/scripts` directory conent
+- `config.yaml` file
+- `Dockerfile` file 
+- `go.mod` file
+- `go.sum` file
+- `main.go` file
+- `Makefile` file
+- any `*.go` file
+- any `*.sh` file
 
 ## Markdown Links Check Workflow
 
