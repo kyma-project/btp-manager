@@ -10,3 +10,5 @@ on:
 jobs:
   run-unit-tests:
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
+    with:
+      release: "false"
