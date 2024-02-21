@@ -19,7 +19,7 @@ The prerequisites for the SAP BTP service operator provisioning are:
 - Secret `sap-btp-manager` with data for the SAP BTP service operator
 
 The namespace and PriorityClass resources are created during Kyma installation. The Secret is injected into the cluster
-by Kyma Environment Broker (KEB). If you want to provision the SAP BTP service operator on a cluster without Kyma, you must create
+by Kyma Environment Broker (KEB). If you want to provision the SAP BTP service operator in a cluster without Kyma, you must create
 the prerequisites yourself.
 
 ### Process
