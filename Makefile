@@ -33,6 +33,8 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+GOLINT_VER = v1.55.2
+
 .PHONY: all
 all: build
 
@@ -179,10 +181,18 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-GOLANG_CI_LINT = $(LOCALBIN)/golangci-lint
-GOLANG_CI_LINT_VERSION ?= v1.50.1
-.PHONY: lint
-lint: ## Download & Build & Run golangci-lint against code.
-	GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANG_CI_LINT_VERSION)
-	$(LOCALBIN)/golangci-lint run
+go-lint-install: ## linter config in file at root of project -> '.golangci.yaml'
+	@if [ "$(shell command golangci-lint version --format short)" != "$(GOLINT_VER)" ]; then \
+  		echo golangci in version $(GOLINT_VER) not found. will be downloaded; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VER); \
+		echo golangci installed with version: $(shell command golangci-lint version --format short); \
+	fi;
 
+.PHONY: go-lint
+go-lint: go-lint-install ## linter config in file at root of project -> '.golangci.yaml'
+	golangci-lint run
+
+.PHONY: fix
+fix: go-lint-install ## try to fix automatically issues
+	go mod tidy
+	golangci-lint run --fix
