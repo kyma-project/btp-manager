@@ -1,0 +1,58 @@
+name: Run go linter
+
+on:
+  pull_request:
+    branches: [ main ]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+jobs:
+  run-go-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files-specific
+        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
+        with:
+          files: |
+            .github/**
+            api/**
+            cmd/**
+            config/**
+            controllers/**
+            deployments/**
+            examples/**
+            hack/**
+            internal/**
+            module-chart/**
+            module-resources/**
+            scripts/**
+            config.yaml
+            Dockerfile
+            go.mod
+            go.sum
+            main.go
+            Makefile
+            **/*.go
+            **/*.sh
+
+      - name: Set up go environment
+        if: steps.changed-files-specific.outputs.any_modified == 'true'
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Go linter
+        if: steps.changed-files-specific.outputs.any_modified == 'true'
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.55.2
+          skip-cache: true
+          only-new-issues: true
+          args: --timeout 2m0s
