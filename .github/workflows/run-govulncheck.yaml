@@ -1,0 +1,44 @@
+name: Run govulncheck
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run-govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files-specific
+        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
+        with:
+          files: |
+            .github/**
+            api/**
+            cmd/**
+            config/**
+            controllers/**
+            deployments/**
+            examples/**
+            hack/**
+            internal/**
+            module-chart/**
+            module-resources/**
+            scripts/**
+            config.yaml
+            Dockerfile
+            go.mod
+            go.sum
+            main.go
+            Makefile
+            **/*.go
+            **/*.sh
+
+      - name: Run govulncheck
+        if: steps.changed-files-specific.outputs.any_modified == 'true'
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: 'go.mod'
