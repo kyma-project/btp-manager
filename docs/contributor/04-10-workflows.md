@@ -70,6 +70,30 @@ This workflow calls the reusable [workflow](/.github/workflows/run-unit-tests-re
 
 This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered daily at midnight and by each PR on the `main` branch. It checks for dead links in the repository.
 
+## Govulncheck Workflow
+
+This [workflow](/.github/workflows/run-govulncheck.yaml) runs the Govulncheck. It is triggered by PRs on the `main` branch that change at least one of the following:
+- `/.github` directory content
+- `/api` directory content
+- `/cmd` directory content
+- `/config` directory content
+- `/controllers` directory content
+- `/deployments` directory content
+- `/examples` directory conent
+- `/hack` directory conent
+- `/internal` directory conent
+- `/module-chart` directory conent
+- `/module-resources` directory conent
+- `/scripts` directory conent
+- `config.yaml` file
+- `Dockerfile` file
+- `go.mod` file
+- `go.sum` file
+- `main.go` file
+- `Makefile` file
+- any `*.go` file
+- any `*.sh` file
+
 ## Reusable Workflows
 
 There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
