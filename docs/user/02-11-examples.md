@@ -1,6 +1,6 @@
 # Examples
 
-The following document contains description of notable features shipped with new SAP BTP Operator Service upgrades discovered during application of newest versions.
+This document describes notable features shipped with new SAP BTP service operator upgrades discovered during the application of latest versions.
 
 ## Secret Templates
 
