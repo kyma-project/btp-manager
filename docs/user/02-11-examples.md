@@ -1,4 +1,4 @@
-# Examples
+# Sap BTP Service Operator Examples
 
 This document describes notable features shipped with new SAP BTP service operator upgrades discovered during the application of latest versions.
 
