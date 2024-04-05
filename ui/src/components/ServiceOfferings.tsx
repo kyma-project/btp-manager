@@ -2,7 +2,6 @@ import * as ui5 from "@ui5/webcomponents-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import OfferingModel from "../models/service-offering";
-import useStore from "../store";
 
 function ServiceOfferings(props: any) {
   const [offerings, setOfferings] = useState<OfferingModel>();
@@ -21,13 +20,19 @@ function ServiceOfferings(props: any) {
         setLoading(false);
       })
       .catch((error) => {
-        console.log("Error");
-        console.log(error);
         setError(error);
         setLoading(false);
       });
     }
   }, [props.secret]);
+
+  if (loading) {
+    return <ui5.Text>Loading...</ui5.Text>;
+  }
+
+  if (error) {
+    return <ui5.Text>Error: {error}</ui5.Text>;
+  }
 
   const renderData = () => {
     return offerings?.items.map((offering, index) => {
@@ -59,8 +64,7 @@ function splitSecret(s: string) {
   if (s == null) {
     return {};
   }
-  console.log("splitSecret");
-  console.log(s);
+
   // @ts-ignore
   const secretName = s.match(/(\w+) in/)[1];
   // @ts-ignore

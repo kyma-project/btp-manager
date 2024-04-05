@@ -1,5 +1,5 @@
 export interface ServiceInstances {
-    items: ServiceInstance
+    items: ServiceInstance[]
 }
 
 interface ServiceInstance
@@ -15,6 +15,5 @@ interface ServiceInstaceBindings
 {
     id: string;
     name: string;
-    context: string;
     namespace: string;
 }

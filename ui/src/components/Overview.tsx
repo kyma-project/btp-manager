@@ -4,26 +4,12 @@ import * as ui5 from "@ui5/webcomponents-react";
 import Secrets from "./Secrets";
 import React from "react";
 
-function Overview(props) {
+function Overview(props: any) {
   const [secret, setSecret] = React.useState(null);
-
-  function get() {
-    let b
-    if (secret !== "") {
-      console.log(`sending secret to ServiceOfferings: ${secret}`)
-      b = <ServiceOfferings secret={secret}/>
-      console.log("secret found")
-    }
-
-    return b;
-  }
-
-  function handler(e) {
-    console.log("handler")
-    console.log(e)
+  function handler(e: any) {
     setSecret(e)
   }
-
+  
   return (
       <>
         <div>
@@ -41,9 +27,11 @@ function Overview(props) {
           >
             <ui5.Grid>
               <div data-layout-indent="XL12" data-layout-span="XL12">
-                <Secrets handler={(e) => handler(e)}/>
+                <Secrets handler={(e :any) => handler(e)}/>
               </div>
-              {get()}
+              <div data-layout-indent="XL12" data-layout-span="XL12">
+              <ServiceOfferings secret={secret}/>
+              </div>
               <div data-layout-indent="XL12" data-layout-span="XL12">
                 <ServiceInstances/>
               </div>

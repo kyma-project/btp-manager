@@ -30,7 +30,6 @@ function Secrets(props: any) {
     return <ui5.Text>Error: {error}</ui5.Text>;
   }
 
-
   const renderData = () => {
     return secrets?.items.map((s, i) => {
       return (
@@ -45,7 +44,7 @@ function Secrets(props: any) {
       <div>
         <>
           <div>
-            <ui5.Select onChange={(e) => {
+            <ui5.Select style={{width: '20vw'}} onChange={(e) => {
               // @ts-ignore
               props.handler(e.target.value);
             }}>
