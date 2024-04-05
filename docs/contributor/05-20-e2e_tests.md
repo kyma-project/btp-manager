@@ -68,11 +68,9 @@ The following secrets are used and substituted in the `sap-btp-manager` secret r
 - SM_TOKEN_URL - Service Manager token URL, `data.tokenurl`
 All secrets should be base64 encoded. Caveat of the new line character at the end of the secret value.
 
-Bash command
+The following bash command could be used to encode the secret:
 
 ```echo -n "secret" | base64``` 
-
-could be used to encode the secret.
 
 Currently used values are taken from Service Binding `e2e-test-sm` created for `e2e-test-sm` Service Manager instance in `e2e-test-btp-manager` subaccount of `kyma-gopher` global account on Canary environment.
 In case of credentials rotation, the secrets should be updated in the repository secrets regardless of location and naming of Service Manager instance and Secret Binding used.
