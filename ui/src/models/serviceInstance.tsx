@@ -6,7 +6,7 @@ interface ServiceInstance
 {
     id: string;
     name: string;
-    context: string;
+    context: string[];
     namespace: string;
     service_bindings: ServiceInstaceBindings[];
 }

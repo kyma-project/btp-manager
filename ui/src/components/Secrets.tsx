@@ -1,16 +1,16 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import axios from "axios";
 import { FormEventHandler, useEffect, useState} from "react";
-import SecretModel from "../models/secret";
+import k8sSecretModel from "../models/k8sSecret";
 
 function Secrets(props: any) {
-  const [secrets, setSecrets] = useState<SecretModel>();
+  const [secrets, setSecrets] = useState<k8sSecretModel>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     axios
-      .get<SecretModel>("http://localhost:3002/api/listSecrets")
+      .get<k8sSecretModel>("http://localhost:3002/api/listSecrets")
       .then((response) => {
         setSecrets(response.data);
         console.log(response.data);

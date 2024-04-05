@@ -5,5 +5,3 @@ export interface ServiceInstanceDetails
     context: string;
     namespace: string;
 }
-
-export {}

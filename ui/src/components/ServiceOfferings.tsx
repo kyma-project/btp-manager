@@ -1,10 +1,10 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import OfferingModel from "../models/service-offering";
+import ServiceOfferingModel from "../models/serviceOffering";
 
 function ServiceOfferings(props: any) {
-  const [offerings, setOfferings] = useState<OfferingModel>();
+  const [offerings, setOfferings] = useState<ServiceOfferingModel>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -12,7 +12,7 @@ function ServiceOfferings(props: any) {
     const splited = splitSecret(props.secret);
     if (splited) {
       axios
-      .get<OfferingModel>(
+      .get<ServiceOfferingModel>(
         `http://localhost:3002/api/list-offerings/${splited.namespace}/${splited.secretName}`
       )
       .then((response) => {
