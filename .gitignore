@@ -44,3 +44,7 @@ vendor/**
 /vendor
 
 debug.sh
+
+
+/fake
+/node_modules
