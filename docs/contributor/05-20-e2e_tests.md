@@ -65,7 +65,7 @@ The following secrets are used and substituted in the `sap-btp-manager` secret r
 - SM_CLIENT_ID - Service Manager client ID, `data.clientid`
 - SM_CLIENT_SECRET - Service Manager client secret, `data.clientsecret`
 - SM_URL - Service Manager URL, `data.sm_url`
-- SM_TOKEN_URL - Service Manager token URL, `data.tokenurl`
+- SM_TOKEN_URL - Service Manager token URL, `data.tokenurl`  
 All secrets should be base64 encoded. Caveat of the new line character at the end of the secret value.
 
 The following bash command could be used to encode the secret:
