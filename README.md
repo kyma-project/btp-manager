@@ -72,7 +72,10 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 - [informer's cache](./docs/contributor/07-10-informer-cache.md)
 - [metrics](./docs/contributor/08-10-metrics.md)
 
-Visit the [`user`](./docs/user) folder if you want to know more about [SAP BTP Operator](./docs/user/README.md), and [how to use the module](./docs/user/02-10-usage.md).
+In the [`user`](./docs/user) folder, you will find the following documents:
+- [SAP BTP Operator Module](./docs/user/README.md)
+- [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md)
+- [SAP BTP Service Operator Examples](./docs/user/02-20-examples.md)
 
 ## Contributing
 <!--- mandatory section - do not change this! --->
