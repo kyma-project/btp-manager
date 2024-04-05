@@ -73,5 +73,5 @@ The following bash command could be used to encode the secret:
 ```echo -n "secret" | base64``` 
 
 Currently used values are taken from Service Binding `e2e-test-sm` created for the `e2e-test-sm` Service Manager instance in the `e2e-test-btp-manager` subaccount of the `kyma-gopher` global account on the Canary environment.
-In case of credentials rotation, the secrets should be updated in the repository secrets regardless of location and naming of Service Manager instance and Secret Binding used.
+In case of credentials rotation, the secrets should be updated in the repository secrets, regardless of the location and naming of the Service Manager instance and Secret Binding used.
 
