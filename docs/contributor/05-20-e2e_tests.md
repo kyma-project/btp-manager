@@ -61,7 +61,7 @@ The scripts create the required prerequisites, get the BTP Manager and BtpOperat
 ### Real Credentials Rotation
 
 Real credentials used in the test are configured as repository secrets.
-The following secrets are used and substituted in the `sap-btp-manager` secret resource:
+The following secrets are used and substituted in the `sap-btp-manager` Kyma Secret resource:
 - SM_CLIENT_ID - Service Manager client ID, `data.clientid`
 - SM_CLIENT_SECRET - Service Manager client secret, `data.clientsecret`
 - SM_URL - Service Manager URL, `data.sm_url`
