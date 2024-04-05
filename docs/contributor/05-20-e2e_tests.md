@@ -58,7 +58,7 @@ The Kubernetes cluster is created, and the sources are checked out.
 The workflows wait till the binary image is available for fetching.
 The scripts create the required prerequisites, get the BTP Manager and BtpOperator installed or upgraded, validate expected statuses, and get BtpOperator and BTP Manager uninstalled.
 
-### Real credentials rotation
+### Real Credentials Rotation
 
 Real credentials used in the test are configured as repository secrets.
 Following secrets are used and substituted in the `sap-btp-manager` secret resource:
