@@ -57,3 +57,21 @@ The GitHub Actions workflows execute the two tests:
 The Kubernetes cluster is created, and the sources are checked out.
 The workflows wait till the binary image is available for fetching.
 The scripts create the required prerequisites, get the BTP Manager and BtpOperator installed or upgraded, validate expected statuses, and get BtpOperator and BTP Manager uninstalled.
+
+### Real Credentials Rotation
+
+Real credentials used in the test are configured as repository secrets.
+The following secrets are used and substituted in the `sap-btp-manager` Kyma Secret resource:
+- SM_CLIENT_ID - Service Manager client ID, `data.clientid`
+- SM_CLIENT_SECRET - Service Manager client secret, `data.clientsecret`
+- SM_URL - Service Manager URL, `data.sm_url`
+- SM_TOKEN_URL - Service Manager token URL, `data.tokenurl`  
+All secrets should be base64 encoded. Caveat of the new line character at the end of the secret value.
+
+The following bash command could be used to encode the secret:
+
+```echo -n "secret" | base64``` 
+
+Currently used values are taken from Service Binding `e2e-test-sm` created for the `e2e-test-sm` Service Manager instance in the `e2e-test-btp-manager` subaccount of the `kyma-gopher` global account on the Canary environment.
+In case of credentials rotation, the secrets should be updated in the repository secrets, regardless of the location and naming of the Service Manager instance and Secret Binding used.
+
