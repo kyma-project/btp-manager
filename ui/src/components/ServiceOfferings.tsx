@@ -1,10 +1,10 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import ServiceOfferingModel from "../models/serviceOffering";
+import { ServiceOfferings } from "../shared/models";
 
-function ServiceOfferings(props: any) {
-  const [offerings, setOfferings] = useState<ServiceOfferingModel>();
+function ServiceOfferingsView(props: any) {
+  const [offerings, setOfferings] = useState<ServiceOfferings>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -12,7 +12,7 @@ function ServiceOfferings(props: any) {
     const splited = splitSecret(props.secret);
     if (splited) {
       axios
-      .get<ServiceOfferingModel>(
+      .get<ServiceOfferings>(
         `http://localhost:3002/api/list-offerings/${splited.namespace}/${splited.secretName}`
       )
       .then((response) => {
@@ -44,7 +44,7 @@ function ServiceOfferings(props: any) {
               <ui5.CardHeader
                 avatar={<ui5.Icon />}
                 subtitleText={offering.metadata.displayName}
-                titleText={offering.name}
+                titleText={offering.catalog_name}
                 status={formatStatus(index, offerings.num_items)}
                 interactive
               />
@@ -77,4 +77,4 @@ function formatStatus(i: number, j: number) {
   return `${++i} of ${j}`;
 }
 
-export default ServiceOfferings;
+export default ServiceOfferingsView;

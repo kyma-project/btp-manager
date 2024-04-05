@@ -1,16 +1,16 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import axios from "axios";
-import { FormEventHandler, useEffect, useState} from "react";
-import k8sSecretModel from "../models/k8sSecret";
+import { useEffect, useState} from "react";
+import { Secrets } from "../shared/models";
 
-function Secrets(props: any) {
-  const [secrets, setSecrets] = useState<k8sSecretModel>();
+function SecretsView(props: any) {
+  const [secrets, setSecrets] = useState<Secrets>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     axios
-      .get<k8sSecretModel>("http://localhost:3002/api/listSecrets")
+      .get<Secrets>("http://localhost:3002/api/listSecrets")
       .then((response) => {
         setSecrets(response.data);
         console.log(response.data);
@@ -60,4 +60,4 @@ function formatDisplay(secretName: string, secretNamespace: string) {
   return `${secretName} in (${secretNamespace})`;
 }
 
-export default Secrets;
+export default SecretsView;
