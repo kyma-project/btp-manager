@@ -10,7 +10,7 @@ function SecretsView(props: any) {
 
   useEffect(() => {
     axios
-      .get<Secrets>("http://localhost:3002/api/listSecrets")
+      .get<Secrets>("http://localhost:3002/api/list-secrets")
       .then((response) => {
         setSecrets(response.data);
         console.log(response.data);
