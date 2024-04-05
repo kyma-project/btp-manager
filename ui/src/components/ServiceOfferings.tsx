@@ -40,9 +40,14 @@ function ServiceOfferingsView(props: any) {
         <>
           <ui5.Card
             key={index}
+            style={{
+              width: '200px',
+              height: '200px',
+              padding: '1rem',
+            }}
             header={
               <ui5.CardHeader
-                avatar={<ui5.Icon />}
+                avatar={<ui5.Avatar><img alt="" src={offering.metadata.imageUrl}></img></ui5.Avatar>}
                 subtitleText={offering.metadata.displayName}
                 titleText={offering.catalog_name}
                 status={formatStatus(index, offerings.num_items)}
@@ -50,6 +55,8 @@ function ServiceOfferingsView(props: any) {
               />
             }
           >
+            <ui5.Text>
+            </ui5.Text>
             <ui5.Text>{offering.description}</ui5.Text>
           </ui5.Card>
         </>
