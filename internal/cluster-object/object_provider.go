@@ -1,6 +1,8 @@
 package clusterobject
 
 import (
+	"context"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -12,9 +14,9 @@ type Provider[T client.Object | client.ObjectList] interface {
 }
 
 type ClusterScopedProvider[T client.ObjectList] interface {
-	All() (T, error)
+	All(ctx context.Context) (T, error)
 }
 
 type NamespacedProvider[T client.Object] interface {
-	GetByNameAndNamespace(name, namespace string) (T, error)
+	GetByNameAndNamespace(ctx context.Context, name, namespace string) (T, error)
 }
