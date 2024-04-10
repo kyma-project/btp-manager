@@ -29,31 +29,31 @@ func NewServiceInstanceProvider(reader client.Reader, logger *slog.Logger) *Secr
 	}
 }
 
-func (p *ServiceInstanceProvider) AllWithSecretRef(ctx context.Context) (unstructured.UnstructuredList, error) {
+func (p *ServiceInstanceProvider) AllWithSecretRef(ctx context.Context) (*unstructured.UnstructuredList, error) {
 	filtered, err := p.All(ctx)
 	if err != nil {
 		p.logger.Error("while fetching filtered service instances", "error", err)
-		return unstructured.UnstructuredList{}, err
+		return nil, err
 	}
 
-	if err := p.filterBySecretRef(&filtered); err != nil {
+	if err := p.filterBySecretRef(filtered); err != nil {
 		p.logger.Error("while filtering service instances by secret ref", "error", err)
-		return unstructured.UnstructuredList{}, err
+		return nil, err
 	}
 
 	return filtered, nil
 }
 
-func (p *ServiceInstanceProvider) All(ctx context.Context) (unstructured.UnstructuredList, error) {
-	list := unstructured.UnstructuredList{}
+func (p *ServiceInstanceProvider) All(ctx context.Context) (*unstructured.UnstructuredList, error) {
+	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(controllers.InstanceGvk)
-	if err := p.List(ctx, &list); err != nil {
+	if err := p.List(ctx, list); err != nil {
 		p.logger.Error("failed to list all service instances", "error", err)
-		return unstructured.UnstructuredList{}, err
+		return nil, err
 	}
 	if len(list.Items) == 0 {
 		p.logger.Info("no service instances found")
-		return unstructured.UnstructuredList{}, nil
+		return list, nil
 	}
 
 	return list, nil

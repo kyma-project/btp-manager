@@ -35,7 +35,7 @@ func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, logg
 func (p *SecretProvider) All(ctx context.Context) (*v1.SecretList, error) {
 	p.logger.Info("fetching all btp operator secrets")
 	secrets := &v1.SecretList{}
-	if err := p.getAllSapBtpServiceOperatorSecrets(ctx, secrets); err != nil {
+	if err := p.getAllSapBtpServiceOperatorNamedSecrets(ctx, secrets); err != nil {
 		return nil, err
 	}
 
@@ -46,14 +46,14 @@ func (p *SecretProvider) All(ctx context.Context) (*v1.SecretList, error) {
 	}
 	nsnames := p.getNamespacesNames(namespaces)
 
-	if err := p.getAllSecretsWithNamespacePrefix(ctx, secrets, nsnames); err != nil {
+	if err := p.getAllSecretsWithNamespaceNamePrefix(ctx, secrets, nsnames); err != nil {
 		return nil, err
 	}
 
 	return secrets, err
 }
 
-func (p *SecretProvider) getAllSapBtpServiceOperatorSecrets(ctx context.Context, secrets *v1.SecretList) error {
+func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *v1.SecretList) error {
 	if err := p.Reader.List(ctx, secrets, client.MatchingFields{"metadata.name": btpServiceOperatorSecretName}); err != nil {
 		p.logger.Error(fmt.Sprintf("failed to fetch all \"%s\" secrets", btpServiceOperatorSecretName), "error", err)
 		return err
@@ -61,7 +61,7 @@ func (p *SecretProvider) getAllSapBtpServiceOperatorSecrets(ctx context.Context,
 	return nil
 }
 
-func (p *SecretProvider) getNamespacesNames(namespaces v1.NamespaceList) []string {
+func (p *SecretProvider) getNamespacesNames(namespaces *v1.NamespaceList) []string {
 	names := make([]string, len(namespaces.Items))
 	for i, ns := range namespaces.Items {
 		names[i] = ns.Name
@@ -69,7 +69,7 @@ func (p *SecretProvider) getNamespacesNames(namespaces v1.NamespaceList) []strin
 	return names
 }
 
-func (p *SecretProvider) getAllSecretsWithNamespacePrefix(ctx context.Context, secrets *v1.SecretList, nsnames []string) error {
+func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *v1.SecretList, nsnames []string) error {
 	for _, nsname := range nsnames {
 		secret := &v1.Secret{}
 		secretName := fmt.Sprintf("%s-%s", nsname, btpServiceOperatorSecretName)

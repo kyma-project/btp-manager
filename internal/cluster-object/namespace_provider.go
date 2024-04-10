@@ -25,19 +25,19 @@ func NewNamespaceProvider(reader client.Reader, logger *slog.Logger) *SecretProv
 	}
 }
 
-func (p *NamespaceProvider) All(ctx context.Context) (v1.NamespaceList, error) {
+func (p *NamespaceProvider) All(ctx context.Context) (*v1.NamespaceList, error) {
 	p.logger.Info("fetching all namespaces")
 
-	namespaces := v1.NamespaceList{}
-	if err := p.Reader.List(ctx, &namespaces); err != nil {
+	namespaces := &v1.NamespaceList{}
+	if err := p.Reader.List(ctx, namespaces); err != nil {
 		p.logger.Error("failed to fetch all namespaces", "error", err)
-		return v1.NamespaceList{}, err
+		return nil, err
 	}
 
 	if len(namespaces.Items) == 0 {
 		err := errors.New("no namespaces found")
 		p.logger.Error(err.Error())
-		return v1.NamespaceList{}, err
+		return nil, err
 	}
 
 	return namespaces, nil
