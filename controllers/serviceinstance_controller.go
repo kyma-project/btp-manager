@@ -42,7 +42,7 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	logger.Info("SI reconcile triggered")
 
 	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(instanceGvk)
+	list.SetGroupVersionKind(InstanceGvk)
 	err := r.List(ctx, list, client.InNamespace(corev1.NamespaceAll))
 	if err != nil {
 		return ctrl.Result{}, err
@@ -89,7 +89,7 @@ func (r *ServiceInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
 
 	si := &unstructured.Unstructured{}
-	si.SetGroupVersionKind(instanceGvk)
+	si.SetGroupVersionKind(InstanceGvk)
 	sb := &unstructured.Unstructured{}
 	sb.SetGroupVersionKind(bindingGvk)
 

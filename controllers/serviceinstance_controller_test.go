@@ -65,8 +65,8 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
 				//  - create Service Instance
-				siUnstructured := createResource(instanceGvk, kymaNamespace, serviceInstanceName)
-				ensureResourceExists(instanceGvk)
+				siUnstructured := createResource(InstanceGvk, kymaNamespace, serviceInstanceName)
+				ensureResourceExists(InstanceGvk)
 
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
