@@ -18,17 +18,19 @@ const (
 
 type SecretProvider struct {
 	client.Reader
-	namespaceProvider *NamespaceProvider
-	logger            *slog.Logger
+	namespaceProvider       *NamespaceProvider
+	serviceInstanceProvider *ServiceInstanceProvider
+	logger                  *slog.Logger
 }
 
-func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, logger *slog.Logger) *SecretProvider {
+func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, siProvider *ServiceInstanceProvider, logger *slog.Logger) *SecretProvider {
 	logger = logger.With(logComponentNameKey, secretProviderName)
 
 	return &SecretProvider{
-		Reader:            reader,
-		namespaceProvider: nsProvider,
-		logger:            logger,
+		Reader:                  reader,
+		namespaceProvider:       nsProvider,
+		serviceInstanceProvider: siProvider,
+		logger:                  logger,
 	}
 }
 
