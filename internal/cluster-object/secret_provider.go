@@ -6,8 +6,9 @@ import (
 	"log/slog"
 
 	"github.com/kyma-project/btp-manager/controllers"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -34,9 +35,9 @@ func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, siPr
 	}
 }
 
-func (p *SecretProvider) All(ctx context.Context) (*v1.SecretList, error) {
+func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
 	p.logger.Info("fetching all btp operator secrets")
-	secrets := &v1.SecretList{}
+	secrets := &corev1.SecretList{}
 	if err := p.getAllSapBtpServiceOperatorNamedSecrets(ctx, secrets); err != nil {
 		return nil, err
 	}
@@ -46,16 +47,26 @@ func (p *SecretProvider) All(ctx context.Context) (*v1.SecretList, error) {
 		p.logger.Error("while fetching namespaces", "error", err)
 		return nil, err
 	}
-	nsnames := p.getNamespacesNames(namespaces)
 
+	nsnames := p.getNamespacesNames(namespaces)
 	if err := p.getAllSecretsWithNamespaceNamePrefix(ctx, secrets, nsnames); err != nil {
+		return nil, err
+	}
+
+	siList, err := p.serviceInstanceProvider.AllWithSecretRef(ctx)
+	if err != nil {
+		p.logger.Error("while fetching service instances with secret ref", "error", err)
+		return nil, err
+	}
+
+	if err := p.getSecretsFromRefInServiceInstances(ctx, siList, secrets); err != nil {
 		return nil, err
 	}
 
 	return secrets, err
 }
 
-func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *v1.SecretList) error {
+func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *corev1.SecretList) error {
 	if err := p.Reader.List(ctx, secrets, client.MatchingFields{"metadata.name": btpServiceOperatorSecretName}); err != nil {
 		p.logger.Error(fmt.Sprintf("failed to fetch all \"%s\" secrets", btpServiceOperatorSecretName), "error", err)
 		return err
@@ -63,7 +74,7 @@ func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Con
 	return nil
 }
 
-func (p *SecretProvider) getNamespacesNames(namespaces *v1.NamespaceList) []string {
+func (p *SecretProvider) getNamespacesNames(namespaces *corev1.NamespaceList) []string {
 	names := make([]string, len(namespaces.Items))
 	for i, ns := range namespaces.Items {
 		names[i] = ns.Name
@@ -71,9 +82,9 @@ func (p *SecretProvider) getNamespacesNames(namespaces *v1.NamespaceList) []stri
 	return names
 }
 
-func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *v1.SecretList, nsnames []string) error {
+func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *corev1.SecretList, nsnames []string) error {
 	for _, nsname := range nsnames {
-		secret := &v1.Secret{}
+		secret := &corev1.Secret{}
 		secretName := fmt.Sprintf("%s-%s", nsname, btpServiceOperatorSecretName)
 		if err := p.Get(ctx, client.ObjectKey{Namespace: controllers.ChartNamespace, Name: secretName}, secret); err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -87,4 +98,37 @@ func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Contex
 	}
 
 	return nil
+}
+
+func (p *SecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList) error {
+	for _, item := range siList.Items {
+		secretRef, found, err := unstructured.NestedString(item.Object, secretRefKey)
+		if err != nil {
+			p.logger.Error(fmt.Sprintf("while traversing \"%s\" unstructured object to find \"%s\" key", item.GetName(), secretRefKey), "error", err)
+			return err
+		} else if !found {
+			p.logger.Warn(fmt.Sprintf("expected secret ref not found in \"%s\" service instance", item.GetName()))
+			continue
+		}
+		secret := &corev1.Secret{}
+		if err := p.Get(ctx, client.ObjectKey{Namespace: controllers.ChartNamespace, Name: secretRef}, secret); err != nil {
+			p.logger.Error(fmt.Sprintf("failed to fetch \"%s\" secret", secretRef), "error", err)
+			return err
+		}
+		if p.secretExistsInList(secret, secrets) {
+			continue
+		}
+		secrets.Items = append(secrets.Items, *secret)
+	}
+
+	return nil
+}
+
+func (p *SecretProvider) secretExistsInList(secret *corev1.Secret, secrets *corev1.SecretList) bool {
+	for _, s := range secrets.Items {
+		if s.Name == secret.Name {
+			return true
+		}
+	}
+	return false
 }
