@@ -8,11 +8,6 @@ import (
 
 const logComponentNameKey = "component"
 
-type Provider[T client.Object | client.ObjectList] interface {
-	ClusterScopedProvider[T]
-	NamespacedProvider[T]
-}
-
 type ClusterScopedProvider[T client.ObjectList] interface {
 	All(ctx context.Context) (T, error)
 }
