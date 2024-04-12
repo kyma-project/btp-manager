@@ -16,10 +16,10 @@ type NamespaceProvider struct {
 	logger *slog.Logger
 }
 
-func NewNamespaceProvider(reader client.Reader, logger *slog.Logger) *SecretProvider {
+func NewNamespaceProvider(reader client.Reader, logger *slog.Logger) *NamespaceProvider {
 	logger = logger.With(logComponentNameKey, namespaceProviderName)
 
-	return &SecretProvider{
+	return &NamespaceProvider{
 		Reader: reader,
 		logger: logger,
 	}
