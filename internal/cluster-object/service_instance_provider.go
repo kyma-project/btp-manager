@@ -20,10 +20,10 @@ type ServiceInstanceProvider struct {
 	logger *slog.Logger
 }
 
-func NewServiceInstanceProvider(reader client.Reader, logger *slog.Logger) *SecretProvider {
+func NewServiceInstanceProvider(reader client.Reader, logger *slog.Logger) *ServiceInstanceProvider {
 	logger = logger.With(logComponentNameKey, serviceInstanceProviderName)
 
-	return &SecretProvider{
+	return &ServiceInstanceProvider{
 		Reader: reader,
 		logger: logger,
 	}
