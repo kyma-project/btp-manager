@@ -60,21 +60,23 @@ func (p *ServiceInstanceProvider) All(ctx context.Context) (*unstructured.Unstru
 }
 
 func (p *ServiceInstanceProvider) filterBySecretRef(all *unstructured.UnstructuredList) error {
-	for i, item := range all.Items {
-		found, err := p.hasSecretRef(item)
+	for i := 0; i < len(all.Items); {
+		found, err := p.hasSecretRef(all.Items[i])
 		if err != nil {
 			return err
 		}
 		if !found {
 			all.Items = append(all.Items[:i], all.Items[i+1:]...)
+			continue
 		}
+		i++
 	}
 
 	return nil
 }
 
 func (p *ServiceInstanceProvider) hasSecretRef(item unstructured.Unstructured) (bool, error) {
-	_, found, err := unstructured.NestedString(item.Object, secretRefKey)
+	_, found, err := unstructured.NestedString(item.Object, "spec", secretRefKey)
 	if err != nil {
 		p.logger.Error(fmt.Sprintf("while traversing \"%s\" unstructured object to find \"%s\" key", item.GetName(), secretRefKey), "error", err)
 		return false, err
