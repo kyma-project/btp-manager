@@ -63,6 +63,11 @@ func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
 		return nil, err
 	}
 
+	if len(secrets.Items) == 0 {
+		p.logger.Warn(fmt.Sprintf("no btp operator secrets found"))
+		return nil, err
+	}
+
 	return secrets, err
 }
 
