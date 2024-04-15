@@ -15,7 +15,7 @@ manager:
   management_namespace:
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.6.1
+    tag: v0.6.2
     sha: ""
   secret:
     b64encoded: false
