@@ -102,7 +102,7 @@ func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Contex
 
 func (p *SecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList) error {
 	for _, item := range siList.Items {
-		secretRef, found, err := unstructured.NestedString(item.Object, secretRefKey)
+		secretRef, found, err := unstructured.NestedString(item.Object, "spec", secretRefKey)
 		if err != nil {
 			p.logger.Error(fmt.Sprintf("while traversing \"%s\" unstructured object to find \"%s\" key", item.GetName(), secretRefKey), "error", err)
 			return err
@@ -112,6 +112,10 @@ func (p *SecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context
 		}
 		secret := &corev1.Secret{}
 		if err := p.Get(ctx, client.ObjectKey{Namespace: controllers.ChartNamespace, Name: secretRef}, secret); err != nil {
+			if k8serrors.IsNotFound(err) {
+				p.logger.Warn(fmt.Sprintf("secret \"%s\" not found in \"%s\" namespace", secretRef, controllers.ChartNamespace))
+				continue
+			}
 			p.logger.Error(fmt.Sprintf("failed to fetch \"%s\" secret", secretRef), "error", err)
 			return err
 		}
