@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -28,9 +30,7 @@ func TestNamespaceProvider(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error while fetching namespaces: %s", err)
 		}
-		if len(nsList.Items) != 3 {
-			t.Errorf("Expected 3 namespaces, got %d", len(nsList.Items))
-		}
+		assert.Len(t, nsList.Items, 3)
 	})
 
 	t.Run("should return error when no namespaces found", func(t *testing.T) {
@@ -42,9 +42,7 @@ func TestNamespaceProvider(t *testing.T) {
 		_, err := nsProvider.All(context.TODO())
 
 		// then
-		if err == nil {
-			t.Error("Expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 }
 

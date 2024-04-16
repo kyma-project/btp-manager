@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/kyma-project/btp-manager/controllers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,11 +19,11 @@ import (
 func TestSecretProvider(t *testing.T) {
 	// given
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	ns := initNamespaces()
-	sis := initServiceInstances(t)
 
 	t.Run("should fetch all secrets - from the module's namespace, with a namespace prefix, with an arbitrary name", func(t *testing.T) {
 		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
 		additionalNamespaces := createAdditionalNamespaces()
 		expectedSecrets := []corev1.Secret{
 			{
@@ -83,9 +85,7 @@ func TestSecretProvider(t *testing.T) {
 
 		// when
 		actualSecrets, err := secretProvider.All(context.TODO())
-		if err != nil {
-			t.Errorf("Error while fetching secrets: %s", err)
-		}
+		require.NoError(t, err)
 
 		// then
 		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
@@ -93,6 +93,8 @@ func TestSecretProvider(t *testing.T) {
 
 	t.Run("should fetch module's secret only", func(t *testing.T) {
 		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
 		additionalNamespaces := createAdditionalNamespaces()
 		expectedSecrets := []corev1.Secret{
 			{
@@ -120,9 +122,7 @@ func TestSecretProvider(t *testing.T) {
 
 		// when
 		actualSecrets, err := secretProvider.All(context.TODO())
-		if err != nil {
-			t.Errorf("Error while fetching secrets: %s", err)
-		}
+		require.NoError(t, err)
 
 		// then
 		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
@@ -130,6 +130,8 @@ func TestSecretProvider(t *testing.T) {
 
 	t.Run("should fetch namespace prefixed secret only", func(t *testing.T) {
 		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
 		additionalNamespaces := createAdditionalNamespaces()
 		expectedSecrets := []corev1.Secret{
 			{
@@ -157,9 +159,7 @@ func TestSecretProvider(t *testing.T) {
 
 		// when
 		actualSecrets, err := secretProvider.All(context.TODO())
-		if err != nil {
-			t.Errorf("Error while fetching secrets: %s", err)
-		}
+		require.NoError(t, err)
 
 		// then
 		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
@@ -167,6 +167,8 @@ func TestSecretProvider(t *testing.T) {
 
 	t.Run("should fetch only secrets referenced in service instances", func(t *testing.T) {
 		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
 		additionalNamespaces := createAdditionalNamespaces()
 		expectedSecrets := []corev1.Secret{
 			{
@@ -203,9 +205,7 @@ func TestSecretProvider(t *testing.T) {
 
 		// when
 		actualSecrets, err := secretProvider.All(context.TODO())
-		if err != nil {
-			t.Errorf("Error while fetching secrets: %s", err)
-		}
+		require.NoError(t, err)
 
 		// then
 		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
@@ -213,6 +213,8 @@ func TestSecretProvider(t *testing.T) {
 
 	t.Run("should return nil when there are no btp operator secrets", func(t *testing.T) {
 		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
 		additionalNamespaces := createAdditionalNamespaces()
 		additionalSecrets := createAdditionalSecrets()
 		secrets := &corev1.SecretList{Items: additionalSecrets}
@@ -228,14 +230,10 @@ func TestSecretProvider(t *testing.T) {
 
 		// when
 		actualSecrets, err := secretProvider.All(context.TODO())
-		if err != nil {
-			t.Errorf("Error while fetching secrets: %s", err)
-		}
+		require.NoError(t, err)
 
 		// then
-		if actualSecrets != nil {
-			t.Errorf("Expected nil, got %T", actualSecrets)
-		}
+		assert.Nil(t, actualSecrets)
 	})
 }
 
@@ -293,10 +291,7 @@ func secretNameIndexer(obj client.Object) []string {
 }
 
 func compareSecretSlices(t *testing.T, expected, actual []corev1.Secret) {
-	if len(expected) != len(actual) {
-		t.Errorf("Expected %d secrets, got %d", len(expected), len(actual))
-		return
-	}
+	assert.Equal(t, len(expected), len(actual))
 
 	for _, expectedSecret := range expected {
 		if !containsSecret(actual, expectedSecret) {

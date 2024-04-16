@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/kyma-project/btp-manager/controllers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -25,12 +27,8 @@ func TestServiceInstanceProvider(t *testing.T) {
 		sis, err := siProvider.All(context.TODO())
 
 		// then
-		if err != nil {
-			t.Errorf("Error while fetching service instances: %s", err)
-		}
-		if len(sis.Items) != 4 {
-			t.Errorf("Expected 4 service instances, got %d", len(sis.Items))
-		}
+		require.NoError(t, err)
+		assert.Len(t, sis.Items, 4)
 	})
 
 	t.Run("should fetch service instances with secret reference", func(t *testing.T) {
@@ -43,20 +41,12 @@ func TestServiceInstanceProvider(t *testing.T) {
 		sis, err := siProvider.AllWithSecretRef(context.TODO())
 
 		// then
-		if err != nil {
-			t.Errorf("Error while fetching service instances: %s", err)
-		}
-		if len(sis.Items) != 2 {
-			t.Errorf("Expected 2 service instances, got %d", len(sis.Items))
-		}
+		require.NoError(t, err)
+		assert.Len(t, sis.Items, 2)
 		for _, si := range sis.Items {
 			secretRef, _, err := unstructured.NestedString(si.Object, "spec", secretRefKey)
-			if err != nil {
-				t.Errorf("Error while fetching secret ref from service instance: %s", err)
-			}
-			if secretRef == "" {
-				t.Error("Expected secret ref, got empty value")
-			}
+			require.NoError(t, err)
+			assert.NotEmpty(t, secretRef)
 		}
 	})
 }
