@@ -229,7 +229,9 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleInitialState(ctx, reconcileCr)
 	case v1alpha1.StateProcessing:
 		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, reconcileCr)
-	case v1alpha1.StateError, v1alpha1.StateWarning:
+	case v1alpha1.StateWarning:
+		return r.HandleWarningState(ctx, reconcileCr)
+	case v1alpha1.StateError:
 		return ctrl.Result{}, r.HandleErrorState(ctx, reconcileCr)
 	case v1alpha1.StateDeleting:
 		err := r.HandleDeletingState(ctx, reconcileCr)
@@ -701,6 +703,21 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	}
 }
 
+func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Handling Warning state")
+
+	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+		err := r.HandleDeletingState(ctx, cr)
+		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
+		}
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.Updated, "CR has been updated")
+}
+
 func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
@@ -793,7 +810,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			}
 
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
-				v1alpha1.StateDeleting, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
+				v1alpha1.StateWarning, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
 				return updateStatusErr
 			}
 			return nil

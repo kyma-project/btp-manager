@@ -72,7 +72,7 @@ var Reasons = map[Reason]Metadata{
 	StoringChartDetailsFailed:             {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure of storing chart details
 	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting Config Map failed
 	ProvisioningFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Provisioning failed
-	ServiceInstancesAndBindingsNotCleaned: {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
+	ServiceInstancesAndBindingsNotCleaned: {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
 }
 
 // gophers_metadata_section_end

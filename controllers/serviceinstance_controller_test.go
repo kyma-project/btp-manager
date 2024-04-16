@@ -70,7 +70,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 
 				// WHEN
 				Expect(k8sClient.Delete(ctx, siUnstructured)).To(Succeed())
@@ -93,7 +93,7 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 				//  - trigger BTP operator deletion
 				Expect(k8sClient.Delete(ctx, btpOperatorResource)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 
 				// WHEN
 				Expect(k8sClient.Delete(ctx, sbUnstructured)).To(Succeed())

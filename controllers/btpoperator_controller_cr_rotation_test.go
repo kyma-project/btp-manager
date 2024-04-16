@@ -137,7 +137,7 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 
 				Expect(k8sClient.Delete(ctx, btpOperator1)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: btpOperator1.GetNamespace(), Name: btpOperator1.GetName()}, btpOperator1)).To(Succeed())
 				btpOperator1.SetFinalizers([]string{})
 				Expect(k8sClient.Update(ctx, btpOperator1)).To(Succeed())
