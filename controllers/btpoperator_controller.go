@@ -66,7 +66,7 @@ var (
 	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Minute * 5
+	ReadyStateRequeueInterval      = time.Minute * 15
 	ReadyTimeout                   = time.Minute * 1
 	ReadyCheckInterval             = time.Second * 1
 	HardDeleteTimeout              = time.Minute * 20
@@ -800,19 +800,17 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 
 		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info(fmt.Sprintf("Existing resources: (%d instances and %d bindings) block BTP Operator deletion.", numberOfInstances, numberOfBindings))
+			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) block BTP Operator deletion.", numberOfInstances, numberOfBindings))
 			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
 			logger.Info(msg)
 
 			// if the reason is already set, do nothing
 			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-				logger.Info("ServiceInstancesAndBindingsNotCleaned already set")
 				return nil
 			}
 
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 				v1alpha1.StateWarning, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
-				logger.Info("Updating ServiceInstancesAndBindingsNotCleaned")
 				return updateStatusErr
 			}
 			return nil
