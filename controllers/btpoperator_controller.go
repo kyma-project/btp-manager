@@ -729,6 +729,12 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
 
+	return r.handleDeleting(ctx, cr)
+}
+
+func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+
 	if len(cr.GetFinalizers()) == 0 {
 		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
 		return nil
