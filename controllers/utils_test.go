@@ -77,7 +77,7 @@ func newTimeoutK8sClient(c client.Client) *timeoutK8sClient {
 
 func (c *timeoutK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	if kind == instanceGvk.Kind || kind == bindingGvk.Kind {
+	if kind == InstanceGvk.Kind || kind == bindingGvk.Kind {
 		deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 		defer cancel()
 		return c.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...)
@@ -96,7 +96,7 @@ func newErrorK8sClient(c client.Client) *errorK8sClient {
 
 func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	if kind == instanceGvk.Kind || kind == bindingGvk.Kind {
+	if kind == InstanceGvk.Kind || kind == bindingGvk.Kind {
 		deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 		defer cancel()
 		_ = c.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...)
@@ -467,7 +467,7 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	object.SetNamespace(namespace)
 	object.SetName(name)
 	kind := object.GetObjectKind().GroupVersionKind().Kind
-	if kind == instanceGvk.Kind {
+	if kind == InstanceGvk.Kind {
 		populateServiceInstanceFields(object)
 	} else if kind == bindingGvk.Kind {
 		populateServiceBindingFields(object)

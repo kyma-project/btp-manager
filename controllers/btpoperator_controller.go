@@ -108,7 +108,7 @@ var (
 		Version: btpOperatorApiVer,
 		Kind:    btpOperatorServiceBinding,
 	}
-	instanceGvk = schema.GroupVersionKind{
+	InstanceGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
 		Version: btpOperatorApiVer,
 		Kind:    btpOperatorServiceInstance,
@@ -729,7 +729,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 		if err != nil {
 			return err
 		}
-		numberOfInstances, err := r.numberOfResources(ctx, instanceGvk)
+		numberOfInstances, err := r.numberOfResources(ctx, InstanceGvk)
 		if err != nil {
 			return err
 		}
@@ -777,7 +777,7 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		if err != nil {
 			return err
 		}
-		numberOfInstances, err := r.numberOfResources(ctx, instanceGvk)
+		numberOfInstances, err := r.numberOfResources(ctx, InstanceGvk)
 		if err != nil {
 			return err
 		}
@@ -874,13 +874,13 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		}
 	}
 
-	siCrdExists, err := r.crdExists(ctx, instanceGvk)
+	siCrdExists, err := r.crdExists(ctx, InstanceGvk)
 	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
+		logger.Error(err, "while checking CRD existence", "GVK", InstanceGvk.String())
 		errs = append(errs, err)
 	}
 	if siCrdExists {
-		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
+		if err := r.hardDelete(ctx, InstanceGvk, namespaces); err != nil {
 			logger.Error(err, "while deleting Service Instances")
 			if !errors.Is(err, context.DeadlineExceeded) {
 				errs = append(errs, err)
@@ -911,7 +911,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		}
 
 		if siCrdExists {
-			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
+			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, InstanceGvk)
 			if err != nil {
 				logger.Error(err, "ServiceInstance leftover resources check failed")
 				hardDeleteSucceededCh <- false
@@ -1067,9 +1067,9 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 		return err
 	}
 
-	siCrdExists, err := r.crdExists(ctx, instanceGvk)
+	siCrdExists, err := r.crdExists(ctx, InstanceGvk)
 	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
+		logger.Error(err, "while checking CRD existence", "GVK", InstanceGvk.String())
 		return err
 	}
 
@@ -1087,11 +1087,11 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 
 	if siCrdExists {
 		logger.Info("Removing finalizers in Service Instances")
-		if err := r.softDelete(ctx, instanceGvk); err != nil {
+		if err := r.softDelete(ctx, InstanceGvk); err != nil {
 			logger.Error(err, "while deleting Service Instances")
 			return err
 		}
-		if err := r.ensureResourcesDontExist(ctx, instanceGvk); err != nil {
+		if err := r.ensureResourcesDontExist(ctx, InstanceGvk); err != nil {
 			logger.Error(err, "Service Instances still exist")
 			return err
 		}
