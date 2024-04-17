@@ -1,4 +1,4 @@
-name: Sync SM Integration branch with main branch
+name: Sync with main
 
 on:
   workflow_dispatch:
