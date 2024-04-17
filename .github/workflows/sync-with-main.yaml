@@ -1,0 +1,17 @@
+name: Sync SM Integration branch with main branch
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync with main
+        run: |
+          git fetch origin main
+          git merge origin/main
