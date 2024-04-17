@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   inputs:
     description: 'Sync SM Integration branch with main branch'
-    type: bool
+    type: boolean
   schedule:
     - cron: '0 0 * * *'
 jobs:
