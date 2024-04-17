@@ -1,6 +1,12 @@
 name: Sync SM Integration branch with main branch
 
 on:
+  workflow_dispatch:
+    inputs:
+      TriggerManually:
+        description: 'Trigger the workflow manually?'
+        default: 'true'
+        required: false
   schedule:
     - cron: '0 0 * * *'
 jobs:
