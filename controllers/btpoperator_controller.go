@@ -806,11 +806,13 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 
 			// if the reason is already set, do nothing
 			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+				logger.Info("ServiceInstancesAndBindingsNotCleaned already set")
 				return nil
 			}
 
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
 				v1alpha1.StateWarning, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
+				logger.Info("Updating ServiceInstancesAndBindingsNotCleaned")
 				return updateStatusErr
 			}
 			return nil
