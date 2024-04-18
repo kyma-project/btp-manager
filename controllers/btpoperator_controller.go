@@ -708,7 +708,7 @@ func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1al
 	logger.Info("Handling Warning state")
 
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		err := r.HandleDeletingState(ctx, cr)
+		err := r.handleDeleting(ctx, cr)
 		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
 		}
