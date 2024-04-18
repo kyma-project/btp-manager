@@ -76,7 +76,7 @@ while true; do
   if [[ $condition_status == "FalseServiceInstancesAndBindingsNotCleaned" && $state_status == "Warning" ]]; then
     break
   else
-    echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason and state to be Warning"; sleep 5;
+    echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason and state"; sleep 5;
   fi
 done
 
