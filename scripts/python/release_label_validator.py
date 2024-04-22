@@ -27,7 +27,7 @@ all_closed_prs = response.json()
 
 prs_since_last_release = [
     pr for pr in all_closed_prs
-    if pr['merged_at'] is not None and pr['merged_at'] > latest_release_date
+    if pr['base']['ref'] == 'main' and pr['merged_at'] is not None and pr['merged_at'] > latest_release_date
 ]
 
 valid_prs = []
