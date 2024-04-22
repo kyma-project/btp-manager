@@ -110,6 +110,7 @@ jobs:
         run: | 
           if [ "$PR_NUMBER" -gt 0 ]; then
             scripts/await_pr_merge.sh
+            git push origin -d ${{ env.BRANCH_NAME }}
           else
             echo "Step skipped"
           fi
@@ -272,7 +273,7 @@ jobs:
 
   publish-release:
     name: Publish release
-    needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests]
+    needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests, run-e2e-upgrade-while-deleting-tests]
     if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
 
