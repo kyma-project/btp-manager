@@ -13,8 +13,8 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 # Expected variables:
-#   PULL_BASE_REF - name of the tag
 #   BOT_GITHUB_TOKEN - github token used to upload the template yaml
+#   KYMA_BTP_MANAGER_REPO  - Kyma repository
 
 uploadFile() {
   filePath=${1}
@@ -37,7 +37,7 @@ uploadFile() {
 
 MANIFEST_FILE="./manifests/btp-operator/btp-manager.yaml"
 DEFAULT_CR_FILE="./examples/btp-operator.yaml"
-UPLOAD_URL="https://uploads.github.com/repos/kyma-project/btp-manager/releases/${RELEASE_ID}/assets"
+UPLOAD_URL="https://uploads.github.com/repos/${KYMA_BTP_MANAGER_REPO}/releases/${RELEASE_ID}/assets"
 
 echo -e "\n--- Updating GitHub release ${RELEASE_ID} with btp-manager.yaml and btp-operator-default-cr.yaml assets"
 
