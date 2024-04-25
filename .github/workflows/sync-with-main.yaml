@@ -1,0 +1,19 @@
+name: Sync with main
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Sync with main
+        run: |
+          git checkout main
+          git pull
+          git checkout sm-integration
+          git rebase main
+          git push
