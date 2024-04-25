@@ -12,9 +12,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Sync with main
         run: |
-          git checkout main
+          git checkout --progress --force -B main origin/main
           git pull
           git checkout --progress --force -B sm-integration origin/sm-integration
           git pull
           git rebase main
-          git push
+          git push -u origin sm-integration
