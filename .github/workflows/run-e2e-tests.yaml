@@ -5,7 +5,7 @@ name: Run E2E tests on the cluster
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main, sm-integration]
     types:
       - opened
       - reopened

@@ -2,7 +2,7 @@ name: Run go linter
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main, sm-integration]
     types:
       - opened
       - reopened
