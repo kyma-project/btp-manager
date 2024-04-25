@@ -23,4 +23,4 @@ jobs:
           git checkout --progress --force -B sm-integration origin/sm-integration
           git pull
           git rebase main
-          git push -u origin sm-integration
+          git push --force-with-lease -u origin sm-integration
