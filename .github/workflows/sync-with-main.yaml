@@ -15,10 +15,12 @@ jobs:
       - name: Setup Git User
         run: |
           git config --global user.email ${{ vars.GIT_USER_EMAIL }}
-          git config --global user.name ${{ vars.GIT_USER_NAME }}
+          git config --global user.name ${{ vars.GIT_GOPHER_BOT_NAME }}
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
       - name: Sync with main
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           git checkout --progress --force -B main origin/main
           git pull
