@@ -56,7 +56,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -1247,23 +1246,23 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
-		WatchesRawSource(
-			source.Kind(mgr.GetCache(), &corev1.Secret{}),
+		Watches(
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
-		WatchesRawSource(
-			source.Kind(mgr.GetCache(), &corev1.ConfigMap{}),
+		Watches(
+			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
 			builder.WithPredicates(r.watchConfigPredicates()),
 		).
-		WatchesRawSource(
-			source.Kind(mgr.GetCache(), &admissionregistrationv1.MutatingWebhookConfiguration{}),
+		Watches(
+			&admissionregistrationv1.MutatingWebhookConfiguration{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
 		).
-		WatchesRawSource(
-			source.Kind(mgr.GetCache(), &admissionregistrationv1.ValidatingWebhookConfiguration{}),
+		Watches(
+			&admissionregistrationv1.ValidatingWebhookConfiguration{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
@@ -1316,12 +1315,12 @@ func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
 	return requests
 }
 
-func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
+func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate[client.Object] {
 	predicateIfReconcile := func(secret *corev1.Secret) bool {
 		return secret.Namespace == ChartNamespace && (secret.Name == SecretName || secret.Name == CaSecret || secret.Name == WebhookSecret)
 	}
 
-	return predicate.Funcs{
+	return predicate.TypedFuncs[client.Object]{
 		CreateFunc: func(e event.CreateEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
