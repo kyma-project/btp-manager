@@ -18,13 +18,16 @@ package main
 
 import (
 	"flag"
+	"log/slog"
 	"os"
 
 	//test
 
+	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -117,9 +120,40 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(signalContext); err != nil {
-		setupLog.Error(err, "problem running manager")
+	// run manager with reconciler
+	go func() {
+		setupLog.Info("starting manager")
+		if err := mgr.Start(signalContext); err != nil {
+			setupLog.Error(err, "problem running manager")
+			os.Exit(1)
+		}
+	}()
+
+	k8sClient, err := client.New(restCfg, client.Options{})
+	if err != nil {
+		setupLog.Error(err, "unable to create k8s client")
 		os.Exit(1)
+	}
+	slogger := slog.Default()
+	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
+	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
+	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
+
+	// run SM client
+	go func() {
+		setupLog.Info("starting SM client")
+		secrets, err := secretProvider.All(signalContext)
+		if err != nil {
+			ctrl.Log.Error(err, "failed to fetch all secrets")
+			os.Exit(1)
+		}
+		for _, secret := range secrets.Items {
+			ctrl.Log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
+		}
+	}()
+
+	select {
+	case <-signalContext.Done():
+		setupLog.Info("shutting down btp-manager")
 	}
 }
