@@ -820,9 +820,9 @@ func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.C
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	Expect(deploymentController.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}),
-		&handler.EnqueueRequestForObject{},
-		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate())).
+	Expect(deploymentController.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{},
+		&handler.TypedEnqueueRequestForObject[*appsv1.Deployment]{},
+		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate()))).
 		To(Succeed())
 
 	return deploymentController
@@ -852,19 +852,15 @@ func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.TypedPredicate[*appsv1.Deployment] {
+	return predicate.TypedFuncs[*appsv1.Deployment]{
+		CreateFunc: func(e event.TypedCreateEvent[*appsv1.Deployment]) bool {
 			return true
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldDeployment, ok := e.ObjectOld.(*appsv1.Deployment)
-			if !ok {
-				return false
-			}
-			if len(oldDeployment.Status.Conditions) > 0 {
+		UpdateFunc: func(e event.TypedUpdateEvent[*appsv1.Deployment]) bool {
+			if len(e.ObjectOld.Status.Conditions) > 0 {
 				var progressingConditionStatus, availableConditionStatus string
-				for _, c := range oldDeployment.Status.Conditions {
+				for _, c := range e.ObjectOld.Status.Conditions {
 					if string(c.Type) == deploymentProgressingConditionType {
 						progressingConditionStatus = string(c.Status)
 					} else if string(c.Type) == deploymentAvailableConditionType {
@@ -877,10 +873,10 @@ func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.F
 			}
 			return false
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(e event.TypedDeleteEvent[*appsv1.Deployment]) bool {
 			return false
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(e event.TypedGenericEvent[*appsv1.Deployment]) bool {
 			return false
 		},
 	}
