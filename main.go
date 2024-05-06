@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"log/slog"
 	"os"
@@ -24,6 +25,9 @@ import (
 	//test
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -43,6 +47,36 @@ import (
 	//+kubebuilder:scaffold:imports
 )
 
+type managerWithContext struct {
+	manager.Manager
+	context.Context
+}
+
+func (mgr *managerWithContext) start() {
+	setupLog.Info("starting manager")
+	if err := mgr.Manager.Start(mgr.Context); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}
+
+type smClient struct {
+	context.Context
+	secretProvider *clusterobject.SecretProvider
+}
+
+func (c *smClient) start() {
+	setupLog.Info("starting SM client")
+	secrets, err := c.secretProvider.All(c.Context)
+	if err != nil {
+		ctrl.Log.Error(err, "failed to fetch all secrets")
+		os.Exit(1)
+	}
+	for _, secret := range secrets.Items {
+		ctrl.Log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
+	}
+}
+
 var (
 	scheme   = clientgoscheme.Scheme
 	setupLog = ctrl.Log.WithName("setup")
@@ -57,12 +91,30 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
+	var probeAddr, metricsAddr string
 	var enableLeaderElection bool
-	var probeAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	parseCmdFlags(&probeAddr, &metricsAddr, &enableLeaderElection)
+
+	restCfg := ctrl.GetConfigOrDie()
+	signalContext := ctrl.SetupSignalHandler()
+
+	mgr := setupManager(restCfg, enableLeaderElection, metricsAddr, probeAddr, signalContext)
+	sm := setupSMClient(restCfg, signalContext)
+
+	// start components
+	go mgr.start()
+	go sm.start()
+
+	select {
+	case <-signalContext.Done():
+		setupLog.Info("shutting down btp-manager")
+	}
+}
+
+func parseCmdFlags(metricsAddr *string, probeAddr *string, enableLeaderElection *bool) {
+	flag.StringVar(metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.BoolVar(enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&controllers.ChartNamespace, "chart-namespace", controllers.ChartNamespace, "Namespace to install chart resources.")
@@ -85,8 +137,9 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+}
 
-	restCfg := ctrl.GetConfigOrDie()
+func setupManager(restCfg *rest.Config, enableLeaderElection bool, metricsAddr string, probeAddr string, signalContext context.Context) managerWithContext {
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme:                 scheme,
 		LeaderElection:         enableLeaderElection,
@@ -100,7 +153,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	signalContext := ctrl.SetupSignalHandler()
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler, metrics)
@@ -120,15 +172,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// run manager with reconciler
-	go func() {
-		setupLog.Info("starting manager")
-		if err := mgr.Start(signalContext); err != nil {
-			setupLog.Error(err, "problem running manager")
-			os.Exit(1)
-		}
-	}()
+	return managerWithContext{
+		Manager: mgr,
+		Context: signalContext,
+	}
+}
 
+func setupSMClient(restCfg *rest.Config, signalCtx context.Context) smClient {
 	k8sClient, err := client.New(restCfg, client.Options{})
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
@@ -139,21 +189,8 @@ func main() {
 	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
 	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
 
-	// run SM client
-	go func() {
-		setupLog.Info("starting SM client")
-		secrets, err := secretProvider.All(signalContext)
-		if err != nil {
-			ctrl.Log.Error(err, "failed to fetch all secrets")
-			os.Exit(1)
-		}
-		for _, secret := range secrets.Items {
-			ctrl.Log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
-		}
-	}()
-
-	select {
-	case <-signalContext.Done():
-		setupLog.Info("shutting down btp-manager")
+	return smClient{
+		Context:        signalCtx,
+		secretProvider: secretProvider,
 	}
 }
