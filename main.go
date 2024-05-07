@@ -72,8 +72,10 @@ func (c *smClient) start() {
 		ctrl.Log.Error(err, "failed to fetch all secrets")
 		os.Exit(1)
 	}
-	for _, secret := range secrets.Items {
-		ctrl.Log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
+	if len(secrets.Items) > 0 {
+		for _, secret := range secrets.Items {
+			ctrl.Log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
+		}
 	}
 }
 
