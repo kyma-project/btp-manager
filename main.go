@@ -98,7 +98,7 @@ func main() {
 	restCfg := ctrl.GetConfigOrDie()
 	signalContext := ctrl.SetupSignalHandler()
 
-	mgr := setupManager(restCfg, enableLeaderElection, metricsAddr, probeAddr, signalContext)
+	mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
 	sm := setupSMClient(restCfg, signalContext)
 
 	// start components
@@ -111,9 +111,9 @@ func main() {
 	}
 }
 
-func parseCmdFlags(metricsAddr *string, probeAddr *string, enableLeaderElection *bool) {
-	flag.StringVar(metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+func parseCmdFlags(probeAddr *string, metricsAddr *string, enableLeaderElection *bool) {
 	flag.StringVar(probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -139,13 +139,13 @@ func parseCmdFlags(metricsAddr *string, probeAddr *string, enableLeaderElection 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 }
 
-func setupManager(restCfg *rest.Config, enableLeaderElection bool, metricsAddr string, probeAddr string, signalContext context.Context) managerWithContext {
+func setupManager(restCfg *rest.Config, probeAddr *string, metricsAddr *string, enableLeaderElection *bool, signalContext context.Context) managerWithContext {
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme:                 scheme,
-		LeaderElection:         enableLeaderElection,
+		LeaderElection:         *enableLeaderElection,
 		LeaderElectionID:       "ec023d38.kyma-project.io",
-		Metrics:                server.Options{BindAddress: metricsAddr},
-		HealthProbeBindAddress: probeAddr,
+		Metrics:                server.Options{BindAddress: *metricsAddr},
+		HealthProbeBindAddress: *probeAddr,
 		NewCache:               controllers.CacheCreator,
 	})
 	if err != nil {
