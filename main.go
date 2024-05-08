@@ -19,12 +19,16 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	//test
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -62,21 +66,41 @@ func (mgr *managerWithContext) start() {
 
 type smClient struct {
 	context.Context
+	k8sReader      client.Reader
 	secretProvider *clusterobject.SecretProvider
 }
 
 func (c *smClient) start() {
 	setupLog.Info("starting SM client")
-	secrets, err := c.secretProvider.All(c.Context)
+	siCrdExists, err := c.crdExists(c.Context, controllers.InstanceGvk)
 	if err != nil {
-		ctrl.Log.Error(err, "failed to fetch all secrets")
+		ctrl.Log.Error(err, "failed to check if ServiceInstance CRD exists")
 		os.Exit(1)
 	}
-	if len(secrets.Items) > 0 {
-		for _, secret := range secrets.Items {
-			ctrl.Log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
+	if !siCrdExists {
+		ctrl.Log.Info("cannot fetch all existing SAP BTP service operator secrets, required ServiceInstance CRD does not exist")
+		return
+	}
+	secrets, err := c.secretProvider.All(c.Context)
+	if err != nil {
+		ctrl.Log.Error(err, "failed to fetch all SAP BTP service operator secrets")
+		os.Exit(1)
+	}
+	ctrl.Log.Info("number of existing SAP BTP service operator secrets", "count", len(secrets.Items))
+}
+
+func (c *smClient) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
+	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+
+	if err := c.k8sReader.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		} else {
+			return false, err
 		}
 	}
+	return true, nil
 }
 
 var (
@@ -193,6 +217,7 @@ func setupSMClient(restCfg *rest.Config, signalCtx context.Context) smClient {
 
 	return smClient{
 		Context:        signalCtx,
+		k8sReader:      k8sClient,
 		secretProvider: secretProvider,
 	}
 }
