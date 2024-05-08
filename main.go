@@ -93,13 +93,18 @@ func (c *smClient) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (
 	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
 	crd := &apiextensionsv1.CustomResourceDefinition{}
 
+	ctrl.Log.Info("checking if CRD exists", "name", crdName)
+
 	if err := c.k8sReader.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
 		if k8serrors.IsNotFound(err) {
+			ctrl.Log.Info("CRD does not exist", "name", crdName)
 			return false, nil
 		} else {
+			ctrl.Log.Error(err, "failed to get CRD", "name", crdName)
 			return false, err
 		}
 	}
+	ctrl.Log.Info("CRD exists", "name", crdName)
 	return true, nil
 }
 
