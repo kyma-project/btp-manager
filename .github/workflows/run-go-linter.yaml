@@ -50,9 +50,6 @@ jobs:
 
       - name: Go linter
         if: steps.changed-files-specific.outputs.any_modified == 'true'
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: v1.55.2
-          skip-cache: true
-          only-new-issues: true
-          args: --timeout 2m0s
+        env:
+          GOLINT_TIMEOUT: ${{ vars.GOLINT_TIMEOUT }}
+        run: make go-lint
