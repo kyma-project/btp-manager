@@ -17,14 +17,25 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"log/slog"
 	"os"
+	"strings"
 
 	//test
+
+	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -40,6 +51,63 @@ import (
 	//+kubebuilder:scaffold:imports
 )
 
+type managerWithContext struct {
+	manager.Manager
+	context.Context
+}
+
+func (mgr *managerWithContext) start() {
+	setupLog.Info("starting manager")
+	if err := mgr.Manager.Start(mgr.Context); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}
+
+type smClient struct {
+	context.Context
+	k8sReader      client.Reader
+	secretProvider *clusterobject.SecretProvider
+}
+
+func (c *smClient) start() {
+	setupLog.Info("starting SM client")
+	siCrdExists, err := c.crdExists(c.Context, controllers.InstanceGvk)
+	if err != nil {
+		ctrl.Log.Error(err, "failed to check if ServiceInstance CRD exists")
+		os.Exit(1)
+	}
+	if !siCrdExists {
+		ctrl.Log.Info("cannot fetch all existing SAP BTP service operator secrets, required ServiceInstance CRD does not exist")
+		return
+	}
+	secrets, err := c.secretProvider.All(c.Context)
+	if err != nil {
+		ctrl.Log.Error(err, "failed to fetch all SAP BTP service operator secrets")
+		os.Exit(1)
+	}
+	ctrl.Log.Info("number of existing SAP BTP service operator secrets", "count", len(secrets.Items))
+}
+
+func (c *smClient) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
+	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+
+	ctrl.Log.Info("checking if CRD exists", "name", crdName)
+
+	if err := c.k8sReader.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
+		if k8serrors.IsNotFound(err) {
+			ctrl.Log.Info("CRD does not exist", "name", crdName)
+			return false, nil
+		} else {
+			ctrl.Log.Error(err, "failed to get CRD", "name", crdName)
+			return false, err
+		}
+	}
+	ctrl.Log.Info("CRD exists", "name", crdName)
+	return true, nil
+}
+
 var (
 	scheme   = clientgoscheme.Scheme
 	setupLog = ctrl.Log.WithName("setup")
@@ -54,12 +122,30 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
+	var probeAddr, metricsAddr string
 	var enableLeaderElection bool
-	var probeAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	parseCmdFlags(&probeAddr, &metricsAddr, &enableLeaderElection)
+
+	restCfg := ctrl.GetConfigOrDie()
+	signalContext := ctrl.SetupSignalHandler()
+
+	mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
+	sm := setupSMClient(restCfg, signalContext)
+
+	// start components
+	go mgr.start()
+	go sm.start()
+
+	select {
+	case <-signalContext.Done():
+		setupLog.Info("shutting down btp-manager")
+	}
+}
+
+func parseCmdFlags(probeAddr *string, metricsAddr *string, enableLeaderElection *bool) {
+	flag.StringVar(probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&controllers.ChartNamespace, "chart-namespace", controllers.ChartNamespace, "Namespace to install chart resources.")
@@ -82,14 +168,15 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+}
 
-	restCfg := ctrl.GetConfigOrDie()
+func setupManager(restCfg *rest.Config, probeAddr *string, metricsAddr *string, enableLeaderElection *bool, signalContext context.Context) managerWithContext {
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme:                 scheme,
-		LeaderElection:         enableLeaderElection,
+		LeaderElection:         *enableLeaderElection,
 		LeaderElectionID:       "ec023d38.kyma-project.io",
-		Metrics:                server.Options{BindAddress: metricsAddr},
-		HealthProbeBindAddress: probeAddr,
+		Metrics:                server.Options{BindAddress: *metricsAddr},
+		HealthProbeBindAddress: *probeAddr,
 		NewCache:               controllers.CacheCreator,
 	})
 	if err != nil {
@@ -97,7 +184,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	signalContext := ctrl.SetupSignalHandler()
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler, metrics)
@@ -117,9 +203,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(signalContext); err != nil {
-		setupLog.Error(err, "problem running manager")
+	return managerWithContext{
+		Manager: mgr,
+		Context: signalContext,
+	}
+}
+
+func setupSMClient(restCfg *rest.Config, signalCtx context.Context) smClient {
+	k8sClient, err := client.New(restCfg, client.Options{})
+	if err != nil {
+		setupLog.Error(err, "unable to create k8s client")
 		os.Exit(1)
+	}
+	slogger := slog.Default()
+	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
+	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
+	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
+
+	return smClient{
+		Context:        signalCtx,
+		k8sReader:      k8sClient,
+		secretProvider: secretProvider,
 	}
 }
