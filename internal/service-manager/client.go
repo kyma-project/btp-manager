@@ -43,6 +43,15 @@ func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clustero
 	}
 }
 
+func (c *Client) Defaults(ctx context.Context) error {
+	if err := c.buildHTTPClient(ctx, "sap-btp-service-operator", "kyma-system"); err != nil {
+		c.logger.Error("failed to build http client", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) buildHTTPClient(ctx context.Context, secretName, secretNamespace string) error {
 	cfg, err := c.getSMConfigFromGivenSecret(ctx, secretName, secretNamespace)
 	if err != nil {
@@ -103,7 +112,7 @@ func (c *Client) SetHTTPClient(httpClient *http.Client) {
 	c.httpClient = httpClient
 }
 
-func (c *Client) ServiceOfferings() (map[string]interface{}, error) {
+func (c *Client) ServiceOfferings() (interface{}, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceOfferingsPath, nil)
 	if err != nil {
 		return nil, err
@@ -122,9 +131,9 @@ func (c *Client) ServiceOfferings() (map[string]interface{}, error) {
 	}
 
 	type tempResponse struct {
-		Token    string                 `json:"token"`
-		NumItems int64                  `json:"num_items"`
-		Items    map[string]interface{} `json:"items"`
+		Token    string      `json:"token"`
+		NumItems int64       `json:"num_items"`
+		Items    interface{} `json:"items"`
 	}
 
 	var response tempResponse

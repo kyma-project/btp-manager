@@ -27,6 +27,7 @@ import (
 	//test
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
+	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
@@ -129,12 +130,36 @@ func main() {
 	restCfg := ctrl.GetConfigOrDie()
 	signalContext := ctrl.SetupSignalHandler()
 
-	mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
-	sm := setupSMClient(restCfg, signalContext)
+	// mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
+	// sm := setupSMClient(restCfg, signalContext)
 
 	// start components
-	go mgr.start()
-	go sm.start()
+	// go mgr.start()
+	// go sm.start()
+
+	k8sClient, err := client.New(restCfg, client.Options{})
+	if err != nil {
+		setupLog.Error(err, "unable to create k8s client")
+		os.Exit(1)
+	}
+	slogger := slog.Default()
+	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
+	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
+	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
+
+	sm := servicemanager.NewClient(signalContext, slogger, secretProvider)
+	if err := sm.Defaults(signalContext); err != nil {
+		setupLog.Error(err, "failed to start SM client")
+		os.Exit(1)
+	}
+
+	offerings, err := sm.ServiceOfferings()
+	if err != nil {
+		setupLog.Error(err, "failed to fetch service offerings")
+		os.Exit(1)
+	}
+
+	setupLog.Info("service offerings", "offerings", fmt.Sprint(offerings))
 
 	select {
 	case <-signalContext.Done():
