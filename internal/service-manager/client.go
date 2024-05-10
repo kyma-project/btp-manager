@@ -2,6 +2,7 @@ package servicemanager
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -12,9 +13,11 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 const componentName = "ServiceManagerClient"
+const ServiceOfferingsPath = "/v1/service_offerings"
 
 type Config struct {
 	ClientID       string
@@ -38,10 +41,6 @@ func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clustero
 		logger:         logger.With("component", componentName),
 		secretProvider: secretProvider,
 	}
-}
-
-func (c *Client) SetHTTPClient(httpClient *http.Client) {
-	c.httpClient = httpClient
 }
 
 func (c *Client) buildHTTPClient(ctx context.Context, secretName, secretNamespace string) error {
@@ -98,4 +97,40 @@ func preconfiguredHTTPClient() *http.Client {
 		},
 	}
 	return client
+}
+
+func (c *Client) SetHTTPClient(httpClient *http.Client) {
+	c.httpClient = httpClient
+}
+
+func (c *Client) ServiceOfferings() (map[string]interface{}, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceOfferingsPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	type tempResponse struct {
+		Token    string                 `json:"token"`
+		NumItems int64                  `json:"num_items"`
+		Items    map[string]interface{} `json:"items"`
+	}
+
+	var response tempResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	return response.Items, nil
 }
