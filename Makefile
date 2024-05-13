@@ -34,6 +34,9 @@ SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 GOLINT_VER = v1.55.2
+ifeq (,$(GOLINT_TIMEOUT))
+GOLINT_TIMEOUT=2m
+endif
 
 .PHONY: all
 all: build
@@ -190,7 +193,7 @@ go-lint-install: ## linter config in file at root of project -> '.golangci.yaml'
 
 .PHONY: go-lint
 go-lint: go-lint-install ## linter config in file at root of project -> '.golangci.yaml'
-	golangci-lint run
+	golangci-lint run --timeout=$(GOLINT_TIMEOUT)
 
 .PHONY: fix
 fix: go-lint-install ## try to fix automatically issues
