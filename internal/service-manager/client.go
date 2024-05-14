@@ -9,6 +9,7 @@ import (
 	"time"
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
+	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	corev1 "k8s.io/api/core/v1"
@@ -112,7 +113,7 @@ func (c *Client) SetHTTPClient(httpClient *http.Client) {
 	c.httpClient = httpClient
 }
 
-func (c *Client) ServiceOfferings() (interface{}, error) {
+func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceOfferingsPath, nil)
 	if err != nil {
 		return nil, err
@@ -130,16 +131,10 @@ func (c *Client) ServiceOfferings() (interface{}, error) {
 		return nil, err
 	}
 
-	type tempResponse struct {
-		Token    string      `json:"token"`
-		NumItems int64       `json:"num_items"`
-		Items    interface{} `json:"items"`
-	}
-
-	var response tempResponse
-	if err := json.Unmarshal(body, &response); err != nil {
+	var serviceOfferings types.ServiceOfferings
+	if err := json.Unmarshal(body, &serviceOfferings); err != nil {
 		return nil, err
 	}
 
-	return response.Items, nil
+	return &serviceOfferings, nil
 }

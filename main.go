@@ -28,6 +28,7 @@ import (
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
+	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
@@ -159,7 +160,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("service offerings", "offerings", fmt.Sprint(offerings))
+	for _, offering := range offerings.ServiceOfferings {
+		dn, err := offering.MetadataValueByFieldName(types.ServiceOfferingDisplayName)
+		if err != nil {
+			setupLog.Error(err, "failed to get service offering display name")
+			os.Exit(1)
+		}
+		durl, err := offering.MetadataValueByFieldName(types.ServiceOfferingDocumentationUrl)
+		if err != nil {
+			setupLog.Error(err, "failed to get service offering support url")
+			os.Exit(1)
+		}
+		setupLog.Info("Service Offering", "Name", offering.Name, "ID", offering.ID, "DisplayName", dn, "DocumentationURL", durl)
+	}
 
 	select {
 	case <-signalContext.Done():
