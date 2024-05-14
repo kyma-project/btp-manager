@@ -17,8 +17,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
-const componentName = "ServiceManagerClient"
-const ServiceOfferingsPath = "/v1/service_offerings"
+const (
+	componentName        = "ServiceManagerClient"
+	defaultSecret        = "sap-btp-service-operator"
+	defaultNamespace     = "kyma-system"
+	ServiceOfferingsPath = "/v1/service_offerings"
+)
 
 type Config struct {
 	ClientID       string
@@ -45,7 +49,7 @@ func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clustero
 }
 
 func (c *Client) Defaults(ctx context.Context) error {
-	if err := c.buildHTTPClient(ctx, "sap-btp-service-operator", "kyma-system"); err != nil {
+	if err := c.buildHTTPClient(ctx, defaultSecret, defaultNamespace); err != nil {
 		c.logger.Error("failed to build http client", "error", err)
 		return err
 	}
