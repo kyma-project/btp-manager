@@ -59,8 +59,10 @@ func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
 		return nil, err
 	}
 
-	if err := p.getSecretsFromRefInServiceInstances(ctx, siList, secrets); err != nil {
-		return nil, err
+	if siList != nil && len(siList.Items) > 0 {
+		if err := p.getSecretsFromRefInServiceInstances(ctx, siList, secrets); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(secrets.Items) == 0 {
@@ -140,4 +142,19 @@ func (p *SecretProvider) secretExistsInList(secret *corev1.Secret, secrets *core
 		}
 	}
 	return false
+}
+
+func (p *SecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+	p.logger.Info(fmt.Sprintf("fetching \"%s\" secret in \"%s\" namespace", name, namespace))
+	secret := &corev1.Secret{}
+	if err := p.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret); err != nil {
+		if k8serrors.IsNotFound(err) {
+			p.logger.Warn(fmt.Sprintf("secret \"%s\" not found in \"%s\" namespace", name, namespace))
+			return nil, err
+		}
+		p.logger.Error(fmt.Sprintf("failed to fetch \"%s\" secret in \"%s\" namespace", name, namespace), "error", err)
+		return nil, err
+	}
+
+	return secret, nil
 }
