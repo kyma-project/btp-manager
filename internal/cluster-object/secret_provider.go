@@ -150,7 +150,7 @@ func (p *SecretProvider) GetByNameAndNamespace(ctx context.Context, name, namesp
 	if err := p.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret); err != nil {
 		if k8serrors.IsNotFound(err) {
 			p.logger.Warn(fmt.Sprintf("secret \"%s\" not found in \"%s\" namespace", name, namespace))
-			return nil, nil
+			return nil, err
 		}
 		p.logger.Error(fmt.Sprintf("failed to fetch \"%s\" secret in \"%s\" namespace", name, namespace), "error", err)
 		return nil, err
