@@ -2,6 +2,7 @@ package servicemanager
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -50,6 +51,10 @@ func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clustero
 
 func (c *Client) Defaults(ctx context.Context) error {
 	if err := c.buildHTTPClient(ctx, defaultSecret, defaultNamespace); err != nil {
+		if k8serrors.IsNotFound(err) {
+			c.logger.Warn(fmt.Sprintf("%s secret not found in %s namespace", defaultSecret, defaultNamespace))
+			return nil
+		}
 		c.logger.Error("failed to build http client", "error", err)
 		return err
 	}
