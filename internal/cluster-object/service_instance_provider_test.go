@@ -9,18 +9,33 @@ import (
 	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestServiceInstanceProvider(t *testing.T) {
 	// given
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	scheme := clientgoscheme.Scheme
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+	crd := &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: siCrdName,
+		},
+	}
 
 	t.Run("should fetch all service instances", func(t *testing.T) {
 		// given
 		givenSiList := initServiceInstances(t)
-		k8sClient := fake.NewClientBuilder().WithLists(givenSiList).Build()
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(givenSiList).
+			Build()
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
 
 		// when
@@ -34,7 +49,11 @@ func TestServiceInstanceProvider(t *testing.T) {
 	t.Run("should fetch service instances with secret reference", func(t *testing.T) {
 		// given
 		givenSiList := initServiceInstances(t)
-		k8sClient := fake.NewClientBuilder().WithLists(givenSiList).Build()
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(givenSiList).
+			Build()
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
 
 		// when
