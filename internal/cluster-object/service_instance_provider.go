@@ -40,7 +40,7 @@ func (p *ServiceInstanceProvider) AllWithSecretRef(ctx context.Context) (*unstru
 		return nil, err
 	}
 
-	if len(filtered.Items) == 0 {
+	if filtered == nil || len(filtered.Items) == 0 {
 		return nil, nil
 	}
 
@@ -59,7 +59,7 @@ func (p *ServiceInstanceProvider) All(ctx context.Context) (*unstructured.Unstru
 		return nil, err
 	}
 	if !siCrdExists {
-		p.logger.Info("cannot fetch SAP BTP service operator secrets from ServiceInstances, required ServiceInstance CRD does not exist")
+		p.logger.Info("cannot fetch SAP BTP service operator secrets from ServiceInstances due to missing CRD")
 		return nil, nil
 	}
 
@@ -109,7 +109,7 @@ func (p *ServiceInstanceProvider) crdExists(ctx context.Context, gvk schema.Grou
 
 	if err := p.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
 		if k8serrors.IsNotFound(err) {
-			p.logger.Info("CRD does not exist", "name", crdName)
+			p.logger.Info(fmt.Sprintf("%s CRD does not exist", crdName))
 			return false, nil
 		} else {
 			p.logger.Error("failed to get CRD", "name", crdName, "error", err)

@@ -59,7 +59,7 @@ func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
 		return nil, err
 	}
 
-	if len(siList.Items) > 0 {
+	if siList != nil && len(siList.Items) > 0 {
 		if err := p.getSecretsFromRefInServiceInstances(ctx, siList, secrets); err != nil {
 			return nil, err
 		}
