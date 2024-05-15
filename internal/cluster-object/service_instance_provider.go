@@ -17,6 +17,7 @@ import (
 const (
 	serviceInstanceProviderName = "ServiceInstanceProvider"
 	secretRefKey                = "btpAccessCredentialsSecret"
+	siCrdName                   = "serviceinstances.services.cloud.sap.com"
 )
 
 type ServiceInstanceProvider struct {
