@@ -57,6 +57,15 @@ func (c *Client) Defaults(ctx context.Context) error {
 	return nil
 }
 
+func (c *Client) SetForGivenSecret(ctx context.Context, secretName, secretNamespace string) error {
+	if err := c.buildHTTPClient(ctx, secretName, secretNamespace); err != nil {
+		c.logger.Error("failed to build http client", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) buildHTTPClient(ctx context.Context, secretName, secretNamespace string) error {
 	cfg, err := c.getSMConfigFromGivenSecret(ctx, secretName, secretNamespace)
 	if err != nil {
