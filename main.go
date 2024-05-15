@@ -19,41 +19,31 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log/slog"
 	"os"
-	"strings"
-
-	//test
-
-	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
+	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	//+kubebuilder:scaffold:imports
 )
 
 type managerWithContext struct {
-	manager.Manager
 	context.Context
+	manager.Manager
 }
 
 func (mgr *managerWithContext) start() {
@@ -64,48 +54,17 @@ func (mgr *managerWithContext) start() {
 	}
 }
 
-type smClient struct {
+type serviceManagerClient struct {
 	context.Context
-	k8sReader      client.Reader
-	secretProvider *clusterobject.SecretProvider
+	*servicemanager.Client
 }
 
-func (c *smClient) start() {
-	setupLog.Info("starting SM client")
-	siCrdExists, err := c.crdExists(c.Context, controllers.InstanceGvk)
-	if err != nil {
-		ctrl.Log.Error(err, "failed to check if ServiceInstance CRD exists")
+func (c *serviceManagerClient) start() {
+	setupLog.Info("starting Service Manager client")
+	if err := c.Defaults(c.Context); err != nil {
+		setupLog.Error(err, "problem running Service Manager client")
 		os.Exit(1)
 	}
-	if !siCrdExists {
-		ctrl.Log.Info("cannot fetch all existing SAP BTP service operator secrets, required ServiceInstance CRD does not exist")
-		return
-	}
-	secrets, err := c.secretProvider.All(c.Context)
-	if err != nil {
-		ctrl.Log.Error(err, "failed to fetch all SAP BTP service operator secrets")
-		os.Exit(1)
-	}
-	ctrl.Log.Info("number of existing SAP BTP service operator secrets", "count", len(secrets.Items))
-}
-
-func (c *smClient) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
-	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
-	crd := &apiextensionsv1.CustomResourceDefinition{}
-
-	ctrl.Log.Info("checking if CRD exists", "name", crdName)
-
-	if err := c.k8sReader.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
-		if k8serrors.IsNotFound(err) {
-			ctrl.Log.Info("CRD does not exist", "name", crdName)
-			return false, nil
-		} else {
-			ctrl.Log.Error(err, "failed to get CRD", "name", crdName)
-			return false, err
-		}
-	}
-	ctrl.Log.Info("CRD exists", "name", crdName)
-	return true, nil
 }
 
 var (
@@ -209,7 +168,7 @@ func setupManager(restCfg *rest.Config, probeAddr *string, metricsAddr *string, 
 	}
 }
 
-func setupSMClient(restCfg *rest.Config, signalCtx context.Context) smClient {
+func setupSMClient(restCfg *rest.Config, signalCtx context.Context) *serviceManagerClient {
 	k8sClient, err := client.New(restCfg, client.Options{})
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
@@ -219,10 +178,10 @@ func setupSMClient(restCfg *rest.Config, signalCtx context.Context) smClient {
 	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
 	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
 	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
+	smClient := servicemanager.NewClient(signalCtx, slogger, secretProvider)
 
-	return smClient{
-		Context:        signalCtx,
-		k8sReader:      k8sClient,
-		secretProvider: secretProvider,
+	return &serviceManagerClient{
+		Context: signalCtx,
+		Client:  smClient,
 	}
 }

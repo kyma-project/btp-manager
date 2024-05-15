@@ -11,7 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -19,6 +22,13 @@ import (
 func TestSecretProvider(t *testing.T) {
 	// given
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	scheme := clientgoscheme.Scheme
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+	crd := &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: siCrdName,
+		},
+	}
 
 	t.Run("should fetch all secrets - from the module's namespace, with a namespace prefix, with an arbitrary name", func(t *testing.T) {
 		// given
@@ -76,6 +86,8 @@ func TestSecretProvider(t *testing.T) {
 		ns.Items = append(ns.Items, additionalNamespaces...)
 
 		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
 			WithLists(ns, sis, secrets).
 			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
 			Build()
@@ -113,6 +125,8 @@ func TestSecretProvider(t *testing.T) {
 		ns.Items = append(ns.Items, additionalNamespaces...)
 
 		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
 			WithLists(ns, sis, secrets).
 			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
 			Build()
@@ -150,6 +164,8 @@ func TestSecretProvider(t *testing.T) {
 		ns.Items = append(ns.Items, additionalNamespaces...)
 
 		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
 			WithLists(ns, sis, secrets).
 			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
 			Build()
@@ -196,6 +212,8 @@ func TestSecretProvider(t *testing.T) {
 		ns.Items = append(ns.Items, additionalNamespaces...)
 
 		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
 			WithLists(ns, sis, secrets).
 			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
 			Build()
@@ -221,6 +239,8 @@ func TestSecretProvider(t *testing.T) {
 		ns.Items = append(ns.Items, additionalNamespaces...)
 
 		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
 			WithLists(ns, sis, secrets).
 			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
 			Build()
