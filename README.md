@@ -75,7 +75,7 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 In the [`user`](./docs/user) folder, you will find the following documents:
 - [SAP BTP Operator Module](./docs/user/README.md)
 - [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md)
-- [SAP BTP Service Operator Examples](./docs/user/02-20-examples.md)
+- [SAP BTP Service Operator Examples](./docs/user/03-10-examples.md)
 
 ## Contributing
 <!--- mandatory section - do not change this! --->

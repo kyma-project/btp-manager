@@ -3,7 +3,7 @@
 After successfully installing your Secret, you can create a ServiceInstance and a ServiceBinding.
 
 > [!NOTE] 
-> This section provides a real example with the real `auditlog-api` service. Use your real Secret to successfully complete the procedure.
+> This section provides a real example with the real `xsuaa` service. Use your real Secret to successfully complete the procedure.
 
 1. To create a ServiceInstance, run the following script:
 
@@ -12,12 +12,12 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceInstance
     metadata:
-      name: btp-audit-log-instance
+      name: test-service-instance
       namespace: default
     spec:
-      serviceOfferingName: auditlog-api
-      servicePlanName: default
-      externalName: btp-audit-log-instance
+      serviceOfferingName: xsuaa
+      servicePlanName: application
+      externalName: test-service-instance
     EOF
     ```
 
@@ -27,7 +27,7 @@ After successfully installing your Secret, you can create a ServiceInstance and 
 2. To check the output, run:
 
     ```bash
-    kubectl get serviceinstances.services.cloud.sap.com btp-audit-log-instance -o yaml
+    kubectl get serviceinstances.services.cloud.sap.com test-service-instance -o yaml
     ```
 
     You see the status `created` and the message `ServiceInstance provisioned successfully`.
@@ -39,19 +39,19 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceBinding
     metadata:
-      name: btp-audit-log-binding
+      name: test-service-binding
       namespace: default
     spec:
-      serviceInstanceName: btp-audit-log-instance
-      externalName: btp-audit-log-binding
-      secretName: btp-audit-log-binding
+      serviceInstanceName: test-service-instance
+      externalName: test-service-binding
+      secretName: test-service-binding
     EOF
     ```
 
 4. To check the output, run:
 
     ```bash
-    kubectl get servicebindings.services.cloud.sap.com btp-audit-log-binding -o yaml
+    kubectl get servicebindings.services.cloud.sap.com test-service-binding -o yaml
     ```
 
     You see the status `created` and the message `ServiceBinding provisioned successfully`.
@@ -59,12 +59,12 @@ After successfully installing your Secret, you can create a ServiceInstance and 
 5. Now use a given service in your Kyma cluster. To see credentials, run:
 
     ```bash
-    kubectl get secret btp-audit-log-binding -o yaml
+    kubectl get secret test-service-binding -o yaml
     ```
 
 6. Clean up your resources by running the following command:
 
     ```bash
-    kubectl delete servicebindings.services.cloud.sap.com btp-audit-log-binding
-    kubectl delete serviceinstances.services.cloud.sap.com btp-audit-log-instance
+    kubectl delete servicebindings.services.cloud.sap.com test-service-binding
+    kubectl delete serviceinstances.services.cloud.sap.com test-service-instance
     ```
