@@ -41,7 +41,9 @@ type Client struct {
 	smURL          string
 }
 
-func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret]) *Client {
+func NewClient(
+	ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret],
+) *Client {
 	return &Client{
 		ctx:            ctx,
 		logger:         logger.With("component", componentName),
@@ -129,10 +131,6 @@ func preconfiguredHTTPClient() *http.Client {
 
 func (c *Client) SetHTTPClient(httpClient *http.Client) {
 	c.httpClient = httpClient
-}
-
-func (c *Client) SetSMURL(smURL string) {
-	c.smURL = smURL
 }
 
 func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
