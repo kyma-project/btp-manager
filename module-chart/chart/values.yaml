@@ -15,7 +15,7 @@ manager:
   management_namespace:
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.6.2
+    tag: v0.6.1
     sha: ""
   secret:
     b64encoded: false
@@ -41,7 +41,7 @@ manager:
   #   - name: registrySecretName
   pullSecretTemplate:
   # creates a secret to be used in imagePullSecrets from a template
-  # output of vm will be in form {"auths":{"myhost":{"auth":<encoded username:password>},"myhost1":{"auth":<encoded username:password>}}}
+  # output of data will be in form {"auths":{"myhost":{"auth":<encoded username:password>},"myhost1":{"auth":<encoded username:password>}}}
   #    name: registrySecretName
   #    authentication:
   #      - password: mypwd

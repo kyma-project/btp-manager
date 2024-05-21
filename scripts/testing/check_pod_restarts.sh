@@ -2,7 +2,7 @@
 # This script checks if btp-manager or btp-operator was restarted
 # If either restarted scripts exits with 1
 
-# Give some time to both controllers to process stress vm
+# Give some time to both controllers to process stress data
 sleep 15
 
 echo -e "\n--- BTP Manager: checking pod restarts"

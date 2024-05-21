@@ -56,6 +56,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -219,7 +220,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.Update(ctx, reconcileCr)
 	}
 
-	if !reconcileCr.ObjectMeta.DeletionTimestamp.IsZero() && reconcileCr.Status.State != v1alpha1.StateDeleting && !reconcileCr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
+	if !reconcileCr.ObjectMeta.DeletionTimestamp.IsZero() && reconcileCr.Status.State != v1alpha1.StateDeleting {
 		return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, reconcileCr, v1alpha1.StateDeleting, conditions.HardDeleting, "BtpOperator is to be deleted")
 	}
 
@@ -228,9 +229,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.HandleInitialState(ctx, reconcileCr)
 	case v1alpha1.StateProcessing:
 		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, reconcileCr)
-	case v1alpha1.StateWarning:
-		return r.HandleWarningState(ctx, reconcileCr)
-	case v1alpha1.StateError:
+	case v1alpha1.StateError, v1alpha1.StateWarning:
 		return ctrl.Result{}, r.HandleErrorState(ctx, reconcileCr)
 	case v1alpha1.StateDeleting:
 		err := r.HandleDeletingState(ctx, reconcileCr)
@@ -577,12 +576,12 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 }
 
 func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "vm", "CLUSTER_ID")
+	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
 }
 
 func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	for k := range secret.Data {
-		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "vm", k); err != nil {
+		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
 			return err
 		}
 	}
@@ -702,21 +701,6 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	}
 }
 
-func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Warning state")
-
-	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		err := r.handleDeleting(ctx, cr)
-		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
-		}
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.Updated, "CR has been updated")
-}
-
 func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Error state")
@@ -727,12 +711,6 @@ func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alph
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
-
-	return r.handleDeleting(ctx, cr)
-}
-
-func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
 
 	if len(cr.GetFinalizers()) == 0 {
 		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
@@ -810,12 +788,12 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 			logger.Info(msg)
 
 			// if the reason is already set, do nothing
-			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) && cr.Status.State == v1alpha1.StateWarning {
+			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 				return nil
 			}
 
 			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
-				v1alpha1.StateWarning, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
+				v1alpha1.StateDeleting, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
 				return updateStatusErr
 			}
 			return nil
@@ -1246,23 +1224,23 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
-		Watches(
-			&corev1.Secret{},
+		WatchesRawSource(
+			source.Kind(mgr.GetCache(), &corev1.Secret{}),
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
-		Watches(
-			&corev1.ConfigMap{},
+		WatchesRawSource(
+			source.Kind(mgr.GetCache(), &corev1.ConfigMap{}),
 			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
 			builder.WithPredicates(r.watchConfigPredicates()),
 		).
-		Watches(
-			&admissionregistrationv1.MutatingWebhookConfiguration{},
+		WatchesRawSource(
+			source.Kind(mgr.GetCache(), &admissionregistrationv1.MutatingWebhookConfiguration{}),
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
 		).
-		Watches(
-			&admissionregistrationv1.ValidatingWebhookConfiguration{},
+		WatchesRawSource(
+			source.Kind(mgr.GetCache(), &admissionregistrationv1.ValidatingWebhookConfiguration{}),
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
@@ -1315,12 +1293,12 @@ func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
 	return requests
 }
 
-func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate[client.Object] {
+func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.Funcs {
 	predicateIfReconcile := func(secret *corev1.Secret) bool {
 		return secret.Namespace == ChartNamespace && (secret.Name == SecretName || secret.Name == CaSecret || secret.Name == WebhookSecret)
 	}
 
-	return predicate.TypedFuncs[client.Object]{
+	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
@@ -1498,7 +1476,7 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 // so the result of the function execution is in resourcesToApply slice
 func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
-	logger.Info("preparation of certificates reconciliation vm started")
+	logger.Info("preparation of certificates reconciliation data started")
 
 	certificatesRegenerationDone, err := r.ensureCertificatesExists(ctx, resourcesToApply)
 	if err != nil {
@@ -1847,7 +1825,7 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 		}
 		ca, ok := secret.Data[r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 		if !ok || ca == nil {
-			return fmt.Errorf("while receiving certificate vm from CA secret in reconcilation webhook")
+			return fmt.Errorf("while receiving certificate data from CA secret in reconcilation webhook")
 		}
 		expectedCa = ca
 	}
@@ -1982,7 +1960,7 @@ func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) 
 	case WebhookSecret:
 		return WebhookSecretDataPrefix, nil
 	default:
-		return "", fmt.Errorf("not found secret vm key for secret name: %s", secretName)
+		return "", fmt.Errorf("not found secret data key for secret name: %s", secretName)
 	}
 }
 
@@ -1993,10 +1971,10 @@ func (r *BtpOperatorReconciler) buildKeyNameWithExtension(filename, extension st
 func (r *BtpOperatorReconciler) getValueByKey(key string, data map[string][]byte) ([]byte, error) {
 	value, ok := data[key]
 	if !ok {
-		return nil, fmt.Errorf("while getting vm for key: %s", key)
+		return nil, fmt.Errorf("while getting data for key: %s", key)
 	}
 	if value == nil || len(value) == 0 {
-		return nil, fmt.Errorf("empty vm for key: %s", key)
+		return nil, fmt.Errorf("empty data for key: %s", key)
 	}
 	return value, nil
 }
