@@ -46,8 +46,9 @@ function ServiceOfferingsView(props: any) {
     }
   }, []);
 
+
   if (loading) {
-    return <ui5.Text>Loading...</ui5.Text>;
+    return <ui5.Loader progress="60%" />
   }
 
   if (error) {

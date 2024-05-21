@@ -29,7 +29,7 @@ function SecretsView(props: any) {
   }, []);
 
   if (loading) {
-    <ui5.Loader progress="60%" />
+    return <ui5.Loader progress="60%" />
   }
 
   if (error) {
