@@ -5,7 +5,7 @@ data:
   {{- else }}
   {{- $configmap := lookup "v1" "ConfigMap" .Release.Namespace "sap-btp-operator-config" -}}
   {{- if $configmap }}
-  CLUSTER_ID: {{ $configmap.data.CLUSTER_ID }}
+  CLUSTER_ID: {{ $configmap.vm.CLUSTER_ID }}
   {{- else }}
   CLUSTER_ID: {{ uuidv4}}
   {{- end }}

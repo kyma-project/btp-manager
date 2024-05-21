@@ -34,7 +34,7 @@ func main() {
 	dataForProcessing := extractData()
 	dataChunks := strings.Split(dataForProcessing, "====")
 	if len(dataChunks) != expectedDataChunksCount {
-		fmt.Println(fmt.Sprintf("'%s' data output failed, it should contain 3 elements", scriptName))
+		fmt.Println(fmt.Sprintf("'%s' vm output failed, it should contain 3 elements", scriptName))
 		os.Exit(errorExitCode)
 	}
 
@@ -130,7 +130,12 @@ func checkIfConstsAndMetadataAreInSync(constReasons []string, reasonsMetadata []
 
 	for _, constReason := range constReasons {
 		if !checkIfConstReasonHaveMetadata(constReason) {
-			errors = append(errors, fmt.Sprintf("there is a Reason = (%s) declared in const scope, but there is no matching metadata for it", constReason))
+			errors = append(
+				errors, fmt.Sprintf(
+					"there is a Reason = (%s) declared in const scope, but there is no matching metadata for it",
+					constReason,
+				),
+			)
 		}
 	}
 	return errors
@@ -145,7 +150,12 @@ func mdTableToStruct(tableMd string) ([]string, []reasonMetadata) {
 		cleanLine := strings.Split(mdRow, "|")
 		numberOfElements := len(cleanLine)
 		if numberOfElements != expectedMdTableElementsCount {
-			errors = append(errors, fmt.Sprintf("%s have incorrect number of elements, it has %d but it should have %d", cleanLine, numberOfElements, expectedMdTableElementsCount))
+			errors = append(
+				errors, fmt.Sprintf(
+					"%s have incorrect number of elements, it has %d but it should have %d", cleanLine,
+					numberOfElements, expectedMdTableElementsCount,
+				),
+			)
 			continue
 		}
 
@@ -188,7 +198,10 @@ func mdTableToStruct(tableMd string) ([]string, []reasonMetadata) {
 func compareContent(currentTableStructured []reasonMetadata, newTableStructured []reasonMetadata) []string {
 	checkIfValuesAreSynced := func(new, old, reason string) string {
 		if new != old {
-			return fmt.Sprintf("Docs are not synced with Go code, difference detected in reason (%s), current value in docs is (%s) but newer in Go code is (%s)", reason, new, old)
+			return fmt.Sprintf(
+				"Docs are not synced with Go code, difference detected in reason (%s), current value in docs is (%s) but newer in Go code is (%s)",
+				reason, new, old,
+			)
 		}
 		return ""
 	}
@@ -200,19 +213,28 @@ func compareContent(currentTableStructured []reasonMetadata, newTableStructured 
 			if newRow.conditionReason == currentRow.conditionReason {
 				foundReasonInDoc = true
 
-				if validationMessage := checkIfValuesAreSynced(currentRow.remark, newRow.remark, newRow.conditionReason); validationMessage != "" {
+				if validationMessage := checkIfValuesAreSynced(
+					currentRow.remark, newRow.remark, newRow.conditionReason,
+				); validationMessage != "" {
 					errors = append(errors, validationMessage)
 				}
 
-				if validationMessage := checkIfValuesAreSynced(strconv.FormatBool(currentRow.conditionStatus), strconv.FormatBool(newRow.conditionStatus), newRow.conditionReason); validationMessage != "" {
+				if validationMessage := checkIfValuesAreSynced(
+					strconv.FormatBool(currentRow.conditionStatus), strconv.FormatBool(newRow.conditionStatus),
+					newRow.conditionReason,
+				); validationMessage != "" {
 					errors = append(errors, validationMessage)
 				}
 
-				if validationMessage := checkIfValuesAreSynced(currentRow.crState, newRow.crState, newRow.conditionReason); validationMessage != "" {
+				if validationMessage := checkIfValuesAreSynced(
+					currentRow.crState, newRow.crState, newRow.conditionReason,
+				); validationMessage != "" {
 					errors = append(errors, validationMessage)
 				}
 
-				if validationMessage := checkIfValuesAreSynced(currentRow.conditionType, newRow.conditionType, newRow.conditionReason); validationMessage != "" {
+				if validationMessage := checkIfValuesAreSynced(
+					currentRow.conditionType, newRow.conditionType, newRow.conditionReason,
+				); validationMessage != "" {
 					errors = append(errors, validationMessage)
 				}
 
@@ -238,12 +260,14 @@ func buildMdTable(reasonsMetadata []reasonMetadata) string {
 		return element.String()
 	}
 
-	sort.Slice(reasonsMetadata, func(i, j int) bool {
-		if reasonsMetadata[i].groupOrder != reasonsMetadata[j].groupOrder {
-			return reasonsMetadata[i].groupOrder < reasonsMetadata[j].groupOrder
-		}
-		return reasonsMetadata[i].conditionReason < reasonsMetadata[j].conditionReason
-	})
+	sort.Slice(
+		reasonsMetadata, func(i, j int) bool {
+			if reasonsMetadata[i].groupOrder != reasonsMetadata[j].groupOrder {
+				return reasonsMetadata[i].groupOrder < reasonsMetadata[j].groupOrder
+			}
+			return reasonsMetadata[i].conditionReason < reasonsMetadata[j].conditionReason
+		},
+	)
 
 	longestConditionReasons := 0
 	longestRemark := 0
@@ -260,31 +284,43 @@ func buildMdTable(reasonsMetadata []reasonMetadata) string {
 
 	var mdTable strings.Builder
 
-	mdTable.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s | %s |\n",
-		renderMdElement(defaultMdElementSize, "No.", " "),
-		renderMdElement(defaultMdElementSize, "CR state", " "),
-		renderMdElement(defaultMdElementSize, "Condition type", " "),
-		renderMdElement(defaultMdElementSize, "Condition status", " "),
-		renderMdElement(longestConditionReasons, "Condition reason", " "),
-		renderMdElement(longestRemark, "Remark", " ")))
+	mdTable.WriteString(
+		fmt.Sprintf(
+			"| %s | %s | %s | %s | %s | %s |\n",
+			renderMdElement(defaultMdElementSize, "No.", " "),
+			renderMdElement(defaultMdElementSize, "CR state", " "),
+			renderMdElement(defaultMdElementSize, "Condition type", " "),
+			renderMdElement(defaultMdElementSize, "Condition status", " "),
+			renderMdElement(longestConditionReasons, "Condition reason", " "),
+			renderMdElement(longestRemark, "Remark", " "),
+		),
+	)
 
-	mdTable.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s | %s |\n",
-		renderMdElement(defaultMdElementSize, "", "-"),
-		renderMdElement(defaultMdElementSize, "", "-"),
-		renderMdElement(defaultMdElementSize, "", "-"),
-		renderMdElement(defaultMdElementSize, "", "-"),
-		renderMdElement(longestConditionReasons, "", "-"),
-		renderMdElement(longestRemark, "", "-")))
+	mdTable.WriteString(
+		fmt.Sprintf(
+			"| %s | %s | %s | %s | %s | %s |\n",
+			renderMdElement(defaultMdElementSize, "", "-"),
+			renderMdElement(defaultMdElementSize, "", "-"),
+			renderMdElement(defaultMdElementSize, "", "-"),
+			renderMdElement(defaultMdElementSize, "", "-"),
+			renderMdElement(longestConditionReasons, "", "-"),
+			renderMdElement(longestRemark, "", "-"),
+		),
+	)
 
 	lineNumber := 1
 	for _, row := range reasonsMetadata {
-		mdTable.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s | %s |\n",
-			renderMdElement(defaultMdElementSize, strconv.Itoa(lineNumber), " "),
-			renderMdElement(defaultMdElementSize, row.crState, " "),
-			renderMdElement(defaultMdElementSize, row.conditionType, " "),
-			renderMdElement(defaultMdElementSize, strconv.FormatBool(row.conditionStatus), " "),
-			renderMdElement(longestConditionReasons, row.conditionReason, " "),
-			renderMdElement(longestRemark, row.remark, " ")))
+		mdTable.WriteString(
+			fmt.Sprintf(
+				"| %s | %s | %s | %s | %s | %s |\n",
+				renderMdElement(defaultMdElementSize, strconv.Itoa(lineNumber), " "),
+				renderMdElement(defaultMdElementSize, row.crState, " "),
+				renderMdElement(defaultMdElementSize, row.conditionType, " "),
+				renderMdElement(defaultMdElementSize, strconv.FormatBool(row.conditionStatus), " "),
+				renderMdElement(longestConditionReasons, row.conditionReason, " "),
+				renderMdElement(longestRemark, row.remark, " "),
+			),
+		)
 		lineNumber++
 	}
 
@@ -298,17 +334,25 @@ func tryConvertGoLineToStruct(goLine string) (error, *reasonMetadata) {
 	goLine = strings.TrimSpace(goLine)
 	parts := strings.Split(goLine, "//")
 	if len(parts) != 2 {
-		return fmt.Errorf("in goLine (%s) there is no comment section (//) included, comment section should have following format (//CRState;Remark)", goLine), nil
+		return fmt.Errorf(
+			"in goLine (%s) there is no comment section (//) included, comment section should have following format (//CRState;Remark)",
+			goLine,
+		), nil
 	}
 
 	words := strings.Fields(parts[0])
 	if len(words) != 5 {
-		return fmt.Errorf("goLine (%s) is badly structured, it should have following format (Reason: Metadata, //CRState;Remark", goLine), nil
+		return fmt.Errorf(
+			"goLine (%s) is badly structured, it should have following format (Reason: Metadata, //CRState;Remark",
+			goLine,
+		), nil
 	}
 
 	comments := strings.Split(parts[1], ";")
 	if len(comments) != 2 {
-		return fmt.Errorf("comment in goLine (%s) is badly structured, it should have following format (//CRState;Remark)", goLine), nil
+		return fmt.Errorf(
+			"comment in goLine (%s) is badly structured, it should have following format (//CRState;Remark)", goLine,
+		), nil
 	}
 
 	reason := words[0]

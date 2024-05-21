@@ -68,8 +68,17 @@ kubectl delete btpoperators/e2e-test-btpoperator &
 
 echo -e "\n--- Checking deprovisioning without force delete label"
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "FalseServiceInstancesAndBindingsNotCleaned" ]];
-do echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"; sleep 5; done
+while true; do
+  operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+  condition_status=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .status+.reason')
+  state_status=$(echo $operator_status | jq -r '.status.state')
+
+  if [[ $condition_status == "FalseServiceInstancesAndBindingsNotCleaned" && $state_status == "Warning" ]]; then
+    break
+  else
+    echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason and state"; sleep 5;
+  fi
+done
 
 echo -e "\n--- Condition reason is correct"
 

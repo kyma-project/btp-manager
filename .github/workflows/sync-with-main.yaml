@@ -1,0 +1,43 @@
+name: Sync with main
+on:
+  workflow_dispatch:
+    inputs:
+      TriggerManually:
+        description: 'Trigger the workflow manually?'
+        default: 'true'
+        required: false
+  schedule:
+    - cron: '0 0 * * *'
+env:
+  GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+<<<<<<< HEAD
+
+      - name: Sync with main
+        run: |
+          git fetch origin main
+          git merge origin/main
+=======
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN }}
+      - name: Setup Git User
+        run: |
+          git config --global user.email ${{ vars.GIT_USER_EMAIL }}
+          git config --global user.name ${{ vars.GIT_GOPHER_BOT_NAME }}
+          gh auth setup-git
+      - name: Sync with main
+        run: |
+          git checkout --progress --force -B main origin/main
+          git pull
+          git checkout --progress --force -B sm-integration origin/sm-integration
+          git pull
+          git rebase main
+          git push --force-with-lease -u origin sm-integration
+>>>>>>> upstream/main

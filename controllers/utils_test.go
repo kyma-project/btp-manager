@@ -77,7 +77,7 @@ func newTimeoutK8sClient(c client.Client) *timeoutK8sClient {
 
 func (c *timeoutK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	if kind == instanceGvk.Kind || kind == bindingGvk.Kind {
+	if kind == InstanceGvk.Kind || kind == bindingGvk.Kind {
 		deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 		defer cancel()
 		return c.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...)
@@ -96,7 +96,7 @@ func newErrorK8sClient(c client.Client) *errorK8sClient {
 
 func (c *errorK8sClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	if kind == instanceGvk.Kind || kind == bindingGvk.Kind {
+	if kind == InstanceGvk.Kind || kind == bindingGvk.Kind {
 		deleteAllOfCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 		defer cancel()
 		_ = c.Client.DeleteAllOf(deleteAllOfCtx, obj, opts...)
@@ -467,7 +467,7 @@ func createResource(gvk schema.GroupVersionKind, namespace string, name string) 
 	object.SetNamespace(namespace)
 	object.SetName(name)
 	kind := object.GetObjectKind().GroupVersionKind().Kind
-	if kind == instanceGvk.Kind {
+	if kind == InstanceGvk.Kind {
 		populateServiceInstanceFields(object)
 	} else if kind == bindingGvk.Kind {
 		populateServiceBindingFields(object)
@@ -820,9 +820,9 @@ func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.C
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	Expect(deploymentController.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}),
-		&handler.EnqueueRequestForObject{},
-		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate())).
+	Expect(deploymentController.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{},
+		&handler.TypedEnqueueRequestForObject[*appsv1.Deployment]{},
+		btpOperatorDeploymentReconciler.watchBtpOperatorDeploymentPredicate()))).
 		To(Succeed())
 
 	return deploymentController
@@ -852,19 +852,15 @@ func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.TypedPredicate[*appsv1.Deployment] {
+	return predicate.TypedFuncs[*appsv1.Deployment]{
+		CreateFunc: func(e event.TypedCreateEvent[*appsv1.Deployment]) bool {
 			return true
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldDeployment, ok := e.ObjectOld.(*appsv1.Deployment)
-			if !ok {
-				return false
-			}
-			if len(oldDeployment.Status.Conditions) > 0 {
+		UpdateFunc: func(e event.TypedUpdateEvent[*appsv1.Deployment]) bool {
+			if len(e.ObjectOld.Status.Conditions) > 0 {
 				var progressingConditionStatus, availableConditionStatus string
-				for _, c := range oldDeployment.Status.Conditions {
+				for _, c := range e.ObjectOld.Status.Conditions {
 					if string(c.Type) == deploymentProgressingConditionType {
 						progressingConditionStatus = string(c.Status)
 					} else if string(c.Type) == deploymentAvailableConditionType {
@@ -877,10 +873,10 @@ func (r *deploymentReconciler) watchBtpOperatorDeploymentPredicate() predicate.F
 			}
 			return false
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(e event.TypedDeleteEvent[*appsv1.Deployment]) bool {
 			return false
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(e event.TypedGenericEvent[*appsv1.Deployment]) bool {
 			return false
 		},
 	}

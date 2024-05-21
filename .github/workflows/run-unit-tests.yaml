@@ -2,10 +2,10 @@ name: Run unit tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main, sm-integration]
   pull_request:
     # Trigger for Pull Request
-    branches: [ "main" ]
+    branches: [main, sm-integration]
 
 jobs:
   run-unit-tests:

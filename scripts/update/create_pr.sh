@@ -62,7 +62,7 @@ readonly status_field=PVTSSF_lADOAlVvc84AEv0vzgCvCtY
 # insert projectv2 item (card on the gopher board)
 resp=$(gh api graphql -f query='mutation{ addProjectV2ItemById(input:{projectId: "'${project_board_id}'" contentId: "'${pr_id}'"}){ item{id} }}' )
 echo "response from inserting projectv2 item: $resp"
-card_id=$(echo "$resp" | jq -r '.data.addProjectV2ItemById.item.id')
+card_id=$(echo "$resp" | jq -r '.vm.addProjectV2ItemById.item.id')
 
 # move projectv2 item (card on the gopher board) to the top of the "To Do" column
 # due to GitHub internal GraphQL limitation, adding item and update has to be two separate calls
