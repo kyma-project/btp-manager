@@ -34,6 +34,9 @@ SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 GOLINT_VER = v1.55.2
+ifeq (,$(GOLINT_TIMEOUT))
+GOLINT_TIMEOUT=2m
+endif
 
 .PHONY: all
 all: build
@@ -150,7 +153,7 @@ $(KUSTOMIZE): $(LOCALBIN)
 
 ########## controller-gen ###########
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-CONTROLLER_TOOLS_VERSION ?= v0.9.2
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download & Build controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
@@ -161,7 +164,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download & Build envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20230403212152-53057ba616d1
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240426121724-77435913f513
 
 ########## ginkgo ###########
 GINKGO ?= $(LOCALBIN)/ginkgo
@@ -190,7 +193,7 @@ go-lint-install: ## linter config in file at root of project -> '.golangci.yaml'
 
 .PHONY: go-lint
 go-lint: go-lint-install ## linter config in file at root of project -> '.golangci.yaml'
-	golangci-lint run
+	golangci-lint run --timeout=$(GOLINT_TIMEOUT)
 
 .PHONY: fix
 fix: go-lint-install ## try to fix automatically issues
