@@ -1,11 +1,6 @@
 name: Sync with main
 on:
   workflow_dispatch:
-    inputs:
-      TriggerManually:
-        description: 'Trigger the workflow manually?'
-        default: 'true'
-        required: false
   schedule:
     - cron: '0 0 * * *'
 env:
@@ -13,17 +8,9 @@ env:
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-<<<<<<< HEAD
-
-      - name: Sync with main
-        run: |
-          git fetch origin main
-          git merge origin/main
-=======
         with:
           fetch-depth: 0
           token: ${{ secrets.BOT_TOKEN }}
@@ -40,4 +27,3 @@ jobs:
           git pull
           git rebase main
           git push --force-with-lease -u origin sm-integration
->>>>>>> upstream/main

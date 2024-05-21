@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 	
+
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	"golang.org/x/oauth2"
@@ -43,13 +44,7 @@ type Client struct {
 
 func NewClient(
 	ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret],
-) *Client {
-	return &Client{
-		ctx:            ctx,
-		logger:         logger.With("component", componentName),
-		secretProvider: secretProvider,
-	}
-}
+) *Client
 
 func (c *Client) Defaults(ctx context.Context) error {
 	if err := c.buildHTTPClient(ctx, defaultSecret, defaultNamespace); err != nil {

@@ -49,78 +49,30 @@ type Metadata struct {
 
 // gophers_metadata_section_start
 var Reasons = map[Reason]Metadata{
-	ReconcileSucceeded: {
-		Status: metav1.ConditionTrue, State: v1alpha1.StateReady,
-	}, // Ready;Reconciled successfully
-	UpdateDone: {
-		Status: metav1.ConditionTrue, State: v1alpha1.StateReady,
-	}, // Ready;Update done
-	UpdateCheckSucceeded: {
-		Status: metav1.ConditionTrue, State: v1alpha1.StateReady,
-	}, // Ready;Update not required
-	ReconcileFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Reconciliation failed
-	Updated: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing,
-	}, // Processing;Resource has been updated
-	Initialized: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing,
-	}, // Processing;Initial processing or chart is inconsistent
-	ChartInstallFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Failure during chart installation
-	ConsistencyCheckFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Failure during consistency check
-	Processing: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing,
-	}, // Processing;Final State after deprovisioning
-	OlderCRExists: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;This CR is not the oldest one so does not represent the module State
-	MissingSecret: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateWarning,
-	}, // Warning;sap-btp-manager secret was not found - create proper secret
-	InvalidSecret: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;sap-btp-manager secret does not contain required vm - create proper secret
-	HardDeleting: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting,
-	}, // Deleting;Trying to hard delete
-	ResourceRemovalFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Some resources can still be present due to errors while deprovisioning
-	SoftDeleting: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting,
-	}, // Deleting;Trying to soft delete after hard delete failed
-	UpdateCheck: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing,
-	}, // Processing;Checking for updates
-	InconsistentChart: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Chart is inconsistent. Reconciliation initialized
-	PreparingInstallInfoFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Error while preparing installation information
-	ChartPathEmpty: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;No chart path available for processing
-	DeletionOfOrphanedResourcesFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Deletion of orphaned resources failed
-	StoringChartDetailsFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Failure of storing chart details
-	GettingConfigMapFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Getting Config Map failed
-	ProvisioningFailed: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateError,
-	}, // Error;Provisioning failed
-	ServiceInstancesAndBindingsNotCleaned: {
-		Status: metav1.ConditionFalse, State: v1alpha1.StateWarning,
-	}, // Warning;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
+	ReconcileSucceeded:                    {Status: metav1.ConditionTrue, State: v1alpha1.StateReady},       //Ready;Reconciled successfully
+	UpdateDone:                            {Status: metav1.ConditionTrue, State: v1alpha1.StateReady},       //Ready;Update done
+	UpdateCheckSucceeded:                  {Status: metav1.ConditionTrue, State: v1alpha1.StateReady},       //Ready;Update not required
+	ReconcileFailed:                       {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Reconciliation failed
+	Updated:                               {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Resource has been updated
+	Initialized:                           {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Initial processing or chart is inconsistent
+	ChartInstallFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure during chart installation
+	ConsistencyCheckFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure during consistency check
+	Processing:                            {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Final State after deprovisioning
+	OlderCRExists:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;This CR is not the oldest one so does not represent the module State
+	MissingSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;sap-btp-manager secret was not found - create proper secret
+	InvalidSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;sap-btp-manager secret does not contain required data - create proper secret
+	HardDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to hard delete
+	ResourceRemovalFailed:                 {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Some resources can still be present due to errors while deprovisioning
+	SoftDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to soft delete after hard delete failed
+	UpdateCheck:                           {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Checking for updates
+	InconsistentChart:                     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Chart is inconsistent. Reconciliation initialized
+	PreparingInstallInfoFailed:            {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Error while preparing installation information
+	ChartPathEmpty:                        {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;No chart path available for processing
+	DeletionOfOrphanedResourcesFailed:     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Deletion of orphaned resources failed
+	StoringChartDetailsFailed:             {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure of storing chart details
+	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting Config Map failed
+	ProvisioningFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Provisioning failed
+	ServiceInstancesAndBindingsNotCleaned: {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
 }
 
 // gophers_metadata_section_end

@@ -95,16 +95,16 @@ spec:
                     type: object
                   type: array
                 secretKey:
-                  description: SecretKey is used as the key inside the secret to store the credentials returned by the broker encoded as json to support complex vm structures. If not specified, the credentials returned by the broker will be used directly as the secrets vm.
+                  description: SecretKey is used as the key inside the secret to store the credentials returned by the broker encoded as json to support complex data structures. If not specified, the credentials returned by the broker will be used directly as the secrets data.
                   type: string
                 secretName:
                   description: SecretName is the name of the secret where credentials will be stored
                   type: string
                 secretRootKey:
-                  description: SecretRootKey is used as the key inside the secret to store all binding vm including credentials returned by the broker and additional info under single key. Convenient way to store whole binding vm in single file when using `volumeMounts`.
+                  description: SecretRootKey is used as the key inside the secret to store all binding data including credentials returned by the broker and additional info under single key. Convenient way to store whole binding data in single file when using `volumeMounts`.
                   type: string
                 secretTemplate:
-                  description: 'SecretTemplate is a Go template that generates a custom Kubernetes v1/Secret based on vm from the service binding returned by Service Manager and the instance information. The generated secret is used instead of the default secret. This is useful if the consumer of service binding vm expects them in a specific format. For Go templates see https://pkg.go.dev/text/template. For supported funcs see: https://pkg.go.dev/text/template#hdr-Functions, https://masterminds.github.io/sprig/'
+                  description: 'SecretTemplate is a Go template that generates a custom Kubernetes v1/Secret based on data from the service binding returned by Service Manager and the instance information. The generated secret is used instead of the default secret. This is useful if the consumer of service binding data expects them in a specific format. For Go templates see https://pkg.go.dev/text/template. For supported funcs see: https://pkg.go.dev/text/template#hdr-Functions, https://masterminds.github.io/sprig/'
                   type: string
                   x-kubernetes-preserve-unknown-fields: true
                 serviceInstanceName:
@@ -300,13 +300,13 @@ spec:
                     type: object
                   type: array
                 secretKey:
-                  description: SecretKey is used as the key inside the secret to store the credentials returned by the broker encoded as json to support complex vm structures. If not specified, the credentials returned by the broker will be used directly as the secrets vm.
+                  description: SecretKey is used as the key inside the secret to store the credentials returned by the broker encoded as json to support complex data structures. If not specified, the credentials returned by the broker will be used directly as the secrets data.
                   type: string
                 secretName:
                   description: SecretName is the name of the secret where credentials will be stored
                   type: string
                 secretRootKey:
-                  description: SecretRootKey is used as the key inside the secret to store all binding vm including credentials returned by the broker and additional info under single key. Convenient way to store whole binding vm in single file when using `volumeMounts`.
+                  description: SecretRootKey is used as the key inside the secret to store all binding data including credentials returned by the broker and additional info under single key. Convenient way to store whole binding data in single file when using `volumeMounts`.
                   type: string
                 serviceInstanceName:
                   description: The k8s name of the service instance to bind, should be in the namespace of the binding
@@ -489,7 +489,7 @@ spec:
                     type: string
                   type: array
                 dataCenter:
-                  description: The dataCenter in case service offering and plan name exist in other vm center and not on main
+                  description: The dataCenter in case service offering and plan name exist in other data center and not on main
                   type: string
                 externalName:
                   description: The name of the instance in Service Manager
