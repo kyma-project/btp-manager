@@ -24,10 +24,7 @@ type SecretProvider struct {
 	logger                  *slog.Logger
 }
 
-func NewSecretProvider(
-	reader client.Reader, nsProvider *NamespaceProvider, siProvider *ServiceInstanceProvider, logger *slog.Logger,
-) *SecretProvider {
-
+func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, siProvider *ServiceInstanceProvider, logger *slog.Logger) *SecretProvider {
 	logger = logger.With(logComponentNameKey, secretProviderName)
 
 	return &SecretProvider{
@@ -76,12 +73,8 @@ func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
 	return secrets, err
 }
 
-func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(
-	ctx context.Context, secrets *corev1.SecretList,
-) error {
-	if err := p.Reader.List(
-		ctx, secrets, client.MatchingFields{"metadata.name": btpServiceOperatorSecretName},
-	); err != nil {
+func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *corev1.SecretList) error {
+	if err := p.Reader.List(ctx, secrets, client.MatchingFields{"metadata.name": btpServiceOperatorSecretName}); err != nil {
 		p.logger.Error(fmt.Sprintf("failed to fetch all \"%s\" secrets", btpServiceOperatorSecretName), "error", err)
 		return err
 	}
@@ -96,21 +89,13 @@ func (p *SecretProvider) getNamespacesNames(namespaces *corev1.NamespaceList) []
 	return names
 }
 
-func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(
-	ctx context.Context, secrets *corev1.SecretList, nsnames []string,
-) error {
+func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *corev1.SecretList, nsnames []string) error {
 	for _, nsname := range nsnames {
 		secret := &corev1.Secret{}
 		secretName := fmt.Sprintf("%s-%s", nsname, btpServiceOperatorSecretName)
-		if err := p.Get(
-			ctx, client.ObjectKey{Namespace: controllers.ChartNamespace, Name: secretName}, secret,
-		); err != nil {
+		if err := p.Get(ctx, client.ObjectKey{Namespace: controllers.ChartNamespace, Name: secretName}, secret); err != nil {
 			if k8serrors.IsNotFound(err) {
-				p.logger.Info(
-					fmt.Sprintf(
-						"secret \"%s\" not found in \"%s\" namespace", secretName, controllers.ChartNamespace,
-					),
-				)
+				p.logger.Info(fmt.Sprintf("secret \"%s\" not found in \"%s\" namespace", secretName, controllers.ChartNamespace))
 				continue
 			}
 			p.logger.Error(fmt.Sprintf("failed to fetch \"%s\" secret", secretName), "error", err)
@@ -122,32 +107,20 @@ func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(
 	return nil
 }
 
-func (p *SecretProvider) getSecretsFromRefInServiceInstances(
-	ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList,
-) error {
+func (p *SecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList) error {
 	for _, item := range siList.Items {
 		secretRef, found, err := unstructured.NestedString(item.Object, "spec", secretRefKey)
 		if err != nil {
-			p.logger.Error(
-				fmt.Sprintf(
-					"while traversing \"%s\" unstructured object to find \"%s\" key", item.GetName(), secretRefKey,
-				), "error", err,
-			)
+			p.logger.Error(fmt.Sprintf("while traversing \"%s\" unstructured object to find \"%s\" key", item.GetName(), secretRefKey), "error", err)
 			return err
 		} else if !found {
 			p.logger.Warn(fmt.Sprintf("expected secret ref not found in \"%s\" service instance", item.GetName()))
 			continue
 		}
 		secret := &corev1.Secret{}
-		if err := p.Get(
-			ctx, client.ObjectKey{Namespace: controllers.ChartNamespace, Name: secretRef}, secret,
-		); err != nil {
+		if err := p.Get(ctx, client.ObjectKey{Namespace: controllers.ChartNamespace, Name: secretRef}, secret); err != nil {
 			if k8serrors.IsNotFound(err) {
-				p.logger.Warn(
-					fmt.Sprintf(
-						"secret \"%s\" not found in \"%s\" namespace", secretRef, controllers.ChartNamespace,
-					),
-				)
+				p.logger.Warn(fmt.Sprintf("secret \"%s\" not found in \"%s\" namespace", secretRef, controllers.ChartNamespace))
 				continue
 			}
 			p.logger.Error(fmt.Sprintf("failed to fetch \"%s\" secret", secretRef), "error", err)
