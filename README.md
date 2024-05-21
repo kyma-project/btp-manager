@@ -48,7 +48,7 @@ For more installation options, read the [Install and Uninstall BTP Manager](./do
 
 ## Usage
 
-Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, read the [usage](./docs/user/02-10-usage.md) documents.
+Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, read the [usage](./docs/user/02-10-usage.md) document.
 
 ## Uninstallation
 
