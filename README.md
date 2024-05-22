@@ -12,9 +12,9 @@ To enable the SAP BTP Operator module from the latest release, you must install 
 
 ### Prerequisites
 
-- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-- Kubernetes cluster, or [k3d](https://k3d.io) for local installation
-- [jq](https://github.com/stedolan/jq) 
+* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* Kubernetes cluster, or [k3d](https://k3d.io) for local installation
+* [jq](https://github.com/stedolan/jq) 
 
 > [!WARNING] 
 > You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
@@ -62,20 +62,23 @@ kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/do
 
 If you want to provide new features for BTP Manager, visit the [`contributor`](./docs/contributor) folder. You will find detailed information on BTP Manager's:
 
-- [configuration](./docs/contributor/01-20-configuration.md)
-- [operations](./docs/contributor/02-10-operations.md)
-- [release pipeline](./docs/contributor/03-10-release.md)
-- [GitHub Actions workflows](./docs/contributor/04-10-workflows.md)
-- [unit tests](./docs/contributor/05-10-testing.md)
-- [E2E tests](./docs/contributor/05-20-e2e_tests.md)
-- [certification management](./docs/contributor/06-10-certs.md)
-- [informer's cache](./docs/contributor/07-10-informer-cache.md)
-- [metrics](./docs/contributor/08-10-metrics.md)
+* [configuration](./docs/contributor/01-20-configuration.md)
+* [operations](./docs/contributor/02-10-operations.md)
+* [release pipeline](./docs/contributor/03-10-release.md)
+* [GitHub Actions workflows](./docs/contributor/04-10-workflows.md)
+* [unit tests](./docs/contributor/05-10-testing.md)
+* [E2E tests](./docs/contributor/05-20-e2e_tests.md)
+* [certification management](./docs/contributor/06-10-certs.md)
+* [informer's cache](./docs/contributor/07-10-informer-cache.md)
+* [metrics](./docs/contributor/08-10-metrics.md)
 
 In the [`user`](./docs/user) folder, you will find the following documents:
-- [SAP BTP Operator Module](./docs/user/README.md)
-- [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md)
-- [SAP BTP Service Operator Examples](./docs/user/02-20-examples.md)
+* [SAP BTP Operator Module](./docs/user/README.md)
+* [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md)
+  * [Create and Install a Secret](./docs/user/02-20-create-secret.md)
+  * [Deploy an SAP BTP Service in Your Kyma Cluster](./docs/user/02-30-deploy-service-in-cluster.md)
+  * [Create a ServiceInstance with a Custom Secret](./docs/user/02-40-create-service-instance-with-custom-secret.md)
+* [SAP BTP Service Operator Examples](./docs/user/03-10-examples.md)
 
 ## Contributing
 <!--- mandatory section - do not change this! --->
