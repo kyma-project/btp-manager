@@ -205,11 +205,11 @@ app: ## Run the app
 	go run main.go
 
 .PHONY: ui
-ui: ## Run the webapp
+ui: ## Run the ui
 	cd ui && npm install && npm start
 
 .PHONE: webapp
-webapp: ## Run Go and JS app
+webapp: ## Run App and UI
 	 @$(MAKE) -j ui app
 
 .PHONY: clean-ports
@@ -222,5 +222,5 @@ clean-ports: ## Clean the ports
 	@echo "Ports cleaned"
 
 .PHONE: webapp-dev
-webapp-dev: clean-ports webapp ## Run Go and JS app
+webapp-dev: clean-ports webapp ## Run webapp for development
 

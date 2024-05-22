@@ -68,8 +68,7 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(&writer, request)
 	serviceInstanceProvider, err := a.serviceInstanceProvider.AllWithSecretRef(context.Background())
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
+	if shouldReturnError(&writer, err) {
 		return
 	}
 	instances := vm.ToServiceInstancesVM(serviceInstanceProvider.Items)
@@ -80,8 +79,7 @@ func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Req
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(&writer, request)
 	secrets, err := a.secretProvider.All(context.Background())
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
+	if shouldReturnError(&writer, err) {
 		return
 	}
 	response, err := json.Marshal(vm.ToSecretVM(*secrets))
