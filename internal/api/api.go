@@ -61,7 +61,6 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 	if shouldReturnError(&writer, err) {
 		return
 	}
-
 	response, err := json.Marshal(vm.ToServiceOfferingsVM(offerings))
 	returnResponse(&writer, response, err)
 }

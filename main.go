@@ -100,9 +100,12 @@ func main() {
 	sm := setupSMClient(restCfg, signalContext)
 
 	// start components
+	setupLog.Info("Starting components:")
+	setupLog.Info("1. BTP Manager")
 	go mgr.start()
+	setupLog.Info("2. Service Manager client")
 	go sm.start()
-
+	setupLog.Info("Components started.")
 	select {
 	case <-signalContext.Done():
 		setupLog.Info("shutting down btp-manager")
@@ -230,11 +233,11 @@ func setupSMClient(restCfg *rest.Config, signalCtx context.Context) *serviceMana
 		setupLog.Error(err, "unable to create k8s client")
 		os.Exit(1)
 	}
-	slogger := slog.Default()
-	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
-	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
-	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
-	smClient := servicemanager.NewClient(signalCtx, slogger, secretProvider)
+	log := slog.Default()
+	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, log)
+	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, log)
+	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, log)
+	smClient := servicemanager.NewClient(signalCtx, log, secretProvider)
 
 	return &serviceManagerClient{
 		Context: signalCtx,
