@@ -19,11 +19,15 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
+	"github.com/kyma-project/btp-manager/internal/api"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
@@ -39,6 +43,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	//+kubebuilder:scaffold:imports
+)
+
+const (
+	apiPort = 3006
 )
 
 type managerWithContext struct {
@@ -180,8 +188,27 @@ func setupSMClient(restCfg *rest.Config, signalCtx context.Context) *serviceMana
 	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
 	smClient := servicemanager.NewClient(signalCtx, slogger, secretProvider)
 
+	if err := registerAPI(); err != nil {
+		setupLog.Error(err, "unable to register endpoints")
+		os.Exit(1)
+	}
+
 	return &serviceManagerClient{
 		Context: signalCtx,
 		Client:  smClient,
 	}
+}
+
+func registerAPI() error {
+	api, err := api.NewAPI()
+	if err != nil {
+		return fmt.Errorf("unable to create API: %w", err)
+	}
+	mux := mux.NewRouter()
+	mux.HandleFunc("/api/list-secrets", api.ListSecrets).Methods("GET")
+	mux.HandleFunc("/api/list-service-instances", api.ListServiceInstances).Methods("GET")
+	mux.HandleFunc("/api/get-service-instance/{id}", api.GetServiceInstance).Methods("GET")
+	mux.HandleFunc("/api/list-service-offerings/{namespace}/{name}", api.ListServiceOfferings).Methods("GET")
+	mux.HandleFunc("/api/get-service-offering/{id}", api.GetServiceOffering).Methods("GET")
+	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }
