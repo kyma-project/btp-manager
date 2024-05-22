@@ -1,5 +1,5 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import { ServiceInstance, ServiceInstances } from "../shared/models";
+import { ServiceInstances } from "../shared/models";
 import axios from "axios";
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
