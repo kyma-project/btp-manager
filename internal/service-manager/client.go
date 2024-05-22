@@ -133,6 +133,10 @@ func (c *Client) SetHTTPClient(httpClient *http.Client) {
 	c.httpClient = httpClient
 }
 
+func (c *Client) SetSMURL(smURL string) {
+	c.smURL = smURL
+}
+
 func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceOfferingsPath, nil)
 	if err != nil {
