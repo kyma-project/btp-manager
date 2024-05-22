@@ -123,7 +123,7 @@ create-manifest: manifests kustomize ## Deploy controller to the K8s cluster spe
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-649
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
@@ -187,7 +187,7 @@ vet: ## Run go vet against code.
 go-lint-install: ## linter config in file at root of project -> '.golangci.yaml'
 	@if [ "$(shell command golangci-lint version --format short)" != "$(GOLINT_VER)" ]; then \
   		echo golangci in version $(GOLINT_VER) not found. will be downloaded; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VER); \
+		go inst all github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VER); \
 		echo golangci installed with version: $(shell command golangci-lint version --format short); \
 	fi;
 
