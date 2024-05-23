@@ -42,7 +42,7 @@ To enable the SAP BTP Operator module from the latest release, you must install 
    ```sh
    kubectl get btpoperators btpoperator
    ```
-   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md#create-and-install-a-secret).
+   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-20-create-secret.md).
 
 For more installation options, read the [Install and Uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
