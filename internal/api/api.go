@@ -57,7 +57,7 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	secrets, err := a.serviceManager.SecretProvider.All(context.Background())
+	secrets, err := a.serviceManager.SecretProvider.GetByNameAndNamespace(context.Background())
 	if returnError(writer, err) {
 		return
 	}
