@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	componentName        = "ClientWithContext"
+	componentName        = "ServiceManagerClient"
 	defaultSecret        = "sap-btp-service-operator"
 	defaultNamespace     = "kyma-system"
 	ServiceOfferingsPath = "/v1/service_offerings"
