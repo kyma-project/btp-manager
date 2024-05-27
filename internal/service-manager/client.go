@@ -13,13 +13,12 @@ import (
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
-	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
 const (
-	componentName        = "ServiceManagerClient"
+	componentName        = "ClientWithContext"
 	defaultSecret        = "sap-btp-service-operator"
 	defaultNamespace     = "kyma-system"
 	ServiceOfferingsPath = "/v1/service_offerings"
@@ -36,16 +35,18 @@ type Config struct {
 type Client struct {
 	ctx            context.Context
 	logger         *slog.Logger
-	secretProvider clusterobject.NamespacedProvider[*corev1.Secret]
+	SecretProvider *clusterobject.SecretProvider
 	httpClient     *http.Client
 	smURL          string
 }
 
-func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret]) *Client {
+func NewClient(
+	ctx context.Context, logger *slog.Logger, secretProvider *clusterobject.SecretProvider,
+) *Client {
 	return &Client{
 		ctx:            ctx,
 		logger:         logger.With("component", componentName),
-		secretProvider: secretProvider,
+		SecretProvider: secretProvider,
 	}
 }
 
@@ -92,7 +93,7 @@ func (c *Client) buildHTTPClient(ctx context.Context, secretName, secretNamespac
 }
 
 func (c *Client) getSMConfigFromGivenSecret(ctx context.Context, secretName, secretNamespace string) (*Config, error) {
-	secret, err := c.secretProvider.GetByNameAndNamespace(ctx, secretName, secretNamespace)
+	secret, err := c.SecretProvider.GetByNameAndNamespace(ctx, secretName, secretNamespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			c.logger.Warn("secret not found", "name", secretName, "namespace", secretNamespace)
