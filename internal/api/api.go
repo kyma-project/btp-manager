@@ -32,7 +32,6 @@ func (a *API) Start() {
 	go func() {
 		err := http.ListenAndServe(":3006", nil)
 		if err != nil {
-
 			a.slogger.Error("failed to Start listening", "error", err)
 		}
 	}()
