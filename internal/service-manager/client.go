@@ -42,7 +42,8 @@ type Client struct {
 }
 
 func NewClient(
-	ctx context.Context, logger *slog.Logger, secretProvider *clusterobject.SecretProvider,
+	ctx context.Context, logger *slog.Logger,
+	secretProvider clusterobject.NamespacedProvider[*corev1.Secret, *corev1.SecretList],
 ) *Client {
 	return &Client{
 		ctx:            ctx,

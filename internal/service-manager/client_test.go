@@ -34,40 +34,42 @@ func TestClient(t *testing.T) {
 	httpClient := srv.Client()
 	url := srv.URL
 
-	t.Run("should get service offerings available for the default credentials", func(t *testing.T) {
-		// given
-		ctx := context.TODO()
-		secretProvider.AddSecret(defaultSecret())
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+	t.Run(
+		"should get service offerings available for the default credentials", func(t *testing.T) {
+			// given
+			ctx := context.TODO()
+			secretProvider.AddSecret(defaultSecret())
+			smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
 
-		var expectedServiceOfferings types.ServiceOfferings
-		soJSON, err := getResourcesFromJSONFile(serviceOfferingsJSONPath)
-		require.NoError(t, err)
+			var expectedServiceOfferings types.ServiceOfferings
+			soJSON, err := getResourcesFromJSONFile(serviceOfferingsJSONPath)
+			require.NoError(t, err)
 
-		soBytes, err := json.Marshal(soJSON)
-		require.NoError(t, err)
+			soBytes, err := json.Marshal(soJSON)
+			require.NoError(t, err)
 
-		err = json.Unmarshal(soBytes, &expectedServiceOfferings)
-		require.NoError(t, err)
+			err = json.Unmarshal(soBytes, &expectedServiceOfferings)
+			require.NoError(t, err)
 
-		// when
-		err = smClient.Defaults(ctx)
+			// when
+			err = smClient.Defaults(ctx)
 
-		// then
-		require.NoError(t, err)
+			// then
+			require.NoError(t, err)
 
-		// given
-		smClient.SetHTTPClient(httpClient)
-		smClient.SetSMURL(url)
+			// given
+			smClient.SetHTTPClient(httpClient)
+			smClient.SetSMURL(url)
 
-		// when
-		so, err := smClient.ServiceOfferings()
+			// when
+			so, err := smClient.ServiceOfferings()
 
-		// then
-		require.NoError(t, err)
-		assert.Len(t, so.ServiceOfferings, 4)
-		assert.ElementsMatch(t, expectedServiceOfferings.ServiceOfferings, so.ServiceOfferings)
-	})
+			// then
+			require.NoError(t, err)
+			assert.Len(t, so.ServiceOfferings, 4)
+			assert.ElementsMatch(t, expectedServiceOfferings.ServiceOfferings, so.ServiceOfferings)
+		},
+	)
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -140,13 +142,19 @@ func (p *fakeSecretProvider) AddSecret(secret *corev1.Secret) {
 	p.secrets = append(p.secrets, secret)
 }
 
-func (p *fakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+func (p *fakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (
+	*corev1.Secret, error,
+) {
 	for _, secret := range p.secrets {
 		if secret.Name == name && secret.Namespace == namespace {
 			return secret, nil
 		}
 	}
 	return nil, fmt.Errorf("secret not found")
+}
+
+func (p *fakeSecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
+	return nil, nil
 }
 
 func (p *fakeSecretProvider) clean() {
