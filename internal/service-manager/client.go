@@ -23,6 +23,7 @@ const (
 	defaultSecret        = "sap-btp-service-operator"
 	defaultNamespace     = "kyma-system"
 	ServiceOfferingsPath = "/v1/service_offerings"
+	ServicePlansPath     = "/v1/service_plans"
 )
 
 type Config struct {
