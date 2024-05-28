@@ -142,13 +142,9 @@ func (p *fakeSecretProvider) AddSecret(secret *corev1.Secret) {
 	p.secrets = append(p.secrets, secret)
 }
 
-<<<<<<< HEAD
 func (p *fakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (
 	*corev1.Secret, error,
 ) {
-=======
-func (p *fakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
->>>>>>> upstream/sm-integration
 	for _, secret := range p.secrets {
 		if secret.Name == name && secret.Namespace == namespace {
 			return secret, nil
