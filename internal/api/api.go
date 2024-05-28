@@ -8,7 +8,6 @@ import (
 
 	"log/slog"
 
-	"github.com/gorilla/mux"
 	"github.com/kyma-project/btp-manager/internal/api/vm"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 )
@@ -40,9 +39,8 @@ func (a *API) Start() {
 
 func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	vars := mux.Vars(request)
-	namespace := vars["namespace"]
-	name := vars["name"]
+	namespace := request.URL.Query().Get("namespace")
+	name := request.URL.Query().Get("name")
 	err := a.serviceManager.SetForGivenSecret(context.Background(), name, namespace)
 	if returnError(writer, err) {
 		return
