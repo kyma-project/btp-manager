@@ -17,24 +17,19 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
-	"log/slog"
 	"os"
 
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
-	"github.com/kyma-project/btp-manager/controllers"
-	"github.com/kyma-project/btp-manager/internal/api"
-	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
-	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
-	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
+	//test
+
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// to ensure that exec-entrypoint and run can make use of them.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -113,55 +108,20 @@ func parseCmdFlags(probeAddr *string, metricsAddr *string, enableLeaderElection 
 	flag.BoolVar(
 		enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.",
-	)
-	flag.StringVar(
-		&controllers.ChartNamespace, "chart-namespace", controllers.ChartNamespace,
-		"Namespace to install chart resources.",
-	)
-	flag.StringVar(
-		&controllers.SecretName, "secret-name", controllers.SecretName,
-		"Secret name with input values for sap-btp-operator chart templating.",
-	)
-	flag.StringVar(
-		&controllers.ConfigName, "config-name", controllers.ConfigName,
-		"ConfigMap name with configuration knobs for the btp-manager internals.",
-	)
-	flag.StringVar(
-		&controllers.DeploymentName, "deployment-name", controllers.DeploymentName,
-		"Name of the deployment of sap-btp-operator for deprovisioning.",
-	)
-	flag.StringVar(
-		&controllers.ChartPath, "chart-path", controllers.ChartPath, "Path to the root directory inside the chart.",
-	)
-	flag.StringVar(
-		&controllers.ResourcesPath, "resources-path", controllers.ResourcesPath,
-		"Path to the directory with module resources to apply/delete.",
-	)
-	flag.DurationVar(
-		&controllers.ProcessingStateRequeueInterval, "processing-state-requeue-interval",
-		controllers.ProcessingStateRequeueInterval, `Requeue interval for state "processing".`,
-	)
-	flag.DurationVar(
-		&controllers.ReadyStateRequeueInterval, "ready-state-requeue-interval", controllers.ReadyStateRequeueInterval,
-		`Requeue interval for state "ready".`,
-	)
+			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&controllers.ChartNamespace, "chart-namespace", controllers.ChartNamespace, "Namespace to install chart resources.")
+	flag.StringVar(&controllers.SecretName, "secret-name", controllers.SecretName, "Secret name with input values for sap-btp-operator chart templating.")
+	flag.StringVar(&controllers.ConfigName, "config-name", controllers.ConfigName, "ConfigMap name with configuration knobs for the btp-manager internals.")
+	flag.StringVar(&controllers.DeploymentName, "deployment-name", controllers.DeploymentName, "Name of the deployment of sap-btp-operator for deprovisioning.")
+	flag.StringVar(&controllers.ChartPath, "chart-path", controllers.ChartPath, "Path to the root directory inside the chart.")
+	flag.StringVar(&controllers.ResourcesPath, "resources-path", controllers.ResourcesPath, "Path to the directory with module resources to apply/delete.")
+	flag.DurationVar(&controllers.ProcessingStateRequeueInterval, "processing-state-requeue-interval", controllers.ProcessingStateRequeueInterval, `Requeue interval for state "processing".`)
+	flag.DurationVar(&controllers.ReadyStateRequeueInterval, "ready-state-requeue-interval", controllers.ReadyStateRequeueInterval, `Requeue interval for state "ready".`)
 	flag.DurationVar(&controllers.ReadyTimeout, "ready-timeout", controllers.ReadyTimeout, "Helm chart timeout.")
-	flag.DurationVar(
-		&controllers.ReadyCheckInterval, "ready-check-interval", controllers.ReadyCheckInterval,
-		"Ready check retry interval.",
-	)
-	flag.DurationVar(
-		&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval,
-		"Hard delete retry interval.",
-	)
-	flag.DurationVar(
-		&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.",
-	)
-	flag.DurationVar(
-		&controllers.DeleteRequestTimeout, "delete-request-timeout", controllers.DeleteRequestTimeout,
-		"Delete request timeout in hard delete.",
-	)
+	flag.DurationVar(&controllers.ReadyCheckInterval, "ready-check-interval", controllers.ReadyCheckInterval, "Ready check retry interval.")
+	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
+	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
+	flag.DurationVar(&controllers.DeleteRequestTimeout, "delete-request-timeout", controllers.DeleteRequestTimeout, "Delete request timeout in hard delete.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -171,36 +131,30 @@ func parseCmdFlags(probeAddr *string, metricsAddr *string, enableLeaderElection 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 }
 
-func setupManager(
-	restCfg *rest.Config, probeAddr *string, metricsAddr *string, enableLeaderElection *bool,
-	signalContext context.Context,
-) managerWithContext {
-	mgr, err := ctrl.NewManager(
-		restCfg, ctrl.Options{
-			Scheme:                 scheme,
-			LeaderElection:         *enableLeaderElection,
-			LeaderElectionID:       "ec023d38.kyma-project.io",
-			Metrics:                server.Options{BindAddress: *metricsAddr},
-			HealthProbeBindAddress: *probeAddr,
-			NewCache:               controllers.CacheCreator,
-		},
-	)
+	restCfg := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
+		Scheme:                 scheme,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "ec023d38.kyma-project.io",
+		Metrics:                server.Options{BindAddress: metricsAddr},
+		HealthProbeBindAddress: probeAddr,
+		NewCache:               controllers.CacheCreator,
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	signalContext := ctrl.SetupSignalHandler()
 	metrics := btpmanagermetrics.NewMetrics()
-	cleanupReconciler := controllers.NewInstanceBindingControllerManager(
-		signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg,
-	)
+	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), scheme, cleanupReconciler, metrics)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
 		os.Exit(1)
 	}
-	// +kubebuilder:scaffold:builder
+	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
@@ -211,30 +165,9 @@ func setupManager(
 		os.Exit(1)
 	}
 
-	return managerWithContext{
-		Manager: mgr,
-		Context: signalContext,
-	}
-}
-
-func setupSMClient(restCfg *rest.Config, signalCtx context.Context) *serviceManagerClient {
-	k8sClient, err := client.New(restCfg, client.Options{})
-	if err != nil {
-		setupLog.Error(err, "unable to create k8s client")
+	setupLog.Info("starting manager")
+	if err := mgr.Start(signalContext); err != nil {
+		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-	slogger := slog.Default()
-	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
-	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
-	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
-	smClient := servicemanager.NewClient(signalCtx, slogger, secretProvider)
-
-	return &serviceManagerClient{
-		Context: signalCtx,
-		Client:  smClient,
-	}
-}
-
-func setupAPI(smClient *servicemanager.Client) *api.API {
-	return api.NewAPI(smClient)
 }
