@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"strings"
 
+	"log/slog"
+
 	"github.com/gorilla/mux"
 	"github.com/kyma-project/btp-manager/internal/api/vm"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
-	"log/slog"
 )
 
 type API struct {
