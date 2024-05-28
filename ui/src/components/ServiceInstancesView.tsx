@@ -22,7 +22,7 @@ function ServiceInstancesView() {
   useEffect(() => {
     setLoading(true)
     axios
-      .get<ServiceInstances>(api("list-service-instances"))
+      .get<ServiceInstances>(api("service-instances"))
       .then((response) => {
         setServiceInstances(response.data);
         setLoading(false);

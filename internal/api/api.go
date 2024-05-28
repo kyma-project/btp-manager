@@ -24,11 +24,11 @@ func NewAPI(serviceManager *servicemanager.Client) *API {
 
 func (a *API) Start() {
 	mux := http.ServeMux{}
-	mux.HandleFunc("GET /api/list-secrets", a.ListSecrets)
-	mux.HandleFunc("GET /api/list-service-instances", a.ListServiceInstances)
-	mux.HandleFunc("GET /api/get-service-instance/{id}", a.GetServiceInstance)
-	mux.HandleFunc("GET /api/list-service-offerings/{namespace}/{name}", a.ListServiceOfferings)
-	mux.HandleFunc("GET /api/get-service-offering/{id}", a.GetServiceOffering)
+	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
+	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
+	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
+	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
+	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
 	go func() {
 		err := http.ListenAndServe(":3006", nil)
 		if err != nil {

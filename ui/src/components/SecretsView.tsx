@@ -11,7 +11,7 @@ function SecretsView(props: any) {
 
   useEffect(() => {
     axios
-      .get<Secrets>(api("list-secrets"))
+      .get<Secrets>(api("secrets"))
       .then((response) => {
         setSecrets(response.data);
         setLoading(false);

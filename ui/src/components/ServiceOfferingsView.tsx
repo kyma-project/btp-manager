@@ -32,7 +32,7 @@ function ServiceOfferingsView(props: any) {
       axios
         .get<ServiceOfferings>(
           api(
-            `list-service-offerings/${splited.namespace}/${splited.secretName}`
+            `service-offerings/${splited.namespace}/${splited.secretName}`
           )
         )
         .then((response) => {
@@ -66,7 +66,7 @@ function ServiceOfferingsView(props: any) {
   function load(id: string) {
     setLoading(true);
     axios
-      .get<ServiceOfferingDetails>(api(`get-service-offering/${id}`))
+      .get<ServiceOfferingDetails>(api(`service-offering/${id}`))
       .then((response) => {
         setServiceOfferingDetails(response.data);
         setLoading(false);
