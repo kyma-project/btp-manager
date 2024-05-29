@@ -199,3 +199,28 @@ go-lint: go-lint-install ## linter config in file at root of project -> '.golang
 fix: go-lint-install ## try to fix automatically issues
 	go mod tidy
 	golangci-lint run --fix
+
+.PHONE: app
+app: ## Run the app
+	go run main.go
+
+.PHONY: ui
+ui: ## Run the ui
+	cd ui && npm install && npm start
+
+.PHONE: webapp
+webapp: ## Run App and UI
+	 @$(MAKE) -j ui app
+
+.PHONY: clean-ports
+clean-ports: ## Clean the ports
+	@echo "Cleaning ports"
+	$(echo $(kill -9 $(lsof -i tcp:8081 -t)))
+	$(echo $(lsof -i tcp:8081 -t))
+	$(echo $(kill -9 $(lsof -i tcp:3005 -t)))
+	$(echo $(lsof -i tcp:3005 -t))
+	@echo "Ports cleaned"
+
+.PHONE: webapp-dev
+webapp-dev: clean-ports webapp ## Run webapp for development
+
