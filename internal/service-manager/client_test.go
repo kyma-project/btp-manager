@@ -149,10 +149,6 @@ func (p *fakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, na
 	return nil, fmt.Errorf("secret not found")
 }
 
-func (p *fakeSecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
-	return nil, nil
-}
-
 func (p *fakeSecretProvider) clean() {
 	p.secrets = make([]*corev1.Secret, 0)
 }
