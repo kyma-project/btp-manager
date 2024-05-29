@@ -36,7 +36,7 @@ type Config struct {
 type Client struct {
 	ctx            context.Context
 	logger         *slog.Logger
-	SecretProvider clusterobject.NamespacedProvider[*corev1.Secret]
+	secretProvider clusterobject.NamespacedProvider[*corev1.Secret]
 	httpClient     *http.Client
 	smURL          string
 }
@@ -48,7 +48,7 @@ func NewClient(
 	return &Client{
 		ctx:            ctx,
 		logger:         logger.With("component", componentName),
-		SecretProvider: secretProvider,
+		secretProvider: secretProvider,
 	}
 }
 
@@ -95,7 +95,7 @@ func (c *Client) buildHTTPClient(ctx context.Context, secretName, secretNamespac
 }
 
 func (c *Client) getSMConfigFromGivenSecret(ctx context.Context, secretName, secretNamespace string) (*Config, error) {
-	secret, err := c.SecretProvider.GetByNameAndNamespace(ctx, secretName, secretNamespace)
+	secret, err := c.secretProvider.GetByNameAndNamespace(ctx, secretName, secretNamespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			c.logger.Warn("secret not found", "name", secretName, "namespace", secretNamespace)
