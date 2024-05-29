@@ -81,11 +81,6 @@ func init() {
 }
 
 func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			setupLog.Error(r.(error), "recovered from panic")
-		}
-	}()
 	var probeAddr, metricsAddr string
 	var enableLeaderElection bool
 	parseCmdFlags(&probeAddr, &metricsAddr, &enableLeaderElection)
