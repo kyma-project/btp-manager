@@ -24,6 +24,7 @@ import (
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
+	"github.com/kyma-project/btp-manager/internal/api"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
@@ -89,11 +90,14 @@ func main() {
 	signalContext := ctrl.SetupSignalHandler()
 
 	mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
-	sm := setupSMClient(restCfg, signalContext)
+	sp := getSecretProvider(restCfg)
+	sm := setupSMClient(sp, signalContext)
+	api := api.NewAPI(sm.Client, sp)
 
 	// start components
 	go mgr.start()
 	go sm.start()
+	go api.Start()
 
 	select {
 	case <-signalContext.Done():
@@ -168,20 +172,26 @@ func setupManager(restCfg *rest.Config, probeAddr *string, metricsAddr *string, 
 	}
 }
 
-func setupSMClient(restCfg *rest.Config, signalCtx context.Context) *serviceManagerClient {
+func setupSMClient(secretProvider *clusterobject.SecretProvider, signalCtx context.Context) *serviceManagerClient {
+	slog := slog.Default()
+	smClient := servicemanager.NewClient(signalCtx, slog, secretProvider)
+
+	return &serviceManagerClient{
+		Context: signalCtx,
+		Client:  smClient,
+	}
+}
+
+func getSecretProvider(restCfg *rest.Config) *clusterobject.SecretProvider {
 	k8sClient, err := client.New(restCfg, client.Options{})
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
 		os.Exit(1)
 	}
 	slogger := slog.Default()
+
 	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
 	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
 	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
-	smClient := servicemanager.NewClient(signalCtx, slogger, secretProvider)
-
-	return &serviceManagerClient{
-		Context: signalCtx,
-		Client:  smClient,
-	}
+	return secretProvider
 }
