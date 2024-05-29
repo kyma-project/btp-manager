@@ -9,23 +9,26 @@ import (
 	"log/slog"
 
 	"github.com/kyma-project/btp-manager/internal/api/vm"
+	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 )
 
 type API struct {
 	serviceManager *servicemanager.Client
+	secretProvider *clusterobject.SecretProvider
 	slogger        *slog.Logger
 }
 
-func NewAPI(serviceManager *servicemanager.Client) *API {
+func NewAPI(serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider) *API {
 	slogger := slog.Default()
-	return &API{serviceManager: serviceManager, slogger: slogger}
+	return &API{serviceManager: serviceManager, secretProvider: secretProvider, slogger: slogger}
 }
 
 func (a *API) Start() {
 	mux := http.ServeMux{}
 	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
 	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
+	mux.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
 	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
 	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
@@ -35,6 +38,10 @@ func (a *API) Start() {
 			a.slogger.Error("failed to Start listening", "error", err)
 		}
 	}()
+}
+
+func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
+	return
 }
 
 func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
@@ -55,7 +62,7 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	secrets, err := a.serviceManager.SecretProvider.All(context.Background())
+	secrets, err := a.secretProvider.All(context.Background())
 	if returnError(writer, err) {
 		return
 	}

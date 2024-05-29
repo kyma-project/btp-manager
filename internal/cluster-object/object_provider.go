@@ -12,7 +12,6 @@ type ClusterScopedProvider[T client.ObjectList] interface {
 	All(ctx context.Context) (T, error)
 }
 
-type NamespacedProvider[T client.Object, TL client.ObjectList] interface {
+type NamespacedProvider[T client.Object] interface {
 	GetByNameAndNamespace(ctx context.Context, name, namespace string) (T, error)
-	All(ctx context.Context) (TL, error)
 }

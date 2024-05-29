@@ -36,14 +36,14 @@ type Config struct {
 type Client struct {
 	ctx            context.Context
 	logger         *slog.Logger
-	SecretProvider clusterobject.NamespacedProvider[*corev1.Secret, *corev1.SecretList]
+	SecretProvider clusterobject.NamespacedProvider[*corev1.Secret]
 	httpClient     *http.Client
 	smURL          string
 }
 
 func NewClient(
 	ctx context.Context, logger *slog.Logger,
-	secretProvider clusterobject.NamespacedProvider[*corev1.Secret, *corev1.SecretList],
+	secretProvider clusterobject.NamespacedProvider[*corev1.Secret],
 ) *Client {
 	return &Client{
 		ctx:            ctx,
