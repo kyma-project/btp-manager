@@ -34,14 +34,17 @@ function ServiceInstancesView() {
   }, []);
 
   if (loading) {
-    return <ui5.Loader progress="60%" />
+    return <ui5.Loader progress="100%" />
   }
 
   if (error) {
-    return <ui5.Text>Error: {error}</ui5.Text>;
+    return <ui5.IllustratedMessage name="ErrrorScreen" style={{height: "50vh", width: "30vw"}}/>
   }
 
   const renderData = () => {
+    if (!serviceInstances) {
+        return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
+    }
     return serviceInstances?.items.map((brief, index) => {
       return (
         <>

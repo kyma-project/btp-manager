@@ -6,7 +6,7 @@ import axios from "axios";
 import { ServiceOfferingDetails, ServiceOfferings } from "../shared/models";
 import ts from "typescript";
 import api from "../shared/api";
-
+import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
 function ServiceOfferingsView(props: any) {
   const [offerings, setOfferings] = useState<ServiceOfferings>();
   const [serviceOfferingDetails, setServiceOfferingDetails] =
@@ -26,6 +26,9 @@ function ServiceOfferingsView(props: any) {
   };
 
   useEffect(() => {
+    if (props.secret == null) {
+      return;
+    }
     const splited = splitSecret(props.secret);
     if (splited) {
       setLoading(true);
@@ -51,10 +54,6 @@ function ServiceOfferingsView(props: any) {
     return <ui5.Loader progress="60%" />
   }
 
-  if (error) {
-    return <ui5.Text>Error: {error}</ui5.Text>;
-  }
-
   function getImg(b64: string) {
     if (b64 == null) {
       return "";
@@ -78,7 +77,11 @@ function ServiceOfferingsView(props: any) {
   }
 
   const renderData = () => {
-    return offerings?.items.map((offering, index) => {
+      if (!offerings) {
+        console.log(offerings);
+        return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
+      }
+      return offerings?.items.map((offering, index) => {
       return (
         <>
           <ui5.Card

@@ -1,5 +1,6 @@
 function api(url :string) {
-    return `http://localhost:3006/api/${url}`
+    const port = process.env.BTP_MANAGER_API_PORT
+    return `http://localhost:${port}/api/${url}`
 }
 
 export default api ;

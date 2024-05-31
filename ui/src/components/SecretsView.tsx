@@ -10,6 +10,7 @@ function SecretsView(props: any) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    setLoading(true);
     axios
       .get<Secrets>(api("secrets"))
       .then((response) => {
@@ -23,8 +24,10 @@ function SecretsView(props: any) {
         );
       })
       .catch((error) => {
-        setError(error);
         setLoading(false);
+        props.handler(
+            formatDisplay("","")
+        );
       });
   }, []);
 
@@ -33,13 +36,21 @@ function SecretsView(props: any) {
   }
 
   if (error) {
-    return <ui5.Text>Error: {error}</ui5.Text>;
+    props.handler(
+        formatDisplay("","")
+    );
+    return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
   }
 
   const renderData = () => {
+    if (!secrets) {
+      console.log(secrets);
+      return <ui5.Option key={0}>{formatDisplay("", "")}</ui5.Option>
+    }
+
     return secrets?.items.map((s, i) => {
       return (
-        <ui5.Option key={i}>{formatDisplay(s.name, s.namespace)}</ui5.Option>
+          <ui5.Option key={i}>{formatDisplay(s.name, s.namespace)}</ui5.Option>
       );
     });
   };
@@ -64,6 +75,9 @@ function SecretsView(props: any) {
 }
 
 function formatDisplay(secretName: string, secretNamespace: string) {
+  if (!secretName || !secretNamespace) {
+    return "No secret found"
+  }
   return `${secretName} in (${secretNamespace})`;
 }
 
