@@ -10,6 +10,8 @@ function SecretsView(props: any) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    console.log(process.env.BTP_MANAGER_API_PORT)
+    console.log("port")
     setLoading(true);
     axios
       .get<Secrets>(api("secrets"))

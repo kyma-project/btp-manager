@@ -18,20 +18,16 @@ import (
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 )
 
-var (
-	apiPort = 0
-)
-
 type API struct {
 	serviceManager *servicemanager.Client
 	secretProvider *clusterobject.SecretProvider
 	slog           *slog.Logger
+	Port           int
 }
 
 func NewAPI(serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider) *API {
 	slog := slog.Default()
-	apiPort = getFreePort()
-	return &API{serviceManager: serviceManager, secretProvider: secretProvider, slog: slog}
+	return &API{serviceManager: serviceManager, secretProvider: secretProvider, Port: getFreePort(), slog: slog}
 }
 
 func getFreePort() int {
@@ -59,7 +55,7 @@ func (a *API) Start() {
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
 	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
 	go func() {
-		err := http.ListenAndServe(fmt.Sprintf(":%d", apiPort), nil)
+		err := http.ListenAndServe(fmt.Sprintf(":%d", a.Port), nil)
 		if err != nil {
 			a.slog.Error("failed to Start listening", "error", err)
 		}

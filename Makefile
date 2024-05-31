@@ -123,7 +123,7 @@ create-manifest: manifests kustomize ## Deploy controller to the K8s cluster spe
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-711
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
