@@ -9,6 +9,10 @@ import (
 	"log/slog"
 
 	"fmt"
+
+	"net"
+	"os"
+
 	"github.com/kyma-project/btp-manager/internal/api/vm"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
@@ -28,6 +32,22 @@ func NewAPI(serviceManager *servicemanager.Client, secretProvider *clusterobject
 	slog := slog.Default()
 	apiPort = getFreePort()
 	return &API{serviceManager: serviceManager, secretProvider: secretProvider, slog: slog}
+}
+
+func getFreePort() int {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		panic(err)
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+
+	os.Setenv("BTP_MANAGER_API_PORT", fmt.Sprint(l.Addr().(*net.TCPAddr).Port))
+	return l.Addr().(*net.TCPAddr).Port
 }
 
 func (a *API) Start() {
