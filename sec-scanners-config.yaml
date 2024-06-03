@@ -1,7 +1,7 @@
 module-name: btp-operator
-rc-tag: 1.1.8
+rc-tag: 1.1.9
 protecode:
-  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:1.1.8
+  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:1.1.9
 whitesource:
   language: golang-mod
   subprojects: false
