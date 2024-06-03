@@ -67,7 +67,6 @@ const (
 	StateDeleting State = "Deleting"
 )
 
-// Status defines the observed state of CustomObject.
 // +k8s:deepcopy-gen=true
 // Status defines the observed state of CustomObject.
 type Status struct {
