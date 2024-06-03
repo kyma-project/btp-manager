@@ -38,7 +38,7 @@ function ServiceInstancesView() {
   }
 
   if (error) {
-    return <ui5.IllustratedMessage name="ErrrorScreen" style={{height: "50vh", width: "30vw"}}/>
+      return <ui5.IllustratedMessage name="UnableToLoad" style={{height: "50vh", width: "30vw"}}/>
   }
 
   const renderData = () => {

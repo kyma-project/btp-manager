@@ -54,6 +54,10 @@ function ServiceOfferingsView(props: any) {
     return <ui5.Loader progress="60%" />
   }
 
+  if (error) {
+    return <ui5.IllustratedMessage name="UnableToLoad" style={{height: "50vh", width: "30vw"}}/>
+  }
+
   function getImg(b64: string) {
     if (b64 == null) {
       return "";

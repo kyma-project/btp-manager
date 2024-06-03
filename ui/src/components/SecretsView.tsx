@@ -41,7 +41,7 @@ function SecretsView(props: any) {
     props.handler(
         formatDisplay("","")
     );
-    return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
+    return <ui5.IllustratedMessage name="UnableToLoad" style={{height: "50vh", width: "30vw"}}/>
   }
 
   const renderData = () => {
