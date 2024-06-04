@@ -25,7 +25,7 @@ func NewAPI(serviceManager *servicemanager.Client, secretProvider *clusterobject
 }
 
 func (a *API) Start() {
-	mux := http.ServeMux{}
+	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
 	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
 	mux.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
@@ -33,7 +33,7 @@ func (a *API) Start() {
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
 	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
 	go func() {
-		err := http.ListenAndServe(":3006", nil)
+		err := http.ListenAndServe(":3006", mux)
 		if err != nil {
 			a.slogger.Error("failed to Start listening", "error", err)
 		}
@@ -46,8 +46,8 @@ func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Re
 
 func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	namespace := request.URL.Query().Get("namespace")
-	name := request.URL.Query().Get("name")
+	namespace := request.PathValue("namespace")
+	name := request.PathValue("name")
 	err := a.serviceManager.SetForGivenSecret(context.Background(), name, namespace)
 	if returnError(writer, err) {
 		return
