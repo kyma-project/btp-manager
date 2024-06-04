@@ -2,6 +2,7 @@ import * as ui5 from "@ui5/webcomponents-react";
 import axios from "axios";
 import {useEffect, useState} from "react";
 import {Secrets} from "../shared/models";
+import Ok from "../shared/validator";
 import api from "../shared/api";
 
 function SecretsView(props: any) {
@@ -16,10 +17,15 @@ function SecretsView(props: any) {
             .then((response) => {
                 setLoading(false);
                 setSecrets(response.data);
-                props.handler(formatSecretText(response.data.items[0].name, response.data.items[0].namespace));
+                if (Ok(response.data) && Ok(response.data.items)) {
+                    props.handler(formatSecretText(response.data.items[0].name, response.data.items[0].namespace));
+                } else {
+                    props.handler(formatSecretText("", ""));
+                }
             })
             .catch((error) => {
                 setLoading(false);
+                setError(error);
                 setSecrets(undefined);
                 props.handler(formatSecretText("", ""));
             });
@@ -35,10 +41,16 @@ function SecretsView(props: any) {
     }
 
     const renderData = () => {
-        if (!secrets || secrets.items.length === 0) {
-            return <ui5.Option key={0}>{formatSecretText("", "")}</ui5.Option>
-        }
-
+        // @ts-ignore
+        console.log("No secrets found");
+        // @ts-ignore
+        if (!Ok(secrets) || !Ok(secrets.items)){
+            return <div>
+                <>
+                    <ui5.Option key={0}>{formatSecretText("", "")}</ui5.Option>
+                </>
+            </div>
+        } 
         return secrets?.items.map((secret, index) => {
             return (
                 <ui5.Option key={index}>{formatSecretText(secret.name, secret.namespace)}</ui5.Option>

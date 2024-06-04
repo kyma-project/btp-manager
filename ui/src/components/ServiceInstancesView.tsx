@@ -4,6 +4,7 @@ import axios from "axios";
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import api from "../shared/api";
+import Ok from "../shared/validator";
 
 function ServiceInstancesView() {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
@@ -24,12 +25,12 @@ function ServiceInstancesView() {
     axios
       .get<ServiceInstances>(api("service-instances"))
       .then((response) => {
-        setServiceInstances(response.data);
-        setLoading(false);
+          setLoading(false);
+          setServiceInstances(response.data);
       })
       .catch((error) => {
-        setError(error);
-        setLoading(false);
+          setLoading(false);
+          setError(error);
       });
   }, []);
 
@@ -42,7 +43,8 @@ function ServiceInstancesView() {
   }
 
   const renderData = () => {
-    if (!serviceInstances) {
+    // @ts-ignore
+     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
         return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
     }
     return serviceInstances?.items.map((brief, index) => {

@@ -7,6 +7,7 @@ import { ServiceOfferingDetails, ServiceOfferings } from "../shared/models";
 import ts from "typescript";
 import api from "../shared/api";
 import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
+import Ok from "../shared/validator";
 function ServiceOfferingsView(props: any) {
   const [offerings, setOfferings] = useState<ServiceOfferings>();
   const [serviceOfferingDetails, setServiceOfferingDetails] =
@@ -39,12 +40,12 @@ function ServiceOfferingsView(props: any) {
           )
         )
         .then((response) => {
-          setOfferings(response.data);
           setLoading(false);
+          setOfferings(response.data);
         })
         .catch((error) => {
-          setError(error);
           setLoading(false);
+          setError(error);
         });
     }
   }, []);
@@ -71,18 +72,18 @@ function ServiceOfferingsView(props: any) {
     axios
       .get<ServiceOfferingDetails>(api(`service-offering/${id}`))
       .then((response) => {
-        setServiceOfferingDetails(response.data);
         setLoading(false);
+        setServiceOfferingDetails(response.data);
       })
       .catch((error) => {
-        setError(error);
         setLoading(false);
+        setError(error);
       });
   }
 
   const renderData = () => {
-      if (!offerings) {
-        console.log(offerings);
+      // @ts-ignore
+    if (!Ok(offerings) || !Ok(offerings.items)){
         return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
       }
       return offerings?.items.map((offering, index) => {

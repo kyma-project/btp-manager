@@ -26,43 +26,46 @@ function Overview(props: any) {
         <Secrets handler={(e: any) => handler(e)} style={{ width: "100vw" }} />
       </ui5.Bar>
       <>
-        <ui5.FlexBox
-          alignItems="Stretch"
-          direction="Row"
-          justifyContent="SpaceBetween"
-          wrap="Wrap"
-        >
-          <ui5.SideNavigation
-            style={{
-              width: "30%",
-              height: "90vh",
-            }}
-          >
-            <ui5.SideNavigationItem
-              text="Marketplace"
-              icon="home"
-              onClick={() => {
-                setPageContent(<ServiceOfferings secret={secret} />);
-              }}
-            />
-            <ui5.SideNavigationItem
-              text="Service Instances"
-              icon="home"
-              onClick={() => {
-                setPageContent(<ServiceInstancesView />);
-              }}
-            />
-          </ui5.SideNavigation>
-          <ui5.Page
-            backgroundDesign="Solid"
-            style={{
-              height: "90vh",
-              width: "70%",
-            }}
-          >
-            {pageContent}
-          </ui5.Page>
-        </ui5.FlexBox>
+          <div>
+              <ui5.FlexBox
+                  style={{
+                      height: "90vh",
+                      width: "100%",
+                  }}
+              >
+                  <ui5.SideNavigation
+                      style={{
+                          width: "30%",
+                          height: "90vh",
+                      }}
+                  >
+                      <ui5.SideNavigationItem
+                          text="Marketplace"
+                          icon="home"
+                          onClick={() => {
+                              setPageContent(<ServiceOfferings secret={secret}/>);
+                          }}
+                      />
+                      <ui5.SideNavigationItem
+                          text="Service Instances"
+                          icon="home"
+                          onClick={() => {
+                              setPageContent(<ServiceInstancesView/>);
+                          }}
+                      />
+                  </ui5.SideNavigation>
+                  <ui5.Page
+                      backgroundDesign="Solid"
+                      style={{
+                          height: "90vh",
+                          width: "70%",
+                      }}
+                  >
+                      {pageContent}
+                  </ui5.Page>
+              </ui5.FlexBox>
+          </div>
+
       </>
     </>
   );
