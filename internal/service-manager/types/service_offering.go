@@ -19,7 +19,7 @@ const (
 
 type ServiceOfferingDetails struct {
 	ServiceOffering
-	ServicePlans
+	ServicePlans `json:"plans" yaml:"plans"`
 }
 
 type ServiceOfferings struct {
