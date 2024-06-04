@@ -1,0 +1,228 @@
+{
+  "num_items": 10,
+  "items": [
+    {
+      "id": "51cde0cc-9c67-4e03-90c4-a12f7b166e09",
+      "ready": true,
+      "name": "service1-plan1",
+      "description": "Service 1 Plan 1 description.",
+      "catalog_id": "b0b6f3a7-067d-4ab9-9ae0-04390eb487c9",
+      "catalog_name": "service1-plan1",
+      "free": true,
+      "service_offering_id": "fc26622b-aeb2-4f3c-95da-8eb337a26883",
+      "created_at": "2020-08-09T11:31:20.082571Z",
+      "updated_at": "2024-05-23T09:57:34.340744Z",
+      "labels": {
+        "commercial_name": [
+          "service1-plan1"
+        ]
+      }
+    },
+    {
+      "id": "4036790e-5ef3-4cf7-bb16-476053477a9a",
+      "ready": true,
+      "name": "service1-plan2",
+      "description": "Service 1 Plan 2 description.",
+      "catalog_id": "e865d59b-16b6-48b1-928a-72f4043e8392",
+      "catalog_name": "service1-plan2",
+      "free": true,
+      "service_offering_id": "fc26622b-aeb2-4f3c-95da-8eb337a26883",
+      "created_at": "2020-08-09T11:31:20.082571Z",
+      "updated_at": "2024-05-23T09:57:34.351579Z",
+      "labels": {
+        "commercial_name": [
+          "service1-plan2"
+        ]
+      }
+    },
+    {
+      "id": "32f0d94a-bdf0-497b-aff6-ec1081ff0701",
+      "ready": true,
+      "name": "service1-plan3",
+      "description": "Service 1 Plan 2 description.",
+      "catalog_id": "5d9975ad-5018-4a45-acff-363bea6e749e",
+      "catalog_name": "service1-plan3",
+      "free": true,
+      "metadata": {
+        "supportsInstanceSharing": true
+      },
+      "service_offering_id": "fc26622b-aeb2-4f3c-95da-8eb337a26883",
+      "created_at": "2020-08-09T11:31:20.082571Z",
+      "updated_at": "2024-05-23T09:57:34.364626Z",
+      "labels": {
+        "commercial_name": [
+          "service1-plan3"
+        ]
+      }
+    },
+    {
+      "id": "a698c5d9-6715-409c-ba29-63f4f1f7d769",
+      "ready": true,
+      "name": "service2-plan1",
+      "description": "Service 2 Plan 1 description.",
+      "catalog_id": "eaba45be-aeff-4943-98a0-dccc667e50cb",
+      "catalog_name": "service2-plan1",
+      "free": true,
+      "metadata": {
+        "supportedPlatforms": [
+          "cloudfoundry",
+          "kubernetes",
+          "sapbtp"
+        ]
+      },
+      "service_offering_id": "1d87e6e3-12b4-4a04-82bb-ddf7299d52c9",
+      "created_at": "2020-08-10T07:34:28.809068Z",
+      "updated_at": "2024-05-23T10:07:59.160646Z",
+      "labels": {
+        "commercial_name": [
+          "service2-plan1"
+        ]
+      }
+    },
+    {
+      "id": "b57b8ffe-b5c3-4e76-93fd-3adaac223b81",
+      "ready": true,
+      "name": "service2-plan2",
+      "description": "Service 2 Plan 2 description.",
+      "catalog_id": "75d11739-a983-4172-8221-e6e2f887d774",
+      "catalog_name": "service2-plan2",
+      "free": true,
+      "metadata": {
+        "supportedPlatforms": [
+          "cloudfoundry",
+          "kubernetes",
+          "sapbtp"
+        ]
+      },
+      "service_offering_id": "1d87e6e3-12b4-4a04-82bb-ddf7299d52c9",
+      "created_at": "2020-08-10T07:34:28.809068Z",
+      "updated_at": "2024-05-23T10:07:59.174597Z",
+      "labels": {
+        "commercial_name": [
+          "service2-plan2"
+        ]
+      }
+    },
+    {
+      "id": "4547f431-b6d6-47cd-9d11-abc7a3ee348f",
+      "ready": true,
+      "name": "service2-plan3",
+      "description": "Service 2 Plan 3 description.",
+      "catalog_id": "afc30ce0-600a-465a-b1a3-1ff81ba0dd08",
+      "catalog_name": "service2-plan3",
+      "free": true,
+      "bindable": true,
+      "metadata": {
+        "supportsInstanceSharing": true,
+        "supportedPlatforms": [
+          "cloudfoundry",
+          "kubernetes",
+          "sapbtp"
+        ]
+      },
+      "service_offering_id": "1d87e6e3-12b4-4a04-82bb-ddf7299d52c9",
+      "created_at": "2020-08-10T07:35:37.447784Z",
+      "updated_at": "2024-05-23T09:58:06.124099Z",
+      "labels": {
+        "commercial_name": [
+          "service2-plan3"
+        ]
+      }
+    },
+    {
+      "id": "1a4ec147-5a3d-44b9-9740-98845697248d",
+      "ready": true,
+      "name": "service2-plan4",
+      "description": "Service 2 Plan 3 description.",
+      "catalog_id": "38d25249-f294-4f04-95f4-92c9bfdaaa19",
+      "catalog_name": "service2-plan4",
+      "free": true,
+      "bindable": true,
+      "metadata": {
+        "supportsInstanceSharing": true,
+        "supportedPlatforms": [
+          "cloudfoundry",
+          "kubernetes",
+          "sapbtp"
+        ]
+      },
+      "service_offering_id": "1d87e6e3-12b4-4a04-82bb-ddf7299d52c9",
+      "created_at": "2020-08-10T07:35:37.447784Z",
+      "updated_at": "2024-05-23T09:58:06.141131Z",
+      "labels": {
+        "commercial_name": [
+          "service2-plan4"
+        ]
+      }
+    },
+    {
+      "id": "03feb7ab-6ec3-4e07-ae83-f340eb1f9be3",
+      "ready": true,
+      "name": "service4-plan1",
+      "description": "Service 4 Plan 1 description.",
+      "catalog_id": "51fe732f-a526-4ad9-a856-e36369dedaed",
+      "catalog_name": "service4-plan1",
+      "free": true,
+      "service_offering_id": "69e313ac-6633-4fa9-a9d5-8aaf569bc966",
+      "created_at": "2020-08-12T13:15:46.933069Z",
+      "updated_at": "2024-05-23T09:58:54.271967Z",
+      "labels": {
+        "commercial_name": [
+          "service4-plan1"
+        ]
+      }
+    },
+    {
+      "id": "61772d7e-4e67-48f5-90fc-dd9254aa454b",
+      "ready": true,
+      "name": "service3-plan1",
+      "description": "Service 3 Plan 1 description.",
+      "catalog_id": "b9f1c19a-ee94-45a4-b776-51722d3e719c",
+      "catalog_name": "service3-plan1",
+      "free": true,
+      "metadata": {
+        "supportsInstanceSharing": true,
+        "displayName": "plan1",
+        "bullets": [
+          "Shared service resources for all applications",
+          "Limit of 1000 configurations"
+        ]
+      },
+      "service_offering_id": "7df0a7a5-3bda-4af4-9fdf-763ad4c01bb7",
+      "created_at": "2020-08-10T14:58:38.756598Z",
+      "updated_at": "2024-05-23T10:36:56.012967Z",
+      "labels": {
+        "commercial_name": [
+          "service3-plan1"
+        ]
+      }
+    },
+    {
+      "id": "ed035fc4-f991-4d09-bfac-bbc1e362caea",
+      "ready": true,
+      "name": "service3-plan2",
+      "description": "Service 3 Plan 2 description.",
+      "catalog_id": "a8aacc11-2187-4660-acec-58505366c76d",
+      "catalog_name": "service3-plan2",
+      "free": true,
+      "metadata": {
+        "excludedPlatformNames": [
+          "cf-eu-001",
+          "cf-eu-002"
+        ],
+        "displayName": "plan2",
+        "bullets": [
+          "Service 3 with excluded platforms"
+        ]
+      },
+      "service_offering_id": "7df0a7a5-3bda-4af4-9fdf-763ad4c01bb7",
+      "created_at": "2020-08-10T16:46:27.305722Z",
+      "updated_at": "2024-05-23T09:58:44.165176Z",
+      "labels": {
+        "commercial_name": [
+          "service3-plan2"
+        ]
+      }
+    }
+  ]
+}
