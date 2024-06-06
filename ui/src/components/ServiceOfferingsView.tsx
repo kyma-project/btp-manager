@@ -102,6 +102,7 @@ function ServiceOfferingsView(props: any) {
         setError(error);
         console.log("load error: ", error)
       });
+    setLoading(false);
   }
 
   const renderData = () => {
