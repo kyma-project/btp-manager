@@ -58,12 +58,12 @@ func TestClient(t *testing.T) {
 		smClient.SetSMURL(url)
 
 		// when
-		so, err := smClient.ServiceOfferings()
+		sos, err := smClient.ServiceOfferings()
 
 		// then
 		require.NoError(t, err)
-		assert.Len(t, so.ServiceOfferings, 4)
-		assert.ElementsMatch(t, allServiceOfferings.ServiceOfferings, so.ServiceOfferings)
+		assert.Len(t, sos.ServiceOfferings, 4)
+		assert.ElementsMatch(t, allServiceOfferings.ServiceOfferings, sos.ServiceOfferings)
 	})
 
 	t.Run("should get service offering details and plans for given service offering ID", func(t *testing.T) {
@@ -85,15 +85,6 @@ func TestClient(t *testing.T) {
 		assert.Equal(t, expectedServiceOffering, sod.ServiceOffering)
 		assert.ElementsMatch(t, filteredServicePlans.ServicePlans, sod.ServicePlans.ServicePlans)
 	})
-}
-
-func getServiceOfferingByID(serviceOfferings types.ServiceOfferings, serviceOfferingID string) types.ServiceOffering {
-	for _, so := range serviceOfferings.ServiceOfferings {
-		if so.ID == serviceOfferingID {
-			return so
-		}
-	}
-	return types.ServiceOffering{}
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -118,7 +109,7 @@ type fakeSMHandler struct {
 }
 
 func newFakeSMHandler() (*fakeSMHandler, error) {
-	so, err := getResourcesFromJSONFile(serviceOfferingsJSONPath)
+	sos, err := getResourcesFromJSONFile(serviceOfferingsJSONPath)
 	if err != nil {
 		return nil, fmt.Errorf("while getting service offerings from JSON file: %w", err)
 	}
@@ -127,7 +118,7 @@ func newFakeSMHandler() (*fakeSMHandler, error) {
 		return nil, fmt.Errorf("while getting service plans from JSON file: %w", err)
 	}
 
-	return &fakeSMHandler{serviceOfferings: so, servicePlans: plans}, nil
+	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans}, nil
 }
 
 func getResourcesFromJSONFile(jsonFilePath string) (map[string]interface{}, error) {
@@ -294,17 +285,17 @@ func defaultSecret() *corev1.Secret {
 }
 
 func getAllServiceOfferingsFromJSON(t *testing.T) types.ServiceOfferings {
-	var allSo types.ServiceOfferings
+	var allSos types.ServiceOfferings
 	soJSON, err := getResourcesFromJSONFile(serviceOfferingsJSONPath)
 	require.NoError(t, err)
 
 	soBytes, err := json.Marshal(soJSON)
 	require.NoError(t, err)
 
-	err = json.Unmarshal(soBytes, &allSo)
+	err = json.Unmarshal(soBytes, &allSos)
 	require.NoError(t, err)
 
-	return allSo
+	return allSos
 }
 
 func getAllServicePlansFromJSON(t *testing.T) types.ServicePlans {
@@ -319,6 +310,15 @@ func getAllServicePlansFromJSON(t *testing.T) types.ServicePlans {
 	require.NoError(t, err)
 
 	return allSp
+}
+
+func getServiceOfferingByID(serviceOfferings types.ServiceOfferings, serviceOfferingID string) types.ServiceOffering {
+	for _, so := range serviceOfferings.ServiceOfferings {
+		if so.ID == serviceOfferingID {
+			return so
+		}
+	}
+	return types.ServiceOffering{}
 }
 
 func filterServicePlansByServiceOfferingID(servicePlans types.ServicePlans, serviceOfferingID string) types.ServicePlans {
