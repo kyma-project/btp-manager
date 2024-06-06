@@ -23,8 +23,6 @@ import (
 const (
 	serviceOfferingsJSONPath = "testdata/service_offerings.json"
 	servicePlansJSONPath     = "testdata/service_plans.json"
-
-	servicePlansFieldQueryKey = "fieldQuery"
 )
 
 func TestClient(t *testing.T) {
@@ -197,7 +195,7 @@ func (h *fakeSMHandler) getServiceOffering(w http.ResponseWriter, r *http.Reques
 
 func (h *fakeSMHandler) getServicePlans(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
-	prefixedSoID := values.Get(servicePlansFieldQueryKey)
+	prefixedSoID := values.Get(servicemanager.URLFieldQueryKey)
 	IDFilter := ""
 	if len(prefixedSoID) != 0 {
 		fields := strings.Fields(prefixedSoID)

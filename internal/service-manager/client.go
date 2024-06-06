@@ -19,12 +19,15 @@ import (
 )
 
 const (
-	componentName                             = "ServiceManagerClient"
-	defaultSecret                             = "sap-btp-service-operator"
-	defaultNamespace                          = "kyma-system"
-	ServiceOfferingsPath                      = "/v1/service_offerings"
-	ServicePlansPath                          = "/v1/service_plans"
-	servicePlansForServiceOfferingQueryFormat = `?fieldQuery=service_offering_id+eq+%%27%s%%27`
+	componentName        = "ServiceManagerClient"
+	defaultSecret        = "sap-btp-service-operator"
+	defaultNamespace     = "kyma-system"
+	ServiceOfferingsPath = "/v1/service_offerings"
+	ServicePlansPath     = "/v1/service_plans"
+
+	// see https://help.sap.com/docs/service-manager/sap-service-manager/filtering-parameters-and-operators
+	URLFieldQueryKey                          = "fieldQuery"
+	servicePlansForServiceOfferingQueryFormat = "service_offering_id eq '%s'"
 )
 
 type Config struct {
@@ -207,10 +210,13 @@ func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOf
 }
 
 func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*types.ServicePlans, error) {
-	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath+fmt.Sprintf(servicePlansForServiceOfferingQueryFormat, serviceOfferingID), nil)
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath, nil)
 	if err != nil {
 		return nil, err
 	}
+	values := req.URL.Query()
+	values.Add(URLFieldQueryKey, fmt.Sprintf(servicePlansForServiceOfferingQueryFormat, serviceOfferingID))
+	req.URL.RawQuery = values.Encode()
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
