@@ -17,6 +17,11 @@ const (
 	ServiceOfferingSupportURL       = "supportURL"
 )
 
+type ServiceOfferingDetails struct {
+	ServiceOffering
+	ServicePlans `json:"plans" yaml:"plans"`
+}
+
 type ServiceOfferings struct {
 	ServiceOfferings []ServiceOffering `json:"items" yaml:"items"`
 }
