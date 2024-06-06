@@ -27,6 +27,14 @@ export interface ServiceOfferingMetadata {
 
 export interface ServiceOfferingDetails {
   longDescription: string;
+  plans: ServiceOfferingPlan[];
+}
+
+export interface ServiceOfferingPlan {
+  name: string;
+  description: string;
+  supportUrl: string;
+  documentationUrl: string;
 }
 
 export interface ServiceInstances {
@@ -46,11 +54,3 @@ export interface ServiceInstanceBindings {
   name: string;
   namespace: string;
 }
-
-export interface ServiceInstanceDetails {
-  id: string;
-  name: string;
-  context: string;
-  namespace: string;
-}
-

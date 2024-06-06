@@ -28,10 +28,10 @@ func (a *API) Start() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
 	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
-	mux.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
+	mux.HandleFunc("PUT /api/service-instance", a.CreateServiceInstance)
 	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
-	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+	mux.HandleFunc("GET /api/service-offering-details/{id}", a.GetServiceOfferingDetails)
 	go func() {
 		err := http.ListenAndServe(":3006", mux)
 		if err != nil {
@@ -75,9 +75,16 @@ func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Reque
 	// not implemented in SM
 }
 
-func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
+func (a *API) GetServiceOfferingDetails(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	// not implemented in SM
+	serviceOfferingId := request.PathValue("id")
+	details, err := a.serviceManager.ServiceOfferingDetails(serviceOfferingId)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(vm.ToServiceOfferingDetailsVM(details))
+	returnResponse(writer, response, err)
 }
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
