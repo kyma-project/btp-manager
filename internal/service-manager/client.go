@@ -23,6 +23,11 @@ const (
 	defaultSecret        = "sap-btp-service-operator"
 	defaultNamespace     = "kyma-system"
 	ServiceOfferingsPath = "/v1/service_offerings"
+	ServicePlansPath     = "/v1/service_plans"
+
+	// see https://help.sap.com/docs/service-manager/sap-service-manager/filtering-parameters-and-operators
+	URLFieldQueryKey                          = "fieldQuery"
+	servicePlansForServiceOfferingQueryFormat = "service_offering_id eq '%s'"
 )
 
 type Config struct {
@@ -159,4 +164,76 @@ func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 	}
 
 	return &serviceOfferings, nil
+}
+
+func (c *Client) ServiceOfferingDetails(serviceOfferingID string) (*types.ServiceOfferingDetails, error) {
+	so, err := c.serviceOfferingByID(serviceOfferingID)
+	if err != nil {
+		return nil, err
+	}
+
+	plans, err := c.servicePlansForServiceOffering(serviceOfferingID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.ServiceOfferingDetails{
+		ServiceOffering: *so,
+		ServicePlans:    *plans,
+	}, nil
+}
+
+func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOffering, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceOfferingsPath+"/"+serviceOfferingID, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var so types.ServiceOffering
+	if err := json.Unmarshal(body, &so); err != nil {
+		return nil, err
+	}
+
+	return &so, nil
+}
+
+func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*types.ServicePlans, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	values := req.URL.Query()
+	values.Add(URLFieldQueryKey, fmt.Sprintf(servicePlansForServiceOfferingQueryFormat, serviceOfferingID))
+	req.URL.RawQuery = values.Encode()
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var plans types.ServicePlans
+	if err := json.Unmarshal(body, &plans); err != nil {
+		return nil, err
+	}
+
+	return &plans, nil
 }
