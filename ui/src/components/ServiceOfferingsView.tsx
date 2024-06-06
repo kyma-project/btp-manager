@@ -1,15 +1,15 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-
 import axios from "axios";
 import { ServiceOfferingDetails, ServiceOfferings } from "../shared/models";
-import ts from "typescript";
 import api from "../shared/api";
-import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
+import "@ui5/webcomponents-icons/dist/AllIcons.js"
 import Ok from "../shared/validator";
+
 function ServiceOfferingsView(props: any) {
   const [offerings, setOfferings] = useState<ServiceOfferings>();
+  const [offeringsCachced, setOfferingsCached] = useState<ServiceOfferings>();
   const [serviceOfferingDetails, setServiceOfferingDetails] =
     useState<ServiceOfferingDetails>();
   const [loading, setLoading] = useState(true);
@@ -19,13 +19,15 @@ function ServiceOfferingsView(props: any) {
   const handleOpen = (id: any) => {
     // @ts-ignore
     dialogRef.current.show();
+    console.log("handleOpen id: ", id)
     load(id);
   };
   const handleClose = () => {
     // @ts-ignore
     dialogRef.current.close();
   };
-
+  
+  
   useEffect(() => {
     if (props.secret == null) {
       return;
@@ -58,6 +60,24 @@ function ServiceOfferingsView(props: any) {
   if (error) {
     return <ui5.IllustratedMessage name="UnableToLoad" style={{height: "50vh", width: "30vw"}}/>
   }
+  
+  function filter(e: string) {
+    return;
+    console.log("filtering")
+    // @ts-ignore
+    setOfferings(offeringsCachced);
+    const ServiceOfferings = offeringsCachced;
+    let ii = 0;
+    // @ts-ignore
+    for (let i = 0; i < offerings?.items.length; i++) {
+        // @ts-ignore
+        if (offerings?.items[i].metadata.displayName.includes(e)) {
+            // @ts-ignore
+            ServiceOfferings.items[ii] = [offerings?.items[i]];
+            ii++;
+        }
+    }
+  }
 
   function getImg(b64: string) {
     if (b64 == null) {
@@ -68,35 +88,42 @@ function ServiceOfferingsView(props: any) {
   }
 
   function load(id: string) {
+    console.log("loading id: ", id)
     setLoading(true);
     axios
       .get<ServiceOfferingDetails>(api(`service-offering/${id}`))
       .then((response) => {
+        console.log("load response: ", response)
         setLoading(false);
         setServiceOfferingDetails(response.data);
       })
       .catch((error) => {
         setLoading(false);
         setError(error);
+        console.log("load error: ", error)
       });
   }
 
   const renderData = () => {
-      // @ts-ignore
+    // @ts-ignore
     if (!Ok(offerings) || !Ok(offerings.items)){
         return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
       }
-      return offerings?.items.map((offering, index) => {
+    //console.log("renderData")
+    //filter(props.phrase)
+
+    return offerings?.items.map((offering, index) => {
       return (
         <>
           <ui5.Card
             key={index}
             style={{
-              width: "30%",
-              height: "10%",
-              padding: "1rem",
+              width: "20%",
+              height: "0",
+              padding: "10px"
             }}
             onClick={() => {
+              console.log("opening id: ", offering.id)
               handleOpen(offering.id);
             }}
             header={

@@ -42,8 +42,6 @@ function SecretsView(props: any) {
 
     const renderData = () => {
         // @ts-ignore
-        console.log("No secrets found");
-        // @ts-ignore
         if (!Ok(secrets) || !Ok(secrets.items)){
             return <div>
                 <>
