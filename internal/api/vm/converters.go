@@ -43,24 +43,3 @@ func ToServiceOfferingsVM(offerings *types.ServiceOfferings) ServiceOfferings {
 	}
 	return serviceOfferings
 }
-
-func ToServiceOfferingDetailsVM(serviceOfferings *types.ServiceOfferingDetails) ServiceOfferingDetails {
-	details := ServiceOfferingDetails{
-		Plans: []ServiceOfferingPlan{},
-	}
-
-	for _, plan := range serviceOfferings.ServicePlans.ServicePlans {
-		details.LongDescription, _ = serviceOfferings.MetadataValueByFieldName(types.ServiceOfferingLongDescription)
-		supportUrl, _ := serviceOfferings.MetadataValueByFieldName(types.ServiceOfferingSupportURL)
-		documentationUrl, _ := serviceOfferings.MetadataValueByFieldName(types.ServiceOfferingDocumentationUrl)
-		planReturn := ServiceOfferingPlan{
-			Name:             plan.Name,
-			Description:      plan.Description,
-			DocumentationUrl: documentationUrl,
-			SupportUrl:       supportUrl,
-		}
-		details.Plans = append(details.Plans, planReturn)
-	}
-
-	return details
-}
