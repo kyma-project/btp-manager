@@ -6,7 +6,6 @@ import React from "react";
 
 function Overview(props: any) {
   const [secret, setSecret] = React.useState(null);
-  const [phrase, setPhrase] = React.useState(null);
   const [pageContent, setPageContent] = React.useState<JSX.Element>();
   function handler(e: any) {
     setSecret(e);
@@ -24,7 +23,9 @@ function Overview(props: any) {
         endContent={<span>SAP BTP, Kyma runtime</span>}
         startContent={<span>Select your credentials:</span>}
       >
-        <Secrets handler={(e: any) => handler(e)} style={{ width: "100vw" }} />
+        <Secrets handler={(e: any) => handler(e)} style={{ width: "100vw" }}
+                 setPageContent={(e: any) => setPageContent(e)}
+        />
       </ui5.Bar>
       <>
           <div>
@@ -43,7 +44,7 @@ function Overview(props: any) {
                       <ui5.SideNavigationItem
                           text="Marketplace"
                           onClick={() => {
-                              setPageContent(<ServiceOfferings secret={secret} phrase={phrase}/>);
+                              setPageContent(<ServiceOfferings secret={secret} />);
                           }}
                       />
                       <ui5.SideNavigationItem
