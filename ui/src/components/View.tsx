@@ -7,8 +7,8 @@ import React from "react";
 function Overview(props: any) {
   const [secret, setSecret] = React.useState(null);
   const [pageContent, setPageContent] = React.useState<JSX.Element>();
-  function handler(e: any) {
-    setSecret(e);
+  function handler(s: any) {
+    setSecret(s);
   }
   
   return (

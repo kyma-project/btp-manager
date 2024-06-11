@@ -41,7 +41,7 @@ function SecretsView(props: any) {
 
     if (error) {
         props.handler(formatSecretText("", ""));
-        return <ui5.IllustratedMessage name="UnableToLoad" style={{height: "50vh", width: "30vw"}}/>
+        return <ui5.IllustratedMessage name="UnableToLoad" />
     }
 
     const renderData = () => {
@@ -68,8 +68,9 @@ function SecretsView(props: any) {
                         style={{width: "20vw"}}
                         onChange={(e) => {
                             // @ts-ignore
-                            props.handler(e.target.value);
-                            props.setPageContent(<ServiceOfferingsView secret={e.target.value} />);
+                            const secret = e .target.value;
+                            props.handler(secret);
+                            props.setPageContent(<ServiceOfferingsView secret={secret} />);
                         }}
                     >
                         {renderData()}

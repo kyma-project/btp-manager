@@ -40,13 +40,13 @@ function ServiceInstancesView() {
   }
 
   if (error) {
-      return <ui5.IllustratedMessage name="UnableToLoad" style={{height: "50vh", width: "30vw"}}/>
+      return <ui5.IllustratedMessage name="UnableToLoad" />
   }
 
   const renderData = () => {
     // @ts-ignore
      if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
-        return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
+        return <ui5.IllustratedMessage name="NoEntries" />
     }
     return serviceInstances?.items.map((brief, index) => {
       return (
@@ -100,8 +100,6 @@ function ServiceInstancesView() {
             headerText="Dialog Header"
           >
             <ui5.List>
-              <ui5.StandardListItem additionalText="3">
-              </ui5.StandardListItem>
             </ui5.List>
           </ui5.Dialog>,
           document.body

@@ -27,16 +27,16 @@ function ServiceOfferingsView(props: any) {
     };
     
     useEffect(() => {
-        if (props.secret == null) {
+        if (!Ok(props.secret)) {
             return;
         }
-        const splited = splitSecret(props.secret);
-        if (splited) {
+        const secretText = splitSecret(props.secret);
+        if (Ok(secretText)) {
             setLoading(true);
             axios
                 .get<ServiceOfferings>(
                     api(
-                        `service-offerings/${splited.namespace}/${splited.secretName}`
+                        `service-offerings/${secretText.namespace}/${secretText.secretName}`
                     )
                 )
                 .then((response) => {
@@ -49,7 +49,7 @@ function ServiceOfferingsView(props: any) {
                 });
             setLoading(false);
         }
-    }, []);
+    }, [props.secret]);
 
 
     if (loading) {
@@ -57,12 +57,13 @@ function ServiceOfferingsView(props: any) {
     }
 
     if (error) {
-        return <ui5.IllustratedMessage name="UnableToLoad" style={{height: "50vh", width: "30vw"}}/>
+        return <ui5.IllustratedMessage name="UnableToLoad" />
     }
 
     function getImg(b64: string) {
-        if (b64 == null) {
-            return "";
+        if (!Ok(b64) || b64 === "not found") {
+            // grey color
+            return "data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==";
         } else {
             return b64;
         }
@@ -86,7 +87,7 @@ function ServiceOfferingsView(props: any) {
     const renderData = () => {
         // @ts-ignore
         if (!Ok(offerings) || !Ok(offerings.items)) {
-            return <ui5.IllustratedMessage name="NoEntries" style={{height: "50vh", width: "30vw"}}/>
+            return <ui5.IllustratedMessage name="NoEntries" />
         }
         return offerings?.items.map((offering, index) => {
             // @ts-ignore
@@ -96,7 +97,7 @@ function ServiceOfferingsView(props: any) {
                         key={index}
                         style={{
                             width: "20%",
-                            height: "0",
+                            height: "5%",
                         }}
                         onClick={() => {
                             handleOpen(offering.id);
@@ -114,12 +115,13 @@ function ServiceOfferingsView(props: any) {
                                 interactive
                             />
                         }
-                    ></ui5.Card>
+                    >
+                    </ui5.Card>
 
                     <>
                         {createPortal(
                             <ui5.Dialog
-                                style={{width: "800px"}}
+                                style={{width: "50%"}}
                                 ref={dialogRef}
                                 className="headerPartNoPadding footerPartNoPadding"
                                 footer={
