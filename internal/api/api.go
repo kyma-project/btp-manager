@@ -56,17 +56,6 @@ func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Reque
 	returnResponse(writer, response, err)
 }
 
-func (a *API) GetServiceOfferingDetails(writer http.ResponseWriter, request *http.Request) {
-	a.setupCors(writer, request)
-	serviceOfferingId := request.PathValue("id")
-	details, err := a.serviceManager.ServiceOfferingDetails(serviceOfferingId)
-	if returnError(writer, err) {
-		return
-	}
-	response, err := json.Marshal(vm.ToServiceOfferingDetailsVM(details))
-	returnResponse(writer, response, err)
-}
-
 func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	namespace := request.PathValue("namespace")
@@ -81,11 +70,6 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 	}
 	response, err := json.Marshal(vm.ToServiceOfferingsVM(offerings))
 	returnResponse(writer, response, err)
-}
-
-func (a *API) ListServiceOfferingsDetails(writer http.ResponseWriter, request *http.Request) {
-	a.setupCors(writer, request)
-	// not implemented in SM
 }
 
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
