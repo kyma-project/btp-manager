@@ -29,6 +29,7 @@ function SecretsView(props: any) {
                 setSecrets(undefined);
                 props.handler(formatSecretText("", ""));
             });
+        setLoading(false);
     }, []);
 
     if (loading) {

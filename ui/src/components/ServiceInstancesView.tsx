@@ -32,6 +32,7 @@ function ServiceInstancesView() {
           setLoading(false);
           setError(error);
       });
+      setLoading(false)
   }, []);
 
   if (loading) {
@@ -74,10 +75,6 @@ function ServiceInstancesView() {
           </>
         }
         onClick={handleOpen}
-        onLoadMore={function _a() {}}
-        onPopinChange={function _a() {}}
-        onRowClick={function _a() { }}
-        onSelectionChange={function _a() {}}
       >
         {renderData()}
       </ui5.Table>
@@ -101,14 +98,9 @@ function ServiceInstancesView() {
               </ui5.Bar>
             }
             headerText="Dialog Header"
-            onAfterClose={function _a() {}}
-            onAfterOpen={function _a() {}}
-            onBeforeClose={function _a() {}}
-            onBeforeOpen={function _a() {}}
           >
             <ui5.List>
               <ui5.StandardListItem additionalText="3">
-                List Item 1
               </ui5.StandardListItem>
             </ui5.List>
           </ui5.Dialog>,

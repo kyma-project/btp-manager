@@ -31,6 +31,8 @@ func (a *API) Start() {
 	mux.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
 	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
+	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+
 	go func() {
 		err := http.ListenAndServe(":3006", mux)
 		if err != nil {
@@ -41,6 +43,28 @@ func (a *API) Start() {
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	return
+}
+
+func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	id := request.PathValue("id")
+	details, err := a.serviceManager.ServiceOfferingDetails(id)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(vm.ToServiceOfferingDetailsVM(details))
+	returnResponse(writer, response, err)
+}
+
+func (a *API) GetServiceOfferingDetails(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	serviceOfferingId := request.PathValue("id")
+	details, err := a.serviceManager.ServiceOfferingDetails(serviceOfferingId)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(vm.ToServiceOfferingDetailsVM(details))
+	returnResponse(writer, response, err)
 }
 
 func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
@@ -57,6 +81,11 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 	}
 	response, err := json.Marshal(vm.ToServiceOfferingsVM(offerings))
 	returnResponse(writer, response, err)
+}
+
+func (a *API) ListServiceOfferingsDetails(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	// not implemented in SM
 }
 
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {

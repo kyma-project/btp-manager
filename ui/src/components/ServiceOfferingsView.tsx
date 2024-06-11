@@ -6,6 +6,7 @@ import {ServiceOfferingDetails, ServiceOfferings} from "../shared/models";
 import api from "../shared/api";
 import "@ui5/webcomponents-icons/dist/AllIcons.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/NoEntries.js"
+import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
 import Ok from "../shared/validator";
 
 function ServiceOfferingsView(props: any) {
@@ -46,8 +47,8 @@ function ServiceOfferingsView(props: any) {
                     setLoading(false);
                     setError(error);
                 });
+            setLoading(false);
         }
-        setLoading(false);
     }, []);
 
 
@@ -70,7 +71,7 @@ function ServiceOfferingsView(props: any) {
     function load(id: string) {
         setLoading(true);
         axios
-            .get<ServiceOfferingDetails>(api(`service-offering-details/${id}`))
+            .get<ServiceOfferingDetails>(api(`service-offering/${id}`))
             .then((response) => {
                 setLoading(false);
                 setServiceOfferingDetails(response.data);
@@ -81,7 +82,7 @@ function ServiceOfferingsView(props: any) {
             });
         setLoading(false);
     }
-
+    
     const renderData = () => {
         // @ts-ignore
         if (!Ok(offerings) || !Ok(offerings.items)) {
