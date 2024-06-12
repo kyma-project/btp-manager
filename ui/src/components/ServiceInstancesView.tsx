@@ -4,6 +4,7 @@ import axios from "axios";
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import api from "../shared/api";
+import Ok from "../shared/validator";
 
 function ServiceInstancesView() {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
@@ -24,24 +25,29 @@ function ServiceInstancesView() {
     axios
       .get<ServiceInstances>(api("service-instances"))
       .then((response) => {
-        setServiceInstances(response.data);
-        setLoading(false);
+          setLoading(false);
+          setServiceInstances(response.data);
       })
       .catch((error) => {
-        setError(error);
-        setLoading(false);
+          setLoading(false);
+          setError(error);
       });
+      setLoading(false)
   }, []);
 
   if (loading) {
-    return <ui5.Loader progress="60%" />
+    return <ui5.Loader progress="100%" />
   }
 
   if (error) {
-    return <ui5.Text>Error: {error}</ui5.Text>;
+      return <ui5.IllustratedMessage name="UnableToLoad" />
   }
 
   const renderData = () => {
+    // @ts-ignore
+     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
+        return <ui5.IllustratedMessage name="NoEntries" />
+    }
     return serviceInstances?.items.map((brief, index) => {
       return (
         <>
@@ -69,10 +75,6 @@ function ServiceInstancesView() {
           </>
         }
         onClick={handleOpen}
-        onLoadMore={function _a() {}}
-        onPopinChange={function _a() {}}
-        onRowClick={function _a() { }}
-        onSelectionChange={function _a() {}}
       >
         {renderData()}
       </ui5.Table>
@@ -96,15 +98,8 @@ function ServiceInstancesView() {
               </ui5.Bar>
             }
             headerText="Dialog Header"
-            onAfterClose={function _a() {}}
-            onAfterOpen={function _a() {}}
-            onBeforeClose={function _a() {}}
-            onBeforeOpen={function _a() {}}
           >
             <ui5.List>
-              <ui5.StandardListItem additionalText="3">
-                List Item 1
-              </ui5.StandardListItem>
             </ui5.List>
           </ui5.Dialog>,
           document.body
