@@ -69,7 +69,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: test
-test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run tests.
+test: manifests kustomize generate fmt vet envtest ginkgo test-docs ui-build ## Run tests.
 	@. ./scripts/testing/set-env-vars.sh; \
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
 	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
@@ -224,3 +224,6 @@ clean-ports: ## Clean the ports
 .PHONE: webapp-dev
 webapp-dev: clean-ports webapp ## Run webapp for development
 
+.PHONY: ui-build
+ui-build: ## Build the UI
+	cd ui && npm install && npm run build
