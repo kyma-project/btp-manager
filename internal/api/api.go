@@ -46,24 +46,17 @@ func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *c
 }
 
 func (a *API) Start() {
-	apiMux := a.apiMux()
-	serverMux := http.NewServeMux()
-	serverMux.Handle("/api/", http.StripPrefix("/api", apiMux))
-	serverMux.Handle("GET /", http.FileServer(a.frontendFS))
-	a.server.Handler = serverMux
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
+	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
+	mux.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
+	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
+	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
+	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+	mux.Handle("GET /", http.FileServer(a.frontendFS))
+	a.server.Handler = mux
 
 	log.Fatal(a.server.ListenAndServe())
-}
-
-func (a *API) apiMux() *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /secrets", a.ListSecrets)
-	mux.HandleFunc("GET /service-instances", a.ListServiceInstances)
-	mux.HandleFunc("PUT /service-instance/{id}", a.CreateServiceInstance)
-	mux.HandleFunc("GET /service-instance/{id}", a.GetServiceInstance)
-	mux.HandleFunc("GET /service-offerings/{namespace}/{name}", a.ListServiceOfferings)
-	mux.HandleFunc("GET /service-offering/{id}", a.GetServiceOffering)
-	return mux
 }
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
