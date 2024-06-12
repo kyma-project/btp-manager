@@ -28,6 +28,8 @@ import (
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
+	"github.com/kyma-project/btp-manager/ui"
+	"github.com/vrischmann/envconfig"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -86,13 +88,20 @@ func main() {
 	var enableLeaderElection bool
 	parseCmdFlags(&probeAddr, &metricsAddr, &enableLeaderElection)
 
+	var cfg api.Config
+	err := envconfig.InitWithPrefix(&cfg, "API")
+	if err != nil {
+		setupLog.Error(err, "unable to load API config")
+		os.Exit(1)
+	}
+
 	restCfg := ctrl.GetConfigOrDie()
 	signalContext := ctrl.SetupSignalHandler()
 
 	mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
 	sp := getSecretProvider(restCfg)
 	sm := setupSMClient(sp, signalContext)
-	api := api.NewAPI(sm.Client, sp)
+	api := api.NewAPI(cfg, sm.Client, sp, ui.NewUIStaticFS())
 
 	// start components
 	go mgr.start()
