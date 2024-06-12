@@ -35,3 +35,15 @@ type ServiceInstance struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 }
+
+type ServiceOfferingDetails struct {
+	LongDescription string                `json:"longDescription"`
+	Plans           []ServiceOfferingPlan `json:"plans"`
+}
+
+type ServiceOfferingPlan struct {
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	DocumentationUrl string `json:"documentationUrl"`
+	SupportUrl       string `json:"supportUrl"`
+}
