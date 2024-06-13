@@ -3,7 +3,7 @@ function Ok(value: any)  {
         return false
     }
 
-    if (value == undefined) {
+    if (value === undefined) {
         return false
     }
 
@@ -11,12 +11,12 @@ function Ok(value: any)  {
         return false
     }
 
-    if ( typeof value == 'string' && value == "") {
+    if ( typeof value == 'string' && value === "") {
         return false
     }
 
     if (Array.isArray(value)) {
-        if (value.length == 0) {
+        if (value.length === 0) {
             return false
         }
     }
