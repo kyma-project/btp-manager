@@ -3,7 +3,7 @@ FROM node:22.3.0 as ui-builder
 
 WORKDIR /workspace
 
-COPY ui/package.json ui/package-lock.json ./
+COPY ui/package.json ./
 RUN npm install
 
 COPY ui/ ./
