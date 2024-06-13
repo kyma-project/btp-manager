@@ -33,7 +33,7 @@ function SecretsView(props: any) {
                 props.handler(formatSecretText("", ""));
             });
         setLoading(false);
-    });
+    }, [props]);
 
     if (loading) {
         return <ui5.Loader progress="100%"/>
