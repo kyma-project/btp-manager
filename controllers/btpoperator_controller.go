@@ -249,7 +249,7 @@ func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOpe
 	logger := log.FromContext(ctx)
 	logger.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
 	oldestCr := r.getOldestCR(existingBtpOperators)
-	if oldestCr.GetStatus().State == v1alpha1.StateError && oldestCr.IsReasonStringEqual(string(conditions.OlderCRExists)) {
+	if oldestCr.GetStatus().State == v1alpha1.StateWarning && oldestCr.IsReasonStringEqual(string(conditions.OlderCRExists)) {
 		if err := r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing,
 			fmt.Sprintf("%s is the new leader", oldestCr.GetName())); err != nil {
 			logger.Error(err, fmt.Sprintf("unable to set %s BtpOperator CR as the new leader", oldestCr.GetName()))
@@ -283,8 +283,8 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the module",
-		oldestCr.GetName(), oldestCr.GetNamespace()))
+	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the module. To use this CR, delete '%s' BtpOperator CR in '%s' namespace and remove finalizers from the '%s' BtpOperator CR in '%s' namespace",
+		oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState v1alpha1.State, reason conditions.Reason, message string) error {

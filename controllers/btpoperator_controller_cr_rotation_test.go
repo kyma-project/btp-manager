@@ -57,13 +57,13 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 				time.Sleep(1 * time.Second)
 				btpOperator2 := createBtpOperator(secondBtpOperator)
 				Eventually(func() error { return k8sClient.Create(ctx, btpOperator2) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateError)))
+				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateWarning)))
 
 				// required for later CreationTimestamp than btpOperator2
 				time.Sleep(1 * time.Second)
 				btpOperator3 := createBtpOperator(thirdBtpOperator)
 				Eventually(func() error { return k8sClient.Create(ctx, btpOperator3) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateError)))
+				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateWarning)))
 
 				btpOperators := &v1alpha1.BtpOperatorList{}
 				Expect(k8sClient.List(ctx, btpOperators)).To(Succeed())
@@ -76,11 +76,11 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 				Eventually(func() (bool, error) {
 					err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: secondBtpOperator}, btpOperatorWithCurrentState)
-					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateError && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
+					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateWarning && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 				Eventually(func() (bool, error) {
 					err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: thirdBtpOperator}, btpOperatorWithCurrentState)
-					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateError && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
+					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateWarning && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 
 				Expect(k8sClient.Delete(ctx, btpOperator1)).To(Succeed())
@@ -97,7 +97,7 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 
 				Eventually(func() (bool, error) {
 					err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: thirdBtpOperator}, btpOperatorWithCurrentState)
-					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateError && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
+					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateWarning && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 			})
 		})
@@ -120,7 +120,7 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 				time.Sleep(1 * time.Second)
 				btpOperator2 := createBtpOperator(secondBtpOperator)
 				Eventually(func() error { return k8sClient.Create(ctx, btpOperator2) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateError)))
+				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateWarning)))
 
 				btpOperators := &v1alpha1.BtpOperatorList{}
 				Expect(k8sClient.List(ctx, btpOperators)).To(Succeed())
@@ -133,7 +133,7 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 				Eventually(func() (bool, error) {
 					err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: secondBtpOperator}, btpOperatorWithCurrentState)
-					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateError && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
+					return btpOperatorWithCurrentState.Status.State == v1alpha1.StateWarning && btpOperatorWithCurrentState.Status.Conditions[0].Reason == string(conditions.OlderCRExists), err
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 
 				Expect(k8sClient.Delete(ctx, btpOperator1)).To(Succeed())
