@@ -37,16 +37,7 @@ delete_btp_operator() {
     wait
 }
 
-#kubectl apply -f deployments/prerequisites.yaml  
-#kubectl apply -f examples/btp-manager-secret.yaml
-#kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
-#apply_btp_operator "default"
-#wait_for_condition "TrueReconcileSucceeded" "default" "ready and reconciled"
-
-export SI_NAME="test"
-envsubst < ${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
-export SB_NAME="test"
-envsubst < ${YAML_DIR}//e2e-test-service-binding.yaml | kubectl apply -f -
+echo -e "\n---Testing multiple BTP Operators handling"
 
 for ((i=1; i<=$iterations; i++))
 do        
@@ -72,4 +63,4 @@ if [[ $count -ne 1 ]]; then
     exit 1
 fi
 
-echo "Test finished successfully"
+echo -e "\n---Multiple BTP Operators handling finished successfully"

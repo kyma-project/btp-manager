@@ -61,6 +61,8 @@ else
   echo -e "\n--- Service binding is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
 fi
 
+./scripts/testing/multiple_btpoperators_exist.sh 10
+
 echo -e "\n---Uninstalling..."
 
 # remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
