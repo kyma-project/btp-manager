@@ -283,7 +283,7 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling redundant BtpOperator CR")
-	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.OlderCRExists, fmt.Sprintf("'%s' BtpOperator CR in '%s' namespace reconciles the module. To use this CR to reconcile the module, delete '%s' BtpOperator CR in '%s' namespace and remove finalizers from the '%s' BtpOperator CR in '%s' namespace",
+	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.OlderCRExists, fmt.Sprintf("The '%s' BtpOperator CR in '%s' namespace reconciles the module. To use this CR to reconcile the module, delete the '%s' BtpOperator CR in the '%s' namespace and remove finalizers from the '%s' BtpOperator CR in the '%s' namespace.",
 		oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
