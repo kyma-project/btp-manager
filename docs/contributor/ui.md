@@ -1,5 +1,9 @@
 # BTP Manager User Interface
 
+> [!WARNING]
+> This feature is in the experimental stage and is not yet available in the main branch or official releases.
+> Use the latest development image to test the UI: europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-720
+
 Follow steps below to run BTP Manager with UI:
 1. Connect `kubectl` to your cluster by setting `KUBECONFIG` environment variable.
 ```shell
@@ -38,8 +42,12 @@ kubectl scale deployment -n kyma-system btp-manager-controller-manager --replica
 kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io validation.webhook.warden.kyma-project.io
 kubectl scale deployment -n kyma-system btp-manager-controller-manager --replicas=1
 ```
-7. Port-forward to BTP Manager deployment.
+7. Apply BtpOperator custom resource to create the secret with credentials to access Service Manager.
+```shell
+kubectl apply -n kyma-system -f examples/btp-operator.yaml
+```
+8. Port-forward to BTP Manager deployment.
 ```shell
 kubectl port-forward -n kyma-system deployment/btp-manager-controller-manager 8080:8080
 ```
-8. Access the UI by opening `localhost:8080` in your browser.
+9. Access the UI by opening `localhost:8080` in your browser.
