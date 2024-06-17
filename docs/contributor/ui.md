@@ -5,14 +5,14 @@
 > Use the latest development image to test the UI: europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-720
 
 ## Prerequisites
-For clusters different from Kyma (e.g. k3d), you need to install the [prerequisites](../../deployments/prerequisites.yaml).
+For clusters different from Kyma (for example, k3d) you need to install the [prerequisites](../../deployments/prerequisites.yaml).
 ```shell
 kubectl apply -f deployments/prerequisites.yaml
 ```
 
 
 ## Run BTP Manager with UI
-Follow steps below to run BTP Manager with UI:
+Follow the steps below to run BTP Manager with UI:
 1. Connect `kubectl` to your cluster by setting the **KUBECONFIG** environment variable.
     ```shell
     export KUBECONFIG=<path-to-kubeconfig>
@@ -28,7 +28,7 @@ Follow steps below to run BTP Manager with UI:
     git clone https://github.com/kyma-project/btp-manager.git
     git checkout sm-integration
     ```
-4. Set **IMG** environment variable to the image of BTP Manager with UI.
+4. Set the **IMG** environment variable to the image of BTP Manager with UI.
     ```shell
     export IMG=europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-720
     ```
@@ -61,12 +61,12 @@ Follow steps below to run BTP Manager with UI:
 9. Access the UI by opening `localhost:8080` in your browser.
 
 ### Cleanup
-After testing UI, you can delete BtpOperator custom resource and BTP Manager deployment.
-1. Delete BtpOperator custom resource.
+After testing the UI, you can delete the BtpOperator CR and BTP Manager deployment.
+1. Delete the BtpOperator CR.
     ```shell
     kubectl delete -n kyma-system btpoperator btpoperator
     ```
-2. Delete BTP Manager deployment by running `undeploy` makefile rule.
+2. Delete BTP Manager deployment by running the `undeploy` makefile rule.
     ```shell
     make undeploy
     ```
