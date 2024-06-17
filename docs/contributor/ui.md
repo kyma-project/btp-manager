@@ -61,12 +61,12 @@ Follow steps below to run BTP Manager with UI:
 9. Access the UI by opening `localhost:8080` in your browser.
 
 ### Cleanup
-After testing UI, you can delete BtpOperator custom resource BTP Manager deployment.
-1. Delete BtpOperator custom resource after testing.
+After testing UI, you can delete BtpOperator custom resource and BTP Manager deployment.
+1. Delete BtpOperator custom resource.
     ```shell
     kubectl delete -n kyma-system btpoperator btpoperator
     ```
-2. Delete BTP Manager deployment after testing by running `undeploy` makefile rule.
+2. Delete BTP Manager deployment by running `undeploy` makefile rule.
     ```shell
     make undeploy
     ```
