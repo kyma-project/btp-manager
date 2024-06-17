@@ -28,9 +28,20 @@ spec:
         - --leader-elect
         image: controller:latest
         name: manager
+        env:
+        - name: API_PORT
+          value: "8080"
+        - name: API_READ_TIMEOUT
+          value: "30s"
+        - name: API_WRITE_TIMEOUT
+          value: "90s"
+        - name: API_IDLE_TIMEOUT
+          value: "120s"
         ports:
         - name: http
           containerPort: 8080
+        - name: metrics
+          containerPort: 9090
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
