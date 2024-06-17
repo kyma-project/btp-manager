@@ -33,7 +33,7 @@ function SecretsView(props: any) {
                 props.handler(formatSecretText("", ""));
             });
         setLoading(false);
-    }, []);
+    }, [props]);
 
     if (loading) {
         return <ui5.Loader progress="100%"/>
@@ -68,7 +68,7 @@ function SecretsView(props: any) {
                         style={{width: "20vw"}}
                         onChange={(e) => {
                             // @ts-ignore
-                            const secret = e .target.value;
+                            const secret = e.target.value;
                             props.handler(secret);
                             props.setPageContent(<ServiceOfferingsView secret={secret} />);
                         }}
