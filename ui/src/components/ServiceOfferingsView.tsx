@@ -256,7 +256,8 @@ function ServiceOfferingsView(props: any) {
 }
 
 function generateServiceInstanceName(plan :string | undefined, service :string | undefined) : string {
-    return `${service}-${plan}-${new Date().getTime()}`;
+    const id = window.crypto.randomUUID().substring(0,4)
+    return `${service}-${plan}-${id}`;
 }
 
 function splitSecret(secret: string) {

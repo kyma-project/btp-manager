@@ -30,7 +30,9 @@ type API struct {
 	logger         *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider, fs http.FileSystem) *API {
+func NewAPI(
+	cfg Config, serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider, fs http.FileSystem,
+) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -42,7 +44,8 @@ func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *c
 		serviceManager: serviceManager,
 		secretProvider: secretProvider,
 		frontendFS:     fs,
-		logger:         slog.Default()}
+		logger:         slog.Default(),
+	}
 }
 
 func (a *API) Start() {
@@ -101,11 +104,6 @@ func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Request) {
-	a.setupCors(writer, request)
-	// not implemented in SM
-}
-
-func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	// not implemented in SM
 }

@@ -35,7 +35,7 @@ function SecretsView(props: any) {
                 props.handler(formatSecretText("", ""));
             });
         setLoading(false);
-    }, [selectedSecret]);
+    }, [props]);
 
     if (loading) {
         return <ui5.IllustratedMessage name="UnableToLoad"/>
