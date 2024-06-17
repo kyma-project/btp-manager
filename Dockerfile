@@ -1,3 +1,14 @@
+# Build UI static files
+FROM node:22.3.0 as ui-builder
+
+WORKDIR /workspace
+
+COPY ui/package.json ./
+RUN npm install
+
+COPY ui/ ./
+RUN npm run build
+
 # Build the manager binary
 FROM golang:1.23.0-alpine3.20 as builder
 
@@ -11,6 +22,9 @@ RUN go mod download
 
 # Copy the go source
 COPY . ./
+
+# Copy UI static files
+COPY --from=ui-builder /workspace/build ui/build
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command

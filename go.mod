@@ -8,6 +8,7 @@ require (
 	github.com/onsi/gomega v1.34.1
 	github.com/prometheus/client_golang v1.20.1
 	github.com/stretchr/testify v1.9.0
+	github.com/vrischmann/envconfig v1.3.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/oauth2 v0.22.0
 	gopkg.in/yaml.v3 v3.0.1

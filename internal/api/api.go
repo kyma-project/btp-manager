@@ -3,25 +3,46 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
+	"log/slog"
 	"net/http"
 	"strings"
-
-	"log/slog"
+	"time"
 
 	"github.com/kyma-project/btp-manager/internal/api/vm"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 )
 
-type API struct {
-	serviceManager *servicemanager.Client
-	secretProvider *clusterobject.SecretProvider
-	slogger        *slog.Logger
+type Config struct {
+	Port         string        `envconfig:"default=8080"`
+	ReadTimeout  time.Duration `envconfig:"default=30s"`
+	WriteTimeout time.Duration `envconfig:"default=90s"`
+	IdleTimeout  time.Duration `envconfig:"default=120s"`
 }
 
-func NewAPI(serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider) *API {
-	slogger := slog.Default()
-	return &API{serviceManager: serviceManager, secretProvider: secretProvider, slogger: slogger}
+type API struct {
+	server         *http.Server
+	serviceManager *servicemanager.Client
+	secretProvider *clusterobject.SecretProvider
+	frontendFS     http.FileSystem
+	logger         *slog.Logger
+}
+
+func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider, fs http.FileSystem) *API {
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%s", cfg.Port),
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
+	}
+	return &API{
+		server:         srv,
+		serviceManager: serviceManager,
+		secretProvider: secretProvider,
+		frontendFS:     fs,
+		logger:         slog.Default()}
 }
 
 func (a *API) Start() {
@@ -32,13 +53,10 @@ func (a *API) Start() {
 	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
 	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+	mux.Handle("GET /", http.FileServer(a.frontendFS))
+	a.server.Handler = mux
 
-	go func() {
-		err := http.ListenAndServe(":3006", mux)
-		if err != nil {
-			a.slogger.Error("failed to Start listening", "error", err)
-		}
-	}()
+	log.Fatal(a.server.ListenAndServe())
 }
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
