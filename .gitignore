@@ -221,7 +221,6 @@ scripts/run.bat
 scripts/**/*.js
 scripts/**/*.js.map
 coverage/
-internal/
 **/.DS_Store
 .settings
 **/.vs
