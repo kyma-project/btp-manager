@@ -4,6 +4,14 @@ import (
 	"encoding/json"
 )
 
+const (
+	ServicePlanDisplayName      = "displayName"
+	ServicePlanDocumentationUrl = "documentationUrl"
+	ServicePlanImageUrl         = "imageUrl"
+	ServicePlanLongDescription  = "longDescription"
+	ServicePlanSupportUrl       = "supportUrl"
+)
+
 type ServicePlans struct {
 	ServicePlans []ServicePlan `json:"items" yaml:"items"`
 }

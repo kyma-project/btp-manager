@@ -3,11 +3,9 @@ import View from "./components/View";
 
 function App() {
   return (
-    <div className="App">
-      <body className="ui5-content-density-compact">
+      <body className="App">
         <View />
       </body>
-    </div>
   );
 }
 
