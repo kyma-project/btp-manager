@@ -110,17 +110,13 @@ function ServiceOfferingsView(props: any) {
         }
         return offerings?.items.map((offering, index) => {
             // @ts-ignore
-            // @ts-ignore
-            // @ts-ignore
-            // @ts-ignore
             return (
                 <>
                     <ui5.Card
                         key={index}
                         style={{
-                            width: "20%",
-                            height: "5%",
-                        }}
+                            width: '600px',
+                          }}
                         onClick={() => {
                             handleOpen(offering);
                         }}
@@ -181,15 +177,15 @@ function ServiceOfferingsView(props: any) {
                                 <ui5.FormItem label="Description">
                                     <ui5.Text>{selectedOffering?.description}</ui5.Text>
                                 </ui5.FormItem>
-                                <ui5.FormItem label="Long Description">
+                                {Ok(details?.longDescription) && <ui5.FormItem label="Long Description">
                                     <ui5.Text>{details?.longDescription}</ui5.Text>
-                                </ui5.FormItem>
-                                <ui5.FormItem label="Support URL">
+                                </ui5.FormItem>}
+                                {Ok(selectedOffering?.metadata.supportUrl) && <ui5.FormItem label="Support URL">
                                     <ui5.Link href={selectedOffering?.metadata.supportUrl}>Link</ui5.Link>
-                                </ui5.FormItem>
-                                <ui5.FormItem label="Documentation URL">
+                                </ui5.FormItem>}
+                                {Ok(selectedOffering?.metadata.documentationUrl) && <ui5.FormItem label="Documentation URL">
                                     <ui5.Link href={selectedOffering?.metadata.documentationUrl}>Link</ui5.Link>
-                                </ui5.FormItem>
+                                </ui5.FormItem>}
                             </ui5.Form>
                         </ui5.Panel>
 
@@ -197,7 +193,7 @@ function ServiceOfferingsView(props: any) {
                             headerLevel="H2"
                             headerText="Plan Details"
                         >
-                        <ui5.Form>
+                            <ui5.Form>
                                 <ui5.FormItem label="Plan Name">
                                     <ui5.Select onChange={onChangeSelect}>
                                         {
@@ -215,12 +211,6 @@ function ServiceOfferingsView(props: any) {
                                 </ui5.FormItem>
                                 <ui5.FormItem label="Description">
                                     <ui5.Text>{plan?.description}</ui5.Text>
-                                </ui5.FormItem>
-                                <ui5.FormItem label="Support URL">
-                                    <ui5.Link href={plan?.supportUrl}>Link</ui5.Link>
-                                </ui5.FormItem>
-                                <ui5.FormItem label="Documentation URL">
-                                    <ui5.Link href={plan?.documentationUrl}>Link</ui5.Link>
                                 </ui5.FormItem>
                             </ui5.Form>
                         </ui5.Panel>

@@ -8,7 +8,6 @@ import ServiceOfferingsView from "./ServiceOfferingsView";
 
 function SecretsView(props: any) {
     const [secrets, setSecrets] = useState<Secrets>();
-    const [selectedSecret, setSelectedSecret] = useState<Secret>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -20,7 +19,6 @@ function SecretsView(props: any) {
                 setLoading(false);
                 setSecrets(response.data);
                 if (Ok(response.data) && Ok(response.data.items)) {
-                    setSelectedSecret(response.data.items[0])
                     const secret = formatSecretText(response.data.items[0].name, response.data.items[0].namespace)
                     props.handler(secret);
                     props.setPageContent(<ServiceOfferingsView secret={secret}/>);
@@ -35,7 +33,7 @@ function SecretsView(props: any) {
                 props.handler(formatSecretText("", ""));
             });
         setLoading(false);
-    }, [props]);
+    }, []);
 
     if (loading) {
         return <ui5.IllustratedMessage name="UnableToLoad"/>

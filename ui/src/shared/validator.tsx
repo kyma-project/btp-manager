@@ -11,7 +11,7 @@ function Ok(value: any)  {
         return false
     }
 
-    if ( typeof value == 'string' && value === "") {
+    if ( typeof value == 'string' && (value === "" || value === "not found")) {
         return false
     }
 

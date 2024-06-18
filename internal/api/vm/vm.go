@@ -44,8 +44,6 @@ type ServiceOfferingDetails struct {
 }
 
 type ServiceOfferingPlan struct {
-	Name             string `json:"name"`
-	Description      string `json:"description"`
-	DocumentationUrl string `json:"documentationUrl"`
-	SupportUrl       string `json:"supportUrl"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
