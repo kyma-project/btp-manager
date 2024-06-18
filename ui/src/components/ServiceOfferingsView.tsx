@@ -185,10 +185,10 @@ function ServiceOfferingsView(props: any) {
                                     <ui5.Text>{details?.longDescription}</ui5.Text>
                                 </ui5.FormItem>
                                 <ui5.FormItem label="Support URL">
-                                    <ui5.Text>{selectedOffering?.metadata.supportUrl}</ui5.Text>
+                                    <ui5.Link href={selectedOffering?.metadata.supportUrl}>Link</ui5.Link>
                                 </ui5.FormItem>
                                 <ui5.FormItem label="Documentation URL">
-                                    <ui5.Text>{selectedOffering?.metadata.documentationUrl}</ui5.Text>
+                                    <ui5.Link href={selectedOffering?.metadata.documentationUrl}>Link</ui5.Link>
                                 </ui5.FormItem>
                             </ui5.Form>
                         </ui5.Panel>
@@ -217,10 +217,10 @@ function ServiceOfferingsView(props: any) {
                                     <ui5.Text>{plan?.description}</ui5.Text>
                                 </ui5.FormItem>
                                 <ui5.FormItem label="Support URL">
-                                    <ui5.Text>{plan?.supportUrl}</ui5.Text>
+                                    <ui5.Link href={plan?.supportUrl}>Link</ui5.Link>
                                 </ui5.FormItem>
                                 <ui5.FormItem label="Documentation URL">
-                                    <ui5.Text>{plan?.documentationUrl}</ui5.Text>
+                                    <ui5.Link href={plan?.documentationUrl}>Link</ui5.Link>
                                 </ui5.FormItem>
                             </ui5.Form>
                         </ui5.Panel>
