@@ -7,6 +7,7 @@ function App() {
             <body className="ui5-content-density-compact">
                 <View/>
             </body>
-        </div>)
+        </div>
+    );
 };
 export default App;
