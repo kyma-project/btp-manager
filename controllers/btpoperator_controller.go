@@ -66,8 +66,8 @@ var (
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Minute * 15
-	ReadyTimeout                   = time.Minute * 1
-	ReadyCheckInterval             = time.Second * 1
+	ReadyTimeout                   = time.Minute * 5
+	ReadyCheckInterval             = time.Second * 30
 	HardDeleteTimeout              = time.Minute * 20
 	HardDeleteCheckInterval        = time.Second * 10
 	DeleteRequestTimeout           = time.Minute * 5
@@ -651,7 +651,7 @@ func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *u
 
 func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
 	logger := log.FromContext(ctx)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval/2)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
 
 	var err error
@@ -676,13 +676,12 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				return
 			}
 		}
-		time.Sleep(ReadyCheckInterval)
 	}
 }
 
 func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
 	logger := log.FromContext(ctx)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval/2)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
 
 	var err error
@@ -698,7 +697,6 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 			c <- true
 			return
 		}
-		time.Sleep(ReadyCheckInterval)
 	}
 }
 
