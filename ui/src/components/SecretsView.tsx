@@ -36,7 +36,7 @@ function SecretsView(props: any) {
     }, []);
 
     if (loading) {
-                        return <ui5.IllustratedMessage name="UnableToLoad"/>
+        return <ui5.IllustratedMessage name="UnableToLoad"/>
     }
 
     if (error) {
