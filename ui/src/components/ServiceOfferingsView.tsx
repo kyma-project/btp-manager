@@ -12,12 +12,10 @@ import {createPortal} from "react-dom";
 import ServiceOfferingsDetailsView from "./ServiceOfferingsDetailsView";
 
 function ServiceOfferingsView(props: any) {
+    const greyImg = "\"data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==\""
     const [offerings, setOfferings] = useState<ServiceOfferings>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [plan, setPlan] = useState<ServiceOfferingPlan>();
-    const [dialogIsOpen, setDialogIsOpen] = useState(false);
-    const dialogRef = useRef(null);
     const [portal, setPortal] = useState<JSX.Element>();
     
     useEffect(() => {
@@ -47,17 +45,11 @@ function ServiceOfferingsView(props: any) {
 
     function getImg(b64: string) {
         if (!Ok(b64) || b64 === "not found") {
-            // grey color
-            return "data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==";
-        } else {
-            return b64;
+            return greyImg;
         }
+        return b64;
     }
-
-    function handleOpen(offering: ServiceOffering) {
-        
-    }
-
+    
     const renderData = () => {
         if (loading) {
             return <ui5.Loader progress="100%"/>
@@ -71,7 +63,7 @@ function ServiceOfferingsView(props: any) {
         if (!Ok(offerings) || !Ok(offerings.items)) {
             return <ui5.IllustratedMessage name="NoEntries"/>
         }
-        return offerings?.items.map((offering, index) => {
+        const cards = offerings?.items.map((offering, index) => {
             // @ts-ignore
             return (
                 <>
@@ -81,7 +73,8 @@ function ServiceOfferingsView(props: any) {
                             width: '600px',
                         }}
                         onClick={() => {
-                            setPortal(createPortal( <ServiceOfferingsDetailsView offering={offering} />, document.body, ""))
+                            console.log("cliecked on card")
+                            setPortal(createPortal( <ServiceOfferingsDetailsView offering={offering} />, document.body, window.crypto.randomUUID()))
                         }}
                         header={
                             <ui5.CardHeader
@@ -100,13 +93,15 @@ function ServiceOfferingsView(props: any) {
                                 interactive
                             />
                         }
-                    >
-                    </ui5.Card>
-
-                    {portal != null && portal}
+                    />
                 </>
             );
         });
+
+        return <>
+            {cards}
+            {portal != null && portal}
+        </>
     };
 
     return <>{renderData()}</>;

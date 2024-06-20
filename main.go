@@ -98,13 +98,13 @@ func main() {
 	restCfg := ctrl.GetConfigOrDie()
 	signalContext := ctrl.SetupSignalHandler()
 
-	mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
+	_ = setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
 	sp := getSecretProvider(restCfg)
 	sm := setupSMClient(sp, signalContext)
 	api := api.NewAPI(cfg, sm.Client, sp, ui.NewUIStaticFS())
 
 	// start components
-	go mgr.start()
+	//go mgr.start()
 	go sm.start()
 	go api.Start()
 
