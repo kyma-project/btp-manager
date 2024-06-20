@@ -1,7 +1,7 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import axios from "axios";
 import {useEffect, useState} from "react";
-import {Secrets, Secret} from "../shared/models";
+import {Secrets} from "../shared/models";
 import Ok from "../shared/validator";
 import api from "../shared/api";
 import ServiceOfferingsView from "./ServiceOfferingsView";

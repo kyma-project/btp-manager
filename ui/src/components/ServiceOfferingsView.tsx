@@ -1,7 +1,7 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useState} from "react";
 import axios from "axios";
-import {ServiceOffering, ServiceOfferingDetails, ServiceOfferingPlan, ServiceOfferings} from "../shared/models";
+import {ServiceOfferings} from "../shared/models";
 import api from "../shared/api";
 import "@ui5/webcomponents-icons/dist/AllIcons.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/NoEntries.js"
@@ -12,7 +12,7 @@ import {createPortal} from "react-dom";
 import ServiceOfferingsDetailsView from "./ServiceOfferingsDetailsView";
 
 function ServiceOfferingsView(props: any) {
-    const greyImg = "\"data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==\""
+    const greyImg = "data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw=="
     const [offerings, setOfferings] = useState<ServiceOfferings>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
