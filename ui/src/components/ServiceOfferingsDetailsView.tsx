@@ -13,7 +13,7 @@ function ServiceOfferingsDetailsView(props: any) {
   const [plan, setPlan] = useState<ServiceOfferingPlan>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedOffering, setSelectedOffering] = useState<ServiceOffering>();
+  const [offering, setOffering] = useState<ServiceOffering>();
   const [details, setDetails] = useState<ServiceOfferingDetails>();
   const dialogRef = useRef(null);
 
@@ -32,13 +32,17 @@ function ServiceOfferingsDetailsView(props: any) {
   };
 
   useEffect(() => {
+    if (!Ok(props.offering)) {
+      return;
+    }
+
     setLoading(true);
     axios
       .get<ServiceOfferingDetails>(api(`service-offering/${props.offering.id}`))
       .then((response) => {
         setLoading(false);
         setDetails(response.data);
-        setSelectedOffering(props.offering);
+        setOffering(props.offering);
         // @ts-ignore
         dialogRef.current.show();
       })
@@ -47,11 +51,19 @@ function ServiceOfferingsDetailsView(props: any) {
         setError(error);
       });
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // @ts-ignore
-  return (
-    (
+  const renderData = () => {
+    if (loading) {
+      return <ui5.Loader progress="100%"/>
+    }
+
+    if (error) {
+        return <ui5.IllustratedMessage name="UnableToLoad"/>
+    }
+
+    return (
       <>
         <ui5.Dialog
           style={{ width: "50%" }}
@@ -62,7 +74,7 @@ function ServiceOfferingsDetailsView(props: any) {
               startContent={
                 <>
                   <ui5.Title level="H5">
-                    Create {selectedOffering?.catalogName} Service Instance
+                    Create {offering?.catalogName} Service Instance
                   </ui5.Title>
                 </>
               }
@@ -83,31 +95,31 @@ function ServiceOfferingsDetailsView(props: any) {
           <ui5.Panel headerLevel="H2" headerText="Service Details">
             <ui5.Form>
               <ui5.FormItem label="Name">
-                <ui5.Text>{selectedOffering?.catalogName}</ui5.Text>
+                <ui5.Text>{offering?.catalogName}</ui5.Text>
               </ui5.FormItem>
               <ui5.FormItem label="Description">
-                <ui5.Text>{selectedOffering?.description}</ui5.Text>
+                <ui5.Text>{offering?.description}</ui5.Text>
               </ui5.FormItem>
               {Ok(details?.longDescription) && (
                 <ui5.FormItem label="Long Description">
                   <ui5.Text>{details?.longDescription}</ui5.Text>
                 </ui5.FormItem>
               )}
-              {Ok(selectedOffering?.metadata.supportUrl) && (
+              {Ok(offering?.metadata.supportUrl) && (
                 <ui5.FormItem label="Support URL">
                   <ui5.Link
                     target="_blank"
-                    href={selectedOffering?.metadata.supportUrl}
+                    href={offering?.metadata.supportUrl}
                   >
                     Link
                   </ui5.Link>
                 </ui5.FormItem>
               )}
-              {Ok(selectedOffering?.metadata.documentationUrl) && (
+              {Ok(offering?.metadata.documentationUrl) && (
                 <ui5.FormItem label="Documentation URL">
                   <ui5.Link
                     target="_blank"
-                    href={selectedOffering?.metadata.documentationUrl}
+                    href={offering?.metadata.documentationUrl}
                   >
                     Link
                   </ui5.Link>
@@ -145,7 +157,7 @@ function ServiceOfferingsDetailsView(props: any) {
                   required
                   value={generateServiceInstanceName(
                     plan?.name,
-                    selectedOffering?.catalogName
+                    offering?.catalogName
                   )}
                 ></ui5.Input>
               </ui5.FormItem>
@@ -163,8 +175,9 @@ function ServiceOfferingsDetailsView(props: any) {
           </ui5.Panel>
         </ui5.Dialog>
       </>
-    )
-  );
+    )}
+  // @ts-ignore
+  return <>{renderData()}</>;
 }
 
 function generateServiceInstanceName(

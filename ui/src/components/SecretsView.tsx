@@ -33,18 +33,19 @@ function SecretsView(props: any) {
                 props.handler(formatSecretText("", ""));
             });
         setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    if (loading) {
-        return <ui5.IllustratedMessage name="UnableToLoad"/>
-    }
-
-    if (error) {
-        props.handler(formatSecretText("", ""));
-        return <ui5.IllustratedMessage name="UnableToLoad"/>
-    }
-
     const renderData = () => {
+        if (loading) {
+            return <ui5.IllustratedMessage name="UnableToLoad"/>
+        }
+
+        if (error) {
+            props.handler(formatSecretText("", ""));
+            return <ui5.IllustratedMessage name="UnableToLoad"/>
+        }
+
         // @ts-ignore
         if (!Ok(secrets) || !Ok(secrets.items)) {
             return <div>

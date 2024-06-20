@@ -73,7 +73,6 @@ function ServiceOfferingsView(props: any) {
                             width: '600px',
                         }}
                         onClick={() => {
-                            console.log("cliecked on card")
                             setPortal(createPortal( <ServiceOfferingsDetailsView offering={offering} />, document.body, window.crypto.randomUUID()))
                         }}
                         header={
@@ -84,8 +83,7 @@ function ServiceOfferingsView(props: any) {
                                     </ui5.Avatar>
                                 }
                                 style={{
-                                    width: "100%",
-                                    height: "500px",
+                                    width: "100%"
                                 }}
                                 subtitleText={offering.description}
                                 titleText={offering.catalogName}
