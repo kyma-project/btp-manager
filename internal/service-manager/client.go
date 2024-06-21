@@ -265,3 +265,29 @@ func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
 
 	return &serviceInstances, nil
 }
+
+func (c *Client) ServiceInstanceByID(serviceInstanceID string) (*types.ServiceInstance, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var si types.ServiceInstance
+	if err := json.Unmarshal(body, &si); err != nil {
+		return nil, err
+	}
+
+	return &si, nil
+}
