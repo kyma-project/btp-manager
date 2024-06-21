@@ -14,7 +14,7 @@ const (
 	ServiceOfferingDocumentationUrl = "documentationUrl"
 	ServiceOfferingImageUrl         = "imageUrl"
 	ServiceOfferingLongDescription  = "longDescription"
-	ServiceOfferingSupportURL       = "supportURL"
+	ServiceOfferingSupportURL       = "supportUrl"
 )
 
 type ServiceOfferingDetails struct {
