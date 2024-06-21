@@ -239,3 +239,29 @@ func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*type
 
 	return &plans, nil
 }
+
+func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var serviceInstances types.ServiceInstances
+	if err := json.Unmarshal(body, &serviceInstances); err != nil {
+		return nil, err
+	}
+
+	return &serviceInstances, nil
+}
