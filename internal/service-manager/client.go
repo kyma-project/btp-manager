@@ -19,11 +19,13 @@ import (
 )
 
 const (
-	componentName        = "ServiceManagerClient"
-	defaultSecret        = "sap-btp-service-operator"
-	defaultNamespace     = "kyma-system"
+	componentName    = "ServiceManagerClient"
+	defaultSecret    = "sap-btp-service-operator"
+	defaultNamespace = "kyma-system"
+
 	ServiceOfferingsPath = "/v1/service_offerings"
 	ServicePlansPath     = "/v1/service_plans"
+	ServiceInstancesPath = "/v1/service_instances"
 
 	// see https://help.sap.com/docs/service-manager/sap-service-manager/filtering-parameters-and-operators
 	URLFieldQueryKey                          = "fieldQuery"
