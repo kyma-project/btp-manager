@@ -23,6 +23,8 @@ export interface ServiceOffering {
 export interface ServiceOfferingMetadata {
   imageUrl: string;
   displayName: string;
+  supportUrl: string;
+  documentationUrl: string;
 }
 
 export interface ServiceOfferingDetails {

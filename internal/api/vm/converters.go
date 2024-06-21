@@ -21,7 +21,7 @@ func ToSecretVM(list v1.SecretList) Secrets {
 }
 
 func ToServiceOfferingsVM(offerings *types.ServiceOfferings) ServiceOfferings {
-	serviceOfferings := ServiceOfferings{
+	toReturn := ServiceOfferings{
 		NumItems: len(offerings.ServiceOfferings),
 		Items:    []ServiceOffering{},
 	}
@@ -29,38 +29,38 @@ func ToServiceOfferingsVM(offerings *types.ServiceOfferings) ServiceOfferings {
 	for _, offering := range offerings.ServiceOfferings {
 		imageUrl, _ := offering.MetadataValueByFieldName(types.ServiceOfferingImageUrl)
 		displayName, _ := offering.MetadataValueByFieldName(types.ServiceOfferingDisplayName)
+		supportUrl, _ := offering.MetadataValueByFieldName(types.ServiceOfferingSupportURL)
+		documentationUrl, _ := offering.MetadataValueByFieldName(types.ServiceOfferingDocumentationUrl)
 		offering := ServiceOffering{
 			ID:          offering.ID,
 			Description: offering.Description,
 			CatalogID:   offering.CatalogID,
 			CatalogName: offering.CatalogName,
 			Metadata: ServiceOfferingMetadata{
-				ImageUrl:    imageUrl,
-				DisplayName: displayName,
+				ImageUrl:         imageUrl,
+				DisplayName:      displayName,
+				SupportUrl:       supportUrl,
+				DocumentationUrl: documentationUrl,
 			},
 		}
-		serviceOfferings.Items = append(serviceOfferings.Items, offering)
+		toReturn.Items = append(toReturn.Items, offering)
 	}
-	return serviceOfferings
+	return toReturn
 }
 
-func ToServiceOfferingDetailsVM(serviceOfferings *types.ServiceOfferingDetails) ServiceOfferingDetails {
-	details := ServiceOfferingDetails{
+func ToServiceOfferingDetailsVM(details *types.ServiceOfferingDetails) ServiceOfferingDetails {
+	toReturn := ServiceOfferingDetails{
 		Plans: []ServiceOfferingPlan{},
 	}
 
-	for _, plan := range serviceOfferings.ServicePlans.ServicePlans {
-		details.LongDescription, _ = serviceOfferings.MetadataValueByFieldName(types.ServiceOfferingLongDescription)
-		supportUrl, _ := serviceOfferings.MetadataValueByFieldName(types.ServiceOfferingSupportURL)
-		documentationUrl, _ := serviceOfferings.MetadataValueByFieldName(types.ServiceOfferingDocumentationUrl)
-		planReturn := ServiceOfferingPlan{
-			Name:             plan.Name,
-			Description:      plan.Description,
-			DocumentationUrl: documentationUrl,
-			SupportUrl:       supportUrl,
-		}
-		details.Plans = append(details.Plans, planReturn)
+	toReturn.LongDescription, _ = details.MetadataValueByFieldName(types.ServiceOfferingLongDescription)
+
+	for _, plan := range details.ServicePlans.ServicePlans {
+		toReturn.Plans = append(toReturn.Plans, ServiceOfferingPlan{
+			Name:        plan.Name,
+			Description: plan.Description,
+		})
 	}
 
-	return details
+	return toReturn
 }
