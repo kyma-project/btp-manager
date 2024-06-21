@@ -127,16 +127,18 @@ function ServiceOfferingsDetailsView(props: any) {
               )}
             </ui5.Form>
           </ui5.Panel>
-
           <ui5.Panel headerLevel="H2" headerText="Plan Details">
             <ui5.Form>
               <ui5.FormItem label="Plan Name">
                 <ui5.Select id="selectOption" onChange={onChangeSelect}>
                   {details?.plans.map(
-                    (plan: ServiceOfferingPlan, index: number) => {
+                    (value: ServiceOfferingPlan, index: number) => {
+                      if (!Ok(plan) && index == 0) {
+                        setPlan(details?.plans[0]);
+                      }
                       return (
-                        <ui5.Option key={index} data-id={plan.name} >
-                          {plan.name}
+                        <ui5.Option key={index} data-id={value.name} >
+                          {value.name}
                         </ui5.Option>
                       );
                     }
@@ -148,7 +150,6 @@ function ServiceOfferingsDetailsView(props: any) {
               </ui5.FormItem>
             </ui5.Form>
           </ui5.Panel>
-
           <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Create">
             <ui5.Form>
               <ui5.FormItem label="Name">
