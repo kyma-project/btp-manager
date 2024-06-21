@@ -212,18 +212,6 @@ ui: ## Run the ui
 webapp: ## Run App and UI
 	 @$(MAKE) -j ui app
 
-.PHONY: clean-ports
-clean-ports: ## Clean the ports
-	@echo "Cleaning ports"
-	$(echo $(kill -9 $(lsof -i tcp:8081 -t)))
-	$(echo $(lsof -i tcp:8081 -t))
-	$(echo $(kill -9 $(lsof -i tcp:3005 -t)))
-	$(echo $(lsof -i tcp:3005 -t))
-	@echo "Ports cleaned"
-
-.PHONE: webapp-dev
-webapp-dev: clean-ports webapp ## Run webapp for development
-
 .PHONY: ui-build
 ui-build: ## Build the UI
 	cd ui && npm install && npm run build

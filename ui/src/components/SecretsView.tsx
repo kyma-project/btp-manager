@@ -4,7 +4,6 @@ import {useEffect, useState} from "react";
 import {Secrets} from "../shared/models";
 import Ok from "../shared/validator";
 import api from "../shared/api";
-import ServiceOfferingsView from "./ServiceOfferingsView";
 
 function SecretsView(props: any) {
     const [secrets, setSecrets] = useState<Secrets>();
@@ -21,7 +20,6 @@ function SecretsView(props: any) {
                 if (Ok(response.data) && Ok(response.data.items)) {
                     const secret = formatSecretText(response.data.items[0].name, response.data.items[0].namespace)
                     props.handler(secret);
-                    props.setPageContent(<ServiceOfferingsView secret={secret}/>);
                 } else {
                     props.handler(formatSecretText("", ""));
                 }
@@ -62,23 +60,16 @@ function SecretsView(props: any) {
     };
 
     return (
-        <div>
             <>
-                <div>
                     <ui5.Select
                         style={{width: "20vw"}}
                         onChange={(e) => {
-                            // @ts-ignore
-                            const secret = e.target.value;
-                            props.handler(secret);
-                            props.setPageContent(<ServiceOfferingsView secret={secret}/>);
+                            props.handler(e.target.value);
                         }}
                     >
                         {renderData()}
                     </ui5.Select>
-                </div>
             </>
-        </div>
     );
 }
 

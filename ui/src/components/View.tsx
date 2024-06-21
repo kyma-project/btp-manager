@@ -10,6 +10,7 @@ function Overview(props: any) {
 
     function handler(s: any) {
         setSecret(s);
+        setPageContent(<ServiceOfferings secret={s}/>);
     }
     
     return (
@@ -24,9 +25,7 @@ function Overview(props: any) {
                 endContent={<span>SAP BTP, Kyma runtime</span>}
                 startContent={<span>Select your credentials:</span>}
             >
-                <Secrets handler={(e: any) => handler(e)} style={{width: "100vw"}}
-                         setPageContent={(e: any) => setPageContent(e)}
-                />
+                <Secrets handler={(e: any) => handler(e)} style={{width: "100vw"}} />
             </ui5.Bar>
             <>
                 <div>
@@ -65,7 +64,6 @@ function Overview(props: any) {
                         </ui5.Page>
                     </ui5.FlexBox>
                 </div>
-
             </>
         </>
     );
