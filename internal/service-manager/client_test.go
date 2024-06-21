@@ -60,8 +60,8 @@ func TestClient(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Len(t, sos.ServiceOfferings, 4)
-		assert.ElementsMatch(t, allServiceOfferings.ServiceOfferings, sos.ServiceOfferings)
+		assert.Len(t, sos.Items, 4)
+		assert.ElementsMatch(t, allServiceOfferings.Items, sos.Items)
 	})
 
 	t.Run("should get service offering details and plans for given service offering ID", func(t *testing.T) {
@@ -79,9 +79,9 @@ func TestClient(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Len(t, sod.ServicePlans.ServicePlans, 3)
+		assert.Len(t, sod.ServicePlans.Items, 3)
 		assert.Equal(t, expectedServiceOffering, sod.ServiceOffering)
-		assert.ElementsMatch(t, filteredServicePlans.ServicePlans, sod.ServicePlans.ServicePlans)
+		assert.ElementsMatch(t, filteredServicePlans.Items, sod.ServicePlans.Items)
 	})
 }
 
@@ -172,7 +172,7 @@ func (h *fakeSMHandler) getServiceOffering(w http.ResponseWriter, r *http.Reques
 	}
 
 	data = make([]byte, 0)
-	for _, so := range sos.ServiceOfferings {
+	for _, so := range sos.Items {
 		if so.ID == soID {
 			data, err = json.Marshal(so)
 			if err != nil {
@@ -218,9 +218,9 @@ func (h *fakeSMHandler) getServicePlans(w http.ResponseWriter, r *http.Request) 
 
 	if len(IDFilter) != 0 {
 		var filteredSps types.ServicePlans
-		for _, sp := range responseSps.ServicePlans {
+		for _, sp := range responseSps.Items {
 			if sp.ServiceOfferingID == IDFilter {
-				filteredSps.ServicePlans = append(filteredSps.ServicePlans, sp)
+				filteredSps.Items = append(filteredSps.Items, sp)
 			}
 		}
 		responseSps = filteredSps
@@ -311,7 +311,7 @@ func getAllServicePlansFromJSON(t *testing.T) types.ServicePlans {
 }
 
 func getServiceOfferingByID(serviceOfferings types.ServiceOfferings, serviceOfferingID string) types.ServiceOffering {
-	for _, so := range serviceOfferings.ServiceOfferings {
+	for _, so := range serviceOfferings.Items {
 		if so.ID == serviceOfferingID {
 			return so
 		}
@@ -321,9 +321,9 @@ func getServiceOfferingByID(serviceOfferings types.ServiceOfferings, serviceOffe
 
 func filterServicePlansByServiceOfferingID(servicePlans types.ServicePlans, serviceOfferingID string) types.ServicePlans {
 	var filteredSp types.ServicePlans
-	for _, sp := range servicePlans.ServicePlans {
+	for _, sp := range servicePlans.Items {
 		if sp.ServiceOfferingID == serviceOfferingID {
-			filteredSp.ServicePlans = append(filteredSp.ServicePlans, sp)
+			filteredSp.Items = append(filteredSp.Items, sp)
 		}
 	}
 	return filteredSp

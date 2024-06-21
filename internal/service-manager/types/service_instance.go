@@ -3,7 +3,7 @@ package types
 import "encoding/json"
 
 type ServiceInstances struct {
-	ServiceInstances []ServiceInstance `json:"items" yaml:"items"`
+	Items []ServiceInstance `json:"items" yaml:"items"`
 }
 
 type ServiceInstance struct {
