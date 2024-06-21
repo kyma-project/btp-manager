@@ -4,7 +4,6 @@ import {useEffect, useState} from "react";
 import {Secrets} from "../shared/models";
 import Ok from "../shared/validator";
 import api from "../shared/api";
-import ServiceOfferingsView from "./ServiceOfferingsView";
 
 function SecretsView(props: any) {
     const [secrets, setSecrets] = useState<Secrets>();

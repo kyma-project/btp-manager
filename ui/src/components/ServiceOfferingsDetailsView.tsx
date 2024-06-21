@@ -133,7 +133,7 @@ function ServiceOfferingsDetailsView(props: any) {
                 <ui5.Select id="selectOption" onChange={onChangeSelect}>
                   {details?.plans.map(
                     (value: ServiceOfferingPlan, index: number) => {
-                      if (!Ok(plan) && index == 0) {
+                      if (!Ok(plan) && index === 0) {
                         setPlan(details?.plans[0]);
                       }
                       return (
