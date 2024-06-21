@@ -23,8 +23,10 @@ type ServiceOffering struct {
 }
 
 type ServiceOfferingMetadata struct {
-	ImageUrl    string `json:"imageUrl"`
-	DisplayName string `json:"displayName"`
+	ImageUrl         string `json:"imageUrl"`
+	DisplayName      string `json:"displayName"`
+	DocumentationUrl string `json:"documentationUrl"`
+	SupportUrl       string `json:"supportUrl"`
 }
 
 type ServiceInstances struct {
@@ -42,8 +44,6 @@ type ServiceOfferingDetails struct {
 }
 
 type ServiceOfferingPlan struct {
-	Name             string `json:"name"`
-	Description      string `json:"description"`
-	DocumentationUrl string `json:"documentationUrl"`
-	SupportUrl       string `json:"supportUrl"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }

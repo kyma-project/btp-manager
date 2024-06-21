@@ -1,30 +1,22 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import {useEffect, useRef, useState} from "react";
-import {createPortal} from "react-dom";
+import {useEffect, useState} from "react";
 import axios from "axios";
-import {ServiceOfferingDetails, ServiceOfferings} from "../shared/models";
+import {ServiceOfferings} from "../shared/models";
 import api from "../shared/api";
 import "@ui5/webcomponents-icons/dist/AllIcons.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/NoEntries.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
+import "@ui5/webcomponents-fiori/dist/illustrations/NoData.js";
 import Ok from "../shared/validator";
+import {createPortal} from "react-dom";
+import ServiceOfferingsDetailsView from "./ServiceOfferingsDetailsView";
 
 function ServiceOfferingsView(props: any) {
+    const greyImg = "data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw=="
     const [offerings, setOfferings] = useState<ServiceOfferings>();
-    const [serviceOfferingDetails, setServiceOfferingDetails] = useState<ServiceOfferingDetails>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const dialogRef = useRef(null);
-    
-    const handleOpen = (id: any) => {
-        // @ts-ignore
-        dialogRef.current.show();
-        load(id);
-    };
-    const handleClose = () => {
-        // @ts-ignore
-        dialogRef.current.close();
-    };
+    const [portal, setPortal] = useState<JSX.Element>();
     
     useEffect(() => {
         if (!Ok(props.secret)) {
@@ -51,56 +43,37 @@ function ServiceOfferingsView(props: any) {
         }
     }, [props.secret]);
 
-
-    if (loading) {
-        return <ui5.Loader progress="100%"/>
-    }
-
-    if (error) {
-        return <ui5.IllustratedMessage name="UnableToLoad" />
-    }
-
     function getImg(b64: string) {
         if (!Ok(b64) || b64 === "not found") {
-            // grey color
-            return "data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==";
-        } else {
-            return b64;
+            return greyImg;
         }
-    }
-
-    function load(id: string) {
-        setLoading(true);
-        axios
-            .get<ServiceOfferingDetails>(api(`service-offering/${id}`))
-            .then((response) => {
-                setLoading(false);
-                setServiceOfferingDetails(response.data);
-            })
-            .catch((error) => {
-                setLoading(false);
-                setError(error);
-            });
-        setLoading(false);
+        return b64;
     }
     
     const renderData = () => {
+        if (loading) {
+            return <ui5.Loader progress="100%"/>
+        }
+
+        if (error) {
+            return <ui5.IllustratedMessage name="UnableToLoad"/>
+        }
+
         // @ts-ignore
         if (!Ok(offerings) || !Ok(offerings.items)) {
-            return <ui5.IllustratedMessage name="NoEntries" />
+            return <ui5.IllustratedMessage name="NoEntries"/>
         }
-        return offerings?.items.map((offering, index) => {
+        const cards = offerings?.items.map((offering, index) => {
             // @ts-ignore
             return (
                 <>
                     <ui5.Card
                         key={index}
                         style={{
-                            width: "20%",
-                            height: "5%",
+                            width: '600px',
                         }}
                         onClick={() => {
-                            handleOpen(offering.id);
+                            setPortal(createPortal( <ServiceOfferingsDetailsView offering={offering} />, document.body, window.crypto.randomUUID()))
                         }}
                         header={
                             <ui5.CardHeader
@@ -109,85 +82,24 @@ function ServiceOfferingsView(props: any) {
                                         <img alt="" src={getImg(offering.metadata.imageUrl)}></img>
                                     </ui5.Avatar>
                                 }
+                                style={{
+                                    width: "100%"
+                                }}
                                 subtitleText={offering.description}
                                 titleText={offering.catalogName}
                                 status={formatStatus(index, offerings?.numItems)}
                                 interactive
                             />
                         }
-                    >
-                    </ui5.Card>
-
-                    <>
-                        {createPortal(
-                            <ui5.Dialog
-                                style={{width: "50%"}}
-                                ref={dialogRef}
-                                className="headerPartNoPadding footerPartNoPadding"
-                                footer={
-                                    <ui5.Bar
-                                        design="Footer"
-                                        endContent={
-                                            <ui5.Button onClick={handleClose}>Close</ui5.Button>
-                                        }
-                                    />
-                                }
-                            >
-                                    <ui5.Panel
-                                        headerLevel="H2"
-                                        headerText="Service Offering Details"
-                                    >
-                                        <ui5.Text>{serviceOfferingDetails?.longDescription}</ui5.Text>
-                                    </ui5.Panel>
-                                
-                                    <ui5.Panel
-                                        headerLevel="H2"
-                                        headerText="Plan Details"
-                                    >
-                                        <ui5.Form>
-                                            <ui5.FormItem label="Plan Name">
-                                                <ui5.Select>
-                                                    {
-                                                        serviceOfferingDetails?.plans.map((plan, index) =>
-                                                            (
-                                                                <ui5.Option
-                                                                    key={index}>{plan.name}
-                                                                </ui5.Option>
-                                                            ))
-                                                    }
-                                                </ui5.Select>
-                                            </ui5.FormItem>
-                                        </ui5.Form>
-                                    </ui5.Panel>
-
-                                <ui5.Panel
-                                    accessibleRole="Form"
-                                    headerLevel="H2"
-                                    headerText="Create Service Instance"
-                                >
-                                    <ui5.Form>
-                                        <ui5.FormItem label="Name">
-                                            <ui5.Input></ui5.Input>
-                                        </ui5.FormItem>
-                                        <ui5.FormItem label="External Name">
-                                        <ui5.Input></ui5.Input>
-                                        </ui5.FormItem>
-                                        <ui5.FormItem label="Provisioning Parameters">
-                                            <ui5.TextArea
-                                                style={{width: "100%"}}
-                                                valueState="None"
-                                                title="Provisioning Parameters"
-                                            />
-                                        </ui5.FormItem>
-                                    </ui5.Form>
-                                </ui5.Panel>
-                            </ui5.Dialog>,
-                            document.body
-                        )}
-                    </>
+                    />
                 </>
             );
         });
+
+        return <>
+            {cards}
+            {portal != null && portal}
+        </>
     };
 
     return <>{renderData()}</>;

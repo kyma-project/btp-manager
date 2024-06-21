@@ -21,7 +21,7 @@ function SecretsView(props: any) {
                 if (Ok(response.data) && Ok(response.data.items)) {
                     const secret = formatSecretText(response.data.items[0].name, response.data.items[0].namespace)
                     props.handler(secret);
-                    props.setPageContent(<ServiceOfferingsView secret={secret} />);
+                    props.setPageContent(<ServiceOfferingsView secret={secret}/>);
                 } else {
                     props.handler(formatSecretText("", ""));
                 }
@@ -33,26 +33,27 @@ function SecretsView(props: any) {
                 props.handler(formatSecretText("", ""));
             });
         setLoading(false);
-    }, [props]);
-
-    if (loading) {
-        return <ui5.Loader progress="100%"/>
-    }
-
-    if (error) {
-        props.handler(formatSecretText("", ""));
-        return <ui5.IllustratedMessage name="UnableToLoad" />
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const renderData = () => {
+        if (loading) {
+            return <ui5.IllustratedMessage name="UnableToLoad"/>
+        }
+
+        if (error) {
+            props.handler(formatSecretText("", ""));
+            return <ui5.IllustratedMessage name="UnableToLoad"/>
+        }
+
         // @ts-ignore
-        if (!Ok(secrets) || !Ok(secrets.items)){
+        if (!Ok(secrets) || !Ok(secrets.items)) {
             return <div>
                 <>
                     <ui5.Option key={0}>{formatSecretText("", "")}</ui5.Option>
                 </>
             </div>
-        } 
+        }
         return secrets?.items.map((secret, index) => {
             return (
                 <ui5.Option key={index}>{formatSecretText(secret.name, secret.namespace)}</ui5.Option>
@@ -70,7 +71,7 @@ function SecretsView(props: any) {
                             // @ts-ignore
                             const secret = e.target.value;
                             props.handler(secret);
-                            props.setPageContent(<ServiceOfferingsView secret={secret} />);
+                            props.setPageContent(<ServiceOfferingsView secret={secret}/>);
                         }}
                     >
                         {renderData()}
