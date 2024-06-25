@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -37,12 +36,4 @@ func (e *BrokerError) Error() string {
 	}
 
 	return fmt.Sprintf("BrokerError:%s, Status: %d, Description: %s", message, e.StatusCode, description)
-}
-
-type ServiceInstanceResponse struct {
-	InstanceID   string
-	PlanID       string
-	Location     string
-	SubaccountID string
-	Tags         json.RawMessage
 }

@@ -24,3 +24,12 @@ type ServiceInstance struct {
 
 	LastOperation *Operation `json:"last_operation,omitempty" yaml:"last_operation,omitempty"`
 }
+
+type ServiceInstanceUpdateRequest struct {
+	ID            *string          `json:"id,omitempty" yaml:"id,omitempty"`
+	Name          *string          `json:"name,omitempty" yaml:"name,omitempty"`
+	ServicePlanID *string          `json:"service_plan_id,omitempty" yaml:"service_plan_id,omitempty"`
+	Shared        *bool            `json:"shared,omitempty" yaml:"shared,omitempty"`
+	Parameters    *json.RawMessage `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	Labels        []LabelChange    `json:"labels,omitempty" yaml:"labels,omitempty"`
+}

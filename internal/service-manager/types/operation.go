@@ -2,8 +2,10 @@ package types
 
 import "encoding/json"
 
-const AddLabelOperation = "add"
-const RemoveLabelOperation = "remove"
+const (
+	AddLabelOperation    = "add"
+	RemoveLabelOperation = "remove"
+)
 
 type LabelChange struct {
 	Operation string   `json:"op"`

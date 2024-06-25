@@ -287,7 +287,7 @@ func (c *Client) ServiceInstanceByID(serviceInstanceID string) (*types.ServiceIn
 	return &si, nil
 }
 
-func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstanceResponse, error) {
+func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
 	requestBody, err := json.Marshal(si)
 	if err != nil {
 		return nil, err
@@ -306,7 +306,7 @@ func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.Servic
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
-		return c.serviceInstanceCreatedResponse(resp)
+		return c.serviceInstanceResponse(resp)
 	case http.StatusAccepted:
 		return nil, nil
 	default:
@@ -335,18 +335,51 @@ func (c *Client) DeleteServiceInstance(serviceInstanceID string) error {
 	}
 }
 
-func (c *Client) serviceInstanceCreatedResponse(resp *http.Response) (*types.ServiceInstanceResponse, error) {
+func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceInstance, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	var siResp types.ServiceInstanceResponse
+	var siResp types.ServiceInstance
 	if err := json.Unmarshal(body, &siResp); err != nil {
 		return nil, err
 	}
 
 	return &siResp, nil
+}
+
+func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
+	id := *si.ID
+	si.ID = nil
+
+	if !c.validServiceInstanceUpdateRequestBody(si) {
+		return nil, fmt.Errorf("invalid request body - share fields must be updated alone")
+	}
+
+	requestBody, err := json.Marshal(si)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, c.smURL+ServiceInstancesPath+"/"+id, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceInstanceResponse(resp)
+	case http.StatusAccepted:
+		return nil, nil
+	default:
+		return nil, c.errorResponse(resp)
+	}
 }
 
 func (c *Client) errorResponse(resp *http.Response) error {
@@ -370,4 +403,11 @@ func (c *Client) readResponseBody(respBody io.ReadCloser) ([]byte, error) {
 		return nil, err
 	}
 	return bodyInBytes, nil
+}
+
+func (c *Client) validServiceInstanceUpdateRequestBody(si *types.ServiceInstanceUpdateRequest) bool {
+	if si.Shared != nil {
+		return si.ID == nil && si.Name == nil && si.ServicePlanID == nil && si.Parameters == nil && len(si.Labels) == 0
+	}
+	return true
 }
