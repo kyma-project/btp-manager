@@ -1,6 +1,7 @@
 package servicemanager
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -290,4 +291,61 @@ func (c *Client) ServiceInstanceByID(serviceInstanceID string) (*types.ServiceIn
 	}
 
 	return &si, nil
+}
+
+func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstanceResponse, error) {
+	requestBody, err := json.Marshal(si)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.smURL+ServiceInstancesPath, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return c.serviceInstanceCreatedResponse(resp)
+	case http.StatusAccepted:
+		return nil, nil
+	default:
+		return c.errorResponse(resp)
+	}
+}
+
+func (c *Client) serviceInstanceCreatedResponse(resp *http.Response) (*types.ServiceInstanceResponse, error) {
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var siResp types.ServiceInstanceResponse
+	if err := json.Unmarshal(body, &siResp); err != nil {
+		return nil, err
+	}
+
+	return &siResp, nil
+}
+
+func (c *Client) errorResponse(resp *http.Response) (*types.ServiceInstanceResponse, error) {
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var errResp types.ErrorResponse
+	if err := json.Unmarshal(body, &errResp); err != nil {
+		return nil, err
+	}
+
+	return nil, fmt.Errorf("error: %s", errResp.Error())
 }
