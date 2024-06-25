@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/service-manager/types/requests"
 	"io"
 	"log/slog"
 	"net"
@@ -27,7 +28,7 @@ const (
 	ServiceOfferingsPath = "/v1/service_offerings"
 	ServicePlansPath     = "/v1/service_plans"
 	ServiceInstancesPath = "/v1/service_instances"
-
+	ServiceBindingsPath  = "/v1/service_bindings"
 	// see https://help.sap.com/docs/service-manager/sap-service-manager/filtering-parameters-and-operators
 	URLFieldQueryKey                          = "fieldQuery"
 	servicePlansForServiceOfferingQueryFormat = "service_offering_id eq '%s'"
@@ -410,6 +411,64 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 	default:
 		return nil, c.errorResponse(resp)
 	}
+}
+
+func (c *Client) CreateServiceBinding(payload *requests.CreateServiceBindingRequestPayload) error {
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.smURL+ServiceBindingsPath, io.NopCloser(bytes.NewReader(reqBody)))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			c.logger.Error("failed to close response body", "error", err)
+		}
+	}(resp.Body)
+
+	response, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("%s : %s",err.Error(), string(response))
+	}
+	return nil
+}
+
+func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			c.logger.Error("failed to close response body", "error", err)
+		}
+	}(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var sb types.ServiceBinding
+	if err := json.Unmarshal(body, &sb); err != nil {
+		return nil, err
+	}
+
+	return &sb, nil
 }
 
 func (c *Client) errorResponse(resp *http.Response) error {
