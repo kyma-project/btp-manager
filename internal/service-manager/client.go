@@ -310,6 +310,27 @@ func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.Servic
 	case http.StatusAccepted:
 		return nil, nil
 	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) DeleteServiceInstance(serviceInstanceID string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		fallthrough
+	case http.StatusAccepted:
+		return nil
+	default:
 		return c.errorResponse(resp)
 	}
 }
@@ -328,18 +349,18 @@ func (c *Client) serviceInstanceCreatedResponse(resp *http.Response) (*types.Ser
 	return &siResp, nil
 }
 
-func (c *Client) errorResponse(resp *http.Response) (*types.ServiceInstanceResponse, error) {
+func (c *Client) errorResponse(resp *http.Response) error {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var errResp types.ErrorResponse
 	if err := json.Unmarshal(body, &errResp); err != nil {
-		return nil, err
+		return err
 	}
 
-	return nil, fmt.Errorf("error: %s", errResp.Error())
+	return fmt.Errorf("error: %s", errResp.Error())
 }
 
 func (c *Client) readResponseBody(respBody io.ReadCloser) ([]byte, error) {
