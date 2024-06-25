@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-project/btp-manager/internal/api/requests"
+	"github.com/kyma-project/btp-manager/internal/api/responses"
 	"log"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal/api/vm"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 )
@@ -53,6 +54,8 @@ func (a *API) Start() {
 	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
 	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+	mux.HandleFunc("POST /api/service-bindings", a.CreateServiceBindings)
+	mux.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
 	mux.Handle("GET /", http.FileServer(a.frontendFS))
 	a.server.Handler = mux
 
@@ -60,7 +63,7 @@ func (a *API) Start() {
 }
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
-	return
+	// not implemented in SM
 }
 
 func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
@@ -70,7 +73,7 @@ func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Reque
 	if returnError(writer, err) {
 		return
 	}
-	response, err := json.Marshal(vm.ToServiceOfferingDetailsVM(details))
+	response, err := json.Marshal(responses.ToServiceOfferingDetailsVM(details))
 	returnResponse(writer, response, err)
 }
 
@@ -86,7 +89,7 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 	if returnError(writer, err) {
 		return
 	}
-	response, err := json.Marshal(vm.ToServiceOfferingsVM(offerings))
+	response, err := json.Marshal(responses.ToServiceOfferingsVM(offerings))
 	returnResponse(writer, response, err)
 }
 
@@ -96,7 +99,7 @@ func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 	if returnError(writer, err) {
 		return
 	}
-	response, err := json.Marshal(vm.ToSecretVM(*secrets))
+	response, err := json.Marshal(responses.ToSecretVM(*secrets))
 	returnResponse(writer, response, err)
 }
 
@@ -110,7 +113,34 @@ func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Req
 	// will be taken from SM
 }
 
+func (a *API) CreateServiceBindings(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	var sb requests.CreateServiceBinding
+	err := json.NewDecoder(request.Body).Decode(&sb)
+	if returnError(writer, err) {
+		return
+	}
+	dto := requests.CreateServiceBindingVM(sb)
+	err = a.serviceManager.CreateServiceBinding(&dto)
+	if returnError(writer, err) {
+		return
+	}
+	returnResponse(writer, []byte{}, err)
+}
+
+func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	id := request.PathValue("id")
+	details, err := a.serviceManager.ServiceBinding(id)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(responses.ToServiceBindingsVM(details))
+	returnResponse(writer, response, err)
+}
+
 func (a *API) setupCors(writer http.ResponseWriter, request *http.Request) {
+	a.logger.Info(fmt.Sprintf("api call to -> %s as: %s", request.RequestURI, request.Method))
 	origin := request.Header.Get("Origin")
 	origin = strings.ReplaceAll(origin, "\r", "")
 	origin = strings.ReplaceAll(origin, "\n", "")

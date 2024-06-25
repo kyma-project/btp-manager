@@ -3,6 +3,7 @@ package clusterobject
 import (
 	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log/slog"
 
 	"github.com/kyma-project/btp-manager/controllers"
@@ -157,4 +158,21 @@ func (p *SecretProvider) GetByNameAndNamespace(ctx context.Context, name, namesp
 	}
 
 	return secret, nil
+}
+
+func (p *SecretProvider) CreateSecret(name ,namespace, data map[string]string) (*corev1.SecretList, error) {
+	p.logger.Info(fmt.Sprintf("creating \"%s\" secret in \"%s\" namespace", btpServiceOperatorSecretName, namespace))
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			},
+	}
+
+	if err := p.Create(ctx, secret); err != nil {
+		p.logger.Error(fmt.Sprintf("failed to create \"%s\" secret in \"%s\" namespace", btpServiceOperatorSecretName, namespace), "error", err)
+		return nil, err
+	}
+
+	return secrets, nil
 }
