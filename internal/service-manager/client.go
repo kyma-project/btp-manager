@@ -262,7 +262,7 @@ func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
 	return &serviceInstances, nil
 }
 
-func (c *Client) ServiceInstanceByID(serviceInstanceID string) (*types.ServiceInstance, error) {
+func (c *Client) ServiceInstance(serviceInstanceID string) (*types.ServiceInstance, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
 	if err != nil {
 		return nil, err
@@ -285,6 +285,26 @@ func (c *Client) ServiceInstanceByID(serviceInstanceID string) (*types.ServiceIn
 	}
 
 	return &si, nil
+}
+
+func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string]string, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID+"/parameters", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceInstanceParamsResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
 }
 
 func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
@@ -347,6 +367,20 @@ func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceIns
 	}
 
 	return &siResp, nil
+}
+
+func (c *Client) serviceInstanceParamsResponse(resp *http.Response) (map[string]string, error) {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var params map[string]string
+	if err := json.Unmarshal(body, params); err != nil {
+		return nil, err
+	}
+
+	return params, nil
 }
 
 func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
