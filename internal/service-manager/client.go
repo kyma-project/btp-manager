@@ -155,8 +155,7 @@ func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -198,8 +197,7 @@ func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOf
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -227,8 +225,7 @@ func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*type
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -253,12 +250,10 @@ func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-
 	var serviceInstances types.ServiceInstances
 	if err := json.Unmarshal(body, &serviceInstances); err != nil {
 		return nil, err
@@ -279,8 +274,7 @@ func (c *Client) ServiceInstanceByID(serviceInstanceID string) (*types.ServiceIn
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -321,8 +315,7 @@ func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.Servic
 }
 
 func (c *Client) serviceInstanceCreatedResponse(resp *http.Response) (*types.ServiceInstanceResponse, error) {
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -336,8 +329,7 @@ func (c *Client) serviceInstanceCreatedResponse(resp *http.Response) (*types.Ser
 }
 
 func (c *Client) errorResponse(resp *http.Response) (*types.ServiceInstanceResponse, error) {
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -348,4 +340,13 @@ func (c *Client) errorResponse(resp *http.Response) (*types.ServiceInstanceRespo
 	}
 
 	return nil, fmt.Errorf("error: %s", errResp.Error())
+}
+
+func (c *Client) readResponseBody(respBody io.ReadCloser) ([]byte, error) {
+	defer respBody.Close()
+	bodyInBytes, err := io.ReadAll(respBody)
+	if err != nil {
+		return nil, err
+	}
+	return bodyInBytes, nil
 }
