@@ -26,7 +26,7 @@ jobs:
       uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
       with: 
          name: btp-manager/ga
-         dockerfile: Dockerfile
+         dockerfile: Dockerfile.ga
          context: .
    test-image:
       runs-on: ubuntu-latest
