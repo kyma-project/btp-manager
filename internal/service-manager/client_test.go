@@ -23,6 +23,7 @@ import (
 const (
 	serviceOfferingsJSONPath = "testdata/service_offerings.json"
 	servicePlansJSONPath     = "testdata/service_plans.json"
+	serviceInstancesJSONPath = "testdata/service_instances.json"
 )
 
 func TestClient(t *testing.T) {
