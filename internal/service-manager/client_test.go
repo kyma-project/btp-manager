@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	"github.com/stretchr/testify/assert"
@@ -118,6 +119,37 @@ func TestClient(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedServiceInstance, si)
 	})
+
+	t.Run("should create service instance", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		siCreateRequest := &types.ServiceInstance{
+			Common: types.Common{
+				Name:   "test-service-instance",
+				Labels: types.Labels{"test-label": []string{"test-value"}},
+			},
+			ServicePlanID: "test-service-plan-id",
+			Parameters:    json.RawMessage(`{"test-parameter": "test-value"}`),
+		}
+
+		// when
+		si, err := smClient.CreateServiceInstance(siCreateRequest)
+
+		// then
+		require.NoError(t, err)
+		assert.NotEmpty(t, si.ID)
+		assert.Equal(t, siCreateRequest.Name, si.Name)
+		assert.Equal(t, siCreateRequest.ServicePlanID, si.ServicePlanID)
+		assert.Equal(t, siCreateRequest.Labels, si.Labels)
+
+		var expectedParams, actualParams []byte
+		require.NoError(t, siCreateRequest.Parameters.UnmarshalJSON(expectedParams))
+		require.NoError(t, si.Parameters.UnmarshalJSON(actualParams))
+		assert.Equal(t, expectedParams, actualParams)
+	})
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -132,6 +164,7 @@ func initFakeServer() (*httptest.Server, error) {
 	mux.HandleFunc("GET /v1/service_plans", smHandler.getServicePlans)
 	mux.HandleFunc("GET /v1/service_instances", smHandler.getServiceInstances)
 	mux.HandleFunc("GET /v1/service_instances/{serviceInstanceID}", smHandler.getServiceInstance)
+	mux.HandleFunc("POST /v1/service_instances", smHandler.createServiceInstance)
 
 	srv := httptest.NewUnstartedServer(mux)
 
@@ -337,6 +370,32 @@ func (h *fakeSMHandler) getServiceInstance(w http.ResponseWriter, r *http.Reques
 
 	if _, err = w.Write(data); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Println("error while writing service instance data: %w", err)
+		return
+	}
+}
+
+func (h *fakeSMHandler) createServiceInstance(w http.ResponseWriter, r *http.Request) {
+	var siCreateRequest types.ServiceInstance
+	err := json.NewDecoder(r.Body).Decode(&siCreateRequest)
+	if err != nil {
+		log.Println("error while decoding request body into Service Instance struct: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	siCreateRequest.ID = uuid.New().String()
+
+	data, err := json.Marshal(siCreateRequest)
+	if err != nil {
+		log.Println("error while marshalling service instance: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("error while writing service instance data: %w", err)
 		return
 	}
