@@ -5,24 +5,11 @@ on:
       types: [ opened, edited, synchronize, reopened, ready_for_review ]
 
 permissions:
-   id-token: write # This is required for requesting the JWT toke
+   id-token: write # This is required for requesting the JWT token
    contents: read # This is required for actions/checkout
 
 jobs:
-   compute-tag:
-      runs-on: ubuntu-latest
-      outputs:
-         tag: ${{ steps.get_tag.outputs.TAG }}
-      steps:
-         - name: Checkout
-           uses: actions/checkout@v4
-         - name: Get the latest tag
-           id: get_tag
-           run: echo ::set-output name=TAG::"v0.0.1-test"
-         - name: Echo the tag
-           run: echo ${{ steps.get_tag.outputs.TAG }}
    build-image:
-      needs: compute-tag
       uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
       with: 
          name: btp-manager/ga
