@@ -101,6 +101,23 @@ func TestClient(t *testing.T) {
 		assert.Len(t, sis.Items, 4)
 		assert.ElementsMatch(t, allServiceInstances.Items, sis.Items)
 	})
+
+	t.Run("should get service instance for given service instance ID", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		siID := "c7a604e8-f289-4f61-841f-c6519db8daf2"
+		expectedServiceInstance := getServiceInstanceByID(allServiceInstances, siID)
+
+		// when
+		si, err := smClient.ServiceInstance(siID)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, expectedServiceInstance, si)
+	})
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -114,6 +131,7 @@ func initFakeServer() (*httptest.Server, error) {
 	mux.HandleFunc("GET /v1/service_offerings/{serviceOfferingID}", smHandler.getServiceOffering)
 	mux.HandleFunc("GET /v1/service_plans", smHandler.getServicePlans)
 	mux.HandleFunc("GET /v1/service_instances", smHandler.getServiceInstances)
+	mux.HandleFunc("GET /v1/service_instances/{serviceInstanceID}", smHandler.getServiceInstance)
 
 	srv := httptest.NewUnstartedServer(mux)
 
@@ -281,6 +299,49 @@ func (h *fakeSMHandler) getServiceInstances(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+func (h *fakeSMHandler) getServiceInstance(w http.ResponseWriter, r *http.Request) {
+	siID := r.PathValue("serviceInstanceID")
+	if len(siID) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	data, err := json.Marshal(h.serviceInstances)
+	if err != nil {
+		log.Println("error while marshalling service instances data: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var sis types.ServiceInstances
+	if err := json.Unmarshal(data, &sis); err != nil {
+		log.Println("error while unmarshalling service instances data to struct: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data = make([]byte, 0)
+	for _, si := range sis.Items {
+		if si.ID == siID {
+			data, err = json.Marshal(si)
+			if err != nil {
+				log.Println("error while marshalling service instance data: %w", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			break
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}
+
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Println("error while writing service instance data: %w", err)
+		return
+	}
+}
+
 type fakeSecretProvider struct {
 	secrets []*corev1.Secret
 }
@@ -371,6 +432,15 @@ func getServiceOfferingByID(serviceOfferings types.ServiceOfferings, serviceOffe
 		}
 	}
 	return types.ServiceOffering{}
+}
+
+func getServiceInstanceByID(serviceInstances types.ServiceInstances, serviceInstanceID string) *types.ServiceInstance {
+	for _, si := range serviceInstances.Items {
+		if si.ID == serviceInstanceID {
+			return &si
+		}
+	}
+	return nil
 }
 
 func filterServicePlansByServiceOfferingID(servicePlans types.ServicePlans, serviceOfferingID string) types.ServicePlans {
