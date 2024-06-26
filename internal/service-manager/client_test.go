@@ -40,6 +40,7 @@ func TestClient(t *testing.T) {
 
 	allServiceOfferings := getAllServiceOfferingsFromJSON(t)
 	allServicePlans := getAllServicePlansFromJSON(t)
+	allServiceInstances := getAllServiceInstancesFromJSON(t)
 
 	t.Run("should get service offerings available for the default credentials", func(t *testing.T) {
 		// given
@@ -84,6 +85,22 @@ func TestClient(t *testing.T) {
 		assert.Equal(t, expectedServiceOffering, sod.ServiceOffering)
 		assert.ElementsMatch(t, filteredServicePlans.Items, sod.ServicePlans.Items)
 	})
+
+	t.Run("should get all service instances", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+
+		// when
+		sis, err := smClient.ServiceInstances()
+
+		// then
+		require.NoError(t, err)
+		assert.Len(t, sis.Items, 4)
+		assert.ElementsMatch(t, allServiceInstances.Items, sis.Items)
+	})
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -96,6 +113,7 @@ func initFakeServer() (*httptest.Server, error) {
 	mux.HandleFunc("GET /v1/service_offerings", smHandler.getServiceOfferings)
 	mux.HandleFunc("GET /v1/service_offerings/{serviceOfferingID}", smHandler.getServiceOffering)
 	mux.HandleFunc("GET /v1/service_plans", smHandler.getServicePlans)
+	mux.HandleFunc("GET /v1/service_instances", smHandler.getServiceInstances)
 
 	srv := httptest.NewUnstartedServer(mux)
 
@@ -105,6 +123,7 @@ func initFakeServer() (*httptest.Server, error) {
 type fakeSMHandler struct {
 	serviceOfferings map[string]interface{}
 	servicePlans     map[string]interface{}
+	serviceInstances map[string]interface{}
 }
 
 func newFakeSMHandler() (*fakeSMHandler, error) {
@@ -116,8 +135,12 @@ func newFakeSMHandler() (*fakeSMHandler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("while getting service plans from JSON file: %w", err)
 	}
+	sis, err := getResourcesFromJSONFile(serviceInstancesJSONPath)
+	if err != nil {
+		return nil, fmt.Errorf("while getting service instances from JSON file: %w", err)
+	}
 
-	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans}, nil
+	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans, serviceInstances: sis}, nil
 }
 
 func getResourcesFromJSONFile(jsonFilePath string) (map[string]interface{}, error) {
@@ -242,6 +265,22 @@ func (h *fakeSMHandler) getServicePlans(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (h *fakeSMHandler) getServiceInstances(w http.ResponseWriter, r *http.Request) {
+	data, err := json.Marshal(h.serviceInstances)
+	if err != nil {
+		log.Println("error while marshalling service instances data: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Println("error while writing service instances data: %w", err)
+		return
+	}
+}
+
 type fakeSecretProvider struct {
 	secrets []*corev1.Secret
 }
@@ -298,17 +337,31 @@ func getAllServiceOfferingsFromJSON(t *testing.T) types.ServiceOfferings {
 }
 
 func getAllServicePlansFromJSON(t *testing.T) types.ServicePlans {
-	var allSp types.ServicePlans
-	spJSON, err := getResourcesFromJSONFile(servicePlansJSONPath)
+	var allSps types.ServicePlans
+	spsJSON, err := getResourcesFromJSONFile(servicePlansJSONPath)
 	require.NoError(t, err)
 
-	spBytes, err := json.Marshal(spJSON)
+	spBytes, err := json.Marshal(spsJSON)
 	require.NoError(t, err)
 
-	err = json.Unmarshal(spBytes, &allSp)
+	err = json.Unmarshal(spBytes, &allSps)
 	require.NoError(t, err)
 
-	return allSp
+	return allSps
+}
+
+func getAllServiceInstancesFromJSON(t *testing.T) types.ServiceInstances {
+	var allSis types.ServiceInstances
+	sisJSON, err := getResourcesFromJSONFile(serviceInstancesJSONPath)
+	require.NoError(t, err)
+
+	sisBytes, err := json.Marshal(sisJSON)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(sisBytes, &allSis)
+	require.NoError(t, err)
+
+	return allSis
 }
 
 func getServiceOfferingByID(serviceOfferings types.ServiceOfferings, serviceOfferingID string) types.ServiceOffering {
