@@ -274,17 +274,13 @@ func (c *Client) ServiceInstance(serviceInstanceID string) (*types.ServiceInstan
 		return nil, err
 	}
 
-	body, err := c.readResponseBody(resp.Body)
-	if err != nil {
-		return nil, err
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceInstanceResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
 	}
 
-	var si types.ServiceInstance
-	if err := json.Unmarshal(body, &si); err != nil {
-		return nil, err
-	}
-
-	return &si, nil
 }
 
 func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string]string, error) {

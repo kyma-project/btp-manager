@@ -216,6 +216,31 @@ func TestClient(t *testing.T) {
 		srv, err = initFakeServer()
 		require.NoError(t, err)
 	})
+
+	t.Run("delete service instance", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
+
+		// when
+		err := smClient.DeleteServiceInstance(siID)
+
+		// then
+		require.NoError(t, err)
+
+		// when
+		_, err = smClient.ServiceInstance(siID)
+
+		// then
+		require.Error(t, err)
+
+		// revert server to default state
+		srv, err = initFakeServer()
+		require.NoError(t, err)
+	})
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -232,6 +257,7 @@ func initFakeServer() (*httptest.Server, error) {
 	mux.HandleFunc("GET /v1/service_instances/{serviceInstanceID}", smHandler.getServiceInstance)
 	mux.HandleFunc("POST /v1/service_instances", smHandler.createServiceInstance)
 	mux.HandleFunc("PATCH /v1/service_instances/{serviceInstanceID}", smHandler.updateServiceInstance)
+	mux.HandleFunc("DELETE /v1/service_instances/{serviceInstanceID}", smHandler.deleteServiceInstance)
 
 	srv := httptest.NewUnstartedServer(mux)
 
@@ -425,6 +451,18 @@ func (h *fakeSMHandler) getServiceInstance(w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusOK)
 			break
 		}
+	}
+	if len(data) == 0 {
+		errResp := types.ErrorResponse{
+			ErrorType:   "NotFound",
+			Description: "could not find such service_instance",
+		}
+		data, err = json.Marshal(errResp)
+		if err != nil {
+			log.Println("error while marshalling error response: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusNotFound)
 	}
 
@@ -517,6 +555,41 @@ func (h *fakeSMHandler) updateServiceInstance(w http.ResponseWriter, r *http.Req
 	if _, err = w.Write(data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("error while writing service instance data: %w", err)
+		return
+	}
+}
+
+func (h *fakeSMHandler) deleteServiceInstance(w http.ResponseWriter, r *http.Request) {
+	siID := r.PathValue("serviceInstanceID")
+	if len(siID) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	for i, si := range h.serviceInstances.Items {
+		if si.ID == siID {
+			h.serviceInstances.Items = append(h.serviceInstances.Items[:i], h.serviceInstances.Items[i+1:]...)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNotFound)
+
+	errResp := types.ErrorResponse{
+		ErrorType:   "NotFound",
+		Description: "could not find such service_instance",
+	}
+
+	data, err := json.Marshal(errResp)
+	if err != nil {
+		log.Println("error while marshalling error response: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing error response data: %w", err)
 		return
 	}
 }
