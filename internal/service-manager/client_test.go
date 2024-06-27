@@ -151,6 +151,71 @@ func TestClient(t *testing.T) {
 		require.NoError(t, si.Parameters.UnmarshalJSON(actualParams))
 		assert.Equal(t, expectedParams, actualParams)
 	})
+
+	t.Run("should update service instance except shared field", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		siID := "f9ffbaa4-739a-4a16-ad02-6f2f17a830c5"
+		siUpdatedName := "updated-service-instance"
+		siUpdatedServicePlanID := "updated-service-plan-id"
+		siUpdatedParameters := json.RawMessage(`{"updated-parameter": "updated-value"}`)
+		siUpdatedLabels := []types.LabelChange{{Operation: types.AddLabelOperation, Key: "updated-label", Values: []string{"updated-value"}}}
+		siUpdateRequest := &types.ServiceInstanceUpdateRequest{
+			ID:            &siID,
+			Name:          &siUpdatedName,
+			ServicePlanID: &siUpdatedServicePlanID,
+			Parameters:    &siUpdatedParameters,
+			Labels:        siUpdatedLabels,
+		}
+
+		// when
+		si, err := smClient.UpdateServiceInstance(siUpdateRequest)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, siID, si.ID)
+		assert.Equal(t, siUpdatedName, si.Name)
+		assert.Equal(t, siUpdatedServicePlanID, si.ServicePlanID)
+		assert.Contains(t, si.Labels, siUpdatedLabels[0].Key)
+
+		var expectedParams, actualParams []byte
+		require.NoError(t, siUpdatedParameters.UnmarshalJSON(expectedParams))
+		require.NoError(t, si.Parameters.UnmarshalJSON(actualParams))
+		assert.Equal(t, expectedParams, actualParams)
+
+		// revert server to default state
+		srv, err = initFakeServer()
+		require.NoError(t, err)
+	})
+
+	t.Run("should update only the shared field in a service instance", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		siID := "df28885c-7c5f-46f0-bb75-0ae2dc85ac41"
+		siUpdatedShared := true
+		siUpdateRequest := &types.ServiceInstanceUpdateRequest{
+			ID:     &siID,
+			Shared: &siUpdatedShared,
+		}
+
+		// when
+		si, err := smClient.UpdateServiceInstance(siUpdateRequest)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, siID, si.ID)
+		assert.Equal(t, siUpdatedShared, si.Shared)
+
+		// revert server to default state
+		srv, err = initFakeServer()
+		require.NoError(t, err)
+	})
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -166,6 +231,7 @@ func initFakeServer() (*httptest.Server, error) {
 	mux.HandleFunc("GET /v1/service_instances", smHandler.getServiceInstances)
 	mux.HandleFunc("GET /v1/service_instances/{serviceInstanceID}", smHandler.getServiceInstance)
 	mux.HandleFunc("POST /v1/service_instances", smHandler.createServiceInstance)
+	mux.HandleFunc("PATCH /v1/service_instances/{serviceInstanceID}", smHandler.updateServiceInstance)
 
 	srv := httptest.NewUnstartedServer(mux)
 
@@ -389,6 +455,65 @@ func (h *fakeSMHandler) createServiceInstance(w http.ResponseWriter, r *http.Req
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing service instance data: %w", err)
+		return
+	}
+}
+
+func (h *fakeSMHandler) updateServiceInstance(w http.ResponseWriter, r *http.Request) {
+	siID := r.PathValue("serviceInstanceID")
+	if len(siID) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var siUpdateRequest types.ServiceInstanceUpdateRequest
+	err := json.NewDecoder(r.Body).Decode(&siUpdateRequest)
+	if err != nil {
+		log.Println("error while decoding request body into ServiceInstanceUpdateRequest struct: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var siUpdateResponse *types.ServiceInstance
+	for i, si := range h.serviceInstances.Items {
+		if si.ID == siID {
+			siUpdateResponse = &h.serviceInstances.Items[i]
+			if siUpdateRequest.Name != nil {
+				h.serviceInstances.Items[i].Name = *siUpdateRequest.Name
+			}
+			if siUpdateRequest.ServicePlanID != nil {
+				h.serviceInstances.Items[i].ServicePlanID = *siUpdateRequest.ServicePlanID
+			}
+			if siUpdateRequest.Shared != nil {
+				h.serviceInstances.Items[i].Shared = *siUpdateRequest.Shared
+			}
+			if siUpdateRequest.Parameters != nil {
+				h.serviceInstances.Items[i].Parameters = *siUpdateRequest.Parameters
+			}
+			if len(siUpdateRequest.Labels) != 0 {
+				for _, labelChange := range siUpdateRequest.Labels {
+					if labelChange.Operation == types.AddLabelOperation {
+						h.serviceInstances.Items[i].Labels[labelChange.Key] = labelChange.Values
+					} else if labelChange.Operation == types.RemoveLabelOperation {
+						delete(h.serviceInstances.Items[i].Labels, labelChange.Key)
+					}
+				}
+			}
+			break
+		}
+	}
+
+	data, err := json.Marshal(siUpdateResponse)
+	if err != nil {
+		log.Println("error while marshalling service instance: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 	if _, err = w.Write(data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("error while writing service instance data: %w", err)
