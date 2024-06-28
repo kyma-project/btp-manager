@@ -23,7 +23,7 @@ type ServiceOfferingDetails struct {
 }
 
 type ServiceOfferings struct {
-	ServiceOfferings []ServiceOffering `json:"items" yaml:"items"`
+	Items []ServiceOffering `json:"items" yaml:"items"`
 }
 
 type ServiceOffering struct {
