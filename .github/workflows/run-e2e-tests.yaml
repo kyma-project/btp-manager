@@ -18,7 +18,7 @@ jobs:
     if: ${{ !github.event.pull_request.draft }}
     with:
       image-tag: PR-${{ github.event.number }}
-      image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
+      image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager/ga
       credentials-mode: dummy
       last-k3s-versions: 3
       release: "false"
