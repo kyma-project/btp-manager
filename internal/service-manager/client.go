@@ -1,6 +1,7 @@
 package servicemanager
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -19,11 +20,13 @@ import (
 )
 
 const (
-	componentName        = "ServiceManagerClient"
-	defaultSecret        = "sap-btp-service-operator"
-	defaultNamespace     = "kyma-system"
+	componentName    = "ServiceManagerClient"
+	defaultSecret    = "sap-btp-service-operator"
+	defaultNamespace = "kyma-system"
+
 	ServiceOfferingsPath = "/v1/service_offerings"
 	ServicePlansPath     = "/v1/service_plans"
+	ServiceInstancesPath = "/v1/service_instances"
 
 	// see https://help.sap.com/docs/service-manager/sap-service-manager/filtering-parameters-and-operators
 	URLFieldQueryKey                          = "fieldQuery"
@@ -152,8 +155,7 @@ func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -195,8 +197,7 @@ func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOf
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -224,8 +225,7 @@ func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*type
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -236,4 +236,208 @@ func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*type
 	}
 
 	return &plans, nil
+}
+
+func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var serviceInstances types.ServiceInstances
+	if err := json.Unmarshal(body, &serviceInstances); err != nil {
+		return nil, err
+	}
+
+	return &serviceInstances, nil
+}
+
+func (c *Client) ServiceInstance(serviceInstanceID string) (*types.ServiceInstance, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceInstanceResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+
+}
+
+func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string]string, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID+"/parameters", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceInstanceParamsResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
+	requestBody, err := json.Marshal(si)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, c.smURL+ServiceInstancesPath, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return c.serviceInstanceResponse(resp)
+	case http.StatusAccepted:
+		return nil, nil
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) DeleteServiceInstance(serviceInstanceID string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		fallthrough
+	case http.StatusAccepted:
+		return nil
+	default:
+		return c.errorResponse(resp)
+	}
+}
+
+func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceInstance, error) {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var siResp types.ServiceInstance
+	if err := json.Unmarshal(body, &siResp); err != nil {
+		return nil, err
+	}
+
+	return &siResp, nil
+}
+
+func (c *Client) serviceInstanceParamsResponse(resp *http.Response) (map[string]string, error) {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var params map[string]string
+	if err := json.Unmarshal(body, params); err != nil {
+		return nil, err
+	}
+
+	return params, nil
+}
+
+func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
+	id := *si.ID
+	si.ID = nil
+
+	if !c.validServiceInstanceUpdateRequestBody(si) {
+		return nil, fmt.Errorf("invalid request body - share fields must be updated alone")
+	}
+
+	requestBody, err := json.Marshal(si)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, c.smURL+ServiceInstancesPath+"/"+id, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceInstanceResponse(resp)
+	case http.StatusAccepted:
+		return nil, nil
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) errorResponse(resp *http.Response) error {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var errResp types.ErrorResponse
+	if err := json.Unmarshal(body, &errResp); err != nil {
+		return err
+	}
+
+	return fmt.Errorf("error: %s", errResp.Error())
+}
+
+func (c *Client) readResponseBody(respBody io.ReadCloser) ([]byte, error) {
+	defer respBody.Close()
+	bodyInBytes, err := io.ReadAll(respBody)
+	if err != nil {
+		return nil, err
+	}
+	return bodyInBytes, nil
+}
+
+func (c *Client) validServiceInstanceUpdateRequestBody(si *types.ServiceInstanceUpdateRequest) bool {
+	if si.Shared != nil {
+		return si.ID == nil && si.Name == nil && si.ServicePlanID == nil && si.Parameters == nil && len(si.Labels) == 0
+	}
+	return true
 }

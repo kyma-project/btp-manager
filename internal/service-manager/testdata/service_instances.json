@@ -1,0 +1,221 @@
+{
+  "num_items": 4,
+  "items": [
+    {
+      "id": "f9ffbaa4-739a-4a16-ad02-6f2f17a830c5",
+      "ready": true,
+      "last_operation": {
+        "id": "74d0ae91-90c3-4fc5-819b-d9105d923ca6",
+        "ready": true,
+        "type": "create",
+        "state": "succeeded",
+        "resource_id": "f9ffbaa4-739a-4a16-ad02-6f2f17a830c5",
+        "resource_type": "/v1/service_instances",
+        "platform_id": "service-manager",
+        "correlation_id": "2c24d3c1-46b7-4e3a-8d55-1543c97c46b0",
+        "reschedule": false,
+        "reschedule_timestamp": "0001-01-01T00:00:00Z",
+        "deletion_scheduled": "0001-01-01T00:00:00Z",
+        "created_at": "2023-08-25T15:00:10Z",
+        "updated_at": "2023-08-25T15:01:22Z"
+      },
+      "name": "si-test-1",
+      "service_plan_id": "4036790e-5ef3-4cf7-bb16-476053477a9a",
+      "platform_id": "3b55cceb-f517-4620-9fa8-8185af2f151a",
+      "context": {
+        "clusterid": "59c7efc0-d6bc-4d07-87cf-9bd049534afe",
+        "namespace": "kyma-system",
+        "global_account_id": "345e83e9-4e4e-45c7-b9fb-2994834eac99",
+        "subdomain": "test-subdomain",
+        "origin": "kubernetes",
+        "zone_id": "a4bdee5b-2bc4-4a44-915b-196ae18c7f29",
+        "subaccount_id": "a4bdee5b-2bc4-4a44-915b-196ae18c7f29",
+        "region": "test-region",
+        "env_type": "kubernetes",
+        "env_provider": "kyma",
+        "crm_customer_id": "",
+        "platform": "test-platform",
+        "license_type": "TEST",
+        "instance_name": "si-test-1"
+      },
+      "usable": true,
+      "subaccount_id": "a4bdee5b-2bc4-4a44-915b-196ae18c7f29",
+      "protected": null,
+      "created_at": "2023-08-25T15:00:10Z",
+      "updated_at": "2023-08-25T15:01:22Z",
+      "labels": {
+        "_k8sname": [
+          "si-test-1"
+        ],
+        "operated_by": [
+          "3b55cceb-f517-4620-9fa8-8185af2f151a"
+        ],
+        "subaccount_id": [
+          "a4bdee5b-2bc4-4a44-915b-196ae18c7f29"
+        ]
+      }
+    },
+    {
+      "id": "df28885c-7c5f-46f0-bb75-0ae2dc85ac41",
+      "ready": true,
+      "last_operation": {
+        "id": "e48b58a7-3ff5-4429-8156-43f2e4816b25",
+        "ready": true,
+        "type": "create",
+        "state": "succeeded",
+        "resource_id": "df28885c-7c5f-46f0-bb75-0ae2dc85ac41",
+        "resource_type": "/v1/service_instances",
+        "platform_id": "service-manager",
+        "correlation_id": "e5eacd64-3d82-43d2-910f-cf134d1c17fa",
+        "reschedule": false,
+        "reschedule_timestamp": "0001-01-01T00:00:00Z",
+        "deletion_scheduled": "0001-01-01T00:00:00Z",
+        "created_at": "2023-08-25T15:10:45Z",
+        "updated_at": "2023-08-25T15:12:18Z"
+      },
+      "name": "si-test-2",
+      "service_plan_id": "4036790e-5ef3-4cf7-bb16-476053477a9a",
+      "platform_id": "e265dc19-77a9-4633-a6b2-6d93b4c7a424",
+      "context": {
+        "clusterid": "5dc40d3c-1839-4173-9743-d5b4f36d9d7b",
+        "namespace": "kyma-system",
+        "global_account_id": "b8617fdb-c2fd-4d35-960f-e28562fdce7a",
+        "subdomain": "test-subdomain",
+        "origin": "kubernetes",
+        "zone_id": "5ef574ba-5fb3-493f-839c-48b787f2b710",
+        "subaccount_id": "5ef574ba-5fb3-493f-839c-48b787f2b710",
+        "region": "test-region",
+        "env_type": "kubernetes",
+        "env_provider": "kyma",
+        "crm_customer_id": "",
+        "platform": "test-platform",
+        "license_type": "TEST",
+        "instance_name": "si-test-2"
+      },
+      "usable": true,
+      "subaccount_id": "5ef574ba-5fb3-493f-839c-48b787f2b710",
+      "protected": null,
+      "created_at": "2023-08-25T15:10:45Z",
+      "updated_at": "2023-08-25T15:12:18Z",
+      "labels": {
+        "_k8sname": [
+          "si-test-2"
+        ],
+        "operated_by": [
+          "e265dc19-77a9-4633-a6b2-6d93b4c7a424"
+        ],
+        "subaccount_id": [
+          "5ef574ba-5fb3-493f-839c-48b787f2b710"
+        ]
+      }
+    },
+    {
+      "id": "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+      "ready": true,
+      "last_operation": {
+        "id": "d95a6a1c-448d-4d19-93ab-088ec884b929",
+        "ready": true,
+        "type": "create",
+        "state": "succeeded",
+        "resource_id": "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+        "resource_type": "/v1/service_instances",
+        "platform_id": "service-manager",
+        "correlation_id": "7b775679-4b31-4cf0-a546-83ce5a1f421f",
+        "reschedule": false,
+        "reschedule_timestamp": "0001-01-01T00:00:00Z",
+        "deletion_scheduled": "0001-01-01T00:00:00Z",
+        "created_at": "2023-08-25T15:25:30Z",
+        "updated_at": "2023-08-25T15:26:45Z"
+      },
+      "name": "si-test-3",
+      "service_plan_id": "4036790e-5ef3-4cf7-bb16-476053477a9a",
+      "platform_id": "dbec3ec7-57d4-4f1e-8544-d4d687a1f3eb",
+      "context": {
+        "clusterid": "4f6ee6a5-9c28-4e50-8b91-708345e1b607",
+        "namespace": "kyma-system",
+        "global_account_id": "22f9b6a6-1f65-4435-bd3e-1f2c44de4d45",
+        "subdomain": "test-subdomain",
+        "origin": "kubernetes",
+        "zone_id": "73b7f0df-6376-4115-8e45-a0e005c0f5d2",
+        "subaccount_id": "73b7f0df-6376-4115-8e45-a0e005c0f5d2",
+        "region": "test-region",
+        "env_type": "kubernetes",
+        "env_provider": "kyma",
+        "crm_customer_id": "",
+        "platform": "test-platform",
+        "license_type": "TEST",
+        "instance_name": "si-test-3"
+      },
+      "usable": true,
+      "subaccount_id": "73b7f0df-6376-4115-8e45-a0e005c0f5d2",
+      "protected": null,
+      "created_at": "2023-08-25T15:25:30Z",
+      "updated_at": "2023-08-25T15:26:45Z",
+      "labels": {
+        "_k8sname": [
+          "si-test-3"
+        ],
+        "operated_by": [
+          "dbec3ec7-57d4-4f1e-8544-d4d687a1f3eb"
+        ],
+        "subaccount_id": [
+          "73b7f0df-6376-4115-8e45-a0e005c0f5d2"
+        ]
+      }
+    },
+    {
+      "id": "c7a604e8-f289-4f61-841f-c6519db8daf2",
+      "ready": true,
+      "last_operation": {
+        "id": "cfdee5e0-b0a1-464e-8398-07d07ee33e9b",
+        "ready": true,
+        "type": "create",
+        "state": "succeeded",
+        "resource_id": "c7a604e8-f289-4f61-841f-c6519db8daf2",
+        "resource_type": "/v1/service_instances",
+        "platform_id": "service-manager",
+        "correlation_id": "f5c3e14f-9e3f-4e31-bab6-1c0c8b5c054b",
+        "reschedule": false,
+        "reschedule_timestamp": "0001-01-01T00:00:00Z",
+        "deletion_scheduled": "0001-01-01T00:00:00Z",
+        "created_at": "2023-08-25T15:40:20Z",
+        "updated_at": "2023-08-25T15:41:55Z"
+      },
+      "name": "si-test-4",
+      "service_plan_id": "4036790e-5ef3-4cf7-bb16-476053477a9a",
+      "platform_id": "37b6a457-8e6c-4139-987b-75f0f5a35217",
+      "context": {
+        "clusterid": "8e0b4ad1-4fa0-4f7f-a6a7-3db2ac0779e2",
+        "namespace": "kyma-system",
+        "global_account_id": "91b1140a-1e2b-41e9-ba38-2d26f3fc6224",
+        "subdomain": "test-subdomain",
+        "origin": "kubernetes",
+        "zone_id": "ad4e88f7-e9cc-4346-944a-d9e0dc42a038",
+        "subaccount_id": "ad4e88f7-e9cc-4346-944a-d9e0dc42a038",
+        "region": "test-region",
+        "env_type": "kubernetes",
+        "env_provider": "kyma",
+        "crm_customer_id": "",
+        "platform": "test-platform",
+        "license_type": "TEST",
+        "instance_name": "si-test-4"
+      },
+      "usable": true,
+      "subaccount_id": "ad4e88f7-e9cc-4346-944a-d9e0dc42a038",
+      "protected": null,
+      "created_at": "2023-08-25T15:40:20Z",
+      "updated_at": "2023-08-25T15:41:55Z",
+      "labels": {
+        "_k8sname": [
+          "si-test-4"
+        ],
+        "operated_by": [
+          "37b6a457-8e6c-4139-987b-75f0f5a35217"
+        ],
+        "subaccount_id": [
+          "ad4e88f7-e9cc-4346-944a-d9e0dc42a038"
+        ]
+      }
+    }
+  ]
+}
