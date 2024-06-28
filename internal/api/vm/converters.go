@@ -22,11 +22,11 @@ func ToSecretVM(list v1.SecretList) Secrets {
 
 func ToServiceOfferingsVM(offerings *types.ServiceOfferings) ServiceOfferings {
 	toReturn := ServiceOfferings{
-		NumItems: len(offerings.ServiceOfferings),
+		NumItems: len(offerings.Items),
 		Items:    []ServiceOffering{},
 	}
 
-	for _, offering := range offerings.ServiceOfferings {
+	for _, offering := range offerings.Items {
 		imageUrl, _ := offering.MetadataValueByFieldName(types.ServiceOfferingImageUrl)
 		displayName, _ := offering.MetadataValueByFieldName(types.ServiceOfferingDisplayName)
 		supportUrl, _ := offering.MetadataValueByFieldName(types.ServiceOfferingSupportURL)
@@ -55,7 +55,7 @@ func ToServiceOfferingDetailsVM(details *types.ServiceOfferingDetails) ServiceOf
 
 	toReturn.LongDescription, _ = details.MetadataValueByFieldName(types.ServiceOfferingLongDescription)
 
-	for _, plan := range details.ServicePlans.ServicePlans {
+	for _, plan := range details.ServicePlans.Items {
 		toReturn.Plans = append(toReturn.Plans, ServiceOfferingPlan{
 			Name:        plan.Name,
 			Description: plan.Description,

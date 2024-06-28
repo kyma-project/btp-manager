@@ -5,7 +5,7 @@ import (
 )
 
 type ServicePlans struct {
-	ServicePlans []ServicePlan `json:"items" yaml:"items"`
+	Items []ServicePlan `json:"items" yaml:"items"`
 }
 
 type ServicePlan struct {
