@@ -107,7 +107,21 @@ func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Reque
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	// will be taken from SM
+
+	namespace := request.PathValue("namespace")
+	name := request.PathValue("name")
+
+	err := a.serviceManager.SetForGivenSecret(context.Background(), name, namespace)
+	if returnError(writer, err) {
+		return
+	}
+
+	instances, err := a.serviceManager.ServiceInstances()
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(vm.ToServiceInstancesVM(instances))
+	returnResponse(writer, response, err)
 }
 
 func (a *API) setupCors(writer http.ResponseWriter, request *http.Request) {
