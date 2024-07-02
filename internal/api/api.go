@@ -122,6 +122,15 @@ func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Reque
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+
+	namespace := request.PathValue("namespace")
+	name := request.PathValue("name")
+
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if returnError(writer, err) {
+		return
+	}
+
 	sis, err := a.smClient.ServiceInstances()
 	if returnError(writer, err) {
 		return
