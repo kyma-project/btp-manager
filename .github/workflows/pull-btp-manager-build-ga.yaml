@@ -15,9 +15,3 @@ jobs:
          name: btp-manager/ga
          dockerfile: Dockerfile.ga
          context: .
-   test-image:
-      runs-on: ubuntu-latest
-      needs: build-image
-      steps:
-         - name: Test image
-           run: echo "Testing images ${{ needs.build-image.outputs.images }}"
