@@ -57,7 +57,7 @@ func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 	for _, instance := range instances.Items {
 		instance := ServiceInstance{
 			ID:          instance.ID,
-			Name: instance.Name,
+			Name:        instance.Name,
 			Description: instance.Description,
 		}
 		toReturn.Items = append(toReturn.Items, instance)
