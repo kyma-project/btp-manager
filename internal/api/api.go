@@ -60,7 +60,6 @@ func (a *API) Start() {
 	mux.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
 	mux.Handle("GET /", http.FileServer(a.frontendFS))
 	a.server.Handler = mux
-
 	log.Fatal(a.server.ListenAndServe())
 }
 
