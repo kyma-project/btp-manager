@@ -49,6 +49,22 @@ type Client struct {
 	smURL          string
 }
 
+//go:generate mockery --name=ServiceManager --output=automock --outpkg=servicemanager --case=underscore
+type ServiceManager interface {
+	Defaults(ctx context.Context) error
+	SetForGivenSecret(ctx context.Context, secretName, secretNamespace string) error
+	SetHTTPClient(httpClient *http.Client)
+	SetSMURL(smURL string)
+	ServiceOfferings() (*types.ServiceOfferings, error)
+	ServiceOfferingDetails(serviceOfferingID string) (*types.ServiceOfferingDetails, error)
+	ServiceInstances() (*types.ServiceInstances, error)
+	ServiceInstance(serviceInstanceID string) (*types.ServiceInstance, error)
+	ServiceInstanceParameters(serviceInstanceID string) (map[string]string, error)
+	CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error)
+	DeleteServiceInstance(serviceInstanceID string) error
+	UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error)
+}
+
 func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret]) *Client {
 	return &Client{
 		ctx:            ctx,

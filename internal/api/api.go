@@ -33,7 +33,7 @@ type API struct {
 	logger         *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider, fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManager servicemanager.ServiceManager, secretProvider clusterobject.Provider, fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -49,18 +49,31 @@ func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *c
 }
 
 func (a *API) Start() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
-	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
-	mux.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
-	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
-	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
-	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
-	mux.HandleFunc("POST /api/service-bindings", a.CreateServiceBindings)
-	mux.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
-	mux.Handle("GET /", http.FileServer(a.frontendFS))
-	a.server.Handler = mux
+	router := http.NewServeMux()
+	router.HandleFunc("GET /api/secrets", a.ListSecrets)
+	router.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
+	router.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
+	router.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
+	router.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
+	router.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBindings)
+	router.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
+	router.Handle("GET /", http.FileServer(a.frontendFS))
+	
+	a.AttachRoutes(router)
+	a.server.Handler = router
+
 	log.Fatal(a.server.ListenAndServe())
+}
+
+func (a *API) AttachRoutes(router *http.ServeMux) {
+	router.HandleFunc("GET /api/secrets", a.ListSecrets)
+	router.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
+	router.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
+	router.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
+	router.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
+	router.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+	router.Handle("GET /", http.FileServer(a.frontendFS))
 }
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {

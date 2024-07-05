@@ -19,6 +19,12 @@ const (
 	btpServiceOperatorSecretName = "sap-btp-service-operator"
 )
 
+//go:generate mockery --name=Provider --output=automock --outpkg=clusterojbect --case=underscore
+type Provider interface	{
+	All(ctx context.Context) (*corev1.SecretList, error)
+	GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error)
+}
+
 type SecretProvider struct {
 	client.Reader
 	client.Writer
