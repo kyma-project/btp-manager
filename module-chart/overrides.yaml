@@ -8,3 +8,4 @@ manager:
     certManager: false
   kubernetesMatchLabels:
     enabled: true
+  enable_limited_cache: false
