@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/kyma-project/btp-manager/internal/service-manager/types/requests"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/kyma-project/btp-manager/internal/service-manager/types/requests"
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
@@ -436,7 +437,7 @@ func (c *Client) CreateServiceBinding(payload *requests.CreateServiceBindingRequ
 
 	response, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("%s : %s",err.Error(), string(response))
+		return fmt.Errorf("%s : %s", err.Error(), string(response))
 	}
 	return nil
 }

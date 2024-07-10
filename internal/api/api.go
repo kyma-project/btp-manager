@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-project/btp-manager/internal/api/requests"
-	"github.com/kyma-project/btp-manager/internal/api/responses"
 	"log"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/kyma-project/btp-manager/internal/api/requests"
+	"github.com/kyma-project/btp-manager/internal/api/responses"
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
@@ -135,7 +136,7 @@ func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Reques
 	if returnError(writer, err) {
 		return
 	}
-	response, err := json.Marshal(responses.ToServiceBindingsVM(details))
+	response, err := json.Marshal(responses.ToServiceBindingVM(details))
 	returnResponse(writer, response, err)
 }
 
