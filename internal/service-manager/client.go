@@ -10,10 +10,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal/service-manager/types/requests"
-
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
+	"github.com/kyma-project/btp-manager/internal/service-manager/types/requests"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	corev1 "k8s.io/api/core/v1"
