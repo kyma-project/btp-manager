@@ -70,7 +70,7 @@ func ToServiceBindingsVM(bindings *types.ServiceBindings) ServiceBindings {
 		Items: []ServiceBinding{},
 	}
 
-	for _, _ = range bindings.ServiceBindings {
+	for _, _ = range bindings.Items {
 		n := ServiceBinding{}
 		toReturn.Items = append(toReturn.Items, n)
 	}

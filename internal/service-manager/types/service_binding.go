@@ -2,11 +2,13 @@ package types
 
 import "encoding/json"
 
-// ServiceBinding defines the data of a service instance.
+type ServiceBindings struct {
+	Items []ServiceBinding `json:"items" yaml:"items"`
+}
+
 type ServiceBinding struct {
 	Common
-	Labels         Labels `json:"labels,omitempty" yaml:"labels,omitempty"`
-	PagingSequence int64  `json:"-" yaml:"-"`
+	PagingSequence int64 `json:"-" yaml:"-"`
 
 	Credentials json.RawMessage `json:"credentials,omitempty" yaml:"credentials,omitempty"`
 
@@ -21,12 +23,5 @@ type ServiceBinding struct {
 	Parameters      json.RawMessage `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	BindResource    json.RawMessage `json:"-" yaml:"-"`
 
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
-
-// ServiceBindings wraps an array of service bindings
-type ServiceBindings struct {
-	ServiceBindings []ServiceBinding `json:"items" yaml:"items"`
-	Vertical        bool             `json:"-" yaml:"-"`
+	LastOperation *Operation `json:"last_operation,omitempty" yaml:"last_operation,omitempty"`
 }
