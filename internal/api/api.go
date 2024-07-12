@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal/api/requests"
+	"github.com/kyma-project/btp-manager/internal/service-manager/types"
+
 	"github.com/kyma-project/btp-manager/internal/api/responses"
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
@@ -120,13 +121,12 @@ func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Req
 
 func (a *API) CreateServiceBindings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	var sb requests.CreateServiceBinding
+	var sb types.ServiceBinding
 	err := json.NewDecoder(request.Body).Decode(&sb)
 	if returnError(writer, err) {
 		return
 	}
-	dto := requests.CreateServiceBindingVM(sb)
-	err = a.smClient.CreateServiceBinding(&dto)
+	_, err = a.smClient.CreateServiceBinding(&sb)
 	if returnError(writer, err) {
 		return
 	}

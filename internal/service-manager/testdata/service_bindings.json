@@ -1,0 +1,113 @@
+{
+  "num_items": 4,
+  "items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "ready": true,
+      "name": "service-binding",
+      "service_instance_id": "6ba7b810-9dad-11d1-80b4-00c04fd430cb",
+      "context": {
+        "account": "account"
+      },
+      "credentials": {
+        "username": "user",
+        "password": "pass"
+      },
+      "bind_resource": {
+        "app_guid": "550e8400-e29b-41d4-a716-446655440003",
+        "space_guid": "6ba7b810-9dad-11d1-80b4-00c04fd430cb"
+      },
+      "created_at": "2023-08-25T15:40:20Z",
+      "updated_at": "2023-08-25T15:41:55Z",
+      "labels": {
+        "env": [
+          "dev"
+        ],
+        "version": [
+          "v1"
+        ]
+      }
+    },
+    {
+      "id": "9e420bca-4cf2-4858-ade2-e5ef23cd756f",
+      "ready": true,
+      "name": "service-binding-2",
+      "service_instance_id": "a12c2ccb-9697-490a-9287-c480cef5c121",
+      "context": {
+        "account": "account-2"
+      },
+      "credentials": {
+        "username": "user2",
+        "password": "pass2"
+      },
+      "bind_resource": {
+        "app_guid": "9e420bca-4cf2-4858-ade2-e5ef23cd756f",
+        "space_guid": "a12c2ccb-9697-490a-9287-c480cef5c121"
+      },
+      "created_at": "2023-08-25T15:42:20Z",
+      "updated_at": "2023-08-25T15:43:55Z",
+      "labels": {
+        "env": [
+          "prod"
+        ],
+        "version": [
+          "v2"
+        ]
+      }
+    },
+    {
+      "id": "318a16c3-7c80-485f-b55c-918629012c9a",
+      "ready": true,
+      "name": "service-binding-3",
+      "service_instance_id": "2e3f7c7d-970a-43c0-927a-92d2f7ec64c5",
+      "context": {
+        "account": "account-3"
+      },
+      "credentials": {
+        "username": "user3",
+        "password": "pass3"
+      },
+      "bind_resource": {
+        "app_guid": "318a16c3-7c80-485f-b55c-918629012c9a",
+        "space_guid": "2e3f7c7d-970a-43c0-927a-92d2f7ec64c5"
+      },
+      "created_at": "2023-08-25T15:44:20Z",
+      "updated_at": "2023-08-25T15:45:55Z",
+      "labels": {
+        "env": [
+          "staging"
+        ],
+        "version": [
+          "v3"
+        ]
+      }
+    },
+    {
+      "id": "8e97d56b-9fc1-43db-9d2e-e52f8ce91046",
+      "ready": true,
+      "name": "service-binding-4",
+      "service_instance_id": "3fdbfbdd-2d79-4375-bcd3-9b257e82b6a4",
+      "context": {
+        "account": "account-4"
+      },
+      "credentials": {
+        "username": "user3",
+        "password": "pass3"
+      },
+      "bind_resource": {
+        "app_guid": "8e97d56b-9fc1-43db-9d2e-e52f8ce91046",
+        "space_guid": "3fdbfbdd-2d79-4375-bcd3-9b257e82b6a4"
+      },
+      "created_at": "2023-08-25T15:44:20Z",
+      "updated_at": "2023-08-25T15:45:55Z",
+      "labels": {
+        "env": [
+          "staging"
+        ],
+        "version": [
+          "v3"
+        ]
+      }
+    }
+  ]
+}

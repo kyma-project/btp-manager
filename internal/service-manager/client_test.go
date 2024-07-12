@@ -25,6 +25,7 @@ const (
 	serviceOfferingsJSONPath = "testdata/service_offerings.json"
 	servicePlansJSONPath     = "testdata/service_plans.json"
 	serviceInstancesJSONPath = "testdata/service_instances.json"
+	serviceBindingsJSONPath  = "testdata/service_bindings.json"
 )
 
 func TestClient(t *testing.T) {
@@ -44,6 +45,8 @@ func TestClient(t *testing.T) {
 	defaultServicePlans, err := getServicePlansFromJSON()
 	require.NoError(t, err)
 	defaultServiceInstances, err := getServiceInstancesFromJSON()
+	require.NoError(t, err)
+	defaultServiceBindings, err := getServiceBindingsFromJSON()
 	require.NoError(t, err)
 
 	t.Run("should get service offerings available for the default credentials", func(t *testing.T) {
@@ -241,6 +244,100 @@ func TestClient(t *testing.T) {
 		srv, err = initFakeServer()
 		require.NoError(t, err)
 	})
+
+	t.Run("should get all service bindings", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+
+		// when
+		sbs, err := smClient.ServiceBindings()
+
+		// then
+		require.NoError(t, err)
+		assertEqualServiceBindings(t, defaultServiceBindings, sbs)
+	})
+
+	t.Run("should get service binding for given service binding ID", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		sbID := "550e8400-e29b-41d4-a716-446655440003"
+		expectedServiceBinding := getServiceBindingByID(defaultServiceBindings, sbID)
+
+		// when
+		sb, err := smClient.ServiceBinding(sbID)
+
+		// then
+		require.NoError(t, err)
+		assertEqualServiceBinding(t, *expectedServiceBinding, *sb)
+	})
+
+	t.Run("should create service binding", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		sbCreateRequest := &types.ServiceBinding{
+			Common: types.Common{
+				Name:   "test-service-binding",
+				Labels: types.Labels{"test-label": []string{"test-value"}},
+			},
+			ServiceInstanceID: "test-service-instance-id",
+			Parameters:        json.RawMessage(`{"test-parameter": "test-value"}`),
+			BindResource:      json.RawMessage(`{"test-bind-resource": "test-value"}`),
+		}
+
+		// when
+		sb, err := smClient.CreateServiceBinding(sbCreateRequest)
+
+		// then
+		require.NoError(t, err)
+		assert.NotEmpty(t, sb.ID)
+		assert.Equal(t, sbCreateRequest.Name, sb.Name)
+		assert.Equal(t, sbCreateRequest.ServiceInstanceID, sb.ServiceInstanceID)
+		assert.Equal(t, sbCreateRequest.Labels, sb.Labels)
+
+		var expectedParams, actualParams []byte
+		require.NoError(t, sbCreateRequest.Parameters.UnmarshalJSON(expectedParams))
+		require.NoError(t, sb.Parameters.UnmarshalJSON(actualParams))
+		assert.Equal(t, expectedParams, actualParams)
+
+		var expectedBindResource, actualBindResource []byte
+		require.NoError(t, sbCreateRequest.Parameters.UnmarshalJSON(expectedBindResource))
+		require.NoError(t, sb.Parameters.UnmarshalJSON(actualBindResource))
+		assert.Equal(t, expectedBindResource, actualBindResource)
+	})
+
+	t.Run("should delete service binding", func(t *testing.T) {
+		// given
+		ctx := context.TODO()
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient.SetHTTPClient(httpClient)
+		smClient.SetSMURL(url)
+		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
+
+		// when
+		err := smClient.DeleteServiceBinding(sbID)
+
+		// then
+		require.NoError(t, err)
+
+		// when
+		_, err = smClient.ServiceBinding(sbID)
+
+		// then
+		require.Error(t, err)
+
+		// revert server to default state
+		srv, err = initFakeServer()
+		require.NoError(t, err)
+	})
 }
 
 func initFakeServer() (*httptest.Server, error) {
@@ -258,6 +355,10 @@ func initFakeServer() (*httptest.Server, error) {
 	mux.HandleFunc("POST /v1/service_instances", smHandler.createServiceInstance)
 	mux.HandleFunc("PATCH /v1/service_instances/{serviceInstanceID}", smHandler.updateServiceInstance)
 	mux.HandleFunc("DELETE /v1/service_instances/{serviceInstanceID}", smHandler.deleteServiceInstance)
+	mux.HandleFunc("GET /v1/service_bindings", smHandler.getServiceBindings)
+	mux.HandleFunc("GET /v1/service_bindings/{serviceBindingID}", smHandler.getServiceBinding)
+	mux.HandleFunc("POST /v1/service_bindings", smHandler.createServiceBinding)
+	mux.HandleFunc("DELETE /v1/service_bindings/{serviceBindingID}", smHandler.deleteServiceBinding)
 
 	srv := httptest.NewUnstartedServer(mux)
 
@@ -268,6 +369,7 @@ type fakeSMHandler struct {
 	serviceOfferings *types.ServiceOfferings
 	servicePlans     *types.ServicePlans
 	serviceInstances *types.ServiceInstances
+	serviceBindings  *types.ServiceBindings
 }
 
 func newFakeSMHandler() (*fakeSMHandler, error) {
@@ -285,7 +387,12 @@ func newFakeSMHandler() (*fakeSMHandler, error) {
 		return nil, fmt.Errorf("while getting service instances from JSON: %w", err)
 
 	}
-	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans, serviceInstances: sis}, nil
+	sbs, err := getServiceBindingsFromJSON()
+	if err != nil {
+		return nil, fmt.Errorf("while getting service bindings from JSON: %w", err)
+
+	}
+	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans, serviceInstances: sis, serviceBindings: sbs}, nil
 }
 
 func getServiceOfferingsFromJSON() (*types.ServiceOfferings, error) {
@@ -333,6 +440,22 @@ func getServiceInstancesFromJSON() (*types.ServiceInstances, error) {
 	}
 
 	return &sis, nil
+}
+
+func getServiceBindingsFromJSON() (*types.ServiceBindings, error) {
+	var sbs types.ServiceBindings
+	f, err := os.Open(serviceBindingsJSONPath)
+	defer f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("while reading resources from JSON file: %w", err)
+	}
+
+	d := json.NewDecoder(f)
+	if err := d.Decode(&sbs); err != nil {
+		return nil, fmt.Errorf("while decoding resources JSON: %w", err)
+	}
+
+	return &sbs, nil
 }
 
 func (h *fakeSMHandler) getServiceOfferings(w http.ResponseWriter, r *http.Request) {
@@ -594,6 +717,126 @@ func (h *fakeSMHandler) deleteServiceInstance(w http.ResponseWriter, r *http.Req
 	}
 }
 
+func (h *fakeSMHandler) getServiceBindings(w http.ResponseWriter, r *http.Request) {
+	data, err := json.Marshal(h.serviceBindings)
+	if err != nil {
+		log.Println("error while marshalling service bindings data: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing service bindings data: %w", err)
+		return
+	}
+}
+
+func (h *fakeSMHandler) getServiceBinding(w http.ResponseWriter, r *http.Request) {
+	sbID := r.PathValue("serviceBindingID")
+	if len(sbID) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var err error
+	data := make([]byte, 0)
+	for _, sb := range h.serviceBindings.Items {
+		if sb.ID == sbID {
+			data, err = json.Marshal(sb)
+			if err != nil {
+				log.Println("error while marshalling service binding data: %w", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			break
+		}
+	}
+	if len(data) == 0 {
+		errResp := types.ErrorResponse{
+			ErrorType:   "NotFound",
+			Description: "could not find such service_binding",
+		}
+		data, err = json.Marshal(errResp)
+		if err != nil {
+			log.Println("error while marshalling error response: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}
+
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing service binding data: %w", err)
+		return
+	}
+}
+
+func (h *fakeSMHandler) createServiceBinding(w http.ResponseWriter, r *http.Request) {
+	var sbCreateRequest types.ServiceBinding
+	err := json.NewDecoder(r.Body).Decode(&sbCreateRequest)
+	if err != nil {
+		log.Println("error while decoding request body into Service Binding struct: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	sbCreateRequest.ID = uuid.New().String()
+	h.serviceBindings.Items = append(h.serviceBindings.Items, sbCreateRequest)
+
+	data, err := json.Marshal(sbCreateRequest)
+	if err != nil {
+		log.Println("error while marshalling service binding: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing service binding data: %w", err)
+		return
+	}
+}
+
+func (h *fakeSMHandler) deleteServiceBinding(w http.ResponseWriter, r *http.Request) {
+	sbID := r.PathValue("serviceBindingID")
+	if len(sbID) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	for i, sb := range h.serviceBindings.Items {
+		if sb.ID == sbID {
+			h.serviceBindings.Items = append(h.serviceBindings.Items[:i], h.serviceBindings.Items[i+1:]...)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNotFound)
+
+	errResp := types.ErrorResponse{
+		ErrorType:   "NotFound",
+		Description: "could not find such service_binding",
+	}
+
+	data, err := json.Marshal(errResp)
+	if err != nil {
+		log.Println("error while marshalling error response: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing error response data: %w", err)
+		return
+	}
+}
+
 type fakeSecretProvider struct {
 	secrets []*corev1.Secret
 }
@@ -648,6 +891,15 @@ func getServiceInstanceByID(serviceInstances *types.ServiceInstances, serviceIns
 	for _, si := range serviceInstances.Items {
 		if si.ID == serviceInstanceID {
 			return &si
+		}
+	}
+	return nil
+}
+
+func getServiceBindingByID(serviceBindings *types.ServiceBindings, serviceBindingID string) *types.ServiceBinding {
+	for _, sb := range serviceBindings.Items {
+		if sb.ID == serviceBindingID {
+			return &sb
 		}
 	}
 	return nil
@@ -738,6 +990,49 @@ func assertEqualServiceInstance(t *testing.T, expectedToCompare types.ServiceIns
 	require.NoError(t, actualToCompare.PreviousValues.UnmarshalJSON(actualBuff))
 	assert.Equal(t, expectedBuff, actualBuff)
 	expectedToCompare.PreviousValues, actualToCompare.PreviousValues = nil, nil
+
+	assert.Equal(t, expectedToCompare, actualToCompare)
+}
+
+func assertEqualServiceBindings(t *testing.T, expected, actual *types.ServiceBindings) {
+	assert.Len(t, actual.Items, len(expected.Items))
+	for i := 0; i < len(expected.Items); i++ {
+		expectedToCompare, actualToCompare := expected.Items[i], actual.Items[i]
+		assertEqualServiceBinding(t, expectedToCompare, actualToCompare)
+	}
+}
+
+func assertEqualServiceBinding(t *testing.T, expectedToCompare, actualToCompare types.ServiceBinding) {
+	var expectedBuff, actualBuff []byte
+	require.NoError(t, expectedToCompare.Credentials.UnmarshalJSON(expectedBuff))
+	require.NoError(t, actualToCompare.Credentials.UnmarshalJSON(actualBuff))
+	assert.Equal(t, expectedBuff, actualBuff)
+	expectedToCompare.Credentials, actualToCompare.Credentials = nil, nil
+
+	require.NoError(t, expectedToCompare.VolumeMounts.UnmarshalJSON(expectedBuff))
+	require.NoError(t, actualToCompare.VolumeMounts.UnmarshalJSON(actualBuff))
+	assert.Equal(t, expectedBuff, actualBuff)
+	expectedToCompare.VolumeMounts, actualToCompare.VolumeMounts = nil, nil
+
+	require.NoError(t, expectedToCompare.Endpoints.UnmarshalJSON(expectedBuff))
+	require.NoError(t, actualToCompare.Endpoints.UnmarshalJSON(actualBuff))
+	assert.Equal(t, expectedBuff, actualBuff)
+	expectedToCompare.Endpoints, actualToCompare.Endpoints = nil, nil
+
+	require.NoError(t, expectedToCompare.Context.UnmarshalJSON(expectedBuff))
+	require.NoError(t, actualToCompare.Context.UnmarshalJSON(actualBuff))
+	assert.Equal(t, expectedBuff, actualBuff)
+	expectedToCompare.Context, actualToCompare.Context = nil, nil
+
+	require.NoError(t, expectedToCompare.Parameters.UnmarshalJSON(expectedBuff))
+	require.NoError(t, actualToCompare.Parameters.UnmarshalJSON(actualBuff))
+	assert.Equal(t, expectedBuff, actualBuff)
+	expectedToCompare.Parameters, actualToCompare.Parameters = nil, nil
+
+	require.NoError(t, expectedToCompare.BindResource.UnmarshalJSON(expectedBuff))
+	require.NoError(t, actualToCompare.BindResource.UnmarshalJSON(actualBuff))
+	assert.Equal(t, expectedBuff, actualBuff)
+	expectedToCompare.BindResource, actualToCompare.BindResource = nil, nil
 
 	assert.Equal(t, expectedToCompare, actualToCompare)
 }

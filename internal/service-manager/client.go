@@ -12,7 +12,6 @@ import (
 
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
-	"github.com/kyma-project/btp-manager/internal/service-manager/types/requests"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	corev1 "k8s.io/api/core/v1"
@@ -298,7 +297,7 @@ func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		return c.serviceInstanceParamsResponse(resp)
+		return c.paramsResponse(resp)
 	default:
 		return nil, c.errorResponse(resp)
 	}
@@ -366,7 +365,7 @@ func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceIns
 	return &siResp, nil
 }
 
-func (c *Client) serviceInstanceParamsResponse(resp *http.Response) (map[string]string, error) {
+func (c *Client) paramsResponse(resp *http.Response) (map[string]string, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
@@ -413,32 +412,53 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 	}
 }
 
-func (c *Client) CreateServiceBinding(payload *requests.CreateServiceBindingRequestPayload) error {
-	reqBody, err := json.Marshal(payload)
+func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath, nil)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var serviceBindings types.ServiceBindings
+	if err := json.Unmarshal(body, &serviceBindings); err != nil {
+		return nil, err
+	}
+
+	return &serviceBindings, nil
+}
+
+func (c *Client) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
+	reqBody, err := json.Marshal(sb)
+	if err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequest(http.MethodPost, c.smURL+ServiceBindingsPath, io.NopCloser(bytes.NewReader(reqBody)))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			c.logger.Error("failed to close response body", "error", err)
-		}
-	}(resp.Body)
 
-	response, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("%s : %s", err.Error(), string(response))
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return c.serviceBindingResponse(resp)
+	case http.StatusAccepted:
+		return nil, nil
+	default:
+		return nil, c.errorResponse(resp)
 	}
-	return nil
 }
 
 func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error) {
@@ -453,16 +473,61 @@ func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding,
 		return nil, err
 	}
 
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			c.logger.Error("failed to close response body", "error", err)
-		}
-	}(resp.Body)
-	body, err := io.ReadAll(resp.Body)
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceBindingResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) DeleteServiceBinding(serviceBindingId string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		fallthrough
+	case http.StatusAccepted:
+		return nil
+	default:
+		return c.errorResponse(resp)
+	}
+}
+
+func (c *Client) ServiceBindingParameters(serviceBindingId string) (map[string]string, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId+"/parameters", nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.paramsResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) serviceBindingResponse(resp *http.Response) (*types.ServiceBinding, error) {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
 	var sb types.ServiceBinding
 	if err := json.Unmarshal(body, &sb); err != nil {
 		return nil, err
