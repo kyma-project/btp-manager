@@ -30,12 +30,18 @@ type ServiceOfferingMetadata struct {
 }
 
 type ServiceInstances struct {
-	Items []ServiceInstance `json:"items"`
+	NumItems int               `json:"numItems"`
+	Items    []ServiceInstance `json:"items"`
 }
 
 type ServiceInstance struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Namespace       string `json:"namespace"`
+	ServicePlanID   string `json:"servicePlanID"`
+	ServicePlanName string `json:"servicePlanName"`
+	SubaccountID    string `json:"subaccountID"`
+	ClusterID       string `json:"clusterID"`
 }
 
 type ServiceOfferingDetails struct {

@@ -26,7 +26,7 @@ type Config struct {
 
 type API struct {
 	server         *http.Server
-	serviceManager *servicemanager.Client
+	smClient       *servicemanager.Client
 	secretProvider *clusterobject.SecretProvider
 	frontendFS     http.FileSystem
 	logger         *slog.Logger
@@ -41,7 +41,7 @@ func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *c
 	}
 	return &API{
 		server:         srv,
-		serviceManager: serviceManager,
+		smClient:       serviceManager,
 		secretProvider: secretProvider,
 		frontendFS:     fs,
 		logger:         slog.Default()}
@@ -70,7 +70,7 @@ func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Re
 func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
-	details, err := a.serviceManager.ServiceOfferingDetails(id)
+	details, err := a.smClient.ServiceOfferingDetails(id)
 	if returnError(writer, err) {
 		return
 	}
@@ -82,11 +82,11 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 	a.setupCors(writer, request)
 	namespace := request.PathValue("namespace")
 	name := request.PathValue("name")
-	err := a.serviceManager.SetForGivenSecret(context.Background(), name, namespace)
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
 	if returnError(writer, err) {
 		return
 	}
-	offerings, err := a.serviceManager.ServiceOfferings()
+	offerings, err := a.smClient.ServiceOfferings()
 	if returnError(writer, err) {
 		return
 	}
@@ -106,12 +106,16 @@ func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 
 func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	// not implemented in SM
 }
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	// will be taken from SM
+	sis, err := a.smClient.ServiceInstances()
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(responses.ToServiceInstancesVM(sis))
+	returnResponse(writer, response, err)
 }
 
 func (a *API) CreateServiceBindings(writer http.ResponseWriter, request *http.Request) {
@@ -122,7 +126,7 @@ func (a *API) CreateServiceBindings(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	dto := requests.CreateServiceBindingVM(sb)
-	err = a.serviceManager.CreateServiceBinding(&dto)
+	err = a.smClient.CreateServiceBinding(&dto)
 	if returnError(writer, err) {
 		return
 	}
@@ -132,7 +136,7 @@ func (a *API) CreateServiceBindings(writer http.ResponseWriter, request *http.Re
 func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
-	details, err := a.serviceManager.ServiceBinding(id)
+	details, err := a.smClient.ServiceBinding(id)
 	if returnError(writer, err) {
 		return
 	}

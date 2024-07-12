@@ -81,3 +81,25 @@ func ToServiceBindingsVM(bindings *types.ServiceBindings) ServiceBindings {
 func ToServiceBindingVM(binding *types.ServiceBinding) ServiceBindings {
 	return ServiceBindings{}
 }
+
+func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
+	toReturn := ServiceInstances{
+		NumItems: len(instances.Items),
+		Items:    []ServiceInstance{},
+	}
+
+	for _, instance := range instances.Items {
+		namespace, _ := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
+		subaccountID, _ := instance.ContextValueByFieldName(types.ServiceInstanceSubaccountID)
+		clusterID, _ := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+		instance := ServiceInstance{
+			ID:           instance.ID,
+			Name:         instance.Name,
+			Namespace:    namespace,
+			SubaccountID: subaccountID,
+			ClusterID:    clusterID,
+		}
+		toReturn.Items = append(toReturn.Items, instance)
+	}
+	return toReturn
+}
