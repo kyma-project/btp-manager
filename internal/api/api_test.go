@@ -88,12 +88,12 @@ func TestApiResponses(t *testing.T) {
 }
 
 func validateJSON(t *testing.T, got []byte, file string) {
-	want := readJsonFile(t, file)
-	prettyWant := indent([]byte(want), t)
+	expected := readJsonFile(t, file)
+	prettyWant := indent([]byte(expected), t)
 	prettyGot := indent(got, t)
 	
 	if !assert.JSONEq(t, prettyGot.String(), prettyWant.String()) {
-		t.Errorf("%v Schema() = \n######### GOT ###########%v\n######### ENDGOT ########, want \n##### WANT #####%v\n##### ENDWANT #####", file, prettyGot.String(), prettyWant.String())
+		t.Errorf("%v Schema() = \n######### GOT ###########%v\n######### ENDGOT ########, expected \n##### EXPECTED #####%v\n##### ENDWANT #####", file, prettyGot.String(), prettyWant.String())
 	}
 }
 
