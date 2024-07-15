@@ -89,18 +89,18 @@ func TestApiResponses(t *testing.T) {
 
 func validateJSON(t *testing.T, got []byte, file string) {
 	expected := readJsonFile(t, file)
-	prettyWant := indent([]byte(expected), t)
+	prettyExpected := indent([]byte(expected), t)
 	prettyGot := indent(got, t)
 	
-	if !assert.JSONEq(t, prettyGot.String(), prettyWant.String()) {
-		t.Errorf("%v Schema() = \n######### GOT ###########%v\n######### ENDGOT ########, expected \n##### EXPECTED #####%v\n##### ENDWANT #####", file, prettyGot.String(), prettyWant.String())
+	if !assert.JSONEq(t, prettyGot.String(), prettyExpected.String()) {
+		t.Errorf("%v Schema() = \n######### GOT ###########%v\n######### ENDGOT ########, expected \n##### EXPECTED #####%v\n##### ENDEXPECTED #####", file, prettyGot.String(), prettyExpected.String())
 	}
 }
 
-func indent(want []byte, t *testing.T) *bytes.Buffer {
+func indent(expected []byte, t *testing.T) *bytes.Buffer {
 	var pretty bytes.Buffer
-	if len(want) > 0 {
-		err := json.Indent(&pretty, []byte(want), "", "  ")
+	if len(expected) > 0 {
+		err := json.Indent(&pretty, []byte(expected), "", "  ")
 		if err != nil {
 			t.Error(err)
 			t.Fail()
