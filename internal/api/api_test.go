@@ -88,27 +88,26 @@ func TestApiResponses(t *testing.T) {
 }
 
 func validateJSON(t *testing.T, got []byte, file string) {
-	var prettyWant bytes.Buffer
 	want := readJsonFile(t, file)
+	prettyWant := indent([]byte(want), t)
+	prettyGot := indent(got, t)
+	
+	if !assert.JSONEq(t, prettyGot.String(), prettyWant.String()) {
+		t.Errorf("%v Schema() = \n######### GOT ###########%v\n######### ENDGOT ########, want \n##### WANT #####%v\n##### ENDWANT #####", file, prettyGot.String(), prettyWant.String())
+	}
+}
+
+func indent(want []byte, t *testing.T) *bytes.Buffer {
+	var pretty bytes.Buffer
 	if len(want) > 0 {
-		err := json.Indent(&prettyWant, []byte(want), "", "  ")
+		err := json.Indent(&pretty, []byte(want), "", "  ")
 		if err != nil {
 			t.Error(err)
 			t.Fail()
 		}
 	}
 
-	var prettyGot bytes.Buffer
-	if len(got) > 0 {
-		err := json.Indent(&prettyGot, got, "", "  ")
-		if err != nil {
-			t.Error(err)
-			t.Fail()
-		}
-	}
-	if !assert.JSONEq(t, prettyGot.String(), prettyWant.String()) {
-		t.Errorf("%v Schema() = \n######### GOT ###########%v\n######### ENDGOT ########, want \n##### WANT #####%v\n##### ENDWANT #####", file, prettyGot.String(), prettyWant.String())
-	}
+	return &pretty
 }
 
 func readJsonFile(t *testing.T, file string) string {
