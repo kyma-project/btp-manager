@@ -65,7 +65,7 @@ func (a *API) Start() {
 }
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
-	// not implemented in SM
+	a.setupCors(writer, request)
 }
 
 func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
