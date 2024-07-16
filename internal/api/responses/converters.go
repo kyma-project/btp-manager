@@ -48,23 +48,6 @@ func ToServiceOfferingsVM(offerings *types.ServiceOfferings) ServiceOfferings {
 	return toReturn
 }
 
-func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
-	toReturn := ServiceInstances{
-		NumItems: len(instances.Items),
-		Items:    []ServiceInstance{},
-	}
-
-	for _, instance := range instances.Items {
-		instance := ServiceInstance{
-			ID:          instance.ID,
-			Name:        instance.Name,
-			Description: instance.Description,
-		}
-		toReturn.Items = append(toReturn.Items, instance)
-	}
-	return toReturn
-}
-
 func ToServiceOfferingDetailsVM(details *types.ServiceOfferingDetails) ServiceOfferingDetails {
 	toReturn := ServiceOfferingDetails{
 		Plans: []ServiceOfferingPlan{},

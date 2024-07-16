@@ -27,13 +27,13 @@ type Config struct {
 
 type API struct {
 	server         *http.Server
-	smClient       *servicemanager.Client
-	secretProvider *clusterobject.SecretProvider
+	smClient       servicemanager.Client
+	secretProvider clusterobject.SecretProvider
 	frontendFS     http.FileSystem
 	logger         *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManager servicemanager.ServiceManager, secretProvider clusterobject.Provider, fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManager servicemanager.Client, secretProvider clusterobject.SecretProvider, fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -50,15 +50,6 @@ func NewAPI(cfg Config, serviceManager servicemanager.ServiceManager, secretProv
 
 func (a *API) Start() {
 	router := http.NewServeMux()
-	router.HandleFunc("GET /api/secrets", a.ListSecrets)
-	router.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
-	router.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
-	router.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
-	router.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
-	router.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
-	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBindings)
-	router.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
-	router.Handle("GET /", http.FileServer(a.frontendFS))
 	
 	a.AttachRoutes(router)
 	a.server.Handler = router
@@ -73,6 +64,9 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
 	router.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
 	router.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
+	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBindings)
+	router.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
+	router.Handle("GET /", http.FileServer(a.frontendFS))
 	router.Handle("GET /", http.FileServer(a.frontendFS))
 }
 

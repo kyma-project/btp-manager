@@ -41,7 +41,7 @@ type Config struct {
 	TokenURLSuffix string
 }
 
-type Client struct {
+type DefaultClient struct {
 	ctx            context.Context
 	logger         *slog.Logger
 	secretProvider clusterobject.NamespacedProvider[*corev1.Secret]
@@ -49,8 +49,8 @@ type Client struct {
 	smURL          string
 }
 
-//go:generate mockery --name=ServiceManager --output=automock --outpkg=servicemanager --case=underscore
-type ServiceManager interface {
+//go:generate mockery --name=Client --output=automock --outpkg=servicemanager --case=underscore
+type Client interface {
 	Defaults(ctx context.Context) error
 	SetForGivenSecret(ctx context.Context, secretName, secretNamespace string) error
 	SetHTTPClient(httpClient *http.Client)
@@ -63,17 +63,20 @@ type ServiceManager interface {
 	CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error)
 	DeleteServiceInstance(serviceInstanceID string) error
 	UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error)
+	ServicePlan(servicePlanID string) (*types.ServicePlan, error)
+	CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error)
+	ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error)
 }
 
-func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret]) *Client {
-	return &Client{
+func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret]) *DefaultClient {
+	return &DefaultClient{
 		ctx:            ctx,
 		logger:         logger.With("component", componentName),
 		secretProvider: secretProvider,
 	}
 }
 
-func (c *Client) Defaults(ctx context.Context) error {
+func (c *DefaultClient) Defaults(ctx context.Context) error {
 	if err := c.buildHTTPClient(ctx, defaultSecret, defaultNamespace); err != nil {
 		if k8serrors.IsNotFound(err) {
 			c.logger.Warn(fmt.Sprintf("%s secret not found in %s namespace", defaultSecret, defaultNamespace))
@@ -86,7 +89,7 @@ func (c *Client) Defaults(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) SetForGivenSecret(ctx context.Context, secretName, secretNamespace string) error {
+func (c *DefaultClient) SetForGivenSecret(ctx context.Context, secretName, secretNamespace string) error {
 	if err := c.buildHTTPClient(ctx, secretName, secretNamespace); err != nil {
 		c.logger.Error("failed to build http client", "error", err)
 		return err
@@ -95,7 +98,7 @@ func (c *Client) SetForGivenSecret(ctx context.Context, secretName, secretNamesp
 	return nil
 }
 
-func (c *Client) buildHTTPClient(ctx context.Context, secretName, secretNamespace string) error {
+func (c *DefaultClient) buildHTTPClient(ctx context.Context, secretName, secretNamespace string) error {
 	cfg, err := c.getSMConfigFromGivenSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		return err
@@ -115,7 +118,7 @@ func (c *Client) buildHTTPClient(ctx context.Context, secretName, secretNamespac
 	return nil
 }
 
-func (c *Client) getSMConfigFromGivenSecret(ctx context.Context, secretName, secretNamespace string) (*Config, error) {
+func (c *DefaultClient) getSMConfigFromGivenSecret(ctx context.Context, secretName, secretNamespace string) (*Config, error) {
 	secret, err := c.secretProvider.GetByNameAndNamespace(ctx, secretName, secretNamespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -151,15 +154,15 @@ func preconfiguredHTTPClient() *http.Client {
 	return client
 }
 
-func (c *Client) SetHTTPClient(httpClient *http.Client) {
+func (c *DefaultClient) SetHTTPClient(httpClient *http.Client) {
 	c.httpClient = httpClient
 }
 
-func (c *Client) SetSMURL(smURL string) {
+func (c *DefaultClient) SetSMURL(smURL string) {
 	c.smURL = smURL
 }
 
-func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
+func (c *DefaultClient) ServiceOfferings() (*types.ServiceOfferings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceOfferingsPath, nil)
 	if err != nil {
 		return nil, err
@@ -184,7 +187,7 @@ func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 	return &serviceOfferings, nil
 }
 
-func (c *Client) ServiceOfferingDetails(serviceOfferingID string) (*types.ServiceOfferingDetails, error) {
+func (c *DefaultClient) ServiceOfferingDetails(serviceOfferingID string) (*types.ServiceOfferingDetails, error) {
 	so, err := c.serviceOfferingByID(serviceOfferingID)
 	if err != nil {
 		return nil, err
@@ -201,7 +204,7 @@ func (c *Client) ServiceOfferingDetails(serviceOfferingID string) (*types.Servic
 	}, nil
 }
 
-func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOffering, error) {
+func (c *DefaultClient) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOffering, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceOfferingsPath+"/"+serviceOfferingID, nil)
 	if err != nil {
 		return nil, err
@@ -226,7 +229,7 @@ func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOf
 	return &so, nil
 }
 
-func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*types.ServicePlans, error) {
+func (c *DefaultClient) servicePlansForServiceOffering(serviceOfferingID string) (*types.ServicePlans, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath, nil)
 	if err != nil {
 		return nil, err
@@ -254,7 +257,7 @@ func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*type
 	return &plans, nil
 }
 
-func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
+func (c *DefaultClient) ServiceInstances() (*types.ServiceInstances, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath, nil)
 	if err != nil {
 		return nil, err
@@ -278,7 +281,7 @@ func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
 	return &serviceInstances, nil
 }
 
-func (c *Client) ServiceInstance(serviceInstanceID string) (*types.ServiceInstance, error) {
+func (c *DefaultClient) ServiceInstance(serviceInstanceID string) (*types.ServiceInstance, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
 	if err != nil {
 		return nil, err
@@ -299,7 +302,7 @@ func (c *Client) ServiceInstance(serviceInstanceID string) (*types.ServiceInstan
 
 }
 
-func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string]string, error) {
+func (c *DefaultClient) ServiceInstanceParameters(serviceInstanceID string) (map[string]string, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID+"/parameters", nil)
 	if err != nil {
 		return nil, err
@@ -319,7 +322,7 @@ func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string
 	}
 }
 
-func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
+func (c *DefaultClient) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
 	requestBody, err := json.Marshal(si)
 	if err != nil {
 		return nil, err
@@ -346,7 +349,7 @@ func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.Servic
 	}
 }
 
-func (c *Client) DeleteServiceInstance(serviceInstanceID string) error {
+func (c *DefaultClient) DeleteServiceInstance(serviceInstanceID string) error {
 	req, err := http.NewRequest(http.MethodDelete, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
 	if err != nil {
 		return err
@@ -367,7 +370,7 @@ func (c *Client) DeleteServiceInstance(serviceInstanceID string) error {
 	}
 }
 
-func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceInstance, error) {
+func (c *DefaultClient) serviceInstanceResponse(resp *http.Response) (*types.ServiceInstance, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
@@ -381,7 +384,7 @@ func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceIns
 	return &siResp, nil
 }
 
-func (c *Client) paramsResponse(resp *http.Response) (map[string]string, error) {
+func (c *DefaultClient) paramsResponse(resp *http.Response) (map[string]string, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
@@ -395,7 +398,7 @@ func (c *Client) paramsResponse(resp *http.Response) (map[string]string, error) 
 	return params, nil
 }
 
-func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
+func (c *DefaultClient) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
 	id := *si.ID
 	si.ID = nil
 
@@ -428,7 +431,7 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 	}
 }
 
-func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
+func (c *DefaultClient) ServiceBindings() (*types.ServiceBindings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath, nil)
 	if err != nil {
 		return nil, err
@@ -452,7 +455,7 @@ func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
 	return &serviceBindings, nil
 }
 
-func (c *Client) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
+func (c *DefaultClient) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
 	reqBody, err := json.Marshal(sb)
 	if err != nil {
 		return nil, err
@@ -477,7 +480,7 @@ func (c *Client) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceB
 	}
 }
 
-func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error) {
+func (c *DefaultClient) ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
 	if err != nil {
 		return nil, err
@@ -497,7 +500,7 @@ func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding,
 	}
 }
 
-func (c *Client) DeleteServiceBinding(serviceBindingId string) error {
+func (c *DefaultClient) DeleteServiceBinding(serviceBindingId string) error {
 	req, err := http.NewRequest(http.MethodDelete, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
 	if err != nil {
 		return err
@@ -518,7 +521,7 @@ func (c *Client) DeleteServiceBinding(serviceBindingId string) error {
 	}
 }
 
-func (c *Client) ServiceBindingParameters(serviceBindingId string) (map[string]string, error) {
+func (c *DefaultClient) ServiceBindingParameters(serviceBindingId string) (map[string]string, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId+"/parameters", nil)
 	if err != nil {
 		return nil, err
@@ -538,7 +541,7 @@ func (c *Client) ServiceBindingParameters(serviceBindingId string) (map[string]s
 	}
 }
 
-func (c *Client) serviceBindingResponse(resp *http.Response) (*types.ServiceBinding, error) {
+func (c *DefaultClient) serviceBindingResponse(resp *http.Response) (*types.ServiceBinding, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
@@ -552,7 +555,7 @@ func (c *Client) serviceBindingResponse(resp *http.Response) (*types.ServiceBind
 	return &sb, nil
 }
 
-func (c *Client) errorResponse(resp *http.Response) error {
+func (c *DefaultClient) errorResponse(resp *http.Response) error {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return err
@@ -566,7 +569,7 @@ func (c *Client) errorResponse(resp *http.Response) error {
 	return fmt.Errorf("error: %s", errResp.Error())
 }
 
-func (c *Client) readResponseBody(respBody io.ReadCloser) ([]byte, error) {
+func (c *DefaultClient) readResponseBody(respBody io.ReadCloser) ([]byte, error) {
 	defer respBody.Close()
 	bodyInBytes, err := io.ReadAll(respBody)
 	if err != nil {
@@ -575,14 +578,14 @@ func (c *Client) readResponseBody(respBody io.ReadCloser) ([]byte, error) {
 	return bodyInBytes, nil
 }
 
-func (c *Client) validServiceInstanceUpdateRequestBody(si *types.ServiceInstanceUpdateRequest) bool {
+func (c *DefaultClient) validServiceInstanceUpdateRequestBody(si *types.ServiceInstanceUpdateRequest) bool {
 	if si.Shared != nil {
 		return si.ID == nil && si.Name == nil && si.ServicePlanID == nil && si.Parameters == nil && len(si.Labels) == 0
 	}
 	return true
 }
 
-func (c *Client) ServicePlan(servicePlanID string) (*types.ServicePlan, error) {
+func (c *DefaultClient) ServicePlan(servicePlanID string) (*types.ServicePlan, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath+"/"+servicePlanID, nil)
 	if err != nil {
 		return nil, err
@@ -602,7 +605,7 @@ func (c *Client) ServicePlan(servicePlanID string) (*types.ServicePlan, error) {
 	}
 }
 
-func (c *Client) servicePlanResponse(resp *http.Response) (*types.ServicePlan, error) {
+func (c *DefaultClient) servicePlanResponse(resp *http.Response) (*types.ServicePlan, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
