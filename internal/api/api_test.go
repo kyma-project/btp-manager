@@ -11,8 +11,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/kyma-project/btp-manager/internal/cluster-object/automock"
-	"github.com/kyma-project/btp-manager/internal/service-manager/automock"
+	clusterojbect "github.com/kyma-project/btp-manager/internal/cluster-object/automock"
+	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager/automock"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	"github.com/kyma-project/btp-manager/ui"
 	"github.com/stretchr/testify/assert"
@@ -62,7 +62,7 @@ func TestApiResponses(t *testing.T) {
 			// given
 			router := http.NewServeMux()
 
-			sm := servicemanager.NewServiceManager(t)
+			sm := servicemanager.NewClient(t)
 			sm.On("Defaults", mock.Anything).Return(nil)
 			sm.On("ServiceInstances").Return(tt.items, nil)
 
@@ -91,7 +91,7 @@ func validateJSON(t *testing.T, got []byte, file string) {
 	expected := readJsonFile(t, file)
 	prettyExpected := indent([]byte(expected), t)
 	prettyGot := indent(got, t)
-	
+
 	if !assert.JSONEq(t, prettyGot.String(), prettyExpected.String()) {
 		t.Errorf("%v Schema() = \n######### GOT ###########%v\n######### ENDGOT ########, expected \n##### EXPECTED #####%v\n##### ENDEXPECTED #####", file, prettyGot.String(), prettyExpected.String())
 	}

@@ -186,8 +186,8 @@ func setupSMClient(secretProvider *clusterobject.DefaultSecretProvider, signalCt
 	smClient := servicemanager.NewClient(signalCtx, slog, secretProvider)
 
 	return &serviceManagerClient{
-		Context: signalCtx,
-		DefaultClient:  smClient,
+		Context:       signalCtx,
+		DefaultClient: smClient,
 	}
 }
 

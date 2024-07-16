@@ -50,7 +50,7 @@ func NewAPI(cfg Config, serviceManager servicemanager.Client, secretProvider clu
 
 func (a *API) Start() {
 	router := http.NewServeMux()
-	
+
 	a.AttachRoutes(router)
 	a.server.Handler = router
 
