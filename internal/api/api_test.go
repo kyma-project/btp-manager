@@ -63,7 +63,6 @@ func TestApiResponses(t *testing.T) {
 			router := http.NewServeMux()
 
 			sm := servicemanager.NewClient(t)
-			sm.On("Defaults", mock.Anything).Return(nil)
 			sm.On("ServiceInstances").Return(tt.items, nil)
 
 			provider := clusterojbect.NewProvider(t)
