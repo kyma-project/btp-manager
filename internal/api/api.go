@@ -67,7 +67,6 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBindings)
 	router.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
 	router.Handle("GET /", http.FileServer(a.frontendFS))
-	router.Handle("GET /", http.FileServer(a.frontendFS))
 }
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
