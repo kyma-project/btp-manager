@@ -2,14 +2,22 @@
     "numItems": 2,
     "items": [
         {
-            "name": "service-1",
             "id": "1",
-            "description": ""
+            "name": "service-1",
+            "namespace": "",
+            "servicePlanID": "",
+            "servicePlanName": "",
+            "subaccountID": "",
+            "clusterID": ""
         },
         {
-            "name": "service-2",
             "id": "2",
-            "description": ""
+            "name": "service-2",
+            "namespace": "",
+            "servicePlanID": "",
+            "servicePlanName": "",
+            "subaccountID": "",
+            "clusterID": ""
         }
     ]
 }
