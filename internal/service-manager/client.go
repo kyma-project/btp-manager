@@ -565,3 +565,37 @@ func (c *Client) validServiceInstanceUpdateRequestBody(si *types.ServiceInstance
 	}
 	return true
 }
+
+func (c *Client) ServicePlan(servicePlanID string) (*types.ServicePlan, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath+"/"+servicePlanID, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.servicePlanResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) servicePlanResponse(resp *http.Response) (*types.ServicePlan, error) {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var plan types.ServicePlan
+	if err := json.Unmarshal(body, &plan); err != nil {
+		return nil, err
+	}
+
+	return &plan, nil
+}
