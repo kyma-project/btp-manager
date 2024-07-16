@@ -107,6 +107,17 @@ func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 
 func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	id := request.PathValue("id")
+	si, err := a.smClient.ServiceInstance(id)
+	if returnError(writer, err) {
+		return
+	}
+	plan, err := a.smClient.ServicePlan(si.ServicePlanID)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(responses.ToServiceInstanceVM(si, plan))
+	returnResponse(writer, response, err)
 }
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {

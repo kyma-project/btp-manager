@@ -65,23 +65,6 @@ func ToServiceOfferingDetailsVM(details *types.ServiceOfferingDetails) ServiceOf
 	return toReturn
 }
 
-func ToServiceBindingsVM(bindings *types.ServiceBindings) ServiceBindings {
-	toReturn := ServiceBindings{
-		Items: []ServiceBinding{},
-	}
-
-	for _, _ = range bindings.Items {
-		n := ServiceBinding{}
-		toReturn.Items = append(toReturn.Items, n)
-	}
-
-	return toReturn
-}
-
-func ToServiceBindingVM(binding *types.ServiceBinding) ServiceBindings {
-	return ServiceBindings{}
-}
-
 func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 	toReturn := ServiceInstances{
 		NumItems: len(instances.Items),
@@ -102,4 +85,37 @@ func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 		toReturn.Items = append(toReturn.Items, instance)
 	}
 	return toReturn
+}
+
+func ToServiceInstanceVM(instance *types.ServiceInstance, plan *types.ServicePlan) ServiceInstance {
+	namespace, _ := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
+	subaccountID, _ := instance.ContextValueByFieldName(types.ServiceInstanceSubaccountID)
+	clusterID, _ := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+
+	return ServiceInstance{
+		ID:              instance.ID,
+		Name:            instance.Name,
+		Namespace:       namespace,
+		ServicePlanID:   instance.ServicePlanID,
+		ServicePlanName: plan.Name,
+		SubaccountID:    subaccountID,
+		ClusterID:       clusterID,
+	}
+}
+
+func ToServiceBindingsVM(bindings *types.ServiceBindings) ServiceBindings {
+	toReturn := ServiceBindings{
+		Items: []ServiceBinding{},
+	}
+
+	for _, _ = range bindings.Items {
+		n := ServiceBinding{}
+		toReturn.Items = append(toReturn.Items, n)
+	}
+
+	return toReturn
+}
+
+func ToServiceBindingVM(binding *types.ServiceBinding) ServiceBindings {
+	return ServiceBindings{}
 }
