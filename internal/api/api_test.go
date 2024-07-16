@@ -16,7 +16,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	"github.com/kyma-project/btp-manager/ui"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/stretchr/testify/require"
 )
