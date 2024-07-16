@@ -27,7 +27,7 @@ const (
 	ServiceOfferingsPath = "/v1/service_offerings"
 	ServicePlansPath     = "/v1/service_plans"
 	ServiceInstancesPath = "/v1/service_instances"
-
+	ServiceBindingsPath  = "/v1/service_bindings"
 	// see https://help.sap.com/docs/service-manager/sap-service-manager/filtering-parameters-and-operators
 	URLFieldQueryKey                          = "fieldQuery"
 	servicePlansForServiceOfferingQueryFormat = "service_offering_id eq '%s'"
@@ -297,7 +297,7 @@ func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		return c.serviceInstanceParamsResponse(resp)
+		return c.paramsResponse(resp)
 	default:
 		return nil, c.errorResponse(resp)
 	}
@@ -365,7 +365,7 @@ func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceIns
 	return &siResp, nil
 }
 
-func (c *Client) serviceInstanceParamsResponse(resp *http.Response) (map[string]string, error) {
+func (c *Client) paramsResponse(resp *http.Response) (map[string]string, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
@@ -412,6 +412,130 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 	}
 }
 
+func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var serviceBindings types.ServiceBindings
+	if err := json.Unmarshal(body, &serviceBindings); err != nil {
+		return nil, err
+	}
+
+	return &serviceBindings, nil
+}
+
+func (c *Client) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
+	reqBody, err := json.Marshal(sb)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.smURL+ServiceBindingsPath, io.NopCloser(bytes.NewReader(reqBody)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return c.serviceBindingResponse(resp)
+	case http.StatusAccepted:
+		return nil, nil
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.serviceBindingResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) DeleteServiceBinding(serviceBindingId string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		fallthrough
+	case http.StatusAccepted:
+		return nil
+	default:
+		return c.errorResponse(resp)
+	}
+}
+
+func (c *Client) ServiceBindingParameters(serviceBindingId string) (map[string]string, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId+"/parameters", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.paramsResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) serviceBindingResponse(resp *http.Response) (*types.ServiceBinding, error) {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var sb types.ServiceBinding
+	if err := json.Unmarshal(body, &sb); err != nil {
+		return nil, err
+	}
+
+	return &sb, nil
+}
+
 func (c *Client) errorResponse(resp *http.Response) error {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
@@ -440,4 +564,38 @@ func (c *Client) validServiceInstanceUpdateRequestBody(si *types.ServiceInstance
 		return si.ID == nil && si.Name == nil && si.ServicePlanID == nil && si.Parameters == nil && len(si.Labels) == 0
 	}
 	return true
+}
+
+func (c *Client) ServicePlan(servicePlanID string) (*types.ServicePlan, error) {
+	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath+"/"+servicePlanID, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return c.servicePlanResponse(resp)
+	default:
+		return nil, c.errorResponse(resp)
+	}
+}
+
+func (c *Client) servicePlanResponse(resp *http.Response) (*types.ServicePlan, error) {
+	body, err := c.readResponseBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var plan types.ServicePlan
+	if err := json.Unmarshal(body, &plan); err != nil {
+		return nil, err
+	}
+
+	return &plan, nil
 }
