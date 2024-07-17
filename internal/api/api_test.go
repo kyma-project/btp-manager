@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testResourcesDir = "testdata"
+
 func TestApiResponses(t *testing.T) {
 
 	tests := []struct {
@@ -134,7 +136,7 @@ func indent(expected []byte, t *testing.T) *bytes.Buffer {
 func readJsonFile(t *testing.T, file string) string {
 	t.Helper()
 
-	filename := path.Join("testdata", file)
+	filename := path.Join(testResourcesDir, file)
 	jsonFile, err := os.ReadFile(filename)
 	require.NoError(t, err)
 
