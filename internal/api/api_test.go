@@ -122,12 +122,10 @@ func validateJSON(t *testing.T, got []byte, file string) {
 
 func indent(expected []byte, t *testing.T) *bytes.Buffer {
 	var pretty bytes.Buffer
-	if len(expected) > 0 {
-		err := json.Indent(&pretty, []byte(expected), "", "  ")
-		if err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+	err := json.Indent(&pretty, []byte(expected), "", "  ")
+	if err != nil {
+		t.Error(err)
+		t.Fail()
 	}
 
 	return &pretty
