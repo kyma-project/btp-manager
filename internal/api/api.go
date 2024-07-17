@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal/service-manager/types"
+	"github.com/kyma-project/btp-manager/internal/api/requests"
 
 	"github.com/kyma-project/btp-manager/internal/api/responses"
 
@@ -52,12 +52,14 @@ func (a *API) Start() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
 	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
-	mux.HandleFunc("PUT /api/service-instance/{id}", a.CreateServiceInstance)
-	mux.HandleFunc("GET /api/service-instance/{id}", a.GetServiceInstance)
+	mux.HandleFunc("PUT /api/service-instances/{id}", a.CreateServiceInstance)
+	mux.HandleFunc("GET /api/service-instances/{id}", a.GetServiceInstance)
 	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
-	mux.HandleFunc("GET /api/service-offering/{id}", a.GetServiceOffering)
-	mux.HandleFunc("POST /api/service-bindings", a.CreateServiceBindings)
-	mux.HandleFunc("GET /api/service-binding/{id}", a.GetServiceBinding)
+	mux.HandleFunc("GET /api/service-offerings/{id}", a.GetServiceOffering)
+	mux.HandleFunc("GET /api/service-bindings", a.ListServiceBindings)
+	mux.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
+	mux.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
+	mux.HandleFunc("DELETE /api/service-bindings/{id}", a.DeleteServiceBinding)
 	mux.Handle("GET /", http.FileServer(a.frontendFS))
 	a.server.Handler = mux
 
@@ -130,29 +132,69 @@ func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Req
 	returnResponse(writer, response, err)
 }
 
-func (a *API) CreateServiceBindings(writer http.ResponseWriter, request *http.Request) {
+func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	var sb types.ServiceBinding
-	err := json.NewDecoder(request.Body).Decode(&sb)
+	sbs, err := a.smClient.ServiceBindings()
 	if returnError(writer, err) {
 		return
 	}
-	_, err = a.smClient.CreateServiceBinding(&sb)
+	sbsVM, err := responses.ToServiceBindingsVM(sbs)
 	if returnError(writer, err) {
 		return
 	}
-	returnResponse(writer, []byte{}, err)
+	response, err := json.Marshal(sbsVM)
+	returnResponse(writer, response, err)
+}
+
+func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	var serviceBindingRequest requests.CreateServiceBinding
+	err := json.NewDecoder(request.Body).Decode(&serviceBindingRequest)
+	if returnError(writer, err) {
+		return
+	}
+	si, err := a.smClient.ServiceInstance(serviceBindingRequest.ServiceInstanceId)
+	if returnError(writer, err) {
+		return
+	}
+	sb, err := requests.ToServiceBinding(serviceBindingRequest, si)
+	if returnError(writer, err) {
+		return
+	}
+	createdServiceBinding, err := a.smClient.CreateServiceBinding(&sb)
+	if returnError(writer, err) {
+		return
+	}
+	sbVM, err := responses.ToServiceBindingVM(createdServiceBinding)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(sbVM)
+	returnResponse(writer, response, err)
 }
 
 func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
-	details, err := a.smClient.ServiceBinding(id)
+	sb, err := a.smClient.ServiceBinding(id)
 	if returnError(writer, err) {
 		return
 	}
-	response, err := json.Marshal(responses.ToServiceBindingVM(details))
+	sbVM, err := responses.ToServiceBindingVM(sb)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(sbVM)
 	returnResponse(writer, response, err)
+}
+
+func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	id := request.PathValue("id")
+	err := a.smClient.DeleteServiceBinding(id)
+	if returnError(writer, err) {
+		return
+	}
 }
 
 func (a *API) setupCors(writer http.ResponseWriter, request *http.Request) {

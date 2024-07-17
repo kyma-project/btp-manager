@@ -1,18 +1,28 @@
 package requests
 
 import (
-	"github.com/kyma-project/btp-manager/internal/service-manager/types/requests"
+	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 )
 
-func CreateServiceBindingVM(request CreateServiceBinding) requests.CreateServiceBindingRequestPayload {
-	payload := requests.CreateServiceBindingRequestPayload{
-		Name:              request.Name,
-		ServiceInstanceID: request.ServiceInstanceId,
-		Parameters:        []byte(request.Parameters),
-		Labels:            map[string][]string{},
+func ToServiceBinding(request CreateServiceBinding, instance *types.ServiceInstance) (types.ServiceBinding, error) {
+	clusterID, err := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+	if err != nil {
+		return types.ServiceBinding{}, err
 	}
-	payload.Labels["_clusterid"] = append(payload.Labels["_clusterid"], payload.Name)
-	payload.Labels["_namespace"] = append(payload.Labels["_namespace"], request.Namespace)
-	payload.Labels["_k8sname"] = append(payload.Labels["_k8sname"], request.Name)
-	return payload
+	namespace, err := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
+	if err != nil {
+		return types.ServiceBinding{}, err
+	}
+	sb := types.ServiceBinding{
+		Common: types.Common{
+			Name:   request.Name,
+			Labels: map[string][]string{},
+		},
+		ServiceInstanceID: request.ServiceInstanceId,
+		Parameters:        request.Parameters,
+	}
+	sb.Labels["_clusterid"] = append(sb.Labels["_clusterid"], clusterID)
+	sb.Labels["_namespace"] = append(sb.Labels["_namespace"], namespace)
+	sb.Labels["_k8sname"] = append(sb.Labels["_k8sname"], request.Name)
+	return sb, nil
 }
