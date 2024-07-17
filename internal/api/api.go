@@ -27,13 +27,13 @@ type Config struct {
 
 type API struct {
 	server         *http.Server
-	smClient       servicemanager.Client
+	smClient       servicemanager.DefaultClient
 	secretProvider clusterobject.SecretProvider
 	frontendFS     http.FileSystem
 	logger         *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManager servicemanager.Client, secretProvider clusterobject.SecretProvider, fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManager servicemanager.DefaultClient, secretProvider clusterobject.SecretProvider, fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -73,6 +73,18 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	csiRequest, err := a.decodeCreateServiceInstanceRequest(request)
+	if returnError(writer, err) {
+		return
+	}
+	si := csiRequest.ConvertToServiceInstance()
+	createdSI, err := a.smClient.CreateServiceInstance(si)
+	if returnError(writer, err) {
+		return
+	}
+	createdSI.ServicePlanName = si.ServicePlanName
+	response, err := json.Marshal(responses.ToServiceInstanceVM(createdSI))
+	returnResponse(writer, response, err)
 }
 
 func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
@@ -115,15 +127,11 @@ func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
-	si, err := a.smClient.ServiceInstance(id)
+	si, err := a.smClient.ServiceInstanceWithPlanName(id)
 	if returnError(writer, err) {
 		return
 	}
-	plan, err := a.smClient.ServicePlan(si.ServicePlanID)
-	if returnError(writer, err) {
-		return
-	}
-	response, err := json.Marshal(responses.ToServiceInstanceVM(si, plan))
+	response, err := json.Marshal(responses.ToServiceInstanceVM(si))
 	returnResponse(writer, response, err)
 }
 
@@ -209,6 +217,15 @@ func (a *API) setupCors(writer http.ResponseWriter, request *http.Request) {
 	origin = strings.ReplaceAll(origin, "\r", "")
 	origin = strings.ReplaceAll(origin, "\n", "")
 	writer.Header().Set("Access-Control-Allow-Origin", origin)
+}
+
+func (a *API) decodeCreateServiceInstanceRequest(request *http.Request) (*requests.CreateServiceInstance, error) {
+	var csiRequest requests.CreateServiceInstance
+	err := json.NewDecoder(request.Body).Decode(&csiRequest)
+	if err != nil {
+		return nil, err
+	}
+	return &csiRequest, nil
 }
 
 func returnResponse(writer http.ResponseWriter, response []byte, err error) {
