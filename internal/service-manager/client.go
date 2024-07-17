@@ -64,8 +64,10 @@ type Client interface {
 	DeleteServiceInstance(serviceInstanceID string) error
 	UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error)
 	ServicePlan(servicePlanID string) (*types.ServicePlan, error)
+	ServiceBindings() (*types.ServiceBindings, error)
 	CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error)
 	ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error)
+	DeleteServiceBinding(serviceBindingId string) error
 }
 
 func NewClient(ctx context.Context, logger *slog.Logger, secretProvider clusterobject.NamespacedProvider[*corev1.Secret]) *DefaultClient {

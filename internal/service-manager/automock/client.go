@@ -94,6 +94,24 @@ func (_m *Client) Defaults(ctx context.Context) error {
 	return r0
 }
 
+// DeleteServiceBinding provides a mock function with given fields: serviceBindingId
+func (_m *Client) DeleteServiceBinding(serviceBindingId string) error {
+	ret := _m.Called(serviceBindingId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteServiceBinding")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(serviceBindingId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeleteServiceInstance provides a mock function with given fields: serviceInstanceID
 func (_m *Client) DeleteServiceInstance(serviceInstanceID string) error {
 	ret := _m.Called(serviceInstanceID)
@@ -135,6 +153,36 @@ func (_m *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding
 
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(serviceBindingId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ServiceBindings provides a mock function with given fields:
+func (_m *Client) ServiceBindings() (*types.ServiceBindings, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for ServiceBindings")
+	}
+
+	var r0 *types.ServiceBindings
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (*types.ServiceBindings, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() *types.ServiceBindings); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.ServiceBindings)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
