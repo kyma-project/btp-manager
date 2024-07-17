@@ -35,6 +35,7 @@ func TestApiResponses(t *testing.T) {
 			name:           "list instances should return all its services",
 			file:           "list-instances-happy-expected.json",
 			path:           "api/service-instances",
+			method:         http.MethodGet,
 			expectedStatus: http.StatusOK,
 			items: &types.ServiceInstances{
 				Items: []types.ServiceInstance{
@@ -83,6 +84,28 @@ func TestApiResponses(t *testing.T) {
 			validateJSON(t, got, tt.file)
 		})
 	}
+
+	t.Run("should return 503 on error", func(t *testing.T) {
+		// given
+		router := http.NewServeMux()
+
+		sm := servicemanager.NewClient(t)
+		sm.On("ServiceInstances").Return(nil, fmt.Errorf("error"))
+
+		provider := clusterojbect.NewProvider(t)
+
+		api := NewAPI(Config{}, sm, provider, ui.NewUIStaticFS())
+		api.AttachRoutes(router)
+
+		httpServer := httptest.NewServer(router)
+		defer httpServer.Close()
+
+		// when
+		resp := callAPI(t, httpServer, http.MethodGet, "api/service-instances", "")
+
+		// then
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	})
 }
 
 func validateJSON(t *testing.T, got []byte, file string) {
