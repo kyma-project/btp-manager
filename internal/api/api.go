@@ -27,13 +27,13 @@ type Config struct {
 
 type API struct {
 	server         *http.Server
-	smClient       *servicemanager.Client
-	secretProvider *clusterobject.SecretProvider
+	smClient       servicemanager.Client
+	secretProvider clusterobject.SecretProvider
 	frontendFS     http.FileSystem
 	logger         *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider, fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManager servicemanager.Client, secretProvider clusterobject.SecretProvider, fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -49,21 +49,26 @@ func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *c
 }
 
 func (a *API) Start() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/secrets", a.ListSecrets)
-	mux.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
-	mux.HandleFunc("PUT /api/service-instances/{id}", a.CreateServiceInstance)
-	mux.HandleFunc("GET /api/service-instances/{id}", a.GetServiceInstance)
-	mux.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
-	mux.HandleFunc("GET /api/service-offerings/{id}", a.GetServiceOffering)
-	mux.HandleFunc("GET /api/service-bindings", a.ListServiceBindings)
-	mux.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
-	mux.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
-	mux.HandleFunc("DELETE /api/service-bindings/{id}", a.DeleteServiceBinding)
-	mux.Handle("GET /", http.FileServer(a.frontendFS))
-	a.server.Handler = mux
+	router := http.NewServeMux()
+
+	a.AttachRoutes(router)
+	a.server.Handler = router
 
 	log.Fatal(a.server.ListenAndServe())
+}
+
+func (a *API) AttachRoutes(router *http.ServeMux) {
+	router.HandleFunc("GET /api/secrets", a.ListSecrets)
+	router.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
+	router.HandleFunc("PUT /api/service-instances/{id}", a.CreateServiceInstance)
+	router.HandleFunc("GET /api/service-instances/{id}", a.GetServiceInstance)
+	router.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
+	router.HandleFunc("GET /api/service-offerings/{id}", a.GetServiceOffering)
+	router.HandleFunc("GET /api/service-bindings", a.ListServiceBindings)
+	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
+	router.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
+	router.HandleFunc("DELETE /api/service-bindings/{id}", a.DeleteServiceBinding)
+	router.Handle("GET /", http.FileServer(a.frontendFS))
 }
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
@@ -124,6 +129,7 @@ func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Reque
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+
 	sis, err := a.smClient.ServiceInstances()
 	if returnError(writer, err) {
 		return
