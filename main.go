@@ -59,7 +59,7 @@ func (mgr *managerWithContext) start() {
 
 type serviceManagerClient struct {
 	context.Context
-	*servicemanager.Client
+	*servicemanager.DefaultClient
 }
 
 func (c *serviceManagerClient) start() {
@@ -101,7 +101,7 @@ func main() {
 	mgr := setupManager(restCfg, &probeAddr, &metricsAddr, &enableLeaderElection, signalContext)
 	sp := getSecretProvider(restCfg)
 	sm := setupSMClient(sp, signalContext)
-	api := api.NewAPI(cfg, sm.Client, sp, ui.NewUIStaticFS())
+	api := api.NewAPI(cfg, sm.DefaultClient, sp, ui.NewUIStaticFS())
 
 	// start components
 	go mgr.start()
@@ -181,17 +181,17 @@ func setupManager(restCfg *rest.Config, probeAddr *string, metricsAddr *string, 
 	}
 }
 
-func setupSMClient(secretProvider *clusterobject.SecretProvider, signalCtx context.Context) *serviceManagerClient {
+func setupSMClient(secretProvider *clusterobject.DefaultSecretProvider, signalCtx context.Context) *serviceManagerClient {
 	slog := slog.Default()
 	smClient := servicemanager.NewClient(signalCtx, slog, secretProvider)
 
 	return &serviceManagerClient{
-		Context: signalCtx,
-		Client:  smClient,
+		Context:       signalCtx,
+		DefaultClient: smClient,
 	}
 }
 
-func getSecretProvider(restCfg *rest.Config) *clusterobject.SecretProvider {
+func getSecretProvider(restCfg *rest.Config) *clusterobject.DefaultSecretProvider {
 	k8sClient, err := client.New(restCfg, client.Options{})
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
