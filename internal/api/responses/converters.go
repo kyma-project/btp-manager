@@ -59,6 +59,7 @@ func ToServiceOfferingDetailsVM(details *types.ServiceOfferingDetails) ServiceOf
 
 	for _, plan := range details.ServicePlans.Items {
 		toReturn.Plans = append(toReturn.Plans, ServiceOfferingPlan{
+			ID:          plan.ID,
 			Name:        plan.Name,
 			Description: plan.Description,
 		})
