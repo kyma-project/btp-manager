@@ -324,6 +324,19 @@ func (c *DefaultClient) ServiceInstanceParameters(serviceInstanceID string) (map
 	}
 }
 
+func (c *DefaultClient) ServiceInstanceWithPlanName(serviceInstanceID string) (*types.ServiceInstance, error) {
+	si, err := c.ServiceInstance(serviceInstanceID)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := c.ServicePlan(si.ServicePlanID)
+	if err != nil {
+		return nil, err
+	}
+	si.ServicePlanName = plan.Name
+	return si, nil
+}
+
 func (c *DefaultClient) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
 	requestBody, err := json.Marshal(si)
 	if err != nil {
