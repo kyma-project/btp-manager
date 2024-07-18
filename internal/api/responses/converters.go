@@ -1,6 +1,8 @@
 package responses
 
 import (
+	"encoding/json"
+
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	v1 "k8s.io/api/core/v1"
 )
@@ -103,19 +105,31 @@ func ToServiceInstanceVM(instance *types.ServiceInstance, plan *types.ServicePla
 	}
 }
 
-func ToServiceBindingsVM(bindings *types.ServiceBindings) ServiceBindings {
+func ToServiceBindingsVM(bindings *types.ServiceBindings) (ServiceBindings, error) {
 	toReturn := ServiceBindings{
-		Items: []ServiceBinding{},
+		NumItems: len(bindings.Items),
+		Items:    []ServiceBinding{},
 	}
 
-	for _, _ = range bindings.Items {
-		n := ServiceBinding{}
-		toReturn.Items = append(toReturn.Items, n)
+	for _, binding := range bindings.Items {
+		binding, err := ToServiceBindingVM(&binding)
+		if err != nil {
+			return ServiceBindings{}, err
+		}
+		toReturn.Items = append(toReturn.Items, binding)
 	}
-
-	return toReturn
+	return toReturn, nil
 }
 
-func ToServiceBindingVM(binding *types.ServiceBinding) ServiceBindings {
-	return ServiceBindings{}
+func ToServiceBindingVM(binding *types.ServiceBinding) (ServiceBinding, error) {
+	var credentials map[string]interface{}
+	err := json.Unmarshal(binding.Credentials, &credentials)
+	if err != nil {
+		return ServiceBinding{}, err
+	}
+	return ServiceBinding{
+		ID:          binding.ID,
+		Name:        binding.Name,
+		Credentials: credentials,
+	}, nil
 }
