@@ -55,10 +55,12 @@ type ServiceOfferingPlan struct {
 }
 
 type ServiceBinding struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Credentials map[string]interface{} `json:"credentials"`
 }
 
 type ServiceBindings struct {
-	Items []ServiceBinding `json:"items"`
+	NumItems int              `json:"numItems"`
+	Items    []ServiceBinding `json:"items"`
 }
