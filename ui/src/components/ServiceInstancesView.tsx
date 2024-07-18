@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import api from "../shared/api";
 import Ok from "../shared/validator";
+import serviceInstancesData from '../test-data/serivce-instances.json';
 
 function ServiceInstancesView() {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
@@ -37,25 +38,7 @@ function ServiceInstancesView() {
       setLoading(false)
     } else {
       setLoading(true)
-      setServiceInstances({
-        items: [
-          {
-            id: "1",
-            name: "Test Service Instance 1",
-            context: [],
-            serviceBindings: [],
-            namespace: "",
-          },
-          {
-            id: "2",
-            name: "Test Service Instance 2",
-            context: [],
-            serviceBindings: [],
-            namespace: "",
-          }
-
-        ]
-      })
+      setServiceInstances(serviceInstancesData)
       setLoading(false);
     }
   }, []);
