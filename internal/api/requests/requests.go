@@ -14,8 +14,9 @@ type CreateServiceBinding struct {
 
 type CreateServiceInstance struct {
 	Name       string              `json:"name"`
-	Namespace  string              `json:"namespace"`
 	PlanID     string              `json:"planID"`
+	Namespace  string              `json:"namespace"`
+	ClusterID  string              `json:"clusterID"`
 	Labels     map[string][]string `json:"labels"`
 	Parameters json.RawMessage     `json:"parameters"`
 }
@@ -24,6 +25,7 @@ func (csi *CreateServiceInstance) ConvertToServiceInstance() *types.ServiceInsta
 	labels := map[string][]string{
 		types.NamespaceLabel: {csi.Namespace},
 		types.K8sNameLabel:   {csi.Name},
+		types.ClusterIDLabel: {csi.ClusterID},
 	}
 	for k, v := range csi.Labels {
 		labels[k] = v
