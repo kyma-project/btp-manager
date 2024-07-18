@@ -21,18 +21,43 @@ function ServiceInstancesView() {
   };
 
   useEffect(() => {
-    setLoading(true)
-    axios
-      .get<ServiceInstances>(api("service-instances"))
-      .then((response) => {
+    var useTestData = process.env.REACT_APP_USE_TEST_DATA
+    if (!useTestData) {
+      setLoading(true)
+      axios
+        .get<ServiceInstances>(api("service-instances"))
+        .then((response) => {
           setLoading(false);
           setServiceInstances(response.data);
-      })
-      .catch((error) => {
+        })
+        .catch((error) => {
           setLoading(false);
           setError(error);
-      });
+        });
       setLoading(false)
+    } else {
+      setLoading(true)
+      setServiceInstances({
+        items: [
+          {
+            id: "1",
+            name: "Test Service Instance 1",
+            context: [],
+            serviceBindings: [],
+            namespace: "",
+          },
+          {
+            id: "2",
+            name: "Test Service Instance 2",
+            context: [],
+            serviceBindings: [],
+            namespace: "",
+          }
+
+        ]
+      })
+      setLoading(false);
+    }
   }, []);
 
   if (loading) {
