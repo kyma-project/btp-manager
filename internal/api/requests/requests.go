@@ -13,11 +13,11 @@ type CreateServiceBinding struct {
 }
 
 type CreateServiceInstance struct {
-	Name       string            `json:"name"`
-	Namespace  string            `json:"namespace"`
-	PlanID     string            `json:"planID"`
-	Labels     map[string]string `json:"labels"`
-	Parameters json.RawMessage   `json:"parameters"`
+	Name       string              `json:"name"`
+	Namespace  string              `json:"namespace"`
+	PlanID     string              `json:"planID"`
+	Labels     map[string][]string `json:"labels"`
+	Parameters json.RawMessage     `json:"parameters"`
 }
 
 func (csi *CreateServiceInstance) ConvertToServiceInstance() *types.ServiceInstance {
@@ -26,7 +26,7 @@ func (csi *CreateServiceInstance) ConvertToServiceInstance() *types.ServiceInsta
 		types.K8sNameLabel:   {csi.Name},
 	}
 	for k, v := range csi.Labels {
-		labels[k] = []string{v}
+		labels[k] = v
 	}
 	return &types.ServiceInstance{
 		Common: types.Common{
@@ -36,4 +36,10 @@ func (csi *CreateServiceInstance) ConvertToServiceInstance() *types.ServiceInsta
 		ServicePlanID: csi.PlanID,
 		Parameters:    csi.Parameters,
 	}
+}
+
+type UpdateServiceInstance struct {
+	ID         string              `json:"id"`
+	Labels     map[string][]string `json:"labels"`
+	Parameters json.RawMessage     `json:"parameters"`
 }
