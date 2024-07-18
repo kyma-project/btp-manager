@@ -64,6 +64,7 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/service-instances/{id}", a.GetServiceInstance)
 	router.HandleFunc("POST /api/service-instances", a.CreateServiceInstance)
 	router.HandleFunc("PATCH /api/service-instances/{id}", a.UpdateServiceInstance)
+	router.HandleFunc("DELETE /api/service-instances/{id}", a.DeleteServiceInstance)
 	router.HandleFunc("GET /api/service-bindings", a.ListServiceBindings)
 	router.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
 	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
@@ -251,6 +252,15 @@ func (a *API) decodeServiceInstanceUpdateRequest(request *http.Request) (*types.
 		return nil, err
 	}
 	return &siuRequest, nil
+}
+
+func (a *API) DeleteServiceInstance(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	id := request.PathValue("id")
+	err := a.smClient.DeleteServiceInstance(id)
+	if returnError(writer, err) {
+		return
+	}
 }
 
 func returnResponse(writer http.ResponseWriter, response []byte, err error) {
