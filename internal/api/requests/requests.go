@@ -1,8 +1,9 @@
 package requests
 
+import "encoding/json"
+
 type CreateServiceBinding struct {
-	Name              string `json:"name"`
-	Namespace         string `json:"namespace"`
-	ServiceInstanceId string `json:"serviceInstanceId"`
-	Parameters        string `json:"parameters"`
+	Name              string          `json:"name"`
+	ServiceInstanceId string          `json:"serviceInstanceId"`
+	Parameters        json.RawMessage `json:"parameters"`
 }
