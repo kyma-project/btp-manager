@@ -14,6 +14,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/api/responses"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
+	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 )
 
 type Config struct {
@@ -57,14 +58,15 @@ func (a *API) Start() {
 
 func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/secrets", a.ListSecrets)
-	router.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
-	router.HandleFunc("PUT /api/service-instances/{id}", a.CreateServiceInstance)
-	router.HandleFunc("GET /api/service-instances/{id}", a.GetServiceInstance)
 	router.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
 	router.HandleFunc("GET /api/service-offerings/{id}", a.GetServiceOffering)
+	router.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
+	router.HandleFunc("GET /api/service-instances/{id}", a.GetServiceInstance)
+	router.HandleFunc("POST /api/service-instances", a.CreateServiceInstance)
+	router.HandleFunc("PATCH /api/service-instances/{id}", a.UpdateServiceInstance)
 	router.HandleFunc("GET /api/service-bindings", a.ListServiceBindings)
-	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
 	router.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
+	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
 	router.HandleFunc("DELETE /api/service-bindings/{id}", a.DeleteServiceBinding)
 	router.Handle("GET /", http.FileServer(a.frontendFS))
 }
@@ -224,6 +226,31 @@ func (a *API) decodeCreateServiceInstanceRequest(request *http.Request) (*reques
 		return nil, err
 	}
 	return &csiRequest, nil
+}
+
+func (a *API) UpdateServiceInstance(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	id := request.PathValue("id")
+	siuReq, err := a.decodeServiceInstanceUpdateRequest(request)
+	if returnError(writer, err) {
+		return
+	}
+	siuReq.ID = &id
+	updatedSI, err := a.smClient.UpdateServiceInstance(siuReq)
+	if returnError(writer, err) {
+		return
+	}
+	response, err := json.Marshal(updatedSI)
+	returnResponse(writer, response, err)
+}
+
+func (a *API) decodeServiceInstanceUpdateRequest(request *http.Request) (*types.ServiceInstanceUpdateRequest, error) {
+	var siuRequest types.ServiceInstanceUpdateRequest
+	err := json.NewDecoder(request.Body).Decode(&siuRequest)
+	if err != nil {
+		return nil, err
+	}
+	return &siuRequest, nil
 }
 
 func returnResponse(writer http.ResponseWriter, response []byte, err error) {

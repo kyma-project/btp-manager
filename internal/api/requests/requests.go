@@ -37,9 +37,3 @@ func (csi *CreateServiceInstance) ConvertToServiceInstance() *types.ServiceInsta
 		Parameters:    csi.Parameters,
 	}
 }
-
-type UpdateServiceInstance struct {
-	ID         string              `json:"id"`
-	Labels     map[string][]string `json:"labels"`
-	Parameters json.RawMessage     `json:"parameters"`
-}
