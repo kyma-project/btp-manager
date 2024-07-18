@@ -27,13 +27,13 @@ type Config struct {
 
 type API struct {
 	server         *http.Server
-	smClient       servicemanager.DefaultClient
-	secretProvider clusterobject.SecretProvider
+	smClient       *servicemanager.Client
+	secretProvider *clusterobject.SecretProvider
 	frontendFS     http.FileSystem
 	logger         *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManager servicemanager.DefaultClient, secretProvider clusterobject.SecretProvider, fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider, fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
