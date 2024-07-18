@@ -11,9 +11,7 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/internal/api/requests"
-
 	"github.com/kyma-project/btp-manager/internal/api/responses"
-
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 )
