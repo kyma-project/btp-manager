@@ -20,6 +20,16 @@ func (p *FakeSecretProvider) AddSecret(secret *corev1.Secret) {
 	p.secrets = append(p.secrets, secret)
 }
 
+func (p *FakeSecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
+	items := make([]corev1.Secret, 0)
+	for _, secret := range p.secrets {
+		items = append(items, *secret)
+	}
+	return &corev1.SecretList{
+		Items: items,
+	}, nil
+}
+
 func (p *FakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	for _, secret := range p.secrets {
 		if secret.Name == name && secret.Namespace == namespace {
