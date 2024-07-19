@@ -15,6 +15,7 @@ import (
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type Config struct {
@@ -27,12 +28,12 @@ type Config struct {
 type API struct {
 	server         *http.Server
 	smClient       *servicemanager.Client
-	secretProvider *clusterobject.SecretProvider
+	secretProvider clusterobject.Provider[*corev1.SecretList, *corev1.Secret]
 	frontendFS     http.FileSystem
 	logger         *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *clusterobject.SecretProvider, fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManagerClient *servicemanager.Client, secretProvider clusterobject.Provider[*corev1.SecretList, *corev1.Secret], fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -41,7 +42,7 @@ func NewAPI(cfg Config, serviceManager *servicemanager.Client, secretProvider *c
 	}
 	return &API{
 		server:         srv,
-		smClient:       serviceManager,
+		smClient:       serviceManagerClient,
 		secretProvider: secretProvider,
 		frontendFS:     fs,
 		logger:         slog.Default()}
