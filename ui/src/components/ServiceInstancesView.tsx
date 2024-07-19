@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import api from "../shared/api";
 import Ok from "../shared/validator";
+import serviceInstancesData from '../test-data/serivce-instances.json';
 
 function ServiceInstancesView() {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
@@ -21,18 +22,25 @@ function ServiceInstancesView() {
   };
 
   useEffect(() => {
-    setLoading(true)
-    axios
-      .get<ServiceInstances>(api("service-instances"))
-      .then((response) => {
+    var useTestData = process.env.REACT_APP_USE_TEST_DATA
+    if (!useTestData) {
+      setLoading(true)
+      axios
+        .get<ServiceInstances>(api("service-instances"))
+        .then((response) => {
           setLoading(false);
           setServiceInstances(response.data);
-      })
-      .catch((error) => {
+        })
+        .catch((error) => {
           setLoading(false);
           setError(error);
-      });
+        });
       setLoading(false)
+    } else {
+      setLoading(true)
+      setServiceInstances(serviceInstancesData)
+      setLoading(false);
+    }
   }, []);
 
   if (loading) {

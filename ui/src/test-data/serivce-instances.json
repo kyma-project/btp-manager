@@ -1,0 +1,18 @@
+{
+    "items": [
+        {
+            "id": "1",
+            "name": "Test Service Instance 1",
+            "context": [],
+            "serviceBindings": [],
+            "namespace": ""
+        },
+        {
+            "id": "1",
+            "name": "Test Service Instance 1",
+            "context": [],
+            "serviceBindings": [],
+            "namespace": ""
+        }
+    ]
+}
