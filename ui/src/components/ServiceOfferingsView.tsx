@@ -73,7 +73,7 @@ function ServiceOfferingsView(props: any) {
                             width: '600px',
                         }}
                         onClick={() => {
-                            setPortal(createPortal( <ServiceOfferingsDetailsView offering={offering} />, document.body, window.crypto.randomUUID()))
+                            setPortal(createPortal( <ServiceOfferingsDetailsView offering={offering} />, document.getElementById("App")!!, window.crypto.randomUUID()))
                         }}
                         header={
                             <ui5.CardHeader
