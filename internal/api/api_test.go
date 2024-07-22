@@ -31,6 +31,7 @@ func TestAPI(t *testing.T) {
 		WriteTimeout: writeTimeout,
 		IdleTimeout:  idleTimeout,
 	}
+	defaultSIs := defaultServiceInstances()
 
 	fakeSM, err := servicemanager.NewFakeServer()
 	require.NoError(t, err)
@@ -56,9 +57,6 @@ func TestAPI(t *testing.T) {
 	}
 
 	t.Run("GET Service Instances", func(t *testing.T) {
-		// given
-		expectedSIs := expectedServiceInstances()
-
 		// when
 		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances", nil)
 		resp, err := apiClient.Do(req)
@@ -72,11 +70,33 @@ func TestAPI(t *testing.T) {
 
 		// then
 		assert.Equal(t, sis.NumItems, 4)
-		assert.ElementsMatch(t, sis.Items, expectedSIs.Items)
+		assert.ElementsMatch(t, sis.Items, defaultSIs.Items)
+	})
+
+	t.Run("GET Service Instance by ID", func(t *testing.T) {
+		// given
+		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
+		expectedSI := getServiceInstanceByID(defaultSIs, siID)
+		expectedSI.ServicePlanID = "4036790e-5ef3-4cf7-bb16-476053477a9a"
+		expectedSI.ServicePlanName = "service1-plan2"
+
+		// when
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode)
+		defer resp.Body.Close()
+
+		var si responses.ServiceInstance
+		err = json.NewDecoder(resp.Body).Decode(&si)
+		require.NoError(t, err)
+
+		// then
+		assert.Equal(t, expectedSI, si)
 	})
 }
 
-func expectedServiceInstances() responses.ServiceInstances {
+func defaultServiceInstances() responses.ServiceInstances {
 	return responses.ServiceInstances{
 		NumItems: 4,
 		Items: []responses.ServiceInstance{
@@ -110,4 +130,13 @@ func expectedServiceInstances() responses.ServiceInstances {
 			},
 		},
 	}
+}
+
+func getServiceInstanceByID(serviceInstances responses.ServiceInstances, serviceInstanceID string) responses.ServiceInstance {
+	for _, si := range serviceInstances.Items {
+		if si.ID == serviceInstanceID {
+			return si
+		}
+	}
+	return responses.ServiceInstance{}
 }

@@ -33,6 +33,7 @@ func NewFakeServer() (*httptest.Server, error) {
 	mux.HandleFunc("GET /v1/service_offerings", smHandler.getServiceOfferings)
 	mux.HandleFunc("GET /v1/service_offerings/{serviceOfferingID}", smHandler.getServiceOffering)
 	mux.HandleFunc("GET /v1/service_plans", smHandler.getServicePlans)
+	mux.HandleFunc("GET /v1/service_plans/{servicePlanID}", smHandler.getServicePlan)
 	mux.HandleFunc("GET /v1/service_instances", smHandler.getServiceInstances)
 	mux.HandleFunc("GET /v1/service_instances/{serviceInstanceID}", smHandler.getServiceInstance)
 	mux.HandleFunc("POST /v1/service_instances", smHandler.createServiceInstance)
@@ -562,6 +563,48 @@ func (h *fakeSMHandler) deleteServiceBinding(w http.ResponseWriter, r *http.Requ
 	if _, err = w.Write(data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Println("error while writing error response data: %w", err)
+		return
+	}
+}
+
+func (h *fakeSMHandler) getServicePlan(w http.ResponseWriter, r *http.Request) {
+	planID := r.PathValue("servicePlanID")
+	if len(planID) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var err error
+	data := make([]byte, 0)
+	for _, p := range h.servicePlans.Items {
+		if p.ID == planID {
+			data, err = json.Marshal(p)
+			if err != nil {
+				log.Println("error while marshalling plan data: %w", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			break
+		}
+	}
+	if len(data) == 0 {
+		errResp := types.ErrorResponse{
+			ErrorType:   "NotFound",
+			Description: "could not find such plan",
+		}
+		data, err = json.Marshal(errResp)
+		if err != nil {
+			log.Println("error while marshalling error response: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}
+
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing plan data: %w", err)
 		return
 	}
 }
