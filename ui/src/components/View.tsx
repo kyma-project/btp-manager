@@ -2,7 +2,7 @@ import ServiceOfferings from "./ServiceOfferingsView";
 import ServiceInstancesView from "./ServiceInstancesView";
 import * as ui5 from "@ui5/webcomponents-react";
 import Secrets from "./SecretsView";
-import React from "react";
+import React, { useEffect } from "react";
 
 function Overview(props: any) {
     const [secret, setSecret] = React.useState(null);
@@ -10,8 +10,11 @@ function Overview(props: any) {
 
     function handler(s: any) {
         setSecret(s);
-        setPageContent(<ServiceOfferings secret={s}/>);
     }
+    
+    useEffect(() => {
+        setPageContent(<ServiceOfferings secret={secret}/>)
+    }, [secret]);
     
     return (
         <>
@@ -43,6 +46,7 @@ function Overview(props: any) {
                         >
                             <ui5.SideNavigationItem
                                 text="Marketplace"
+                                selected
                                 onClick={() => {
                                     setPageContent(<ServiceOfferings secret={secret}/>);
                                 }}
