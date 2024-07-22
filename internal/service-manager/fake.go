@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
@@ -14,6 +15,8 @@ import (
 )
 
 const (
+	defaultDir               = "service-manager"
+	rootDir                  = "btp-manager"
 	serviceOfferingsJSONPath = "testdata/service_offerings.json"
 	servicePlansJSONPath     = "testdata/service_plans.json"
 	serviceInstancesJSONPath = "testdata/service_instances.json"
@@ -53,6 +56,18 @@ type fakeSMHandler struct {
 }
 
 func newFakeSMHandler() (*fakeSMHandler, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	currentDir := filepath.Base(wd)
+	if currentDir != defaultDir {
+		// change working directory to service manager directory to read JSON files
+		if err := setDefaultDir(); err != nil {
+			return nil, fmt.Errorf("while setting default fake service manager directory: %w", err)
+		}
+	}
+
 	sos, err := GetServiceOfferingsFromJSON()
 	if err != nil {
 		return nil, fmt.Errorf("while getting service offerings from JSON: %w", err)
@@ -72,7 +87,41 @@ func newFakeSMHandler() (*fakeSMHandler, error) {
 		return nil, fmt.Errorf("while getting service bindings from JSON: %w", err)
 
 	}
+	// restore working directory
+	if err = os.Chdir(wd); err != nil {
+		return nil, err
+	}
 	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans, serviceInstances: sis, serviceBindings: sbs}, nil
+}
+
+func setDefaultDir() error {
+	if err := setRepoRootDir(); err != nil {
+		return err
+	}
+	if err := os.Chdir("internal/" + defaultDir); err != nil {
+		return err
+	}
+	return nil
+}
+
+func setRepoRootDir() error {
+	currentPath, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	currentDir := filepath.Base(currentPath)
+	if currentDir != rootDir {
+		err = os.Chdir("..")
+		if err != nil {
+			return err
+
+		}
+		err := setRepoRootDir()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func GetServiceOfferingsFromJSON() (*types.ServiceOfferings, error) {
