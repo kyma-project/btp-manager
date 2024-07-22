@@ -6,20 +6,13 @@ import { createPortal } from "react-dom";
 import api from "../shared/api";
 import Ok from "../shared/validator";
 import serviceInstancesData from '../test-data/serivce-instances.json';
+import ServiceInstancesDetailsView from "./ServiceInstancesDetailsView";
 
 function ServiceInstancesView() {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const dialogRef = useRef(null);
-  const handleOpen = (e: any) => {
-    // @ts-ignore
-    dialogRef.current.show();
-  };
-  const handleClose = () => {
-    // @ts-ignore
-    dialogRef.current.close();
-  };
+  const [portal, setPortal] = useState<JSX.Element>();
 
   useEffect(() => {
     var useTestData = process.env.REACT_APP_USE_TEST_DATA
@@ -48,24 +41,34 @@ function ServiceInstancesView() {
   }
 
   if (error) {
-      return <ui5.IllustratedMessage name="UnableToLoad" />
+    return <ui5.IllustratedMessage name="UnableToLoad" />
   }
 
   const renderData = () => {
     // @ts-ignore
-     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
-        return <ui5.IllustratedMessage name="NoEntries" />
+    if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
+      return <ui5.IllustratedMessage name="NoEntries" />
     }
-    return serviceInstances?.items.map((brief, index) => {
+    return serviceInstances?.items.map((instance, index) => {
       return (
         <>
-          <ui5.TableRow>
+          <ui5.TableRow 
+          onClick={() => {
+            console.log("Row clicked")
+            const instanceView = <ServiceInstancesDetailsView key={instance.id} instance={instance} open={true} />
+            const portal = createPortal( instanceView, document.getElementById("App")!!)
+            setPortal(portal)
+          }}
+        >
+            
             <ui5.TableCell>
-              <ui5.Label>{brief.name}</ui5.Label>
+              <ui5.Label>{instance.name}</ui5.Label>
             </ui5.TableCell>
+
             <ui5.TableCell>
-              <ui5.Label>{brief.namespace}</ui5.Label>
+              <ui5.Label>{instance.namespace}</ui5.Label>
             </ui5.TableCell>
+
           </ui5.TableRow>
         </>
       );
@@ -74,6 +77,8 @@ function ServiceInstancesView() {
 
   return (
     <>
+    {
+
       <ui5.Table
         columns={
           <>
@@ -82,37 +87,12 @@ function ServiceInstancesView() {
             </ui5.TableColumn>
           </>
         }
-        onClick={handleOpen}
-      >
+       >
         {renderData()}
       </ui5.Table>
+    }
+    {portal != null && portal}
 
-      <>
-        {createPortal(
-          <ui5.Dialog
-            ref={dialogRef}
-            className="headerPartNoPadding footerPartNoPadding"
-            footer={
-              <ui5.Bar
-                design="Footer"
-                endContent={
-                  <ui5.Button onClick={handleClose}>Close</ui5.Button>
-                }
-              />
-            }
-            header={
-              <ui5.Bar endContent={<ui5.Icon name="settings" />}>
-                <ui5.Title>Dialog</ui5.Title>
-              </ui5.Bar>
-            }
-            headerText="Dialog Header"
-          >
-            <ui5.List>
-            </ui5.List>
-          </ui5.Dialog>,
-          document.body
-        )}
-      </>
     </>
   );
 }

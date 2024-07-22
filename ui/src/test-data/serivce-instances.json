@@ -8,8 +8,8 @@
             "namespace": ""
         },
         {
-            "id": "1",
-            "name": "Test Service Instance 1",
+            "id": "2",
+            "name": "Test Service Instance 2",
             "context": [],
             "serviceBindings": [],
             "namespace": ""
