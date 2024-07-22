@@ -56,6 +56,10 @@ func TestAPI(t *testing.T) {
 	}
 
 	t.Run("GET Service Instances", func(t *testing.T) {
+		// given
+		expectedSIs := expectedServiceInstances()
+
+		// when
 		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances", nil)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
@@ -66,6 +70,44 @@ func TestAPI(t *testing.T) {
 		err = json.NewDecoder(resp.Body).Decode(&sis)
 		require.NoError(t, err)
 
+		// then
 		assert.Equal(t, sis.NumItems, 4)
+		assert.ElementsMatch(t, sis.Items, expectedSIs.Items)
 	})
+}
+
+func expectedServiceInstances() responses.ServiceInstances {
+	return responses.ServiceInstances{
+		NumItems: 4,
+		Items: []responses.ServiceInstance{
+			{
+				ID:           "f9ffbaa4-739a-4a16-ad02-6f2f17a830c5",
+				Name:         "si-test-1",
+				Namespace:    "kyma-system",
+				SubaccountID: "a4bdee5b-2bc4-4a44-915b-196ae18c7f29",
+				ClusterID:    "59c7efc0-d6bc-4d07-87cf-9bd049534afe",
+			},
+			{
+				ID:           "df28885c-7c5f-46f0-bb75-0ae2dc85ac41",
+				Name:         "si-test-2",
+				Namespace:    "kyma-system",
+				SubaccountID: "5ef574ba-5fb3-493f-839c-48b787f2b710",
+				ClusterID:    "5dc40d3c-1839-4173-9743-d5b4f36d9d7b",
+			},
+			{
+				ID:           "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+				Name:         "si-test-3",
+				Namespace:    "kyma-system",
+				SubaccountID: "73b7f0df-6376-4115-8e45-a0e005c0f5d2",
+				ClusterID:    "4f6ee6a5-9c28-4e50-8b91-708345e1b607",
+			},
+			{
+				ID:           "c7a604e8-f289-4f61-841f-c6519db8daf2",
+				Name:         "si-test-4",
+				Namespace:    "kyma-system",
+				SubaccountID: "ad4e88f7-e9cc-4346-944a-d9e0dc42a038",
+				ClusterID:    "8e0b4ad1-4fa0-4f7f-a6a7-3db2ac0779e2",
+			},
+		},
+	}
 }
