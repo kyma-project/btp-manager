@@ -73,6 +73,10 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.Handle("GET /", http.FileServer(a.frontendFS))
 }
 
+func (a *API) Address() string {
+	return a.server.Addr
+}
+
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	csiRequest, err := a.decodeCreateServiceInstanceRequest(request)

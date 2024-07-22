@@ -2,13 +2,17 @@ package api_test
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/kyma-project/btp-manager/internal/api"
+	"github.com/kyma-project/btp-manager/internal/api/responses"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,6 +47,25 @@ func TestAPI(t *testing.T) {
 	fakeSMClient.SetHTTPClient(httpClient)
 	fakeSMClient.SetSMURL(url)
 
-	btpManagerAPI := api.NewAPI(cfg, fakeSMClient, secretMgr, nil)
-	go btpManagerAPI.Start()
+	btpMgrAPI := api.NewAPI(cfg, fakeSMClient, secretMgr, nil)
+	apiAddr := "http://localhost" + btpMgrAPI.Address()
+	go btpMgrAPI.Start()
+
+	apiClient := http.Client{
+		Timeout: 500 * time.Millisecond,
+	}
+
+	t.Run("GET Service Instances", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances", nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode)
+		defer resp.Body.Close()
+
+		var sis responses.ServiceInstances
+		err = json.NewDecoder(resp.Body).Decode(&sis)
+		require.NoError(t, err)
+
+		assert.Equal(t, sis.NumItems, 4)
+	})
 }
