@@ -117,8 +117,13 @@ func TestClient(t *testing.T) {
 		smClient.SetSMURL(url)
 		siCreateRequest := &types.ServiceInstance{
 			Common: types.Common{
-				Name:   "test-service-instance",
-				Labels: types.Labels{"test-label": []string{"test-value"}},
+				Name: "test-service-instance",
+				Labels: types.Labels{
+					"test-label":         []string{"test-value"},
+					types.K8sNameLabel:   []string{"test-service-instance"},
+					types.NamespaceLabel: []string{"test-namespace"},
+					types.ClusterIDLabel: []string{"test-cluster-id"},
+				},
 			},
 			ServicePlanID: "test-service-plan-id",
 			Parameters:    json.RawMessage(`{"test-parameter": "test-value"}`),
