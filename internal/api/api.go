@@ -246,7 +246,7 @@ func (a *API) UpdateServiceInstance(writer http.ResponseWriter, request *http.Re
 	if returnError(writer, err) {
 		return
 	}
-	response, err := json.Marshal(updatedSI)
+	response, err := json.Marshal(responses.ToServiceInstanceVM(updatedSI))
 	returnResponse(writer, response, err)
 }
 
