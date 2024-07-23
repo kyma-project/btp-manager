@@ -19,13 +19,7 @@ const (
 	btpServiceOperatorSecretName = "sap-btp-service-operator"
 )
 
-//go:generate mockery --name=Provider --output=automock --outpkg=clusterojbect --case=underscore
-type SecretProvider interface {
-	All(ctx context.Context) (*corev1.SecretList, error)
-	GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error)
-}
-
-type DefaultSecretProvider struct {
+type SecretProvider struct {
 	client.Reader
 	client.Writer
 	namespaceProvider       *NamespaceProvider
@@ -33,10 +27,10 @@ type DefaultSecretProvider struct {
 	logger                  *slog.Logger
 }
 
-func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, siProvider *ServiceInstanceProvider, logger *slog.Logger) *DefaultSecretProvider {
+func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, siProvider *ServiceInstanceProvider, logger *slog.Logger) *SecretProvider {
 	logger = logger.With(logComponentNameKey, secretProviderName)
 
-	return &DefaultSecretProvider{
+	return &SecretProvider{
 		Reader:                  reader,
 		namespaceProvider:       nsProvider,
 		serviceInstanceProvider: siProvider,
@@ -44,7 +38,7 @@ func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, siPr
 	}
 }
 
-func (p *DefaultSecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
+func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
 	p.logger.Info("fetching all btp operator secrets")
 	secrets := &corev1.SecretList{}
 	if err := p.getAllSapBtpServiceOperatorNamedSecrets(ctx, secrets); err != nil {
@@ -82,7 +76,7 @@ func (p *DefaultSecretProvider) All(ctx context.Context) (*corev1.SecretList, er
 	return secrets, err
 }
 
-func (p *DefaultSecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *corev1.SecretList) error {
+func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *corev1.SecretList) error {
 	if err := p.Reader.List(ctx, secrets, client.MatchingFields{"metadata.name": btpServiceOperatorSecretName}); err != nil {
 		p.logger.Error(fmt.Sprintf("failed to fetch all \"%s\" secrets", btpServiceOperatorSecretName), "error", err)
 		return err
@@ -90,7 +84,7 @@ func (p *DefaultSecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx cont
 	return nil
 }
 
-func (p *DefaultSecretProvider) getNamespacesNames(namespaces *corev1.NamespaceList) []string {
+func (p *SecretProvider) getNamespacesNames(namespaces *corev1.NamespaceList) []string {
 	names := make([]string, len(namespaces.Items))
 	for i, ns := range namespaces.Items {
 		names[i] = ns.Name
@@ -98,7 +92,7 @@ func (p *DefaultSecretProvider) getNamespacesNames(namespaces *corev1.NamespaceL
 	return names
 }
 
-func (p *DefaultSecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *corev1.SecretList, nsnames []string) error {
+func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *corev1.SecretList, nsnames []string) error {
 	for _, nsname := range nsnames {
 		secret := &corev1.Secret{}
 		secretName := fmt.Sprintf("%s-%s", nsname, btpServiceOperatorSecretName)
@@ -116,7 +110,7 @@ func (p *DefaultSecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context
 	return nil
 }
 
-func (p *DefaultSecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList) error {
+func (p *SecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList) error {
 	for _, item := range siList.Items {
 		secretRef, found, err := unstructured.NestedString(item.Object, "spec", secretRefKey)
 		if err != nil {
@@ -144,7 +138,7 @@ func (p *DefaultSecretProvider) getSecretsFromRefInServiceInstances(ctx context.
 	return nil
 }
 
-func (p *DefaultSecretProvider) secretExistsInList(secret *corev1.Secret, secrets *corev1.SecretList) bool {
+func (p *SecretProvider) secretExistsInList(secret *corev1.Secret, secrets *corev1.SecretList) bool {
 	for _, s := range secrets.Items {
 		if s.Name == secret.Name {
 			return true
@@ -153,7 +147,7 @@ func (p *DefaultSecretProvider) secretExistsInList(secret *corev1.Secret, secret
 	return false
 }
 
-func (p *DefaultSecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+func (p *SecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	p.logger.Info(fmt.Sprintf("fetching \"%s\" secret in \"%s\" namespace", name, namespace))
 	secret := &corev1.Secret{}
 	if err := p.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret); err != nil {
@@ -168,7 +162,7 @@ func (p *DefaultSecretProvider) GetByNameAndNamespace(ctx context.Context, name,
 	return secret, nil
 }
 
-func (p *DefaultSecretProvider) CreateSecret(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+func (p *SecretProvider) CreateSecret(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	p.logger.Info(fmt.Sprintf("creating \"%s\" secret in \"%s\" namespace", btpServiceOperatorSecretName, namespace))
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
