@@ -59,6 +59,7 @@ func ToServiceOfferingDetailsVM(details *types.ServiceOfferingDetails) ServiceOf
 
 	for _, plan := range details.ServicePlans.Items {
 		toReturn.Plans = append(toReturn.Plans, ServiceOfferingPlan{
+			ID:          plan.ID,
 			Name:        plan.Name,
 			Description: plan.Description,
 		})
@@ -89,7 +90,7 @@ func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 	return toReturn
 }
 
-func ToServiceInstanceVM(instance *types.ServiceInstance, plan *types.ServicePlan) ServiceInstance {
+func ToServiceInstanceVM(instance *types.ServiceInstance) ServiceInstance {
 	namespace, _ := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
 	subaccountID, _ := instance.ContextValueByFieldName(types.ServiceInstanceSubaccountID)
 	clusterID, _ := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
@@ -99,7 +100,7 @@ func ToServiceInstanceVM(instance *types.ServiceInstance, plan *types.ServicePla
 		Name:            instance.Name,
 		Namespace:       namespace,
 		ServicePlanID:   instance.ServicePlanID,
-		ServicePlanName: plan.Name,
+		ServicePlanName: instance.ServicePlanName,
 		SubaccountID:    subaccountID,
 		ClusterID:       clusterID,
 	}

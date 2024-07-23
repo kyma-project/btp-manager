@@ -1,5 +1,11 @@
 package types
 
+const (
+	NamespaceLabel = "_namespace"
+	K8sNameLabel   = "_k8sname"
+	ClusterIDLabel = "_clusterid"
+)
+
 type Labels map[string][]string
 
 type Common struct {
