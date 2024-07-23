@@ -336,6 +336,17 @@ func (h *fakeSMHandler) createServiceInstance(w http.ResponseWriter, r *http.Req
 	}
 
 	siCreateRequest.ID = uuid.New().String()
+	siCtx := map[string]string{
+		"clusterid": siCreateRequest.Labels[types.ClusterIDLabel][0],
+		"namespace": siCreateRequest.Labels[types.NamespaceLabel][0],
+	}
+	ctxJSON, err := json.Marshal(siCtx)
+	if err != nil {
+		log.Println("error while marshalling SI context: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	siCreateRequest.Context = ctxJSON
 	h.serviceInstances.Items = append(h.serviceInstances.Items, siCreateRequest)
 
 	data, err := json.Marshal(siCreateRequest)
