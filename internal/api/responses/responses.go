@@ -17,8 +17,8 @@ type ServiceOfferings struct {
 type ServiceOffering struct {
 	ID          string                  `json:"id"`
 	Description string                  `json:"description"`
-	CatalogID   string                  `json:"catalogID"`
-	CatalogName string                  `json:"catalogName"`
+	CatalogID   string                  `json:"catalog_id"`
+	CatalogName string                  `json:"catalog_name"`
 	Metadata    ServiceOfferingMetadata `json:"metadata"`
 }
 
@@ -38,10 +38,10 @@ type ServiceInstance struct {
 	ID              string `json:"id"`
 	Name            string `json:"name"`
 	Namespace       string `json:"namespace"`
-	ServicePlanID   string `json:"servicePlanID"`
-	ServicePlanName string `json:"servicePlanName"`
-	SubaccountID    string `json:"subaccountID"`
-	ClusterID       string `json:"clusterID"`
+	ServicePlanID   string `json:"service_plan_id"`
+	ServicePlanName string `json:"service_plan_name"`
+	SubaccountID    string `json:"subaccount_id"`
+	ClusterID       string `json:"cluster_id"`
 }
 
 type ServiceOfferingDetails struct {

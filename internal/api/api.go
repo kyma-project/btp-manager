@@ -173,7 +173,7 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 	if returnError(writer, err) {
 		return
 	}
-	si, err := a.smClient.ServiceInstance(serviceBindingRequest.ServiceInstanceId)
+	si, err := a.smClient.ServiceInstance(serviceBindingRequest.ServiceInstanceID)
 	if returnError(writer, err) {
 		return
 	}
