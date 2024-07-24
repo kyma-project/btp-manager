@@ -18,7 +18,7 @@ func ToServiceBinding(request CreateServiceBinding, instance *types.ServiceInsta
 			Name:   request.Name,
 			Labels: map[string][]string{},
 		},
-		ServiceInstanceID: request.ServiceInstanceId,
+		ServiceInstanceID: request.ServiceInstanceID,
 		Parameters:        request.Parameters,
 	}
 	sb.Labels["_clusterid"] = append(sb.Labels["_clusterid"], clusterID)
