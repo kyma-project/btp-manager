@@ -8,17 +8,17 @@ import (
 
 type CreateServiceBinding struct {
 	Name              string          `json:"name"`
-	ServiceInstanceId string          `json:"serviceInstanceId"`
+	ServiceInstanceID string          `json:"service_instance_id"`
 	Parameters        json.RawMessage `json:"parameters"`
 }
 
 type CreateServiceInstance struct {
-	Name       string              `json:"name"`
-	PlanID     string              `json:"planID"`
-	Namespace  string              `json:"namespace"`
-	ClusterID  string              `json:"clusterID"`
-	Labels     map[string][]string `json:"labels"`
-	Parameters json.RawMessage     `json:"parameters"`
+	Name          string              `json:"name"`
+	ServicePlanID string              `json:"service_plan_id"`
+	Namespace     string              `json:"namespace"`
+	ClusterID     string              `json:"cluster_id"`
+	Labels        map[string][]string `json:"labels"`
+	Parameters    json.RawMessage     `json:"parameters"`
 }
 
 func (csi *CreateServiceInstance) ConvertToServiceInstance() *types.ServiceInstance {
@@ -35,7 +35,7 @@ func (csi *CreateServiceInstance) ConvertToServiceInstance() *types.ServiceInsta
 			Name:   csi.Name,
 			Labels: labels,
 		},
-		ServicePlanID: csi.PlanID,
+		ServicePlanID: csi.ServicePlanID,
 		Parameters:    csi.Parameters,
 	}
 }
