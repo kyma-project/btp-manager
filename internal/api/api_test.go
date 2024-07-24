@@ -101,10 +101,10 @@ func TestAPI(t *testing.T) {
 	t.Run("POST Service Instance", func(t *testing.T) {
 		// given
 		siToCreate := requests.CreateServiceInstance{
-			Name:      "new-si-01",
-			PlanID:    "4036790e-5ef3-4cf7-bb16-476053477a9a",
-			Namespace: "kyma-system",
-			ClusterID: "test-cluster-id",
+			Name:          "new-si-01",
+			ServicePlanID: "4036790e-5ef3-4cf7-bb16-476053477a9a",
+			Namespace:     "kyma-system",
+			ClusterID:     "test-cluster-id",
 			Labels: map[string][]string{
 				"label1": {"value1"},
 				"label2": {"value2a", "value2b"},
