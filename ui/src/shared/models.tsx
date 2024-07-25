@@ -48,10 +48,10 @@ export interface ServiceInstance {
   name: string;
   context: string[];
   namespace: string;
-  serviceBindings: ServiceInstanceBindings[];
+  serviceBindings: ServiceInstanceBinding[];
 }
 
-export interface ServiceInstanceBindings {
+export interface ServiceInstanceBinding {
   id: string;
   name: string;
   namespace: string;
