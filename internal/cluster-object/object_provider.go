@@ -12,7 +12,7 @@ type Manager[L client.ObjectList, O client.Object] interface {
 	ClusterScopedProvider[L]
 	NamespacedProvider[O]
 	Creator[O]
-	Deleter[O]
+	Deleter[L, O]
 }
 
 type Provider[L client.ObjectList, O client.Object] interface {
@@ -22,6 +22,7 @@ type Provider[L client.ObjectList, O client.Object] interface {
 
 type ClusterScopedProvider[T client.ObjectList] interface {
 	All(ctx context.Context) (T, error)
+	AllByLabels(ctx context.Context, labels map[string]string) (T, error)
 }
 
 type NamespacedProvider[T client.Object] interface {
@@ -32,6 +33,7 @@ type Creator[T client.Object] interface {
 	Create(ctx context.Context, obj T) error
 }
 
-type Deleter[T client.Object] interface {
-	Delete(ctx context.Context, obj T) error
+type Deleter[L client.ObjectList, O client.Object] interface {
+	Delete(ctx context.Context, obj O) error
+	DeleteAll(ctx context.Context, objs L) error
 }
