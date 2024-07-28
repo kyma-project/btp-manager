@@ -33,9 +33,6 @@ function Overview(props: any) {
 
 
             <>
-                    {
-                    }
-
                         <div className="margin-wrapper">
 
                             <ui5.SideNavigation>
