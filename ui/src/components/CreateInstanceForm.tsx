@@ -59,7 +59,7 @@ function CreateInstanceForm(props: any) {
                 <ui5.Form>
                     <ui5.FormItem label={<ui5.Label required>Name</ui5.Label>}>
                         <ui5.Input
-                            style={{ width: "100vw" }}
+                            style={{ width: "100%" }}
                             required
                             value={name}
                         />

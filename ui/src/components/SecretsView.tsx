@@ -62,7 +62,7 @@ function SecretsView(props: any) {
     return (
             <>
                     <ui5.Select
-                        style={{width: "20vw"}}
+                        style={{width: "20%"}}
                         onChange={(e) => {
                             props.handler(e.target.value);
                         }}
