@@ -16,7 +16,7 @@ export interface ServiceOffering {
   id: string;
   description: string;
   catalogId: string;
-  catalogName: string;
+  catalog_name: string;
   metadata: ServiceOfferingMetadata;
 }
 
@@ -48,10 +48,14 @@ export interface ServiceInstance {
   name: string;
   context: string[];
   namespace: string;
-  serviceBindings: ServiceInstanceBindings[];
+  serviceBindings: ServiceInstanceBinding[];
 }
 
 export interface ServiceInstanceBindings {
+  items: ServiceInstanceBinding[];
+}
+
+export interface ServiceInstanceBinding {
   id: string;
   name: string;
   namespace: string;

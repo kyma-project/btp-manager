@@ -23,7 +23,7 @@ function CreateInstanceForm(props: any) {
         setLoading(true)
         axios
             .post<ServiceInstance>(api("service-instances"), 
-            {name: name, planID: planId})
+            {name: name, service_plan_id: planId})
             .then((response) => {
                 setLoading(false);
                 // setServiceInstances(response.data);
@@ -45,7 +45,7 @@ function CreateInstanceForm(props: any) {
 
         setName(generateServiceInstanceName(
             props.plan?.name,
-            props.offering?.catalogName
+            props.offering?.catalog_name
         ))
 
         setPlanId(props.plan.id)

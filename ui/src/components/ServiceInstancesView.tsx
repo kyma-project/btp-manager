@@ -55,7 +55,8 @@ function ServiceInstancesView() {
           <ui5.TableRow 
           onClick={() => {
             console.log("Row clicked")
-            const instanceView = <ServiceInstancesDetailsView key={instance.id} instance={instance} open={true} />
+            const instanceView = <ServiceInstancesDetailsView 
+            key={instance.id} instance={instance} open={true} />
             const portal = createPortal( instanceView, document.getElementById("App")!!)
             setPortal(portal)
           }}
