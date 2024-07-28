@@ -426,12 +426,16 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 	}
 }
 
-func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
+func (c *Client) ServiceBindings(serviceInstanceId string) (*types.ServiceBindings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
+
+	if serviceInstanceId != "" {
+		req.URL.Query().Add("service_instance_id", serviceInstanceId)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

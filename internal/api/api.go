@@ -148,13 +148,18 @@ func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Req
 	if returnError(writer, err) {
 		return
 	}
+
 	response, err := json.Marshal(responses.ToServiceInstancesVM(sis))
 	returnResponse(writer, response, err)
 }
 
 func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	sbs, err := a.smClient.ServiceBindings()
+
+	queryParams := request.URL.Query()
+	serviceInstanceId := queryParams.Get("service_instance_id")
+
+	sbs, err := a.smClient.ServiceBindings(serviceInstanceId)
 	if returnError(writer, err) {
 		return
 	}
