@@ -73,7 +73,7 @@ func (p *FakeSecretManager) Delete(ctx context.Context, secret *corev1.Secret) e
 	return fmt.Errorf("secret not found")
 }
 
-func (p *FakeSecretManager) DeleteAll(ctx context.Context, secrets *corev1.SecretList) error {
+func (p *FakeSecretManager) DeleteList(ctx context.Context, secrets *corev1.SecretList) error {
 	for _, secret := range secrets.Items {
 		if err := p.Delete(ctx, &secret); err != nil {
 			return err
@@ -87,7 +87,7 @@ func (p *FakeSecretManager) DeleteAllByLabels(ctx context.Context, labels map[st
 	if err != nil {
 		return err
 	}
-	return p.DeleteAll(ctx, secrets)
+	return p.DeleteList(ctx, secrets)
 }
 
 func FakeDefaultSecret() *corev1.Secret {

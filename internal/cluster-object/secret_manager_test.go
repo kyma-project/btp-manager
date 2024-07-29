@@ -19,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestSecretProvider(t *testing.T) {
+func TestSecretManager(t *testing.T) {
 	// given
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	scheme := clientgoscheme.Scheme
@@ -93,10 +93,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.GetAll(context.TODO())
+		actualSecrets, err := secretManager.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -132,10 +132,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.GetAll(context.TODO())
+		actualSecrets, err := secretManager.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -171,10 +171,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.GetAll(context.TODO())
+		actualSecrets, err := secretManager.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -219,10 +219,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.GetAll(context.TODO())
+		actualSecrets, err := secretManager.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -246,14 +246,319 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.GetAll(context.TODO())
+		actualSecrets, err := secretManager.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
 		assert.Nil(t, actualSecrets)
+	})
+
+	t.Run("should fetch secrets by labels", func(t *testing.T) {
+		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
+		expectedSecrets := []corev1.Secret{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret1",
+					Namespace: controllers.ChartNamespace,
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+				},
+				StringData: map[string]string{
+					"foo": "bar",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret2",
+					Namespace: controllers.ChartNamespace,
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+				},
+				StringData: map[string]string{
+					"foo": "bar",
+				},
+			},
+		}
+		additionalSecrets := createAdditionalSecrets()
+		secrets := &corev1.SecretList{Items: expectedSecrets}
+		secrets.Items = append(secrets.Items, additionalSecrets...)
+
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(ns, sis, secrets).
+			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
+			Build()
+		nsProvider := NewNamespaceProvider(k8sClient, logger)
+		siProvider := NewServiceInstanceProvider(k8sClient, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+
+		// when
+		actualSecrets, err := secretManager.GetAllByLabels(context.TODO(), map[string]string{"foo": "bar"})
+		require.NoError(t, err)
+
+		// then
+		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
+	})
+
+	t.Run("should create a secret", func(t *testing.T) {
+		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
+		secretToCreate := corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret1",
+				Namespace: controllers.ChartNamespace,
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			StringData: map[string]string{
+				"foo": "bar",
+			},
+		}
+		expectedSecrets := []corev1.Secret{secretToCreate}
+		additionalSecrets := createAdditionalSecrets()
+		secrets := &corev1.SecretList{Items: additionalSecrets}
+
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(ns, sis, secrets).
+			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
+			Build()
+		nsProvider := NewNamespaceProvider(k8sClient, logger)
+		siProvider := NewServiceInstanceProvider(k8sClient, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+
+		// when
+		err := secretManager.Create(context.TODO(), &secretToCreate)
+		require.NoError(t, err)
+
+		// when
+		actualSecrets, err := secretManager.GetAllByLabels(context.TODO(), map[string]string{"foo": "bar"})
+		require.NoError(t, err)
+
+		// then
+		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
+	})
+
+	t.Run("should delete a secret", func(t *testing.T) {
+		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
+		secretToDelete := corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret2",
+				Namespace: controllers.ChartNamespace,
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			StringData: map[string]string{
+				"foo": "bar",
+			},
+		}
+		expectedSecrets := []corev1.Secret{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret1",
+					Namespace: controllers.ChartNamespace,
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+				},
+				StringData: map[string]string{
+					"foo": "bar",
+				},
+			},
+		}
+
+		additionalSecrets := createAdditionalSecrets()
+		secrets := &corev1.SecretList{Items: expectedSecrets}
+		secrets.Items = append(secrets.Items, secretToDelete)
+		secrets.Items = append(secrets.Items, additionalSecrets...)
+
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(ns, sis, secrets).
+			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
+			Build()
+		nsProvider := NewNamespaceProvider(k8sClient, logger)
+		siProvider := NewServiceInstanceProvider(k8sClient, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+
+		// when
+		err := secretManager.Delete(context.TODO(), &secretToDelete)
+		require.NoError(t, err)
+
+		// when
+		actualSecrets, err := secretManager.GetAllByLabels(context.TODO(), map[string]string{"foo": "bar"})
+		require.NoError(t, err)
+
+		// then
+		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
+	})
+
+	t.Run("should delete secrets from list", func(t *testing.T) {
+		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
+		secretsToDelete := &corev1.SecretList{
+			Items: []corev1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret1",
+						Namespace: controllers.ChartNamespace,
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+					StringData: map[string]string{
+						"foo": "bar",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret2",
+						Namespace: controllers.ChartNamespace,
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+					StringData: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+		}
+		expectedSecrets := []corev1.Secret{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret3",
+					Namespace: controllers.ChartNamespace,
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+				},
+				StringData: map[string]string{
+					"foo": "bar",
+				},
+			},
+		}
+
+		additionalSecrets := createAdditionalSecrets()
+		secrets := &corev1.SecretList{Items: expectedSecrets}
+		secrets.Items = append(secrets.Items, secretsToDelete.Items...)
+		secrets.Items = append(secrets.Items, additionalSecrets...)
+
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(ns, sis, secrets).
+			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
+			Build()
+		nsProvider := NewNamespaceProvider(k8sClient, logger)
+		siProvider := NewServiceInstanceProvider(k8sClient, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+
+		// when
+		err := secretManager.DeleteList(context.TODO(), secretsToDelete)
+		require.NoError(t, err)
+
+		// when
+		actualSecrets, err := secretManager.GetAllByLabels(context.TODO(), map[string]string{"foo": "bar"})
+		require.NoError(t, err)
+
+		// then
+		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
+	})
+
+	t.Run("should delete secrets by labels", func(t *testing.T) {
+		// given
+		ns := initNamespaces()
+		sis := initServiceInstances(t)
+		secretsToDelete := &corev1.SecretList{
+			Items: []corev1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret1",
+						Namespace: controllers.ChartNamespace,
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+					StringData: map[string]string{
+						"foo": "bar",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret2",
+						Namespace: controllers.ChartNamespace,
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+					StringData: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+		}
+		expectedSecrets := []corev1.Secret{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret3",
+					Namespace: controllers.ChartNamespace,
+					Labels: map[string]string{
+						"keep": "me",
+					},
+				},
+				StringData: map[string]string{
+					"foo": "bar",
+				},
+			},
+		}
+
+		additionalSecrets := createAdditionalSecrets()
+		secrets := &corev1.SecretList{Items: expectedSecrets}
+		secrets.Items = append(secrets.Items, secretsToDelete.Items...)
+		secrets.Items = append(secrets.Items, additionalSecrets...)
+
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(ns, sis, secrets).
+			WithIndex(&corev1.Secret{}, "metadata.name", secretNameIndexer).
+			Build()
+		nsProvider := NewNamespaceProvider(k8sClient, logger)
+		siProvider := NewServiceInstanceProvider(k8sClient, logger)
+		secretManager := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
+
+		// when
+		err := secretManager.DeleteAllByLabels(context.TODO(), map[string]string{"foo": "bar"})
+		require.NoError(t, err)
+
+		// when
+		actualSecrets, err := secretManager.GetAllByLabels(context.TODO(), map[string]string{"foo": "bar"})
+		require.NoError(t, err)
+		assert.Nil(t, actualSecrets)
+
+		// when
+		actualSecrets, err = secretManager.GetAllByLabels(context.TODO(), map[string]string{"keep": "me"})
+		require.NoError(t, err)
+
+		// then
+		compareSecretSlices(t, expectedSecrets, actualSecrets.Items)
 	})
 }
 

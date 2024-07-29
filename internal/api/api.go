@@ -234,7 +234,7 @@ func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Req
 	if returnError(writer, err) {
 		return
 	}
-	err = a.secretManager.DeleteAll(context.Background(), secrets)
+	err = a.secretManager.DeleteList(context.Background(), secrets)
 	if returnError(writer, err) {
 		return
 	}

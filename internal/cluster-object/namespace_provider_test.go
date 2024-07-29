@@ -82,7 +82,7 @@ func initNamespaces() *corev1.NamespaceList {
 			},
 			{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kyma-system",
+					Name: "labeled-namespace",
 					Labels: map[string]string{
 						"test": "test",
 					},

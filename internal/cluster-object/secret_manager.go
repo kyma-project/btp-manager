@@ -200,7 +200,7 @@ func (p *SecretManager) Delete(ctx context.Context, secret *corev1.Secret) error
 	return nil
 }
 
-func (p *SecretManager) DeleteAll(ctx context.Context, secrets *corev1.SecretList) error {
+func (p *SecretManager) DeleteList(ctx context.Context, secrets *corev1.SecretList) error {
 	p.logger.Info(fmt.Sprintf("deleting %d secrets", len(secrets.Items)))
 	for _, secret := range secrets.Items {
 		if err := p.Client.Delete(ctx, &secret); err != nil {

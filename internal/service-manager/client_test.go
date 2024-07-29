@@ -15,8 +15,8 @@ import (
 
 func TestClient(t *testing.T) {
 	// given
-	secretProvider := clusterobject.NewFakeSecretProvider()
-	secretProvider.AddSecret(clusterobject.FakeDefaultSecret())
+	secretProvider := clusterobject.NewFakeSecretManager()
+	secretProvider.Create(clusterobject.FakeDefaultSecret())
 	srv, err := servicemanager.NewFakeServer()
 	require.NoError(t, err)
 

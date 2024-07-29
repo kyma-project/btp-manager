@@ -18,6 +18,6 @@ type Creator[T client.Object] interface {
 
 type Deleter[L client.ObjectList, O client.Object] interface {
 	Delete(ctx context.Context, obj O) error
-	DeleteAll(ctx context.Context, objs L) error
+	DeleteList(ctx context.Context, objs L) error
 	DeleteAllByLabels(ctx context.Context, labels map[string]string) error
 }
