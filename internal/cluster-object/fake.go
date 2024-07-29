@@ -8,19 +8,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type FakeSecretProvider struct {
+type FakeSecretManager struct {
 	secrets []*corev1.Secret
 }
 
-func NewFakeSecretProvider() *FakeSecretProvider {
-	return &FakeSecretProvider{secrets: make([]*corev1.Secret, 0)}
+func NewFakeSecretManager() *FakeSecretManager {
+	return &FakeSecretManager{secrets: make([]*corev1.Secret, 0)}
 }
 
-func (p *FakeSecretProvider) AddSecret(secret *corev1.Secret) {
+func (p *FakeSecretManager) Create(ctx context.Context, secret *corev1.Secret) error {
 	p.secrets = append(p.secrets, secret)
+	return nil
 }
 
-func (p *FakeSecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
+func (p *FakeSecretManager) GetAll(ctx context.Context) (*corev1.SecretList, error) {
 	items := make([]corev1.Secret, 0)
 	for _, secret := range p.secrets {
 		items = append(items, *secret)
@@ -30,7 +31,7 @@ func (p *FakeSecretProvider) All(ctx context.Context) (*corev1.SecretList, error
 	}, nil
 }
 
-func (p *FakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+func (p *FakeSecretManager) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	for _, secret := range p.secrets {
 		if secret.Name == name && secret.Namespace == namespace {
 			return secret, nil
@@ -39,8 +40,54 @@ func (p *FakeSecretProvider) GetByNameAndNamespace(ctx context.Context, name, na
 	return nil, fmt.Errorf("secret not found")
 }
 
-func (p *FakeSecretProvider) Clean() {
+func (p *FakeSecretManager) Clean() {
 	p.secrets = make([]*corev1.Secret, 0)
+}
+
+func (p *FakeSecretManager) GetAllByLabels(ctx context.Context, labels map[string]string) (*corev1.SecretList, error) {
+	items := make([]corev1.Secret, 0)
+	for _, secret := range p.secrets {
+		if secret.Labels == nil {
+			continue
+		}
+		secretLabels := secret.Labels
+		for key, value := range labels {
+			if secretLabels[key] != value {
+				continue
+			}
+			items = append(items, *secret)
+		}
+	}
+	return &corev1.SecretList{
+		Items: items,
+	}, nil
+}
+
+func (p *FakeSecretManager) Delete(ctx context.Context, secret *corev1.Secret) error {
+	for i, s := range p.secrets {
+		if s.Name == secret.Name && s.Namespace == secret.Namespace {
+			p.secrets = append(p.secrets[:i], p.secrets[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("secret not found")
+}
+
+func (p *FakeSecretManager) DeleteAll(ctx context.Context, secrets *corev1.SecretList) error {
+	for _, secret := range secrets.Items {
+		if err := p.Delete(ctx, &secret); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *FakeSecretManager) DeleteAllByLabels(ctx context.Context, labels map[string]string) error {
+	secrets, err := p.GetAllByLabels(ctx, labels)
+	if err != nil {
+		return err
+	}
+	return p.DeleteAll(ctx, secrets)
 }
 
 func FakeDefaultSecret() *corev1.Secret {
