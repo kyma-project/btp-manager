@@ -15,7 +15,7 @@ function ServiceInstancesView() {
   const [portal, setPortal] = useState<JSX.Element>();
 
   useEffect(() => {
-    var useTestData = process.env.REACT_APP_USE_TEST_DATA
+    var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
       setLoading(true)
       axios
@@ -55,7 +55,8 @@ function ServiceInstancesView() {
           <ui5.TableRow 
           onClick={() => {
             console.log("Row clicked")
-            const instanceView = <ServiceInstancesDetailsView key={instance.id} instance={instance} open={true} />
+            const instanceView = <ServiceInstancesDetailsView 
+            key={instance.id} instance={instance} open={true} />
             const portal = createPortal( instanceView, document.getElementById("App")!!)
             setPortal(portal)
           }}
@@ -78,18 +79,25 @@ function ServiceInstancesView() {
   return (
     <>
     {
+      <ui5.Card>
 
-      <ui5.Table
-        columns={
-          <>
-            <ui5.TableColumn>
-              <ui5.Label>Service Instance</ui5.Label>
-            </ui5.TableColumn>
-          </>
-        }
-       >
-        {renderData()}
-      </ui5.Table>
+        <ui5.Table
+          columns={
+            <>
+              <ui5.TableColumn>
+                <ui5.Label>Service Instance</ui5.Label>
+              </ui5.TableColumn>
+
+              <ui5.TableColumn>
+                <ui5.Label>Service Namespace</ui5.Label>
+              </ui5.TableColumn>
+            </>
+          }
+        >
+          {renderData()}
+        </ui5.Table>
+      </ui5.Card>
+
     }
     {portal != null && portal}
 
