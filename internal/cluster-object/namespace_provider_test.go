@@ -30,7 +30,7 @@ func TestNamespaceProvider(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error while fetching namespaces: %s", err)
 		}
-		assert.Len(t, nsList.Items, 3)
+		assert.Len(t, nsList.Items, 4)
 	})
 
 	t.Run("should return error when no namespaces found", func(t *testing.T) {
