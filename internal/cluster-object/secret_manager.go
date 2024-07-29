@@ -153,7 +153,7 @@ func (p *SecretManager) GetAllByLabels(ctx context.Context, labels map[string]st
 	secrets := &corev1.SecretList{}
 	err := p.List(ctx, secrets, client.MatchingLabels(labels))
 	if err != nil {
-		p.logger.Error("while fetching secrets by labels", "error", err)
+		p.logger.Error("while fetching secrets by labels", "error", err, "labels", labels)
 		return nil, err
 	}
 

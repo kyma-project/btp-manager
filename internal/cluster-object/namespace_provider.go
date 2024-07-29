@@ -49,7 +49,7 @@ func (p *NamespaceProvider) GetAllByLabels(ctx context.Context, labels map[strin
 	namespaces := &v1.NamespaceList{}
 	err := p.List(ctx, namespaces, client.MatchingLabels(labels))
 	if err != nil {
-		p.logger.Error("while fetching namespaces by labels", "error", err)
+		p.logger.Error("while fetching namespaces by labels", "error", err, "labels", labels)
 		return nil, err
 	}
 
