@@ -45,7 +45,8 @@ func TestAPI(t *testing.T) {
 	url := fakeSM.URL
 
 	secretMgr := clusterobject.NewFakeSecretManager()
-	secretMgr.Create(clusterobject.FakeDefaultSecret())
+	err = secretMgr.Create(context.TODO(), clusterobject.FakeDefaultSecret())
+	require.NoError(t, err)
 
 	fakeSMClient := servicemanager.NewClient(context.TODO(), slog.Default(), secretMgr)
 	fakeSMClient.SetHTTPClient(httpClient)
