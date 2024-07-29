@@ -3,10 +3,8 @@ import View from "./components/View";
 
 function App() {
   return (
-    <div id="App" className="App">
-      <div className="ui5-content-density-compact">
+    <div id="App" className="App html-wrap flex-container flex-column">
         <View />
-      </div>
     </div>
   );
 }

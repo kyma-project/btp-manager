@@ -76,7 +76,7 @@ function ServiceOfferingsDetailsView(props: any) {
               startContent={
                 <>
                   <ui5.Title level="H5">
-                    Create {offering?.catalogName} Service Instance
+                    Create {offering?.metadata.displayName} Service Instance
                   </ui5.Title>
                 </>
               }
@@ -96,7 +96,7 @@ function ServiceOfferingsDetailsView(props: any) {
           <ui5.Panel headerLevel="H2" headerText="Service Instance Details">
             <ui5.Form>
               <ui5.FormItem label="Name">
-                <ui5.Text>{offering?.catalogName}</ui5.Text>
+                <ui5.Text>{offering?.metadata.displayName}</ui5.Text>
               </ui5.FormItem>
               <ui5.FormItem label="Description">
                 <ui5.Text>{offering?.description}</ui5.Text>

@@ -23,7 +23,7 @@ function CreateInstanceForm(props: any) {
         setLoading(true)
         axios
             .post<ServiceInstance>(api("service-instances"), 
-            {name: name, planID: planId})
+            {name: name, service_plan_id: planId})
             .then((response) => {
                 setLoading(false);
                 // setServiceInstances(response.data);
@@ -45,7 +45,7 @@ function CreateInstanceForm(props: any) {
 
         setName(generateServiceInstanceName(
             props.plan?.name,
-            props.offering?.catalogName
+            props.offering?.catalog_name
         ))
 
         setPlanId(props.plan.id)
@@ -59,7 +59,7 @@ function CreateInstanceForm(props: any) {
                 <ui5.Form>
                     <ui5.FormItem label={<ui5.Label required>Name</ui5.Label>}>
                         <ui5.Input
-                            style={{ width: "100vw" }}
+                            style={{ width: "100%" }}
                             required
                             value={name}
                         />

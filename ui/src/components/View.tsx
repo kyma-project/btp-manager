@@ -18,57 +18,49 @@ function Overview(props: any) {
     
     return (
         <>
-            <ui5.Page
-                header={<ui5.Bar design="Header">Service Management UI</ui5.Bar>}
-            >
-                <ui5.Title level="H1">Service Marketplace</ui5.Title>
-            </ui5.Page>
+        
             <ui5.Bar
                 design="Header"
                 endContent={<span>SAP BTP, Kyma runtime</span>}
                 startContent={<span>Select your credentials:</span>}
             >
-                <Secrets handler={(e: any) => handler(e)} style={{width: "100vw"}} />
+                <Secrets handler={(e: any) => handler(e)} style={{width: "100%"}} />
             </ui5.Bar>
+
+
+            <div className="flex-container flex-row">
+            
+
+
             <>
-                <div>
-                    <ui5.FlexBox
-                        style={{
-                            height: "100vh",
-                            width: "100vw",
-                        }}
-                    >
-                        <ui5.SideNavigation
-                            style={{
-                                width: "10%",
-                                height: "90vh",
-                            }}
-                        >
-                            <ui5.SideNavigationItem
-                                text="Marketplace"
-                                selected
-                                onClick={() => {
-                                    setPageContent(<ServiceOfferings secret={secret}/>);
-                                }}
-                            />
-                            <ui5.SideNavigationItem
-                                text="Service Instances"
-                                onClick={() => {
-                                    setPageContent(<ServiceInstancesView/>);
-                                }}
-                            />
-                        </ui5.SideNavigation>
-                        <ui5.Page
-                            backgroundDesign="Solid"
-                            style={{
-                                width: "90%",
-                            }}
-                        >
+                        <div className="margin-wrapper">
+
+                            <ui5.SideNavigation>
+                                <ui5.SideNavigationItem
+                                    text="Marketplace"
+                                    icon="puzzle"
+                                    selected
+                                    onClick={() => {
+                                        setPageContent(<ServiceOfferings secret={secret}/>);
+                                    }}
+                                />
+                                <ui5.SideNavigationItem
+                                    text="Service Instances"
+                                    icon="connected"
+                                    onClick={() => {
+                                        setPageContent(<ServiceInstancesView/>);
+                                    }}
+                                />
+                            </ui5.SideNavigation>
+                        </div>
+
+                        
+                        <div className="margin-wrapper scrollable">
                             {pageContent}
-                        </ui5.Page>
-                    </ui5.FlexBox>
-                </div>
+                        </div>
             </>
+        </div>
+
         </>
     );
 }
