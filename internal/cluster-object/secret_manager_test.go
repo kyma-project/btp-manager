@@ -93,10 +93,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretProvider(k8sClient, nsProvider, siProvider, logger)
+		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.All(context.TODO())
+		actualSecrets, err := secretProvider.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -132,10 +132,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretProvider(k8sClient, nsProvider, siProvider, logger)
+		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.All(context.TODO())
+		actualSecrets, err := secretProvider.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -171,10 +171,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretProvider(k8sClient, nsProvider, siProvider, logger)
+		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.All(context.TODO())
+		actualSecrets, err := secretProvider.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -219,10 +219,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretProvider(k8sClient, nsProvider, siProvider, logger)
+		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.All(context.TODO())
+		actualSecrets, err := secretProvider.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
@@ -246,10 +246,10 @@ func TestSecretProvider(t *testing.T) {
 			Build()
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
-		secretProvider := NewSecretProvider(k8sClient, nsProvider, siProvider, logger)
+		secretProvider := NewSecretManager(k8sClient, nsProvider, siProvider, logger)
 
 		// when
-		actualSecrets, err := secretProvider.All(context.TODO())
+		actualSecrets, err := secretProvider.GetAll(context.TODO())
 		require.NoError(t, err)
 
 		// then
