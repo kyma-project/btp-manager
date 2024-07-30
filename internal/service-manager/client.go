@@ -434,7 +434,9 @@ func (c *Client) ServiceBindings(serviceInstanceId string) (*types.ServiceBindin
 	req.Header.Add("Content-Type", "application/json")
 
 	if serviceInstanceId != "" {
-		req.URL.Query().Add("service_instance_id", serviceInstanceId)
+		values := req.URL.Query()
+		values.Add("fieldQuery", "service_instance_id eq '" + serviceInstanceId + "'")
+		req.URL.RawQuery = values.Encode()
 	}
 
 	resp, err := c.httpClient.Do(req)
