@@ -38,7 +38,7 @@ function ServiceBindingsList(props: any) {
       setServiceInstanceBindings(serviceInstancesData)
       setLoading(false);
     }
-  }, []);
+  }, [props.instance]);
 
   if (loading) {
     return <ui5.Loader progress="100%" />
