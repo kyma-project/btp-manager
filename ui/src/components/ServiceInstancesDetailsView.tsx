@@ -4,6 +4,7 @@ import {
   ServiceInstance,
 } from "../shared/models";
 import { useEffect, useRef, useState } from "react";
+import ServiceBindingsList from "./ServiceBindingsList";
 
 function ServiceInstancesDetailsView(props: any) {
   const [loading, setLoading] = useState(true);
@@ -79,6 +80,10 @@ function ServiceInstancesDetailsView(props: any) {
             </ui5.FormItem>
           </ui5.Form>
         </ui5.Panel>
+
+        <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Bindings">
+            <ServiceBindingsList instance={props.instance}/>
+          </ui5.Panel>
 
       </ui5.Dialog>
     )

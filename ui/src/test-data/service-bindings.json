@@ -1,0 +1,14 @@
+{
+    "items": [
+        {
+            "id": "1",
+            "name": "Test Service Binding 1",
+            "namespace": ""
+        },
+        {
+            "id": "2",
+            "name": "Test Service Binding 2",
+            "namespace": ""
+        }
+    ]
+}

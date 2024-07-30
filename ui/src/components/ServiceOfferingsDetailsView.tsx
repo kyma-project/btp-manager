@@ -154,20 +154,11 @@ function ServiceOfferingsDetailsView(props: any) {
           <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Create">
             <CreateInstanceForm plan={plan} offering={props.offering} />
           </ui5.Panel>
-          
         </ui5.Dialog>
       </>
     )}
   // @ts-ignore
   return <>{renderData()}</>;
-}
-
-function generateServiceInstanceName(
-  plan: string | undefined,
-  service: string | undefined
-): string {
-  const id = window.crypto.randomUUID().substring(0, 4);
-  return `${service}-${plan}-${id}`;
 }
 
 export default ServiceOfferingsDetailsView;
