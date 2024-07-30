@@ -1,5 +1,5 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import { ServiceInstance, ServiceInstanceBindings, ServiceInstances } from "../shared/models";
+import { ServiceInstanceBindings } from "../shared/models";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import api from "../shared/api";
@@ -10,6 +10,7 @@ function ServiceBindingsList(props: any) {
   const [bindings, setServiceInstanceBindings] = useState<ServiceInstanceBindings>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [portal] = useState<JSX.Element>();
 
   useEffect(() => {
     if (!Ok(props.instance)) {
