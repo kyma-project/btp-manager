@@ -35,6 +35,7 @@ func TestAPI(t *testing.T) {
 		IdleTimeout:  idleTimeout,
 	}
 	defaultSIs := defaultServiceInstances()
+	defaultSBs := defaultServiceBindings()
 
 	fakeSM, err := servicemanager.NewFakeServer()
 	require.NoError(t, err)
@@ -189,6 +190,23 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 500, resp.StatusCode) // change to 404 after error handling refactoring
 	})
+
+	t.Run("GET Service Bindings", func(t *testing.T) {
+		// when
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings", nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode)
+		defer resp.Body.Close()
+
+		var sbs responses.ServiceBindings
+		err = json.NewDecoder(resp.Body).Decode(&sbs)
+		require.NoError(t, err)
+
+		// then
+		assert.Equal(t, sbs.NumItems, 4)
+		assert.ElementsMatch(t, sbs.Items, defaultSBs.Items)
+	})
 }
 
 func defaultServiceInstances() responses.ServiceInstances {
@@ -234,4 +252,32 @@ func getServiceInstanceByID(serviceInstances responses.ServiceInstances, service
 		}
 	}
 	return responses.ServiceInstance{}
+}
+
+func defaultServiceBindings() responses.ServiceBindings {
+	return responses.ServiceBindings{
+		NumItems: 4,
+		Items: []responses.ServiceBinding{
+			{
+				ID:          "550e8400-e29b-41d4-a716-446655440003",
+				Name:        "service-binding",
+				Credentials: map[string]interface{}{"username": "user", "password": "pass"},
+			},
+			{
+				ID:          "9e420bca-4cf2-4858-ade2-e5ef23cd756f",
+				Name:        "service-binding-2",
+				Credentials: map[string]interface{}{"username": "user2", "password": "pass2"},
+			},
+			{
+				ID:          "318a16c3-7c80-485f-b55c-918629012c9a",
+				Name:        "service-binding-3",
+				Credentials: map[string]interface{}{"username": "user3", "password": "pass3"},
+			},
+			{
+				ID:          "8e97d56b-9fc1-43db-9d2e-e52f8ce91046",
+				Name:        "service-binding-4",
+				Credentials: map[string]interface{}{"username": "user3", "password": "pass3"},
+			},
+		},
+	}
 }
