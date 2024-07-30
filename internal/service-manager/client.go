@@ -427,11 +427,21 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 }
 
 func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
+	return c.ServiceBindingsFor("")
+}
+
+func (c *Client) ServiceBindingsFor(serviceInstanceId string) (*types.ServiceBindings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
+
+	if serviceInstanceId != "" {
+		values := req.URL.Query()
+		values.Add("fieldQuery", "service_instance_id eq '"+serviceInstanceId+"'")
+		req.URL.RawQuery = values.Encode()
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
