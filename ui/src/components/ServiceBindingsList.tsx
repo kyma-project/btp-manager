@@ -8,10 +8,8 @@ import serviceInstancesData from '../test-data/service-bindings.json';
 
 function ServiceBindingsList(props: any) {
   const [bindings, setServiceInstanceBindings] = useState<ServiceInstanceBindings>();
-  const [instance, setInstance] = useState<ServiceInstance>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [portal, setPortal] = useState<JSX.Element>();
 
   useEffect(() => {
     if (!Ok(props.instance)) {

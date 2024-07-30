@@ -10,7 +10,9 @@ import api from "../shared/api";
 import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
 
 function CreateInstanceForm(props: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [loading, setLoading] = useState(true);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [error, setError] = useState(null);
 
     const [name, setName] = useState('');
