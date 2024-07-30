@@ -159,7 +159,7 @@ func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Requ
 	queryParams := request.URL.Query()
 	serviceInstanceId := queryParams.Get("service_instance_id")
 
-	sbs, err := a.smClient.ServiceBindings(serviceInstanceId)
+	sbs, err := a.smClient.ServiceBindingsFor(serviceInstanceId)
 	if returnError(writer, err) {
 		return
 	}
