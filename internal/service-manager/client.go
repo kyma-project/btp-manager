@@ -439,7 +439,7 @@ func (c *Client) ServiceBindingsFor(serviceInstanceId string) (*types.ServiceBin
 
 	if serviceInstanceId != "" {
 		values := req.URL.Query()
-		values.Add("fieldQuery", "service_instance_id eq '" + serviceInstanceId + "'")
+		values.Add("fieldQuery", "service_instance_id eq '"+serviceInstanceId+"'")
 		req.URL.RawQuery = values.Encode()
 	}
 
