@@ -426,7 +426,11 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 	}
 }
 
-func (c *Client) ServiceBindings(serviceInstanceId string) (*types.ServiceBindings, error) {
+func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
+	return c.ServiceBindingsFor("")
+}
+
+func (c *Client) ServiceBindingsFor(serviceInstanceId string) (*types.ServiceBindings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath, nil)
 	if err != nil {
 		return nil, err
