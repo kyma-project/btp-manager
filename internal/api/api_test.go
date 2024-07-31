@@ -207,6 +207,26 @@ func TestAPI(t *testing.T) {
 		assert.Equal(t, sbs.NumItems, 4)
 		assert.ElementsMatch(t, sbs.Items, defaultSBs.Items)
 	})
+
+	t.Run("GET Service Binding by ID", func(t *testing.T) {
+		// given
+		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
+		expectedSI := getServiceBindingByID(defaultSBs, sbID)
+
+		// when
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode)
+		defer resp.Body.Close()
+
+		var sb responses.ServiceBinding
+		err = json.NewDecoder(resp.Body).Decode(&sb)
+		require.NoError(t, err)
+
+		// then
+		assert.Equal(t, expectedSI, sb)
+	})
 }
 
 func defaultServiceInstances() responses.ServiceInstances {
@@ -280,4 +300,13 @@ func defaultServiceBindings() responses.ServiceBindings {
 			},
 		},
 	}
+}
+
+func getServiceBindingByID(serviceBinding responses.ServiceBindings, serviceBindingID string) responses.ServiceBinding {
+	for _, sb := range serviceBinding.Items {
+		if sb.ID == serviceBindingID {
+			return sb
+		}
+	}
+	return responses.ServiceBinding{}
 }
