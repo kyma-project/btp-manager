@@ -17,6 +17,8 @@ import (
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -262,6 +264,50 @@ func TestAPI(t *testing.T) {
 
 		// then
 		assert.Len(t, secrets.Items, 1)
+	})
+
+	t.Run("DELETE Service Binding by ID", func(t *testing.T) {
+		// given
+		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
+		labels := map[string]string{
+			clusterobject.ManagedByLabelKey:     clusterobject.OperatorName,
+			clusterobject.ServiceBindingIDLabel: sbID,
+		}
+		secretToDelete := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "service-binding-3-secret",
+				Namespace: "kyma-system",
+				Labels:    labels,
+			},
+			StringData: map[string]string{"username": "user3", "password": "pass3"},
+		}
+		err := secretMgr.Create(context.TODO(), secretToDelete)
+		require.NoError(t, err)
+
+		// when
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		// then
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// when
+		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err = apiClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		// then
+		require.Equal(t, http.StatusInternalServerError, resp.StatusCode) // change to 404 after error handling refactoring
+
+		// when
+		secrets, err := secretMgr.GetAllByLabels(context.TODO(), labels)
+		require.NoError(t, err)
+
+		// then
+		assert.Len(t, secrets.Items, 0)
 	})
 }
 
