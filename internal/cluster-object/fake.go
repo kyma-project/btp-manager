@@ -55,8 +55,8 @@ func (p *FakeSecretManager) GetAllByLabels(ctx context.Context, labels map[strin
 			if secretLabels[key] != value {
 				continue
 			}
-			items = append(items, *secret)
 		}
+		items = append(items, *secret)
 	}
 	return &corev1.SecretList{
 		Items: items,

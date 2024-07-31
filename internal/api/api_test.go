@@ -227,6 +227,42 @@ func TestAPI(t *testing.T) {
 		// then
 		assert.Equal(t, expectedSI, sb)
 	})
+
+	t.Run("POST Service Binding", func(t *testing.T) {
+		// given
+		sbCreateRequest := requests.CreateServiceBinding{
+			Name:              "sb-test-01",
+			ServiceInstanceID: "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+			Parameters:        []byte(`{"param1": "value1", "param2": "value2"}`),
+		}
+		sbCreateRequestJSON, err := json.Marshal(sbCreateRequest)
+		require.NoError(t, err)
+
+		// when
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode) // change expected status code to 201 after error handling refactoring
+		defer resp.Body.Close()
+
+		var sb responses.ServiceBinding
+		err = json.NewDecoder(resp.Body).Decode(&sb)
+		require.NoError(t, err)
+
+		// then
+		assert.NotEmpty(t, sb.ID)
+		assert.Equal(t, sbCreateRequest.Name, sb.Name)
+
+		// when
+		secrets, err := secretMgr.GetAllByLabels(context.TODO(), map[string]string{
+			clusterobject.ServiceBindingIDLabel:  sb.ID,
+			clusterobject.ServiceInstanceIDLabel: sbCreateRequest.ServiceInstanceID,
+		})
+		require.NoError(t, err)
+
+		// then
+		assert.Len(t, secrets.Items, 1)
+	})
 }
 
 func defaultServiceInstances() responses.ServiceInstances {

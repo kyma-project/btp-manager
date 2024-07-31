@@ -526,6 +526,7 @@ func (h *fakeSMHandler) createServiceBinding(w http.ResponseWriter, r *http.Requ
 	}
 
 	sbCreateRequest.ID = uuid.New().String()
+	sbCreateRequest.Credentials = []byte(`{"username": "user", "password": "pass"}`)
 	h.serviceBindings.Items = append(h.serviceBindings.Items, sbCreateRequest)
 
 	data, err := json.Marshal(sbCreateRequest)
