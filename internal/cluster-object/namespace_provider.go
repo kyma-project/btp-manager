@@ -3,6 +3,7 @@ package clusterobject
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	v1 "k8s.io/api/core/v1"
@@ -25,7 +26,7 @@ func NewNamespaceProvider(reader client.Reader, logger *slog.Logger) *NamespaceP
 	}
 }
 
-func (p *NamespaceProvider) All(ctx context.Context) (*v1.NamespaceList, error) {
+func (p *NamespaceProvider) GetAll(ctx context.Context) (*v1.NamespaceList, error) {
 	p.logger.Info("fetching all namespaces")
 
 	namespaces := &v1.NamespaceList{}
@@ -41,4 +42,21 @@ func (p *NamespaceProvider) All(ctx context.Context) (*v1.NamespaceList, error) 
 	}
 
 	return namespaces, nil
+}
+
+func (p *NamespaceProvider) GetAllByLabels(ctx context.Context, labels map[string]string) (*v1.NamespaceList, error) {
+	p.logger.Info("fetching namespaces by labels")
+	namespaces := &v1.NamespaceList{}
+	err := p.List(ctx, namespaces, client.MatchingLabels(labels))
+	if err != nil {
+		p.logger.Error("while fetching namespaces by labels", "error", err, "labels", labels)
+		return nil, err
+	}
+
+	if len(namespaces.Items) == 0 {
+		p.logger.Warn(fmt.Sprintf("no namespaces found with labels: %v", labels))
+		return nil, err
+	}
+
+	return namespaces, err
 }

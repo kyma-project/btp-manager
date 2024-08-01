@@ -39,7 +39,7 @@ func TestServiceInstanceProvider(t *testing.T) {
 		siProvider := NewServiceInstanceProvider(k8sClient, logger)
 
 		// when
-		sis, err := siProvider.All(context.TODO())
+		sis, err := siProvider.GetAll(context.TODO())
 
 		// then
 		require.NoError(t, err)
@@ -67,6 +67,25 @@ func TestServiceInstanceProvider(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotEmpty(t, secretRef)
 		}
+	})
+
+	t.Run("should fetch service instances with labels", func(t *testing.T) {
+		// given
+		givenSiList := initServiceInstances(t)
+		givenSiList.Items[0].SetLabels(map[string]string{"test": "test"})
+		k8sClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(crd).
+			WithLists(givenSiList).
+			Build()
+		siProvider := NewServiceInstanceProvider(k8sClient, logger)
+
+		// when
+		sis, err := siProvider.GetAllByLabels(context.TODO(), map[string]string{"test": "test"})
+
+		// then
+		require.NoError(t, err)
+		assert.Len(t, sis.Items, 1)
 	})
 }
 

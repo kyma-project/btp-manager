@@ -10,12 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kyma-project/btp-manager/internal/api/requests"
 	"github.com/kyma-project/btp-manager/internal/api/responses"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Config struct {
@@ -26,14 +28,14 @@ type Config struct {
 }
 
 type API struct {
-	server         *http.Server
-	smClient       *servicemanager.Client
-	secretProvider clusterobject.Provider[*corev1.SecretList, *corev1.Secret]
-	frontendFS     http.FileSystem
-	logger         *slog.Logger
+	server        *http.Server
+	smClient      *servicemanager.Client
+	secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret]
+	frontendFS    http.FileSystem
+	logger        *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManagerClient *servicemanager.Client, secretProvider clusterobject.Provider[*corev1.SecretList, *corev1.Secret], fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManagerClient *servicemanager.Client, secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret], fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -41,11 +43,11 @@ func NewAPI(cfg Config, serviceManagerClient *servicemanager.Client, secretProvi
 		IdleTimeout:  cfg.IdleTimeout,
 	}
 	return &API{
-		server:         srv,
-		smClient:       serviceManagerClient,
-		secretProvider: secretProvider,
-		frontendFS:     fs,
-		logger:         slog.Default()}
+		server:        srv,
+		smClient:      serviceManagerClient,
+		secretManager: secretManager,
+		frontendFS:    fs,
+		logger:        slog.Default()}
 }
 
 func (a *API) Start() {
@@ -122,7 +124,7 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	secrets, err := a.secretProvider.All(context.Background())
+	secrets, err := a.secretManager.GetAll(context.Background())
 	if returnError(writer, err) {
 		return
 	}
@@ -190,6 +192,14 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 	if returnError(writer, err) {
 		return
 	}
+	secret, err := generateSecretFromSISBData(si, createdServiceBinding)
+	if returnError(writer, err) {
+		return
+	}
+	err = a.secretManager.Create(context.Background(), secret)
+	if returnError(writer, err) {
+		return
+	}
 	sbVM, err := responses.ToServiceBindingVM(createdServiceBinding)
 	if returnError(writer, err) {
 		return
@@ -216,7 +226,19 @@ func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Reques
 func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
-	err := a.smClient.DeleteServiceBinding(id)
+	filterLabels := map[string]string{
+		clusterobject.ManagedByLabelKey:     clusterobject.OperatorName,
+		clusterobject.ServiceBindingIDLabel: id,
+	}
+	secrets, err := a.secretManager.GetAllByLabels(context.Background(), filterLabels)
+	if returnError(writer, err) {
+		return
+	}
+	err = a.secretManager.DeleteList(context.Background(), secrets)
+	if returnError(writer, err) {
+		return
+	}
+	err = a.smClient.DeleteServiceBinding(id)
 	if returnError(writer, err) {
 		return
 	}
@@ -293,4 +315,38 @@ func returnError(writer http.ResponseWriter, err error) bool {
 		return true
 	}
 	return false
+}
+
+func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBinding) (*corev1.Secret, error) {
+	slicedUUID := strings.Split(uuid.NewString(), "-")
+	suffix := strings.Join(slicedUUID[:2], "-")
+	secretName := fmt.Sprintf("%s-%s", sb.Name, suffix)
+
+	namespace, err := sb.ContextValueByFieldName(types.ContextNamespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get namespace from service binding context: %w", err)
+	}
+
+	labels := map[string]string{
+		clusterobject.ManagedByLabelKey:        clusterobject.OperatorName,
+		clusterobject.ServiceBindingIDLabel:    sb.ID,
+		clusterobject.ServiceInstanceIDLabel:   si.ID,
+		clusterobject.ServiceInstanceNameLabel: si.Name,
+	}
+
+	data := map[string]string{}
+	if err := json.Unmarshal(sb.Credentials, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal credentials from service binding: %w", err)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		StringData: data,
+	}
+
+	return secret, nil
 }

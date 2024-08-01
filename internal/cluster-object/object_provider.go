@@ -14,7 +14,8 @@ type Provider[L client.ObjectList, O client.Object] interface {
 }
 
 type ClusterScopedProvider[T client.ObjectList] interface {
-	All(ctx context.Context) (T, error)
+	GetAll(ctx context.Context) (T, error)
+	GetAllByLabels(ctx context.Context, labels map[string]string) (T, error)
 }
 
 type NamespacedProvider[T client.Object] interface {
