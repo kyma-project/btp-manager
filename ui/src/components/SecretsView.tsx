@@ -5,7 +5,7 @@ import {Secrets} from "../shared/models";
 import Ok from "../shared/validator";
 import api from "../shared/api";
 
-function SecretsView(props: any) {
+function SecretsView({onSecretChanged}: {onSecretChanged: (secret: string) => void}) {
     const [secrets, setSecrets] = useState<Secrets>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,16 +19,16 @@ function SecretsView(props: any) {
                 setSecrets(response.data);
                 if (Ok(response.data) && Ok(response.data.items)) {
                     const secret = formatSecretText(response.data.items[0].name, response.data.items[0].namespace)
-                    props.handler(secret);
+                    onSecretChanged(secret);
                 } else {
-                    props.handler(formatSecretText("", ""));
+                    onSecretChanged(formatSecretText("", ""));
                 }
             })
             .catch((error) => {
                 setLoading(false);
                 setError(error);
                 setSecrets(undefined);
-                props.handler(formatSecretText("", ""));
+                onSecretChanged(formatSecretText("", ""));
             });
         setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -40,7 +40,7 @@ function SecretsView(props: any) {
         }
 
         if (error) {
-            props.handler(formatSecretText("", ""));
+            onSecretChanged(formatSecretText("", ""));
             return <ui5.IllustratedMessage name="UnableToLoad"/>
         }
 
@@ -64,7 +64,7 @@ function SecretsView(props: any) {
                     <ui5.Select
                         style={{width: "20%"}}
                         onChange={(e) => {
-                            props.handler(e.target.value);
+                            onSecretChanged(e.target.value);
                         }}
                     >
                         {renderData()}
