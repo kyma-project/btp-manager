@@ -1,10 +1,28 @@
 import './App.css';
-import View from "./components/View";
+import ServiceInstancesView from './components/ServiceInstancesView';
+import ServiceOfferingsView from './components/ServiceOfferingsView';
+
+import * as React from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import Layout from './components/View';
 
 function App() {
+  
+  const [secret, setSecret] = React.useState("");
+
   return (
     <div id="App" className="App html-wrap flex-container flex-column">
-        <View />
+        <BrowserRouter basename='/' >
+          <Routes>
+            <Route path="/" element={<Layout onSecretChanged={(s: string) => setSecret(s)}/>}>
+              <Route index element={<Navigate to="offerings" replace />} />
+              <Route path="*" element={<Navigate to="offerings" replace />} />
+
+              <Route path="/instances" element={<ServiceInstancesView/>}/>
+              <Route path="/offerings" element={<ServiceOfferingsView secret={secret}/>}/>
+            </Route>
+          </Routes>
+        </BrowserRouter>
     </div>
   );
 }
