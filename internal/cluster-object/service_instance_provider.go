@@ -35,7 +35,7 @@ func NewServiceInstanceProvider(reader client.Reader, logger *slog.Logger) *Serv
 }
 
 func (p *ServiceInstanceProvider) AllWithSecretRef(ctx context.Context) (*unstructured.UnstructuredList, error) {
-	filtered, err := p.All(ctx)
+	filtered, err := p.GetAll(ctx)
 	if err != nil {
 		p.logger.Error("while fetching filtered service instances", "error", err)
 		return nil, err
@@ -53,7 +53,7 @@ func (p *ServiceInstanceProvider) AllWithSecretRef(ctx context.Context) (*unstru
 	return filtered, nil
 }
 
-func (p *ServiceInstanceProvider) All(ctx context.Context) (*unstructured.UnstructuredList, error) {
+func (p *ServiceInstanceProvider) GetAll(ctx context.Context) (*unstructured.UnstructuredList, error) {
 	siCrdExists, err := p.crdExists(ctx, controllers.InstanceGvk)
 	if err != nil {
 		p.logger.Error("failed to check if ServiceInstance CRD exists", "error", err)
@@ -119,4 +119,29 @@ func (p *ServiceInstanceProvider) crdExists(ctx context.Context, gvk schema.Grou
 	}
 
 	return true, nil
+}
+
+func (p *ServiceInstanceProvider) GetAllByLabels(ctx context.Context, labels map[string]string) (*unstructured.UnstructuredList, error) {
+	siCrdExists, err := p.crdExists(ctx, controllers.InstanceGvk)
+	if err != nil {
+		p.logger.Error("failed to check if ServiceInstance CRD exists", "error", err)
+		return nil, err
+	}
+	if !siCrdExists {
+		p.logger.Info("cannot fetch ServiceInstances due to missing CRD")
+		return nil, nil
+	}
+
+	list := &unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(controllers.InstanceGvk)
+	if err := p.List(ctx, list, client.MatchingLabels(labels)); err != nil {
+		p.logger.Error("failed to list service instances by labels", "error", err, "labels", labels)
+		return nil, err
+	}
+	if len(list.Items) == 0 {
+		p.logger.Info("no service instances found with labels", "labels", labels)
+		return list, nil
+	}
+
+	return list, nil
 }
