@@ -75,9 +75,9 @@ func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 	}
 
 	for _, instance := range instances.Items {
-		namespace, _ := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
-		subaccountID, _ := instance.ContextValueByFieldName(types.ServiceInstanceSubaccountID)
-		clusterID, _ := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+		namespace, _ := instance.ContextValueByFieldName(types.ContextNamespace)
+		subaccountID, _ := instance.ContextValueByFieldName(types.ContextSubaccountID)
+		clusterID, _ := instance.ContextValueByFieldName(types.ContextClusterID)
 		instance := ServiceInstance{
 			ID:           instance.ID,
 			Name:         instance.Name,
@@ -91,9 +91,9 @@ func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 }
 
 func ToServiceInstanceVM(instance *types.ServiceInstance) ServiceInstance {
-	namespace, _ := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
-	subaccountID, _ := instance.ContextValueByFieldName(types.ServiceInstanceSubaccountID)
-	clusterID, _ := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+	namespace, _ := instance.ContextValueByFieldName(types.ContextNamespace)
+	subaccountID, _ := instance.ContextValueByFieldName(types.ContextSubaccountID)
+	clusterID, _ := instance.ContextValueByFieldName(types.ContextClusterID)
 
 	return ServiceInstance{
 		ID:              instance.ID,

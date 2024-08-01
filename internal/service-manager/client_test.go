@@ -15,8 +15,9 @@ import (
 
 func TestClient(t *testing.T) {
 	// given
-	secretProvider := clusterobject.NewFakeSecretProvider()
-	secretProvider.AddSecret(clusterobject.FakeDefaultSecret())
+	secretManager := clusterobject.NewFakeSecretManager()
+	err := secretManager.Create(context.TODO(), clusterobject.FakeDefaultSecret())
+	require.NoError(t, err)
 	srv, err := servicemanager.NewFakeServer()
 	require.NoError(t, err)
 
@@ -37,7 +38,7 @@ func TestClient(t *testing.T) {
 	t.Run("should get service offerings available for the default credentials", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 
 		// when
 		err = smClient.Defaults(ctx)
@@ -60,7 +61,7 @@ func TestClient(t *testing.T) {
 	t.Run("should get service offering details and plans for given service offering ID", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		soID := "fc26622b-aeb2-4f3c-95da-8eb337a26883"
@@ -80,7 +81,7 @@ func TestClient(t *testing.T) {
 	t.Run("should get all service instances", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 
@@ -95,7 +96,7 @@ func TestClient(t *testing.T) {
 	t.Run("should get service instance for given service instance ID", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		siID := "c7a604e8-f289-4f61-841f-c6519db8daf2"
@@ -112,7 +113,7 @@ func TestClient(t *testing.T) {
 	t.Run("should create service instance", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		siCreateRequest := &types.ServiceInstance{
@@ -148,7 +149,7 @@ func TestClient(t *testing.T) {
 	t.Run("should update service instance except shared field", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		siID := "f9ffbaa4-739a-4a16-ad02-6f2f17a830c5"
@@ -187,7 +188,7 @@ func TestClient(t *testing.T) {
 	t.Run("should update only the shared field in a service instance", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		siID := "df28885c-7c5f-46f0-bb75-0ae2dc85ac41"
@@ -213,7 +214,7 @@ func TestClient(t *testing.T) {
 	t.Run("delete service instance", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
@@ -238,7 +239,7 @@ func TestClient(t *testing.T) {
 	t.Run("should get all service bindings", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 
@@ -253,7 +254,7 @@ func TestClient(t *testing.T) {
 	t.Run("should get service binding for given service binding ID", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		sbID := "550e8400-e29b-41d4-a716-446655440003"
@@ -270,7 +271,7 @@ func TestClient(t *testing.T) {
 	t.Run("should create service binding", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		sbCreateRequest := &types.ServiceBinding{
@@ -307,7 +308,7 @@ func TestClient(t *testing.T) {
 	t.Run("should delete service binding", func(t *testing.T) {
 		// given
 		ctx := context.TODO()
-		smClient := servicemanager.NewClient(ctx, slog.Default(), secretProvider)
+		smClient := servicemanager.NewClient(ctx, slog.Default(), secretManager)
 		smClient.SetHTTPClient(httpClient)
 		smClient.SetSMURL(url)
 		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"

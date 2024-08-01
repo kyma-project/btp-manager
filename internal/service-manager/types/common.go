@@ -4,6 +4,10 @@ const (
 	NamespaceLabel = "_namespace"
 	K8sNameLabel   = "_k8sname"
 	ClusterIDLabel = "_clusterid"
+
+	ContextClusterID    = "clusterid"
+	ContextSubaccountID = "subaccount_id"
+	ContextNamespace    = "namespace"
 )
 
 type Labels map[string][]string

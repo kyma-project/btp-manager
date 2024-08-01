@@ -24,13 +24,13 @@ func TestNamespaceProvider(t *testing.T) {
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 
 		// when
-		nsList, err := nsProvider.All(context.TODO())
+		nsList, err := nsProvider.GetAll(context.TODO())
 
 		// then
 		if err != nil {
 			t.Errorf("Error while fetching namespaces: %s", err)
 		}
-		assert.Len(t, nsList.Items, 3)
+		assert.Len(t, nsList.Items, 4)
 	})
 
 	t.Run("should return error when no namespaces found", func(t *testing.T) {
@@ -39,10 +39,26 @@ func TestNamespaceProvider(t *testing.T) {
 		nsProvider := NewNamespaceProvider(k8sClient, logger)
 
 		// when
-		_, err := nsProvider.All(context.TODO())
+		_, err := nsProvider.GetAll(context.TODO())
 
 		// then
 		require.Error(t, err)
+	})
+
+	t.Run("should fetch namespaces by labels", func(t *testing.T) {
+		// given
+		namespaces := initNamespaces()
+		k8sClient := fake.NewClientBuilder().WithLists(namespaces).Build()
+		nsProvider := NewNamespaceProvider(k8sClient, logger)
+
+		// when
+		nsList, err := nsProvider.GetAllByLabels(context.TODO(), map[string]string{"test": "test"})
+
+		// then
+		if err != nil {
+			t.Errorf("Error while fetching namespaces by labels: %s", err)
+		}
+		assert.Len(t, nsList.Items, 1)
 	})
 }
 
@@ -62,6 +78,14 @@ func initNamespaces() *corev1.NamespaceList {
 			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "labeled-namespace",
+					Labels: map[string]string{
+						"test": "test",
+					},
 				},
 			},
 		},
