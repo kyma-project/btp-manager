@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/kyma-project/btp-manager/controllers"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,37 +13,40 @@ import (
 )
 
 const (
-	secretProviderName           = "SecretProvider"
+	OperatorName      = "btp-manager"
+	ManagedByLabelKey = "app.kubernetes.io/managed-by"
+
+	secretProviderName           = "SecretManager"
 	btpServiceOperatorSecretName = "sap-btp-service-operator"
 )
 
-type SecretProvider struct {
-	client.Reader
-	client.Writer
+// SecretManager provides functionality to manage secrets in the cluster related to SAP BTP service operator and Service Manager
+type SecretManager struct {
+	client.Client
 	namespaceProvider       *NamespaceProvider
 	serviceInstanceProvider *ServiceInstanceProvider
 	logger                  *slog.Logger
 }
 
-func NewSecretProvider(reader client.Reader, nsProvider *NamespaceProvider, siProvider *ServiceInstanceProvider, logger *slog.Logger) *SecretProvider {
+func NewSecretManager(k8sClient client.Client, nsProvider *NamespaceProvider, siProvider *ServiceInstanceProvider, logger *slog.Logger) *SecretManager {
 	logger = logger.With(logComponentNameKey, secretProviderName)
 
-	return &SecretProvider{
-		Reader:                  reader,
+	return &SecretManager{
+		Client:                  k8sClient,
 		namespaceProvider:       nsProvider,
 		serviceInstanceProvider: siProvider,
 		logger:                  logger,
 	}
 }
 
-func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
+func (p *SecretManager) GetAll(ctx context.Context) (*corev1.SecretList, error) {
 	p.logger.Info("fetching all btp operator secrets")
 	secrets := &corev1.SecretList{}
 	if err := p.getAllSapBtpServiceOperatorNamedSecrets(ctx, secrets); err != nil {
 		return nil, err
 	}
 
-	namespaces, err := p.namespaceProvider.All(ctx)
+	namespaces, err := p.namespaceProvider.GetAll(ctx)
 	if err != nil {
 		p.logger.Error("while fetching namespaces", "error", err)
 		return nil, err
@@ -76,15 +77,15 @@ func (p *SecretProvider) All(ctx context.Context) (*corev1.SecretList, error) {
 	return secrets, err
 }
 
-func (p *SecretProvider) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *corev1.SecretList) error {
-	if err := p.Reader.List(ctx, secrets, client.MatchingFields{"metadata.name": btpServiceOperatorSecretName}); err != nil {
+func (p *SecretManager) getAllSapBtpServiceOperatorNamedSecrets(ctx context.Context, secrets *corev1.SecretList) error {
+	if err := p.List(ctx, secrets, client.MatchingFields{"metadata.name": btpServiceOperatorSecretName}); err != nil {
 		p.logger.Error(fmt.Sprintf("failed to fetch all \"%s\" secrets", btpServiceOperatorSecretName), "error", err)
 		return err
 	}
 	return nil
 }
 
-func (p *SecretProvider) getNamespacesNames(namespaces *corev1.NamespaceList) []string {
+func (p *SecretManager) getNamespacesNames(namespaces *corev1.NamespaceList) []string {
 	names := make([]string, len(namespaces.Items))
 	for i, ns := range namespaces.Items {
 		names[i] = ns.Name
@@ -92,7 +93,7 @@ func (p *SecretProvider) getNamespacesNames(namespaces *corev1.NamespaceList) []
 	return names
 }
 
-func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *corev1.SecretList, nsnames []string) error {
+func (p *SecretManager) getAllSecretsWithNamespaceNamePrefix(ctx context.Context, secrets *corev1.SecretList, nsnames []string) error {
 	for _, nsname := range nsnames {
 		secret := &corev1.Secret{}
 		secretName := fmt.Sprintf("%s-%s", nsname, btpServiceOperatorSecretName)
@@ -110,7 +111,7 @@ func (p *SecretProvider) getAllSecretsWithNamespaceNamePrefix(ctx context.Contex
 	return nil
 }
 
-func (p *SecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList) error {
+func (p *SecretManager) getSecretsFromRefInServiceInstances(ctx context.Context, siList *unstructured.UnstructuredList, secrets *corev1.SecretList) error {
 	for _, item := range siList.Items {
 		secretRef, found, err := unstructured.NestedString(item.Object, "spec", secretRefKey)
 		if err != nil {
@@ -138,7 +139,7 @@ func (p *SecretProvider) getSecretsFromRefInServiceInstances(ctx context.Context
 	return nil
 }
 
-func (p *SecretProvider) secretExistsInList(secret *corev1.Secret, secrets *corev1.SecretList) bool {
+func (p *SecretManager) secretExistsInList(secret *corev1.Secret, secrets *corev1.SecretList) bool {
 	for _, s := range secrets.Items {
 		if s.Name == secret.Name {
 			return true
@@ -147,7 +148,24 @@ func (p *SecretProvider) secretExistsInList(secret *corev1.Secret, secrets *core
 	return false
 }
 
-func (p *SecretProvider) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+func (p *SecretManager) GetAllByLabels(ctx context.Context, labels map[string]string) (*corev1.SecretList, error) {
+	p.logger.Info("fetching secrets by labels")
+	secrets := &corev1.SecretList{}
+	err := p.List(ctx, secrets, client.MatchingLabels(labels))
+	if err != nil {
+		p.logger.Error("while fetching secrets by labels", "error", err, "labels", labels)
+		return nil, err
+	}
+
+	if len(secrets.Items) == 0 {
+		p.logger.Warn(fmt.Sprintf("no secrets found with labels: %v", labels))
+		return nil, err
+	}
+
+	return secrets, err
+}
+
+func (p *SecretManager) GetByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	p.logger.Info(fmt.Sprintf("fetching \"%s\" secret in \"%s\" namespace", name, namespace))
 	secret := &corev1.Secret{}
 	if err := p.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret); err != nil {
@@ -162,19 +180,44 @@ func (p *SecretProvider) GetByNameAndNamespace(ctx context.Context, name, namesp
 	return secret, nil
 }
 
-func (p *SecretProvider) CreateSecret(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
-	p.logger.Info(fmt.Sprintf("creating \"%s\" secret in \"%s\" namespace", btpServiceOperatorSecretName, namespace))
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+func (p *SecretManager) Create(ctx context.Context, secret *corev1.Secret) error {
+	p.logger.Info(fmt.Sprintf("creating \"%s\" secret in \"%s\" namespace", secret.Name, secret.Namespace))
+	if err := p.Client.Create(ctx, secret); err != nil {
+		p.logger.Error(fmt.Sprintf("failed to create \"%s\" secret in \"%s\" namespace", secret.Name, secret.Namespace), "error", err)
+		return err
 	}
 
-	if err := p.Writer.Create(ctx, secret); err != nil {
-		p.logger.Error(fmt.Sprintf("failed to create \"%s\" secret in \"%s\" namespace", btpServiceOperatorSecretName, namespace), "error", err)
-		return nil, err
+	return nil
+}
+
+func (p *SecretManager) Delete(ctx context.Context, secret *corev1.Secret) error {
+	p.logger.Info(fmt.Sprintf("deleting \"%s\" secret in \"%s\" namespace", secret.Name, secret.Namespace))
+	if err := p.Client.Delete(ctx, secret); err != nil {
+		p.logger.Error(fmt.Sprintf("failed to delete \"%s\" secret in \"%s\" namespace", secret.Name, secret.Namespace), "error", err)
+		return err
 	}
 
-	return secret, nil
+	return nil
+}
+
+func (p *SecretManager) DeleteList(ctx context.Context, secrets *corev1.SecretList) error {
+	p.logger.Info(fmt.Sprintf("deleting %d secrets", len(secrets.Items)))
+	for _, secret := range secrets.Items {
+		if err := p.Client.Delete(ctx, &secret); err != nil {
+			p.logger.Error(fmt.Sprintf("failed to delete \"%s\" secret in \"%s\" namespace", secret.Name, secret.Namespace), "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *SecretManager) DeleteAllByLabels(ctx context.Context, labels map[string]string) error {
+	p.logger.Info(fmt.Sprintf("deleting secrets with labels: %v", labels))
+	if err := p.DeleteAllOf(ctx, &corev1.Secret{}, client.MatchingLabels(labels)); err != nil {
+		p.logger.Error("while deleting secrets by labels", "error", err, "labels", labels)
+		return err
+	}
+
+	return nil
 }

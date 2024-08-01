@@ -5,12 +5,6 @@ import (
 	"fmt"
 )
 
-const (
-	ServiceInstanceClusterID    = "clusterid"
-	ServiceInstanceSubaccountID = "subaccount_id"
-	ServiceInstanceNamespace    = "namespace"
-)
-
 // Refs
 // https://github.com/SAP/sap-btp-service-operator/blob/main/client/sm/types/service_instance.go
 // https://github.com/Peripli/service-manager/blob/master/pkg/types/service_instance.go

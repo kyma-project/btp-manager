@@ -181,7 +181,7 @@ func setupManager(restCfg *rest.Config, probeAddr *string, metricsAddr *string, 
 	}
 }
 
-func setupSMClient(secretProvider *clusterobject.SecretProvider, signalCtx context.Context) *serviceManagerClient {
+func setupSMClient(secretProvider *clusterobject.SecretManager, signalCtx context.Context) *serviceManagerClient {
 	slog := slog.Default()
 	smClient := servicemanager.NewClient(signalCtx, slog, secretProvider)
 
@@ -191,7 +191,7 @@ func setupSMClient(secretProvider *clusterobject.SecretProvider, signalCtx conte
 	}
 }
 
-func getSecretProvider(restCfg *rest.Config) *clusterobject.SecretProvider {
+func getSecretProvider(restCfg *rest.Config) *clusterobject.SecretManager {
 	k8sClient, err := client.New(restCfg, client.Options{})
 	if err != nil {
 		setupLog.Error(err, "unable to create k8s client")
@@ -201,6 +201,6 @@ func getSecretProvider(restCfg *rest.Config) *clusterobject.SecretProvider {
 
 	namespaceProvider := clusterobject.NewNamespaceProvider(k8sClient, slogger)
 	serviceInstanceProvider := clusterobject.NewServiceInstanceProvider(k8sClient, slogger)
-	secretProvider := clusterobject.NewSecretProvider(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
+	secretProvider := clusterobject.NewSecretManager(k8sClient, namespaceProvider, serviceInstanceProvider, slogger)
 	return secretProvider
 }

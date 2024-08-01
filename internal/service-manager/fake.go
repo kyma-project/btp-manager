@@ -23,7 +23,12 @@ const (
 	serviceBindingsJSONPath  = "testdata/service_bindings.json"
 )
 
-func NewFakeServer() (*httptest.Server, error) {
+type FakeServiceManager struct {
+	*httptest.Server
+	handler *fakeSMHandler
+}
+
+func NewFakeServer() (*FakeServiceManager, error) {
 	smHandler, err := newFakeSMHandler()
 	if err != nil {
 		return nil, fmt.Errorf("while creating new fake SM handler: %w", err)
@@ -46,7 +51,11 @@ func NewFakeServer() (*httptest.Server, error) {
 
 	srv := httptest.NewUnstartedServer(mux)
 
-	return srv, nil
+	return &FakeServiceManager{srv, smHandler}, nil
+}
+
+func (s *FakeServiceManager) RestoreDefaults() error {
+	return s.handler.loadDefaultData()
 }
 
 type fakeSMHandler struct {
@@ -57,42 +66,56 @@ type fakeSMHandler struct {
 }
 
 func newFakeSMHandler() (*fakeSMHandler, error) {
+	h := &fakeSMHandler{}
+	if err := h.loadDefaultData(); err != nil {
+		return nil, fmt.Errorf("while loading default data: %w", err)
+	}
+	return h, nil
+}
+
+func (h *fakeSMHandler) loadDefaultData() error {
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	currentDir := filepath.Base(wd)
 	if currentDir != defaultDir {
 		// change working directory to service manager directory to read JSON files
 		if err := setDefaultDir(); err != nil {
-			return nil, fmt.Errorf("while setting default fake service manager directory: %w", err)
+			return fmt.Errorf("while setting default fake service manager directory: %w", err)
 		}
 	}
 
 	sos, err := GetServiceOfferingsFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service offerings from JSON: %w", err)
+		return fmt.Errorf("while getting service offerings from JSON: %w", err)
 
 	}
 	plans, err := GetServicePlansFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service plans from JSON: %w", err)
+		return fmt.Errorf("while getting service plans from JSON: %w", err)
 	}
 	sis, err := GetServiceInstancesFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service instances from JSON: %w", err)
+		return fmt.Errorf("while getting service instances from JSON: %w", err)
 
 	}
 	sbs, err := GetServiceBindingsFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service bindings from JSON: %w", err)
+		return fmt.Errorf("while getting service bindings from JSON: %w", err)
 
 	}
 	// restore working directory
 	if err = os.Chdir(wd); err != nil {
-		return nil, err
+		return err
 	}
-	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans, serviceInstances: sis, serviceBindings: sbs}, nil
+
+	h.serviceOfferings = sos
+	h.servicePlans = plans
+	h.serviceInstances = sis
+	h.serviceBindings = sbs
+
+	return nil
 }
 
 func setDefaultDir() error {
@@ -526,6 +549,7 @@ func (h *fakeSMHandler) createServiceBinding(w http.ResponseWriter, r *http.Requ
 	}
 
 	sbCreateRequest.ID = uuid.New().String()
+	sbCreateRequest.Credentials = []byte(`{"username": "user", "password": "pass"}`)
 	h.serviceBindings.Items = append(h.serviceBindings.Items, sbCreateRequest)
 
 	data, err := json.Marshal(sbCreateRequest)
