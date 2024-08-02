@@ -604,13 +604,13 @@ func (c *Client) sendRequest(method string, url string, body io.Reader) (*http.R
 func (c *Client) errorResponse(resp *http.Response) error {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return err
+		return types.NewServiceManagerClientError(err.Error())
 	}
 
-	var errResp types.ErrorResponse
-	if err := json.Unmarshal(body, &errResp); err != nil {
-		return err
+	errResp := &types.ErrorResponse{}
+	if err = json.Unmarshal(body, errResp); err != nil {
+		return types.NewServiceManagerClientError(err.Error())
 	}
 
-	return fmt.Errorf("error: %s", errResp.Error())
+	return errResp
 }

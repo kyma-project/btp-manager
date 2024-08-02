@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+const ServiceManagerClientErrorType = "ServiceManagerClientError"
+
 type ErrorResponse struct {
 	ErrorType   string       `json:"error,omitempty"`
 	Description string       `json:"description,omitempty"`
@@ -16,6 +18,13 @@ func (e *ErrorResponse) Error() string {
 	}
 
 	return e.Description
+}
+
+func NewServiceManagerClientError(errorDesc string) *ErrorResponse {
+	return &ErrorResponse{
+		ErrorType:   ServiceManagerClientErrorType,
+		Description: errorDesc,
+	}
 }
 
 type BrokerError struct {
