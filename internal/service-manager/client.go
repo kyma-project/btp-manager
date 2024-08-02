@@ -73,8 +73,9 @@ func (c *Client) Defaults(ctx context.Context) error {
 
 func (c *Client) SetForGivenSecret(ctx context.Context, secretName, secretNamespace string) error {
 	if err := c.buildHTTPClient(ctx, secretName, secretNamespace); err != nil {
-		c.logger.Error("failed to build http client", "error", err)
-		return err
+		errMsg := fmt.Sprintf("failed to build http client from secret %q in namespace %q", secretName, secretNamespace)
+		c.logger.Error(errMsg, "error", err)
+		return types.NewServiceManagerClientError(errMsg)
 	}
 
 	return nil
@@ -147,7 +148,8 @@ func (c *Client) SetSMURL(smURL string) {
 func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServiceOfferingsPath, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Offerings request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -161,12 +163,14 @@ func (c *Client) ServiceOfferings() (*types.ServiceOfferings, error) {
 func (c *Client) serviceOfferingsResponse(resp *http.Response) (*types.ServiceOfferings, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Offerings response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	sos := &types.ServiceOfferings{}
 	if err := json.Unmarshal(body, sos); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Offerings response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return sos, nil
@@ -192,7 +196,8 @@ func (c *Client) ServiceOfferingDetails(serviceOfferingID string) (*types.Servic
 func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOffering, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServiceOfferingsPath+"/"+serviceOfferingID, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Offering request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -206,12 +211,14 @@ func (c *Client) serviceOfferingByID(serviceOfferingID string) (*types.ServiceOf
 func (c *Client) serviceOfferingResponse(resp *http.Response) (*types.ServiceOffering, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Offering response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	so := &types.ServiceOffering{}
 	if err := json.Unmarshal(body, so); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Offering response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return so, nil
@@ -220,7 +227,8 @@ func (c *Client) serviceOfferingResponse(resp *http.Response) (*types.ServiceOff
 func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*types.ServicePlans, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServicePlansPath, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to create GET Service Plans request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 	values := req.URL.Query()
 	values.Add(URLFieldQueryKey, fmt.Sprintf(servicePlansForServiceOfferingQueryFormat, serviceOfferingID))
@@ -229,7 +237,8 @@ func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*type
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Plans request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -243,12 +252,14 @@ func (c *Client) servicePlansForServiceOffering(serviceOfferingID string) (*type
 func (c *Client) servicePlansResponse(resp *http.Response) (*types.ServicePlans, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Plans response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	sps := &types.ServicePlans{}
 	if err := json.Unmarshal(body, sps); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Plans response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return sps, nil
@@ -257,7 +268,8 @@ func (c *Client) servicePlansResponse(resp *http.Response) (*types.ServicePlans,
 func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServiceInstancesPath, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Instances request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -271,12 +283,14 @@ func (c *Client) ServiceInstances() (*types.ServiceInstances, error) {
 func (c *Client) serviceInstancesResponse(resp *http.Response) (*types.ServiceInstances, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Instances response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	sis := &types.ServiceInstances{}
 	if err := json.Unmarshal(body, sis); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Instances response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return sis, nil
@@ -285,7 +299,8 @@ func (c *Client) serviceInstancesResponse(resp *http.Response) (*types.ServiceIn
 func (c *Client) ServiceInstance(serviceInstanceID string) (*types.ServiceInstance, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Instance request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -299,12 +314,14 @@ func (c *Client) ServiceInstance(serviceInstanceID string) (*types.ServiceInstan
 func (c *Client) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
 	requestBody, err := json.Marshal(si)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to marshal POST Service Instance request body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	resp, err := c.sendRequest(http.MethodPost, c.smURL+ServiceInstancesPath, bytes.NewBuffer(requestBody))
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send POST Service Instance request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -322,17 +339,20 @@ func (c *Client) UpdateServiceInstance(si *types.ServiceInstanceUpdateRequest) (
 	si.ID = nil
 
 	if !c.validServiceInstanceUpdateRequestBody(si) {
-		return nil, fmt.Errorf("invalid request body - share fields must be updated alone")
+		c.logger.Warn("invalid PATCH Service Instance request body - share fields must be updated alone")
+		return nil, types.NewServiceManagerClientError("invalid request body - share fields must be updated alone")
 	}
 
 	requestBody, err := json.Marshal(si)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to marshal PATCH Service Instance request body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	resp, err := c.sendRequest(http.MethodPatch, c.smURL+ServiceInstancesPath+"/"+id, bytes.NewBuffer(requestBody))
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send PATCH Service Instance request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -355,12 +375,14 @@ func (c *Client) validServiceInstanceUpdateRequestBody(si *types.ServiceInstance
 func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceInstance, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Instance response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	si := &types.ServiceInstance{}
 	if err := json.Unmarshal(body, si); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Instance response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return si, nil
@@ -369,7 +391,8 @@ func (c *Client) serviceInstanceResponse(resp *http.Response) (*types.ServiceIns
 func (c *Client) ServiceInstanceParameters(serviceInstanceID string) (map[string]string, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID+"/parameters", nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Instance parameters request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -396,7 +419,8 @@ func (c *Client) ServiceInstanceWithPlanName(serviceInstanceID string) (*types.S
 func (c *Client) ServicePlan(servicePlanID string) (*types.ServicePlan, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServicePlansPath+"/"+servicePlanID, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Plan request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -410,12 +434,14 @@ func (c *Client) ServicePlan(servicePlanID string) (*types.ServicePlan, error) {
 func (c *Client) servicePlanResponse(resp *http.Response) (*types.ServicePlan, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Plan response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	p := &types.ServicePlan{}
 	if err := json.Unmarshal(body, p); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Plan response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return p, nil
@@ -424,7 +450,8 @@ func (c *Client) servicePlanResponse(resp *http.Response) (*types.ServicePlan, e
 func (c *Client) DeleteServiceInstance(serviceInstanceID string) error {
 	resp, err := c.sendRequest(http.MethodDelete, c.smURL+ServiceInstancesPath+"/"+serviceInstanceID, nil)
 	if err != nil {
-		return err
+		c.logger.Error("failed to send DELETE Service Instance request", "error", err)
+		return types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -444,7 +471,8 @@ func (c *Client) ServiceBindings() (*types.ServiceBindings, error) {
 func (c *Client) ServiceBindingsFor(serviceInstanceId string) (*types.ServiceBindings, error) {
 	req, err := http.NewRequest(http.MethodGet, c.smURL+ServiceBindingsPath, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to create GET Service Bindings request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 	req.Header.Add("Content-Type", "application/json")
 
@@ -456,7 +484,8 @@ func (c *Client) ServiceBindingsFor(serviceInstanceId string) (*types.ServiceBin
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Bindings request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -470,12 +499,14 @@ func (c *Client) ServiceBindingsFor(serviceInstanceId string) (*types.ServiceBin
 func (c *Client) serviceBindingsResponse(resp *http.Response) (*types.ServiceBindings, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Bindings response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	sbs := &types.ServiceBindings{}
 	if err := json.Unmarshal(body, sbs); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Bindings response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return sbs, nil
@@ -484,7 +515,8 @@ func (c *Client) serviceBindingsResponse(resp *http.Response) (*types.ServiceBin
 func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Binding request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -498,12 +530,14 @@ func (c *Client) ServiceBinding(serviceBindingId string) (*types.ServiceBinding,
 func (c *Client) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
 	reqBody, err := json.Marshal(sb)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to marshal POST Service Binding request body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	resp, err := c.sendRequest(http.MethodPost, c.smURL+ServiceBindingsPath, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send POST Service Binding request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -519,12 +553,14 @@ func (c *Client) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceB
 func (c *Client) serviceBindingResponse(resp *http.Response) (*types.ServiceBinding, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read Service Binding response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	var sb types.ServiceBinding
 	if err := json.Unmarshal(body, &sb); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal Service Binding response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return &sb, nil
@@ -533,7 +569,8 @@ func (c *Client) serviceBindingResponse(resp *http.Response) (*types.ServiceBind
 func (c *Client) DeleteServiceBinding(serviceBindingId string) error {
 	resp, err := c.sendRequest(http.MethodDelete, c.smURL+ServiceBindingsPath+"/"+serviceBindingId, nil)
 	if err != nil {
-		return err
+		c.logger.Error("failed to send DELETE Service Binding request", "error", err)
+		return types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -549,7 +586,8 @@ func (c *Client) DeleteServiceBinding(serviceBindingId string) error {
 func (c *Client) ServiceBindingParameters(serviceBindingId string) (map[string]string, error) {
 	resp, err := c.sendRequest(http.MethodGet, c.smURL+ServiceBindingsPath+"/"+serviceBindingId+"/parameters", nil)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to send GET Service Binding parameters request", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	switch resp.StatusCode {
@@ -563,12 +601,14 @@ func (c *Client) ServiceBindingParameters(serviceBindingId string) (map[string]s
 func (c *Client) paramsResponse(resp *http.Response) (map[string]string, error) {
 	body, err := c.readResponseBody(resp.Body)
 	if err != nil {
-		return nil, err
+		c.logger.Error("failed to read parameters response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	var params map[string]string
 	if err := json.Unmarshal(body, params); err != nil {
-		return nil, err
+		c.logger.Error("failed to unmarshal parameters response body", "error", err)
+		return nil, types.NewServiceManagerClientError(err.Error())
 	}
 
 	return params, nil
