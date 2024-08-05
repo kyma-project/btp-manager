@@ -7,6 +7,7 @@ import (
 const ServiceManagerClientErrorType = "ServiceManagerClientError"
 
 type ErrorResponse struct {
+	StatusCode  int          `json:"-" yaml:"-"`
 	ErrorType   string       `json:"error,omitempty"`
 	Description string       `json:"description,omitempty"`
 	BrokerError *BrokerError `json:"broker_error,omitempty"`
@@ -20,8 +21,9 @@ func (e *ErrorResponse) Error() string {
 	return e.Description
 }
 
-func NewServiceManagerClientError(errorDesc string) *ErrorResponse {
+func NewServiceManagerClientError(errorDesc string, statusCode int) *ErrorResponse {
 	return &ErrorResponse{
+		StatusCode:  statusCode,
 		ErrorType:   ServiceManagerClientErrorType,
 		Description: errorDesc,
 	}

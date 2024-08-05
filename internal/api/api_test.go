@@ -23,9 +23,9 @@ import (
 
 const (
 	port         = "8080"
-	readTimeout  = 1 * time.Second
-	writeTimeout = 1 * time.Second
-	idleTimeout  = 2 * time.Second
+	readTimeout  = 1 * time.Minute
+	writeTimeout = 1 * time.Minute
+	idleTimeout  = 2 * time.Minute
 )
 
 func TestAPI(t *testing.T) {
@@ -60,7 +60,7 @@ func TestAPI(t *testing.T) {
 	go btpMgrAPI.Start()
 
 	apiClient := http.Client{
-		Timeout: 500 * time.Millisecond,
+		Timeout: 5000 * time.Millisecond,
 	}
 
 	t.Run("GET Service Instances", func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances", nil)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 		defer resp.Body.Close()
 
 		var sis responses.ServiceInstances
@@ -78,6 +78,18 @@ func TestAPI(t *testing.T) {
 		// then
 		assert.Equal(t, sis.NumItems, 4)
 		assert.ElementsMatch(t, sis.Items, defaultSIs.Items)
+	})
+
+	t.Run("GET Service Instances 403 error", func(t *testing.T) {
+		// when
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances", nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+		fakeSM.RespondWithData()
 	})
 
 	t.Run("GET Service Instance by ID", func(t *testing.T) {

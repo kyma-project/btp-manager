@@ -382,7 +382,7 @@ func (a *API) handleError(writer http.ResponseWriter, errToHandle error, fallbac
 			}
 			return
 		}
-		writer.WriteHeader(httpStatusCode)
+		writer.WriteHeader(smError.StatusCode)
 		_, err := writer.Write([]byte(smError.Error()))
 		if err != nil {
 			a.logger.Error(err.Error())
