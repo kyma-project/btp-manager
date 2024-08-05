@@ -129,7 +129,7 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-instances", bytes.NewBuffer(siToCreateJSON))
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
 		defer resp.Body.Close()
 
 		var si responses.ServiceInstance
@@ -253,7 +253,7 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode) // change expected status code to 201 after error handling refactoring
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
 		defer resp.Body.Close()
 
 		var sb responses.ServiceBinding
