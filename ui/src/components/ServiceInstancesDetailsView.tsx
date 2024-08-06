@@ -82,8 +82,13 @@ function ServiceInstancesDetailsView(props: any) {
         </ui5.Panel>
 
         <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Bindings">
-            <ServiceBindingsList instance={props.instance}/>
-          </ui5.Panel>
+          <ServiceBindingsList instance={props.instance} />
+        </ui5.Panel>
+
+        <ui5.Panel headerLevel="H2" headerText="Create Binding">
+          <CreateBindingForm instanceId={props.instance.id}></CreateBindingForm>
+
+        </ui5.Panel>
 
       </ui5.Dialog>
     )
