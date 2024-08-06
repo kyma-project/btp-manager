@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -82,28 +83,39 @@ func (a *API) Address() string {
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	csiRequest, err := a.decodeCreateServiceInstanceRequest(request)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	si := csiRequest.ConvertToServiceInstance()
 	createdSI, err := a.smClient.CreateServiceInstance(si)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	createdSI.ServicePlanName = si.ServicePlanName
 	response, err := json.Marshal(responses.ToServiceInstanceVM(createdSI))
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response, http.StatusCreated)
 }
 
 func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
 	details, err := a.smClient.ServiceOfferingDetails(id)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(responses.ToServiceOfferingDetailsVM(details))
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
@@ -111,116 +123,156 @@ func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Req
 	namespace := request.PathValue("namespace")
 	name := request.PathValue("name")
 	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	offerings, err := a.smClient.ServiceOfferings()
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(responses.ToServiceOfferingsVM(offerings))
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	secrets, err := a.secretManager.GetAll(context.Background())
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(responses.ToSecretVM(*secrets))
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
 	si, err := a.smClient.ServiceInstanceWithPlanName(id)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(responses.ToServiceInstanceVM(si))
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-
 	sis, err := a.smClient.ServiceInstances()
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
-
 	response, err := json.Marshal(responses.ToServiceInstancesVM(sis))
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-
 	queryParams := request.URL.Query()
 	serviceInstanceId := queryParams.Get("service_instance_id")
-
 	sbs, err := a.smClient.ServiceBindingsFor(serviceInstanceId)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	sbsVM, err := responses.ToServiceBindingsVM(sbs)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(sbsVM)
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	var serviceBindingRequest requests.CreateServiceBinding
 	err := json.NewDecoder(request.Body).Decode(&serviceBindingRequest)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	si, err := a.smClient.ServiceInstance(serviceBindingRequest.ServiceInstanceID)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	sb, err := requests.ToServiceBinding(serviceBindingRequest, si)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	createdServiceBinding, err := a.smClient.CreateServiceBinding(&sb)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	secret, err := generateSecretFromSISBData(si, createdServiceBinding)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	err = a.secretManager.Create(context.Background(), secret)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	sbVM, err := responses.ToServiceBindingVM(createdServiceBinding)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(sbVM)
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response, http.StatusCreated)
 }
 
 func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
 	sb, err := a.smClient.ServiceBinding(id)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	sbVM, err := responses.ToServiceBindingVM(sb)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(sbVM)
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Request) {
@@ -231,15 +283,16 @@ func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Req
 		clusterobject.ServiceBindingIDLabel: id,
 	}
 	secrets, err := a.secretManager.GetAllByLabels(context.Background(), filterLabels)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
-	err = a.secretManager.DeleteList(context.Background(), secrets)
-	if returnError(writer, err) {
+	if err := a.secretManager.DeleteList(context.Background(), secrets); err != nil {
+		a.handleError(writer, err)
 		return
 	}
-	err = a.smClient.DeleteServiceBinding(id)
-	if returnError(writer, err) {
+	if err := a.smClient.DeleteServiceBinding(id); err != nil {
+		a.handleError(writer, err)
 		return
 	}
 }
@@ -265,16 +318,22 @@ func (a *API) UpdateServiceInstance(writer http.ResponseWriter, request *http.Re
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
 	siuReq, err := a.decodeServiceInstanceUpdateRequest(request)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	siuReq.ID = &id
 	updatedSI, err := a.smClient.UpdateServiceInstance(siuReq)
-	if returnError(writer, err) {
+	if err != nil {
+		a.handleError(writer, err)
 		return
 	}
 	response, err := json.Marshal(responses.ToServiceInstanceVM(updatedSI))
-	returnResponse(writer, response, err)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response)
 }
 
 func (a *API) decodeServiceInstanceUpdateRequest(request *http.Request) (*types.ServiceInstanceUpdateRequest, error) {
@@ -289,32 +348,54 @@ func (a *API) decodeServiceInstanceUpdateRequest(request *http.Request) (*types.
 func (a *API) DeleteServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
-	err := a.smClient.DeleteServiceInstance(id)
-	if returnError(writer, err) {
+	if err := a.smClient.DeleteServiceInstance(id); err != nil {
+		a.handleError(writer, err)
 		return
 	}
 }
 
-func returnResponse(writer http.ResponseWriter, response []byte, err error) {
-	if returnError(writer, err) {
-		return
+func (a *API) sendResponse(writer http.ResponseWriter, response []byte, optionalHTTPStatusCode ...int) {
+	if len(optionalHTTPStatusCode) > 0 {
+		writer.WriteHeader(optionalHTTPStatusCode[0])
 	}
-	_, err = writer.Write(response)
-	if returnError(writer, err) {
-		return
-	}
-}
-
-func returnError(writer http.ResponseWriter, err error) bool {
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		_, err := writer.Write([]byte(err.Error()))
-		if err != nil {
-			return true
+	if len(response) > 0 {
+		writer.Header().Set("Content-Type", "application/json")
+		if _, err := writer.Write(response); err != nil {
+			a.logger.Error(err.Error())
 		}
-		return true
 	}
-	return false
+}
+
+func (a *API) handleError(writer http.ResponseWriter, errToHandle error, fallbackHTTPStatusCode ...int) {
+	httpStatusCode := http.StatusInternalServerError
+	if len(fallbackHTTPStatusCode) > 0 {
+		httpStatusCode = fallbackHTTPStatusCode[0]
+	}
+	var smError *types.ErrorResponse
+	if errors.As(errToHandle, &smError) {
+		if smError.BrokerError != nil {
+			writer.WriteHeader(smError.BrokerError.StatusCode)
+			_, err := writer.Write([]byte(smError.Error()))
+			if err != nil {
+				a.logger.Error(err.Error())
+				return
+			}
+			return
+		}
+		writer.WriteHeader(smError.StatusCode)
+		_, err := writer.Write([]byte(smError.Error()))
+		if err != nil {
+			a.logger.Error(err.Error())
+			return
+		}
+		return
+	}
+	a.logger.Error(errToHandle.Error())
+	writer.WriteHeader(httpStatusCode)
+	if _, err := writer.Write([]byte(errToHandle.Error())); err != nil {
+		a.logger.Error(err.Error())
+	}
+	return
 }
 
 func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBinding) (*corev1.Secret, error) {
