@@ -5,6 +5,9 @@ import {
 } from "../shared/models";
 import { useEffect, useRef, useState } from "react";
 import ServiceBindingsList from "./ServiceBindingsList";
+import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
+import CreateBindingForm from "./CreateBindingForm";
+
 
 function ServiceInstancesDetailsView(props: any) {
   const [loading, setLoading] = useState(true);
@@ -82,8 +85,13 @@ function ServiceInstancesDetailsView(props: any) {
         </ui5.Panel>
 
         <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Bindings">
-            <ServiceBindingsList instance={props.instance}/>
-          </ui5.Panel>
+          <ServiceBindingsList instance={props.instance} />
+        </ui5.Panel>
+
+        <ui5.Panel headerLevel="H2" headerText="Create Binding">
+          <CreateBindingForm instanceId={props.instance.id}></CreateBindingForm>
+
+        </ui5.Panel>
 
       </ui5.Dialog>
     )
