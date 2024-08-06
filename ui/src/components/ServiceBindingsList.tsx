@@ -1,16 +1,37 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import { ServiceInstanceBindings } from "../shared/models";
+import { ApiError, ServiceInstanceBinding, ServiceInstanceBindings } from "../shared/models";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import api from "../shared/api";
 import Ok from "../shared/validator";
 import serviceInstancesData from '../test-data/service-bindings.json';
+import StatusMessage from "./StatusMessage";
 
 function ServiceBindingsList(props: any) {
   const [bindings, setServiceInstanceBindings] = useState<ServiceInstanceBindings>();
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<ApiError>();
   const [portal] = useState<JSX.Element>();
+  const [success, setSuccess] = useState("");
+
+  function deleteBinding(id: string): boolean {
+    setLoading(true);
+
+    axios
+      .delete(api("service-bindings") + "/" + id)
+      .then((response) => {
+        setLoading(false);
+      })
+      .catch((error) => {
+        setLoading(false);
+        setError(error);
+      });
+
+    return true;
+  }
+
+
 
   useEffect(() => {
     if (!Ok(props.instance)) {
@@ -21,12 +42,12 @@ function ServiceBindingsList(props: any) {
     if (!useTestData) {
       setLoading(true)
       axios
-        .get<ServiceInstanceBindings>(api("service-bindings"), 
+        .get<ServiceInstanceBindings>(api("service-bindings"),
           { params: { service_instance_id: props.instance.id } }
         )
         .then((response) => {
-          setLoading(false);
           setServiceInstanceBindings(response.data);
+          setLoading(false);
         })
         .catch((error) => {
           setLoading(false);
@@ -48,10 +69,6 @@ function ServiceBindingsList(props: any) {
     />
   }
 
-  if (error) {
-    return <ui5.IllustratedMessage name="UnableToLoad" />
-  }
-
   const renderData = () => {
     // @ts-ignore
     if (!Ok(bindings) || !Ok(bindings.items)) {
@@ -61,7 +78,7 @@ function ServiceBindingsList(props: any) {
       return (
         <>
           <ui5.TableRow>
-            
+
             <ui5.TableCell>
               <ui5.Label>{binding.id}</ui5.Label>
             </ui5.TableCell>
@@ -74,6 +91,18 @@ function ServiceBindingsList(props: any) {
               <ui5.Label>{binding.namespace}</ui5.Label>
             </ui5.TableCell>
 
+            <ui5.TableCell>
+              <ui5.Button
+                design="Default"
+                icon="delete"
+                onClick={function _a(e: any) {
+                  e.stopPropagation();
+                  return deleteBinding(binding.id);
+                }}
+              >
+              </ui5.Button>            
+            </ui5.TableCell>
+
           </ui5.TableRow>
         </>
       );
@@ -82,29 +111,38 @@ function ServiceBindingsList(props: any) {
 
   return (
     <>
-    {
+      <ui5.Form>
+      <StatusMessage error={error ?? undefined} success={success} />
+</ui5.Form>
 
-      <ui5.Table
-        columns={
-          <>
-            <ui5.TableColumn>
-              <ui5.Label>Id</ui5.Label>
-            </ui5.TableColumn>
-          
-            <ui5.TableColumn>
-              <ui5.Label>Name</ui5.Label>
-            </ui5.TableColumn>
+      {
 
-            <ui5.TableColumn>
-              <ui5.Label>Namespace</ui5.Label>
-            </ui5.TableColumn>
-          </>
-        }
-       >
-        {renderData()}
-      </ui5.Table>
-    }
-    {portal != null && portal}
+        <ui5.Table
+          columns={
+            <>
+              <ui5.TableColumn>
+                <ui5.Label>Id</ui5.Label>
+              </ui5.TableColumn>
+
+              <ui5.TableColumn>
+                <ui5.Label>Name</ui5.Label>
+              </ui5.TableColumn>
+
+              <ui5.TableColumn>
+                <ui5.Label>Namespace</ui5.Label>
+              </ui5.TableColumn>
+
+              <ui5.TableColumn>
+                <ui5.Label>Action</ui5.Label>
+              </ui5.TableColumn>
+            </>
+          }
+        >
+          {renderData()}
+        </ui5.Table>
+      }
+
+      {portal != null && portal}
 
     </>
   );
