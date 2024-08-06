@@ -1,6 +1,7 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import Ok from "../shared/validator";
 import {
+  ApiError,
   ServiceInstance,
 } from "../shared/models";
 import { useEffect, useRef, useState } from "react";
@@ -11,13 +12,15 @@ import CreateBindingForm from "./CreateBindingForm";
 
 function ServiceInstancesDetailsView(props: any) {
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(true);
-  const [error] = useState(null);
+  const [error, setError] = useState<ApiError>();
+
   const [instance, setInstance] = useState<ServiceInstance>();
   const dialogRef = useRef(null);
 
+
   const handleClose = () => {
-    setOpen(false)
+    // @ts-ignoren
+    dialogRef.current.close();
   };
 
   useEffect(() => {
@@ -29,13 +32,10 @@ function ServiceInstancesDetailsView(props: any) {
 
     setLoading(true)
 
-    // additional logic
-    setOpen(props.open)
 
     setLoading(false)
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [props.instance]);
 
   const renderData = () => {
 
@@ -53,7 +53,7 @@ function ServiceInstancesDetailsView(props: any) {
 
     return (
       <ui5.Dialog
-        open={open}
+        open={true}
         style={{ width: "50%" }}
         ref={dialogRef}
         header={
