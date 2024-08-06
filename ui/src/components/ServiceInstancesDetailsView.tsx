@@ -12,7 +12,7 @@ import CreateBindingForm from "./CreateBindingForm";
 
 function ServiceInstancesDetailsView(props: any) {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ApiError>();
+  const [error] = useState<ApiError>();
 
   const [instance, setInstance] = useState<ServiceInstance>();
   const dialogRef = useRef(null);
