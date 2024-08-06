@@ -324,6 +324,32 @@ func TestAPI(t *testing.T) {
 		err = fakeSM.RestoreDefaults()
 		require.NoError(t, err)
 	})
+
+	t.Run("DELETE Service Binding by ID when no secrets are present", func(t *testing.T) {
+		// given
+		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
+
+		// when
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		// then
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// when
+		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err = apiClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		// then
+		require.Equal(t, http.StatusInternalServerError, resp.StatusCode) // change to 404 after error handling refactoring
+
+		err = fakeSM.RestoreDefaults()
+		require.NoError(t, err)
+	})
 }
 
 func defaultServiceInstances() responses.ServiceInstances {
