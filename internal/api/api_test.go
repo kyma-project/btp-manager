@@ -103,7 +103,7 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID, nil)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 		defer resp.Body.Close()
 
 		var si responses.ServiceInstance
@@ -112,6 +112,19 @@ func TestAPI(t *testing.T) {
 
 		// then
 		assert.Equal(t, expectedSI, si)
+	})
+
+	t.Run("GET Service Instance by ID 400 error", func(t *testing.T) {
+		// when
+		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		fakeSM.RespondWithData()
 	})
 
 	t.Run("POST Service Instance", func(t *testing.T) {
@@ -159,6 +172,32 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("POST Service Instance 422 error", func(t *testing.T) {
+		// given
+		siToCreate := requests.CreateServiceInstance{
+			Name:          "new-si-01",
+			ServicePlanID: "4036790e-5ef3-4cf7-bb16-476053477a9a",
+			Namespace:     "kyma-system",
+			ClusterID:     "test-cluster-id",
+			Labels: map[string][]string{
+				"label1": {"value1"},
+				"label2": {"value2a", "value2b"},
+			},
+			Parameters: []byte(`{"param1": "value1", "param2": "value2"}`),
+		}
+		siToCreateJSON, err := json.Marshal(siToCreate)
+		require.NoError(t, err)
+
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-instances", bytes.NewBuffer(siToCreateJSON))
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+		fakeSM.RespondWithData()
+	})
+
 	t.Run("PATCH Service Instance by ID", func(t *testing.T) {
 		// given
 		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
@@ -179,7 +218,7 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPatch, apiAddr+"/api/service-instances/"+siID, bytes.NewBuffer(siToUpdateJSON))
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 		defer resp.Body.Close()
 
 		var si responses.ServiceInstance
@@ -194,6 +233,30 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("PATCH Service Instance by ID 422 error", func(t *testing.T) {
+		// given
+		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
+		name := "a7e240d6-updated-si"
+		servicePlanID := "61772d7e-4e67-48f5-90fc-dd9254aa454b"
+
+		siToUpdate := types.ServiceInstanceUpdateRequest{
+			Name:          &name,
+			ServicePlanID: &servicePlanID,
+		}
+
+		siToUpdateJSON, err := json.Marshal(siToUpdate)
+		require.NoError(t, err)
+
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodPatch, apiAddr+"/api/service-instances/"+siID, bytes.NewBuffer(siToUpdateJSON))
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+		fakeSM.RespondWithData()
+	})
+
 	t.Run("DELETE Service Instance by ID", func(t *testing.T) {
 		// given
 		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
@@ -202,16 +265,31 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-instances/"+siID, nil)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// then
 		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID, nil)
 		resp, err = apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 500, resp.StatusCode) // change to 404 after error handling refactoring
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 		err = fakeSM.RestoreDefaults()
 		require.NoError(t, err)
+	})
+
+	t.Run("DELETE Service Instance by ID 403 error", func(t *testing.T) {
+		// given
+		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
+
+		// when
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-instances/"+siID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+		fakeSM.RespondWithData()
 	})
 
 	t.Run("GET Service Bindings", func(t *testing.T) {
@@ -219,7 +297,7 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings", nil)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 		defer resp.Body.Close()
 
 		var sbs responses.ServiceBindings
@@ -231,6 +309,18 @@ func TestAPI(t *testing.T) {
 		assert.ElementsMatch(t, sbs.Items, defaultSBs.Items)
 	})
 
+	t.Run("GET Service Bindings 403 error", func(t *testing.T) {
+		// when
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings", nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+		fakeSM.RespondWithData()
+	})
+
 	t.Run("GET Service Binding by ID", func(t *testing.T) {
 		// given
 		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
@@ -240,7 +330,7 @@ func TestAPI(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 		defer resp.Body.Close()
 
 		var sb responses.ServiceBinding
@@ -249,6 +339,21 @@ func TestAPI(t *testing.T) {
 
 		// then
 		assert.Equal(t, expectedSI, sb)
+	})
+
+	t.Run("GET Service Binding by ID 400 error", func(t *testing.T) {
+		// given
+		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
+
+		// when
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		fakeSM.RespondWithData()
 	})
 
 	t.Run("POST Service Binding", func(t *testing.T) {
@@ -290,6 +395,26 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("POST Service Binding 400 error", func(t *testing.T) {
+		// given
+		sbCreateRequest := requests.CreateServiceBinding{
+			Name:              "sb-test-01",
+			ServiceInstanceID: "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+			Parameters:        []byte(`{"param1": "value1", "param2": "value2"}`),
+		}
+		sbCreateRequestJSON, err := json.Marshal(sbCreateRequest)
+		require.NoError(t, err)
+
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		fakeSM.RespondWithData()
+	})
+
 	t.Run("DELETE Service Binding by ID", func(t *testing.T) {
 		// given
 		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
@@ -324,7 +449,7 @@ func TestAPI(t *testing.T) {
 		defer resp.Body.Close()
 
 		// then
-		require.Equal(t, http.StatusInternalServerError, resp.StatusCode) // change to 404 after error handling refactoring
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 		// when
 		secrets, err := secretMgr.GetAllByLabels(context.TODO(), labels)
@@ -361,6 +486,20 @@ func TestAPI(t *testing.T) {
 
 		err = fakeSM.RestoreDefaults()
 		require.NoError(t, err)
+	})
+
+	t.Run("DELETE Service Binding by ID 403 error", func(t *testing.T) {
+		// given
+		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
+
+		fakeSM.RespondWithErrors()
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+		fakeSM.RespondWithData()
 	})
 }
 
