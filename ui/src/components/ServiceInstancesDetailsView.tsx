@@ -40,7 +40,11 @@ function ServiceInstancesDetailsView(props: any) {
   const renderData = () => {
 
     if (loading) {
-      return <ui5.Loader progress="100%" />
+      return <ui5.BusyIndicator
+        active
+        delay={1000}
+        size="Medium"
+      />
     }
 
     if (error) {

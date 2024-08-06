@@ -48,7 +48,7 @@ export class CreateServiceInstance {
   name: string = "";
   service_plan_id: string = "";
   labels: { [key: string]: string[] } = {};
-  // parameters: string = "";
+  parameters: string = "{}";
 }
 
 export class ApiError {
