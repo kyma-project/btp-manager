@@ -5,6 +5,9 @@ import {
 } from "../shared/models";
 import { useEffect, useRef, useState } from "react";
 import ServiceBindingsList from "./ServiceBindingsList";
+import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
+import CreateBindingForm from "./CreateBindingForm";
+
 
 function ServiceInstancesDetailsView(props: any) {
   const [loading, setLoading] = useState(true);
