@@ -482,7 +482,7 @@ func TestAPI(t *testing.T) {
 		defer resp.Body.Close()
 
 		// then
-		require.Equal(t, http.StatusInternalServerError, resp.StatusCode) // change to 404 after error handling refactoring
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 		err = fakeSM.RestoreDefaults()
 		require.NoError(t, err)
