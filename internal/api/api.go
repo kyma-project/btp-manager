@@ -231,15 +231,17 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 		a.handleError(writer, err)
 		return
 	}
-	secret, err := generateSecretFromSISBData(si, createdServiceBinding)
+	secret, err := generateSecretFromSISBData(si, createdServiceBinding, &serviceBindingRequest)
 	if err != nil {
 		a.handleError(writer, err)
 		return
 	}
-	err = a.secretManager.Create(context.Background(), secret)
-	if err != nil {
-		a.handleError(writer, err)
-		return
+	if secret.Name != "" && secret.Namespace != "" {
+		err = a.secretManager.Create(context.Background(), secret)
+		if err != nil {
+			a.handleError(writer, err)
+			return
+		}
 	}
 	sbVM, err := responses.ToServiceBindingVM(createdServiceBinding)
 	if err != nil {
@@ -398,16 +400,24 @@ func (a *API) handleError(writer http.ResponseWriter, errToHandle error, fallbac
 	return
 }
 
-func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBinding) (*corev1.Secret, error) {
-	slicedUUID := strings.Split(uuid.NewString(), "-")
-	suffix := strings.Join(slicedUUID[:2], "-")
-	secretName := fmt.Sprintf("%s-%s", sb.Name, suffix)
-
-	namespace, err := sb.ContextValueByFieldName(types.ContextNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get namespace from service binding context: %w", err)
+func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBinding, createSBRequest *requests.CreateServiceBinding) (*corev1.Secret, error) {
+	var secretName, secretNamespace string
+	var err error
+	if createSBRequest.SecretName != "" {
+		secretName = createSBRequest.SecretName
+	} else {
+		slicedUUID := strings.Split(uuid.NewString(), "-")
+		suffix := strings.Join(slicedUUID[:2], "-")
+		secretName = fmt.Sprintf("%s-%s", sb.Name, suffix)
 	}
-
+	if createSBRequest.SecretNamespace != "" {
+		secretNamespace = createSBRequest.SecretNamespace
+	} else {
+		secretNamespace, err = sb.ContextValueByFieldName(types.ContextNamespace)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get namespace from service binding context: %w", err)
+		}
+	}
 	labels := map[string]string{
 		clusterobject.ManagedByLabelKey:        clusterobject.OperatorName,
 		clusterobject.ServiceBindingIDLabel:    sb.ID,
@@ -415,19 +425,51 @@ func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBind
 		clusterobject.ServiceInstanceNameLabel: si.Name,
 	}
 
-	data := map[string]string{}
-	if err := json.Unmarshal(sb.Credentials, &data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal credentials from service binding: %w", err)
+	creds, err := normalizeCredentials(sb.Credentials)
+	if err != nil {
+		return nil, fmt.Errorf("failed to normalize credentials for secret's data: %w", err)
 	}
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
-			Namespace: namespace,
+			Namespace: secretNamespace,
 			Labels:    labels,
 		},
-		StringData: data,
+		Data: creds,
 	}
 
 	return secret, nil
+}
+
+func normalizeCredentials(sbCredentials json.RawMessage) (map[string][]byte, error) {
+	data := make(map[string]interface{})
+	if err := json.Unmarshal(sbCredentials, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal credentials from service binding: %w", err)
+	}
+	normalized := make(map[string][]byte)
+	for k, v := range data {
+		keyString := strings.Replace(k, " ", "_", -1)
+		normalizedValue, err := serialize(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize value for key %s: %w", k, err)
+		}
+		normalized[keyString] = normalizedValue
+	}
+
+	return normalized, nil
+}
+
+func serialize(value interface{}) ([]byte, error) {
+	if byteArrayVal, ok := value.([]byte); ok {
+		return byteArrayVal, nil
+	}
+	if strVal, ok := value.(string); ok {
+		return []byte(strVal), nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
