@@ -9,3 +9,5 @@ manager:
   kubernetesMatchLabels:
     enabled: true
   enable_limited_cache: false
+  memory_limit: 500Mi
+  cpu_limit: 1
