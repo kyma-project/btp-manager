@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	rsaKeyBits = 1024
+	rsaKeyBits = 4096
 	randMax    = 10000
 )
 
