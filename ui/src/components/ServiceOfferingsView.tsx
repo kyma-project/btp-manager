@@ -96,6 +96,8 @@ function ServiceOfferingsView(props: any) {
 
         return <>
 
+            <div className="margin-wrapper">
+
             <ResponsiveGridLayout 
                 columnsXL={3}
                 columnsL={2}
@@ -106,6 +108,7 @@ function ServiceOfferingsView(props: any) {
                 {cards}
                 {/* </React.Fragment> */}
             </ResponsiveGridLayout>
+            </div>
             {portal != null && portal}
         </>
     };

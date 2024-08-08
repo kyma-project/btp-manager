@@ -2,6 +2,7 @@ import * as ui5 from "@ui5/webcomponents-react";
 import Secrets from "./SecretsView";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import { ObjectPage } from "@ui5/webcomponents-react";
 
 
 function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void }) {
@@ -9,13 +10,19 @@ function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void
     const location = useLocation();
     return (
         <>
-            <ui5.Bar
-                design="Header"
-                endContent={<span>SAP BTP, Kyma runtime</span>}
-                startContent={<span>Select your credentials:</span>}
-            >
-                <Secrets onSecretChanged={(secret: string) => onSecretChanged(secret)} />
-            </ui5.Bar>
+
+            <div className="margin-wrapper">
+
+                <ui5.ShellBar style={{ "borderRadius": "var(--_ui5-v1-24-7_side_navigation_border_radius);" }}
+                    logo={<img alt="SAP Logo" src="https://sap.github.io/ui5-webcomponents/images/sap-logo-svg.svg" />}
+                    secondaryTitle="SAP BTP, Kyma runtime"
+                    primaryTitle="BTP Manager UI"
+                >
+
+                </ui5.ShellBar>
+            </div>
+
+
 
 
             <div className="flex-container flex-row">
@@ -27,9 +34,9 @@ function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void
                                 text="Marketplace"
                                 icon="puzzle"
                                 selected={!!matchPath(
-                                        location.pathname, 
-                                        '/offerings'
-                                      )
+                                    location.pathname,
+                                    '/offerings'
+                                )
                                 }
                                 onClick={() => {
                                     navigate("/offerings");
@@ -40,21 +47,31 @@ function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void
                                 text="Service Instances"
                                 icon="connected"
                                 selected={!!matchPath(
-                                        location.pathname, 
-                                        '/instances'
-                                      )
+                                    location.pathname,
+                                    '/instances'
+                                )
                                 }
                                 onClick={() => {
                                     navigate("/instances");
                                 }}
                             >
-                                
+
                             </ui5.SideNavigationItem>
                         </ui5.SideNavigation>
                     </div>
 
-                    <div className="margin-wrapper scrollable">
-                        <Outlet />
+                    <div className="margin-wrapper main-column">
+                    
+
+
+                        <ObjectPage className="scrollable flex-column"
+                              headerTitle={
+                                <Secrets onSecretChanged={(secret: string) => onSecretChanged(secret)} />
+                              }
+                        >
+
+                            <Outlet />
+                        </ObjectPage>
                     </div>
                 </>
             </div>
