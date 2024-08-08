@@ -10,6 +10,8 @@ type CreateServiceBinding struct {
 	Name              string          `json:"name"`
 	ServiceInstanceID string          `json:"service_instance_id"`
 	Parameters        json.RawMessage `json:"parameters"`
+	SecretName        string          `json:"secret_name"`
+	SecretNamespace   string          `json:"secret_namespace"`
 }
 
 type CreateServiceInstance struct {
