@@ -426,7 +426,9 @@ func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBind
 		clusterobject.ServiceInstanceIDLabel:   si.ID,
 		clusterobject.ServiceInstanceNameLabel: si.Name,
 	}
-
+	if sb.Labels != nil && sb.Labels[types.ClusterIDLabel][0] != "" {
+		labels[clusterobject.ClusterIDLabel] = sb.Labels[types.ClusterIDLabel][0]
+	}
 	creds, err := normalizeCredentials(sb.Credentials)
 	if err != nil {
 		return nil, fmt.Errorf("failed to normalize credentials for secret's data: %w", err)
