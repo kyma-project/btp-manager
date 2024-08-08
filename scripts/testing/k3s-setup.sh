@@ -25,7 +25,7 @@ docker run -d \
 --restart=always \
 --name registry.localhost \
 -v "$PWD/registry:/var/lib/registry" \
-registry:2
+europe-docker.pkg.dev/kyma-project/prod/external/registry:2.8.3
 
 echo "Starting K3s cluster (K3s version: ${K3S_VERSION})"
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} K3S_KUBECONFIG_MODE=777 INSTALL_K3S_EXEC="server --disable traefik" sh -
