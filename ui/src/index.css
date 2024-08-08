@@ -58,3 +58,35 @@ code {
   height: 100%;
   width: 100%;
 }
+
+/* style for React <Outline/> element */
+.main-column {
+  width: 100%;
+  display: block; 
+}
+
+/* Customisations for UI5 */
+
+/* round corners for shellbar */
+ui5-shellbar::part(root) {
+  border-radius: .5rem;
+}
+
+/* round corners for a bar */
+ui5-bar::part(bar) {
+  border-radius: .5rem;
+}
+
+ui5-bar {
+  display: unset;
+}
+
+/* expand selects to fit their parents */
+ui5-select {
+  width: 100%;
+}
+
+/* corrected margins on object page */
+div[data-component-name="ObjectPage"] {
+  border-radius: 0.5em;
+}
