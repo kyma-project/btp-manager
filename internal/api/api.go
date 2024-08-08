@@ -73,6 +73,8 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
 	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
 	router.HandleFunc("DELETE /api/service-bindings/{id}", a.DeleteServiceBinding)
+	router.Handle("GET /offerings", http.StripPrefix("/offerings", http.FileServer(a.frontendFS)))
+	router.Handle("GET /instances", http.StripPrefix("/instances", http.FileServer(a.frontendFS)))
 	router.Handle("GET /", http.FileServer(a.frontendFS))
 }
 
