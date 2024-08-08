@@ -1,19 +1,31 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import { ApiError, ServiceInstanceBindings } from "../shared/models";
+import { ApiError, ServiceInstanceBinding, ServiceInstanceBindings } from "../shared/models";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import api from "../shared/api";
 import Ok from "../shared/validator";
 import serviceInstancesData from '../test-data/service-bindings.json';
 import StatusMessage from "./StatusMessage";
 
-function ServiceBindingsList(props: any) {
+const ServiceBindingsList= forwardRef((props: any, ref) => {
   const [bindings, setServiceInstanceBindings] = useState<ServiceInstanceBindings>();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError>();
   const [portal] = useState<JSX.Element>();
   const [success] = useState("");
+
+  useImperativeHandle(ref, () => ({
+
+    add(binding : ServiceInstanceBinding) {
+      bindings?.items.push(binding);
+      console.log(bindings)
+      const newbindings = new ServiceInstanceBindings();
+      newbindings.items = bindings?.items ?? [];
+      setServiceInstanceBindings(newbindings);
+    }
+
+  }));
 
   function deleteBinding(id: string): boolean {
     setLoading(true);
@@ -24,6 +36,7 @@ function ServiceBindingsList(props: any) {
         bindings!!.items = bindings!!.items.filter(instance=> instance.id !== id)
         setServiceInstanceBindings(bindings);
         setLoading(false);
+        setError(undefined);
       })
       .catch((error) => {
         setLoading(false);
@@ -48,6 +61,7 @@ function ServiceBindingsList(props: any) {
         .then((response) => {
           setServiceInstanceBindings(response.data);
           setLoading(false);
+          setError(undefined);
         })
         .catch((error) => {
           setLoading(false);
@@ -76,7 +90,6 @@ function ServiceBindingsList(props: any) {
     }
     return bindings?.items.map((binding, index) => {
       return (
-        <>
           <ui5.TableRow>
 
             <ui5.TableCell>
@@ -88,11 +101,11 @@ function ServiceBindingsList(props: any) {
             </ui5.TableCell>
 
             <ui5.TableCell>
-              <ui5.Label>{binding.secretName}</ui5.Label>
+              <ui5.Label>{binding.secret_name}</ui5.Label>
             </ui5.TableCell>
 
             <ui5.TableCell>
-              <ui5.Label>{binding.secretNamespace}</ui5.Label>
+              <ui5.Label>{binding.secret_namespace}</ui5.Label>
             </ui5.TableCell>
 
             <ui5.TableCell>
@@ -108,7 +121,6 @@ function ServiceBindingsList(props: any) {
             </ui5.TableCell>
 
           </ui5.TableRow>
-        </>
       );
     });
   };
@@ -116,8 +128,8 @@ function ServiceBindingsList(props: any) {
   return (
     <>
       <ui5.Form>
-      <StatusMessage error={error ?? undefined} success={success} />
-</ui5.Form>
+        <StatusMessage error={error ?? undefined} success={success} />
+      </ui5.Form>
 
       {
 
@@ -154,6 +166,6 @@ function ServiceBindingsList(props: any) {
 
     </>
   );
-}
+});
 
 export default ServiceBindingsList;

@@ -76,14 +76,14 @@ export class ServiceInstance {
   serviceBindings: ServiceInstanceBinding[] = [];
 }
 
-export interface ServiceInstanceBindings {
-  items: ServiceInstanceBinding[];
+export class ServiceInstanceBindings {
+  items: ServiceInstanceBinding[] = [];
 }
 
 export class ServiceInstanceBinding {
   id: string = "";
-  serviceInstanceId: string = "";
+  service_instance_id: string = "";
   name: string = "";
-  secretName: string = "";
-  secretNamespace: string = "";
+  secret_name: string = "";
+  secret_namespace: string = "";
 }

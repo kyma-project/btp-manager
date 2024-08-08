@@ -10,7 +10,6 @@ import axios from "axios";
 import StatusMessage from "./StatusMessage";
 import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
 
-
 function CreateBindingForm(props: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError>();
@@ -27,25 +26,36 @@ function CreateBindingForm(props: any) {
       return false;
     }
 
-    createdBinding.serviceInstanceId = props.instanceId ?? ""
+    createdBinding.service_instance_id = props.instanceId ?? ""
 
     setLoading(true)
     axios
       .post<ServiceInstanceBinding>(api("service-bindings"), {
         name: createdBinding.name,
-        service_instance_id: createdBinding.serviceInstanceId,
-        secret_name: createdBinding.secretName,
-        secret_namespace: createdBinding.secretNamespace
+        service_instance_id: createdBinding.service_instance_id,
+        secret_name: createdBinding.secret_name,
+        secret_namespace: createdBinding.secret_namespace
       })
       .then((response) => {
-        setLoading(false);
-        setSuccess("Item with id " + response.data.name + " created, redirecting to instances page...");
-        setCreatedBinding(new ServiceInstanceBinding());
+        
+        // propagate the created binding
+        props.onCreate(response.data);
+        
+        // reset binding
+        const binding = new ServiceInstanceBinding()
+        binding.name = props.instanceName
+        binding.secret_name = props.instanceName
+        binding.secret_namespace = "default"
+
+        setSuccess("Item with id " + response.data.name + " created.");
+        setCreatedBinding(binding);
         setError(undefined);
+        setLoading(false);
       })
       .catch((error: ApiError) => {
         setLoading(false);
         setError(error);
+        setSuccess("");
       });
 
     e.preventDefault();
@@ -58,17 +68,21 @@ function CreateBindingForm(props: any) {
       return;
     }
 
+    if (!Ok(props.onCreate)) {
+      return;
+    }
+
     setLoading(true)
 
     setLoading(false)
     setError(undefined)
 
     createdBinding.name = props.instanceName
-    createdBinding.secretName = props.instanceName
-    createdBinding.secretNamespace = "default"
+    createdBinding.secret_name = props.instanceName
+    createdBinding.secret_namespace = "default"
     setCreatedBinding(createdBinding)
 
-  }, [createdBinding, props.instanceId, props.instanceName]);
+  }, [createdBinding, props.instanceId, props.instanceName, props.onCreate]);
 
   const renderData = () => {
 
@@ -83,7 +97,9 @@ function CreateBindingForm(props: any) {
     return (
       <ui5.Form
         onSubmit={handleCreate}>
-        <StatusMessage error={error ?? undefined} success={success} />
+        <ui5.FormItem>
+          <StatusMessage error={error ?? undefined} success={success} />
+        </ui5.FormItem>
         <ui5.FormItem label={<ui5.Label required>Name</ui5.Label>}>
           <ui5.Input
             style={{ width: "100%" }}
@@ -100,9 +116,9 @@ function CreateBindingForm(props: any) {
           <ui5.Input
             style={{ width: "100%" }}
             required
-            value={createdBinding?.secretName ?? ''}
+            value={createdBinding?.secret_name ?? ''}
             onChange={(e) => { // defaulted to service instance name
-              createdBinding!!.secretName = e.target.value
+              createdBinding!!.secret_name = e.target.value
               setCreatedBinding(createdBinding)
             }}
           />
@@ -112,9 +128,9 @@ function CreateBindingForm(props: any) {
           <ui5.Input
             style={{ width: "100%" }}
             required // default to "default"
-            value={createdBinding?.secretNamespace ?? ''}
+            value={createdBinding?.secret_namespace ?? ''}
             onChange={(e) => {
-              createdBinding!!.secretNamespace = e.target.value
+              createdBinding!!.secret_namespace = e.target.value
               setCreatedBinding(createdBinding)
             }}
           />
