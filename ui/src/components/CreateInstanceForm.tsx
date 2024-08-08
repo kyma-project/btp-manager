@@ -35,8 +35,13 @@ function CreateInstanceForm(props: any) {
         setLoading(true)
         console.log(createServiceInstance)
 
-        var createdJson = { id: createServiceInstance?.id, name: createServiceInstance?.name, 
-            service_plan_id: createServiceInstance?.service_plan_id, labels: createServiceInstance?.labels, parameters: {}}
+        var createdJson = {
+            id: createServiceInstance?.id,
+            name: createServiceInstance?.name, 
+            service_plan_id: createServiceInstance?.service_plan_id, 
+            labels: createServiceInstance?.labels, 
+            parameters: {}
+        }
 
         if(createServiceInstance?.parameters !== undefined) {
             createdJson.parameters = JSON.parse(createServiceInstance?.parameters)
