@@ -26,13 +26,13 @@ function CreateBindingForm(props: any) {
       return false;
     }
 
-    createdBinding.serviceInstanceId = props.instanceId ?? ""
+    createdBinding.service_instance_id = props.instanceId ?? ""
 
     setLoading(true)
     axios
       .post<ServiceInstanceBinding>(api("service-bindings"), {
         name: createdBinding.name,
-        service_instance_id: createdBinding.serviceInstanceId,
+        service_instance_id: createdBinding.service_instance_id,
         secret_name: createdBinding.secretName,
         secret_namespace: createdBinding.secretNamespace
       })

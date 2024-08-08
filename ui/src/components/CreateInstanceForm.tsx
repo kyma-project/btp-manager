@@ -115,9 +115,7 @@ function CreateInstanceForm(props: any) {
             <>
                 <ui5.Form
                     onSubmit={handleCreate}>
-                    <ui5.FormItem>
-                        <StatusMessage error={error ?? undefined} success={success} />
-                    </ui5.FormItem>
+                    <StatusMessage error={error ?? undefined} success={success} />
                     <ui5.FormItem label={<ui5.Label required>Name</ui5.Label>}>
                         <ui5.Input
                             style={{ width: "100%" }}

@@ -82,7 +82,7 @@ export class ServiceInstanceBindings {
 
 export class ServiceInstanceBinding {
   id: string = "";
-  serviceInstanceId: string = "";
+  service_instance_id: string = "";
   name: string = "";
   secretName: string = "";
   secretNamespace: string = "";
