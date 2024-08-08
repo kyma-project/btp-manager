@@ -33,8 +33,8 @@ function CreateBindingForm(props: any) {
       .post<ServiceInstanceBinding>(api("service-bindings"), {
         name: createdBinding.name,
         service_instance_id: createdBinding.service_instance_id,
-        secret_name: createdBinding.secretName,
-        secret_namespace: createdBinding.secretNamespace
+        secret_name: createdBinding.secret_name,
+        secret_namespace: createdBinding.secret_namespace
       })
       .then((response) => {
         
@@ -44,8 +44,8 @@ function CreateBindingForm(props: any) {
         // reset binding
         const binding = new ServiceInstanceBinding()
         binding.name = props.instanceName
-        binding.secretName = props.instanceName
-        binding.secretNamespace = "default"
+        binding.secret_name = props.instanceName
+        binding.secret_namespace = "default"
 
         setSuccess("Item with id " + response.data.name + " created.");
         setCreatedBinding(binding);
@@ -78,8 +78,8 @@ function CreateBindingForm(props: any) {
     setError(undefined)
 
     createdBinding.name = props.instanceName
-    createdBinding.secretName = props.instanceName
-    createdBinding.secretNamespace = "default"
+    createdBinding.secret_name = props.instanceName
+    createdBinding.secret_namespace = "default"
     setCreatedBinding(createdBinding)
 
   }, [createdBinding, props.instanceId, props.instanceName, props.onCreate]);
@@ -116,9 +116,9 @@ function CreateBindingForm(props: any) {
           <ui5.Input
             style={{ width: "100%" }}
             required
-            value={createdBinding?.secretName ?? ''}
+            value={createdBinding?.secret_name ?? ''}
             onChange={(e) => { // defaulted to service instance name
-              createdBinding!!.secretName = e.target.value
+              createdBinding!!.secret_name = e.target.value
               setCreatedBinding(createdBinding)
             }}
           />
@@ -128,9 +128,9 @@ function CreateBindingForm(props: any) {
           <ui5.Input
             style={{ width: "100%" }}
             required // default to "default"
-            value={createdBinding?.secretNamespace ?? ''}
+            value={createdBinding?.secret_namespace ?? ''}
             onChange={(e) => {
-              createdBinding!!.secretNamespace = e.target.value
+              createdBinding!!.secret_namespace = e.target.value
               setCreatedBinding(createdBinding)
             }}
           />

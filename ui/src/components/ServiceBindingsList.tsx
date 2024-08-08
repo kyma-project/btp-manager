@@ -101,11 +101,11 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
             </ui5.TableCell>
 
             <ui5.TableCell>
-              <ui5.Label>{binding.secretName}</ui5.Label>
+              <ui5.Label>{binding.secret_name}</ui5.Label>
             </ui5.TableCell>
 
             <ui5.TableCell>
-              <ui5.Label>{binding.secretNamespace}</ui5.Label>
+              <ui5.Label>{binding.secret_namespace}</ui5.Label>
             </ui5.TableCell>
 
             <ui5.TableCell>
