@@ -31,7 +31,12 @@ function CreateBindingForm(props: any) {
 
     setLoading(true)
     axios
-      .post<ServiceInstanceBinding>(api("service-bindings"), {name: createdBinding.name, service_instance_id: createdBinding.serviceInstanceId})
+      .post<ServiceInstanceBinding>(api("service-bindings"), {
+        name: createdBinding.name,
+        service_instance_id: createdBinding.serviceInstanceId,
+        secret_name: createdBinding.secretName,
+        secret_namespace: createdBinding.secretNamespace
+      })
       .then((response) => {
         setLoading(false);
         setSuccess("Item with id " + response.data.name + " created, redirecting to instances page...");
@@ -56,8 +61,14 @@ function CreateBindingForm(props: any) {
     setLoading(true)
 
     setLoading(false)
+    setError(undefined)
 
-  }, [props.instanceId]);
+    createdBinding.name = props.instanceName
+    createdBinding.secretName = props.instanceName
+    createdBinding.secretNamespace = "default"
+    setCreatedBinding(createdBinding)
+
+  }, [createdBinding, props.instanceId, props.instanceName]);
 
   const renderData = () => {
 
@@ -70,25 +81,49 @@ function CreateBindingForm(props: any) {
     }
 
     return (
-          <ui5.Form
-            onSubmit={handleCreate}>
-            <StatusMessage error={error ?? undefined} success={success} />
-            <ui5.FormItem label={<ui5.Label required>Name</ui5.Label>}>
-              <ui5.Input
-                style={{ width: "100%" }}
-                required
-                value={createdBinding?.name ?? ''}
-                onChange={(e) => {
-                  createdBinding!!.name = e.target.value
-                  setCreatedBinding(createdBinding)
-                }}
-              />
-            </ui5.FormItem>
+      <ui5.Form
+        onSubmit={handleCreate}>
+        <StatusMessage error={error ?? undefined} success={success} />
+        <ui5.FormItem label={<ui5.Label required>Name</ui5.Label>}>
+          <ui5.Input
+            style={{ width: "100%" }}
+            required
+            value={createdBinding?.name ?? ''}
+            onChange={(e) => {
+              createdBinding!!.name = e.target.value
+              setCreatedBinding(createdBinding)
+            }}
+          />
+        </ui5.FormItem>
 
-            <ui5.FormItem>
-              <ui5.Button type={ui5.ButtonType.Submit}>Submit</ui5.Button>
-            </ui5.FormItem>
-          </ui5.Form>
+        <ui5.FormItem label={<ui5.Label required>Secret Name</ui5.Label>}>
+          <ui5.Input
+            style={{ width: "100%" }}
+            required
+            value={createdBinding?.secretName ?? ''}
+            onChange={(e) => { // defaulted to service instance name
+              createdBinding!!.secretName = e.target.value
+              setCreatedBinding(createdBinding)
+            }}
+          />
+        </ui5.FormItem>
+
+        <ui5.FormItem label={<ui5.Label required>Secret Namespace</ui5.Label>}>
+          <ui5.Input
+            style={{ width: "100%" }}
+            required // default to "default"
+            value={createdBinding?.secretNamespace ?? ''}
+            onChange={(e) => {
+              createdBinding!!.secretNamespace = e.target.value
+              setCreatedBinding(createdBinding)
+            }}
+          />
+        </ui5.FormItem>
+
+        <ui5.FormItem>
+          <ui5.Button type={ui5.ButtonType.Submit}>Submit</ui5.Button>
+        </ui5.FormItem>
+      </ui5.Form>
 
     )
   }

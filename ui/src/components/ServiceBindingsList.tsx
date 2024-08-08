@@ -21,6 +21,8 @@ function ServiceBindingsList(props: any) {
     axios
       .delete(api("service-bindings") + "/" + id)
       .then((response) => {
+        bindings!!.items = bindings!!.items.filter(instance=> instance.id !== id)
+        setServiceInstanceBindings(bindings);
         setLoading(false);
       })
       .catch((error) => {
@@ -30,8 +32,6 @@ function ServiceBindingsList(props: any) {
 
     return true;
   }
-
-
 
   useEffect(() => {
     if (!Ok(props.instance)) {
@@ -88,7 +88,11 @@ function ServiceBindingsList(props: any) {
             </ui5.TableCell>
 
             <ui5.TableCell>
-              <ui5.Label>{binding.namespace}</ui5.Label>
+              <ui5.Label>{binding.secretName}</ui5.Label>
+            </ui5.TableCell>
+
+            <ui5.TableCell>
+              <ui5.Label>{binding.secretNamespace}</ui5.Label>
             </ui5.TableCell>
 
             <ui5.TableCell>
@@ -129,7 +133,11 @@ function ServiceBindingsList(props: any) {
               </ui5.TableColumn>
 
               <ui5.TableColumn>
-                <ui5.Label>Namespace</ui5.Label>
+                <ui5.Label>Secret Name</ui5.Label>
+              </ui5.TableColumn>
+
+              <ui5.TableColumn>
+                <ui5.Label>Secret Namespace</ui5.Label>
               </ui5.TableColumn>
 
               <ui5.TableColumn>

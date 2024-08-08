@@ -68,12 +68,12 @@ export class Response {
   config: string = "";
 }
 
-export interface ServiceInstance {
-  id: string;
-  name: string;
-  context: string[];
-  namespace: string;
-  serviceBindings: ServiceInstanceBinding[];
+export class ServiceInstance {
+  id: string = "";
+  name: string = "";
+  context: string[] = [];
+  namespace: string = "";
+  serviceBindings: ServiceInstanceBinding[] = [];
 }
 
 export interface ServiceInstanceBindings {
@@ -84,5 +84,6 @@ export class ServiceInstanceBinding {
   id: string = "";
   serviceInstanceId: string = "";
   name: string = "";
-  namespace: string = "";
+  secretName: string = "";
+  secretNamespace: string = "";
 }

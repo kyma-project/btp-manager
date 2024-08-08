@@ -4,13 +4,17 @@
             "id": "1",
             "serviceInstanceId": "1",
             "name": "Test Service Binding 1",
-            "namespace": ""
+            "namespace": "",
+            "secretName": "",
+            "secretNamespace": ""
         },
         {
             "id": "2",
             "serviceInstanceId": "2",
             "name": "Test Service Binding 2",
-            "namespace": ""
+            "namespace": "",
+            "secretName": "",
+            "secretNamespace": ""
         }
     ]
 }
