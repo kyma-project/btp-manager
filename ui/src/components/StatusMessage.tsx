@@ -32,23 +32,19 @@ function StatusMessage(props: StatusMessageProps) {
 
         if (props.error) {
             return (
-                <ui5.FormItem>
                     <ui5.MessageStrip
                         design="Negative"
                         onClose={function _a() { }}>
                         {message}
                     </ui5.MessageStrip>
-                </ui5.FormItem>
             );
         } else if (props.success) {
             return (
-                <ui5.FormItem>
                     <ui5.MessageStrip
                         design="Information"
                         onClose={function _a() { }}>
                         {props.success}
                     </ui5.MessageStrip>
-                </ui5.FormItem>
             );
         }
     };
