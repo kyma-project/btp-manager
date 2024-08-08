@@ -10,7 +10,6 @@ import axios from "axios";
 import StatusMessage from "./StatusMessage";
 import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
 
-
 function CreateBindingForm(props: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError>();
@@ -38,14 +37,25 @@ function CreateBindingForm(props: any) {
         secret_namespace: createdBinding.secretNamespace
       })
       .then((response) => {
-        setLoading(false);
-        setSuccess("Item with id " + response.data.name + " created, redirecting to instances page...");
-        setCreatedBinding(new ServiceInstanceBinding());
+        
+        // propagate the created binding
+        props.onCreate(response.data);
+        
+        // reset binding
+        const binding = new ServiceInstanceBinding()
+        binding.name = props.instanceName
+        binding.secretName = props.instanceName
+        binding.secretNamespace = "default"
+
+        setSuccess("Item with id " + response.data.name + " created.");
+        setCreatedBinding(binding);
         setError(undefined);
+        setLoading(false);
       })
       .catch((error: ApiError) => {
         setLoading(false);
         setError(error);
+        setSuccess("");
       });
 
     e.preventDefault();
@@ -55,6 +65,10 @@ function CreateBindingForm(props: any) {
 
   useEffect(() => {
     if (!Ok(props.instanceId)) {
+      return;
+    }
+
+    if (!Ok(props.onCreate)) {
       return;
     }
 
@@ -68,7 +82,7 @@ function CreateBindingForm(props: any) {
     createdBinding.secretNamespace = "default"
     setCreatedBinding(createdBinding)
 
-  }, [createdBinding, props.instanceId, props.instanceName]);
+  }, [createdBinding, props.instanceId, props.instanceName, props.onCreate]);
 
   const renderData = () => {
 
@@ -83,7 +97,9 @@ function CreateBindingForm(props: any) {
     return (
       <ui5.Form
         onSubmit={handleCreate}>
-        <StatusMessage error={error ?? undefined} success={success} />
+        <ui5.FormItem>
+          <StatusMessage error={error ?? undefined} success={success} />
+        </ui5.FormItem>
         <ui5.FormItem label={<ui5.Label required>Name</ui5.Label>}>
           <ui5.Input
             style={{ width: "100%" }}

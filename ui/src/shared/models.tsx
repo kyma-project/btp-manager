@@ -76,8 +76,8 @@ export class ServiceInstance {
   serviceBindings: ServiceInstanceBinding[] = [];
 }
 
-export interface ServiceInstanceBindings {
-  items: ServiceInstanceBinding[];
+export class ServiceInstanceBindings {
+  items: ServiceInstanceBinding[] = [];
 }
 
 export class ServiceInstanceBinding {
