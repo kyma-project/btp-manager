@@ -4,23 +4,34 @@ import {
   ApiError,
   ServiceInstance,
 } from "../shared/models";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import ServiceBindingsList from "./ServiceBindingsList";
 import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
 import CreateBindingForm from "./CreateBindingForm";
 
-
-function ServiceInstancesDetailsView(props: any) {
+const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
   const [loading, setLoading] = useState(true);
   const [error] = useState<ApiError>();
 
   const [instance, setInstance] = useState<ServiceInstance>();
   const dialogRef = useRef(null);
 
+  useImperativeHandle(ref, () => ({
+
+    open() {
+      if (dialogRef.current) {
+        // @ts-ignore
+        dialogRef.current.show();
+      }
+    }
+
+  }));
 
   const handleClose = () => {
-    // @ts-ignoren
-    dialogRef.current.close();
+    if (dialogRef.current) {
+      // @ts-ignore
+      dialogRef.current.close();
+    }
   };
 
   useEffect(() => {
@@ -31,7 +42,6 @@ function ServiceInstancesDetailsView(props: any) {
     setInstance(props.instance);
 
     setLoading(true)
-
 
     setLoading(false)
 
@@ -53,7 +63,6 @@ function ServiceInstancesDetailsView(props: any) {
 
     return (
       <ui5.Dialog
-        open={true}
         style={{ width: "50%" }}
         ref={dialogRef}
         header={
@@ -93,8 +102,7 @@ function ServiceInstancesDetailsView(props: any) {
         </ui5.Panel>
 
         <ui5.Panel headerLevel="H2" headerText="Create Binding">
-          <CreateBindingForm instanceId={props.instance.id}></CreateBindingForm>
-
+          <CreateBindingForm instanceId={props.instance.id} instanceName={props.instance.name}></CreateBindingForm>
         </ui5.Panel>
 
       </ui5.Dialog>
@@ -102,6 +110,6 @@ function ServiceInstancesDetailsView(props: any) {
   }
   // @ts-ignore
   return <>{renderData()}</>;
-}
+})
 
 export default ServiceInstancesDetailsView;
