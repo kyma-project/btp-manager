@@ -362,6 +362,8 @@ func TestAPI(t *testing.T) {
 			Name:              "sb-test-01",
 			ServiceInstanceID: "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
 			Parameters:        []byte(`{"param1": "value1", "param2": "value2"}`),
+			SecretName:        "binding-secret-01",
+			SecretNamespace:   "default",
 		}
 		sbCreateRequestJSON, err := json.Marshal(sbCreateRequest)
 		require.NoError(t, err)
@@ -391,6 +393,49 @@ func TestAPI(t *testing.T) {
 		// then
 		assert.Len(t, secrets.Items, 1)
 
+		secretMgr.Clean()
+		err = fakeSM.RestoreDefaults()
+		require.NoError(t, err)
+	})
+
+	t.Run("POST Service Binding with JSON object in credentials", func(t *testing.T) {
+		// given
+		sbCreateRequest := requests.CreateServiceBinding{
+			Name:              "sb-test-02",
+			ServiceInstanceID: servicemanager.FakeJSONObjectCredentialsServiceInstanceID,
+			Parameters:        []byte(`{"param1": "value1", "param2": "value2"}`),
+			SecretName:        "binding-secret-02",
+			SecretNamespace:   "default",
+		}
+		sbCreateRequestJSON, err := json.Marshal(sbCreateRequest)
+		require.NoError(t, err)
+
+		// when
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+		defer resp.Body.Close()
+
+		var sb responses.ServiceBinding
+		err = json.NewDecoder(resp.Body).Decode(&sb)
+		require.NoError(t, err)
+
+		// then
+		assert.NotEmpty(t, sb.ID)
+		assert.Equal(t, sbCreateRequest.Name, sb.Name)
+
+		// when
+		secrets, err := secretMgr.GetAllByLabels(context.TODO(), map[string]string{
+			clusterobject.ServiceBindingIDLabel:  sb.ID,
+			clusterobject.ServiceInstanceIDLabel: sbCreateRequest.ServiceInstanceID,
+		})
+		require.NoError(t, err)
+
+		// then
+		assert.Len(t, secrets.Items, 1)
+
+		secretMgr.Clean()
 		err = fakeSM.RestoreDefaults()
 		require.NoError(t, err)
 	})

@@ -15,12 +15,14 @@ import (
 )
 
 const (
-	defaultDir               = "service-manager"
-	rootDir                  = "btp-manager"
-	serviceOfferingsJSONPath = "testdata/service_offerings.json"
-	servicePlansJSONPath     = "testdata/service_plans.json"
-	serviceInstancesJSONPath = "testdata/service_instances.json"
-	serviceBindingsJSONPath  = "testdata/service_bindings.json"
+	FakeJSONObjectCredentialsServiceInstanceID = "json-object-in-credentials"
+	testDataServiceInstanceID                  = "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
+	defaultDir                                 = "service-manager"
+	rootDir                                    = "btp-manager"
+	serviceOfferingsJSONPath                   = "testdata/service_offerings.json"
+	servicePlansJSONPath                       = "testdata/service_plans.json"
+	serviceInstancesJSONPath                   = "testdata/service_instances.json"
+	serviceBindingsJSONPath                    = "testdata/service_bindings.json"
 )
 
 type FakeServiceManager struct {
@@ -349,6 +351,9 @@ func (h *fakeSMHandler) getServiceInstance(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	if siID == FakeJSONObjectCredentialsServiceInstanceID {
+		siID = testDataServiceInstanceID
+	}
 
 	var err error
 	data := make([]byte, 0)
@@ -667,7 +672,11 @@ func (h *fakeSMHandler) createServiceBinding(w http.ResponseWriter, r *http.Requ
 	}
 
 	sbCreateRequest.ID = uuid.New().String()
-	sbCreateRequest.Credentials = []byte(`{"username": "user", "password": "pass"}`)
+	if sbCreateRequest.ServiceInstanceID == FakeJSONObjectCredentialsServiceInstanceID {
+		sbCreateRequest.Credentials = []byte(`{"object":{"username":"user","password":"pass"}}`)
+	} else {
+		sbCreateRequest.Credentials = []byte(`{"username": "user", "password": "pass"}`)
+	}
 	h.serviceBindings.Items = append(h.serviceBindings.Items, sbCreateRequest)
 
 	data, err := json.Marshal(sbCreateRequest)
