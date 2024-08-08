@@ -28,6 +28,8 @@ type Config struct {
 	IdleTimeout  time.Duration `envconfig:"default=120s"`
 }
 
+type ServiceBindingSecret map[string]*corev1.Secret
+
 type API struct {
 	server        *http.Server
 	smClient      *servicemanager.Client
@@ -197,7 +199,8 @@ func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Requ
 		a.handleError(writer, err)
 		return
 	}
-	sbsVM, err := responses.ToServiceBindingsVM(sbs)
+	sbSecrets := a.ServiceBindingsSecrets(sbs)
+	sbsVM, err := responses.ToServiceBindingsVM(sbs, sbSecrets)
 	if err != nil {
 		a.handleError(writer, err)
 		return
@@ -271,6 +274,15 @@ func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Reques
 		a.handleError(writer, err)
 		return
 	}
+	secrets, err := a.secretsForGivenServiceBindingID(sb.ID)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	if len(secrets.Items) > 0 {
+		sbVM.SecretName = secrets.Items[0].Name
+		sbVM.SecretNamespace = secrets.Items[0].Namespace
+	}
 	response, err := json.Marshal(sbVM)
 	if err != nil {
 		a.handleError(writer, err)
@@ -282,11 +294,7 @@ func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Reques
 func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
 	id := request.PathValue("id")
-	filterLabels := map[string]string{
-		clusterobject.ManagedByLabelKey:     clusterobject.OperatorName,
-		clusterobject.ServiceBindingIDLabel: id,
-	}
-	secrets, err := a.secretManager.GetAllByLabels(context.Background(), filterLabels)
+	secrets, err := a.secretsForGivenServiceBindingID(id)
 	if err != nil {
 		a.handleError(writer, err)
 		return
@@ -299,6 +307,15 @@ func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Req
 		a.handleError(writer, err)
 		return
 	}
+}
+
+func (a *API) secretsForGivenServiceBindingID(sbID string) (*corev1.SecretList, error) {
+	filterLabels := map[string]string{
+		clusterobject.ManagedByLabelKey:     clusterobject.OperatorName,
+		clusterobject.ServiceBindingIDLabel: sbID,
+	}
+	secrets, err := a.secretManager.GetAllByLabels(context.Background(), filterLabels)
+	return secrets, err
 }
 
 func (a *API) setupCors(writer http.ResponseWriter, request *http.Request) {
@@ -400,6 +417,22 @@ func (a *API) handleError(writer http.ResponseWriter, errToHandle error, fallbac
 		a.logger.Error(err.Error())
 	}
 	return
+}
+
+func (a *API) ServiceBindingsSecrets(sbs *types.ServiceBindings) ServiceBindingSecret {
+	var serviceBindingsSecrets ServiceBindingSecret
+	for _, sb := range sbs.Items {
+		secrets, err := a.secretsForGivenServiceBindingID(sb.ID)
+		if err != nil {
+			a.logger.Error("failed to get secrets for service binding", "service binding id", sb.ID, "error", err)
+			continue
+		}
+		if len(secrets.Items) > 0 {
+			serviceBindingsSecrets[sb.ID] = &secrets.Items[0]
+		}
+	}
+
+	return serviceBindingsSecrets
 }
 
 func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBinding, createSBRequest *requests.CreateServiceBinding) (*corev1.Secret, error) {

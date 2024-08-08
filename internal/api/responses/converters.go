@@ -3,6 +3,7 @@ package responses
 import (
 	"encoding/json"
 
+	"github.com/kyma-project/btp-manager/internal/api"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	v1 "k8s.io/api/core/v1"
 )
@@ -106,18 +107,22 @@ func ToServiceInstanceVM(instance *types.ServiceInstance) ServiceInstance {
 	}
 }
 
-func ToServiceBindingsVM(bindings *types.ServiceBindings) (ServiceBindings, error) {
+func ToServiceBindingsVM(serviceBindings *types.ServiceBindings, serviceBindingSecrets api.ServiceBindingSecret) (ServiceBindings, error) {
 	toReturn := ServiceBindings{
-		NumItems: len(bindings.Items),
+		NumItems: len(serviceBindings.Items),
 		Items:    []ServiceBinding{},
 	}
 
-	for _, binding := range bindings.Items {
-		binding, err := ToServiceBindingVM(&binding)
+	for _, sb := range serviceBindings.Items {
+		sbResponse, err := ToServiceBindingVM(&sb)
 		if err != nil {
 			return ServiceBindings{}, err
 		}
-		toReturn.Items = append(toReturn.Items, binding)
+		if secret, exists := serviceBindingSecrets[sb.ID]; exists {
+			sbResponse.SecretName = secret.Name
+			sbResponse.SecretNamespace = secret.Namespace
+		}
+		toReturn.Items = append(toReturn.Items, sbResponse)
 	}
 	return toReturn, nil
 }
