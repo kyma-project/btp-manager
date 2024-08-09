@@ -31,7 +31,7 @@ The SAP BTP Operator module allows for the initial provisioning and retrieving o
 
 ### SAP BTP, Kyma Runtime
 
-SAP BTP, Kyma runtime runs on a Kubernetes cluster that wraps the SAP BTP Operator module, API server, and one or more applications. The application or multiple applications are the actual consumers of SAP BTP services.
+SAP BTP, Kyma runtime runs on a Kubernetes cluster and wraps the SAP BTP Operator module, API server, and one or more applications. The application or multiple applications are the actual consumers of SAP BTP services.
 
 ### BTP Manager
 
@@ -69,4 +69,4 @@ add links to the new doc(s)-->
 
 ## Resource Consumption
 
-To learn more about the resources used by the SAP BTP Operator module, see [Kyma Modules' Sizing](https://help.sap.com/docs/btp/sap-business-technology-platform-internal/kyma-modules-sizing?locale=en-US&state=DRAFT&version=Internal#sap-btp-operator).
+To learn more about the resources the SAP BTP Operator module uses, see [Kyma Modules' Sizing](https://help.sap.com/docs/btp/sap-business-technology-platform-internal/kyma-modules-sizing?locale=en-US&state=DRAFT&version=Internal#sap-btp-operator).
