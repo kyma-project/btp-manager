@@ -28,8 +28,6 @@ type Config struct {
 	IdleTimeout  time.Duration `envconfig:"default=120s"`
 }
 
-type ServiceBindingSecret map[string]*corev1.Secret
-
 type API struct {
 	server        *http.Server
 	smClient      *servicemanager.Client
@@ -419,8 +417,8 @@ func (a *API) handleError(writer http.ResponseWriter, errToHandle error, fallbac
 	return
 }
 
-func (a *API) ServiceBindingsSecrets(sbs *types.ServiceBindings) ServiceBindingSecret {
-	var serviceBindingsSecrets ServiceBindingSecret
+func (a *API) ServiceBindingsSecrets(sbs *types.ServiceBindings) responses.ServiceBindingSecret {
+	serviceBindingsSecrets := make(responses.ServiceBindingSecret, 0)
 	for _, sb := range sbs.Items {
 		secrets, err := a.secretsForGivenServiceBindingID(sb.ID)
 		if err != nil {

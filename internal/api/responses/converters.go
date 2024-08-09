@@ -3,10 +3,11 @@ package responses
 import (
 	"encoding/json"
 
-	"github.com/kyma-project/btp-manager/internal/api"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	v1 "k8s.io/api/core/v1"
 )
+
+type ServiceBindingSecret map[string]*v1.Secret
 
 func ToSecretVM(list v1.SecretList) Secrets {
 	secrets := Secrets{
@@ -107,7 +108,7 @@ func ToServiceInstanceVM(instance *types.ServiceInstance) ServiceInstance {
 	}
 }
 
-func ToServiceBindingsVM(serviceBindings *types.ServiceBindings, serviceBindingSecrets api.ServiceBindingSecret) (ServiceBindings, error) {
+func ToServiceBindingsVM(serviceBindings *types.ServiceBindings, serviceBindingSecrets ServiceBindingSecret) (ServiceBindings, error) {
 	toReturn := ServiceBindings{
 		NumItems: len(serviceBindings.Items),
 		Items:    []ServiceBinding{},
