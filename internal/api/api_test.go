@@ -429,6 +429,10 @@ func TestAPI(t *testing.T) {
 
 		// then
 		assert.Equal(t, expectedSB, sb)
+
+		// cleanup
+		err = secretMgr.Delete(context.TODO(), secret)
+		require.NoError(t, err)
 	})
 
 	t.Run("GET Service Binding by ID 400 error", func(t *testing.T) {
@@ -490,6 +494,7 @@ func TestAPI(t *testing.T) {
 
 	t.Run("POST Service Binding with JSON object in credentials", func(t *testing.T) {
 		// given
+		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
 		sbCreateRequest := requests.CreateServiceBinding{
 			Name:              "sb-test-02",
 			ServiceInstanceID: servicemanager.FakeJSONObjectCredentialsServiceInstanceID,
@@ -518,7 +523,7 @@ func TestAPI(t *testing.T) {
 		// when
 		secrets, err := secretMgr.GetAllByLabels(context.TODO(), map[string]string{
 			clusterobject.ServiceBindingIDLabel:  sb.ID,
-			clusterobject.ServiceInstanceIDLabel: sbCreateRequest.ServiceInstanceID,
+			clusterobject.ServiceInstanceIDLabel: siID,
 		})
 		require.NoError(t, err)
 
