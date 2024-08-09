@@ -42,13 +42,13 @@ To enable the SAP BTP Operator module from the latest release, you must install 
    ```sh
    kubectl get btpoperators btpoperator
    ```
-   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-20-create-secret.md).
+   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Create and Install a Secret](./docs/user/tutorials/02-20-create-secret.md).
 
 For more installation options, read the [Install and Uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
 ## Usage
 
-Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, read the [usage](./docs/user/02-10-usage.md) document.
+Use BTP Manager to deploy an SAP BTP service in your Kyma cluster. To find out how to do it, see the [tutorials](./docs/user/tutorials/README.md).
 
 ## Uninstallation
 
@@ -74,10 +74,10 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 
 In the [`user`](./docs/user) folder, you will find the following documents:
 * [SAP BTP Operator Module](./docs/user/README.md)
-* [Use BTP Manager to Manage SAP BTP Service Operator](./docs/user/02-10-usage.md)
-  * [Create and Install a Secret](./docs/user/02-20-create-secret.md)
-  * [Deploy an SAP BTP Service in Your Kyma Cluster](./docs/user/02-30-deploy-service-in-cluster.md)
-  * [Create a ServiceInstance with a Custom Secret](./docs/user/02-40-create-service-instance-with-custom-secret.md)
+* [Tutorials](./docs/user/tutorials/README.md)
+  * [Create and Install a Secret](./docs/user/tutorials/02-20-create-secret.md)
+  * [Deploy an SAP BTP Service in Your Kyma Cluster](./docs/user/tutorials/02-30-deploy-service-in-cluster.md)
+  * [Create a ServiceInstance with a Custom Secret](./docs/user/tutorials/02-40-create-service-instance-with-custom-secret.md)
 * [SAP BTP Service Operator Examples](./docs/user/03-10-examples.md)
 
 ## Contributing
