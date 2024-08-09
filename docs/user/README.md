@@ -1,6 +1,6 @@
 # SAP BTP Operator Module
 
-Learn more about the SAP BTP Operator module. Use it to enable Service Management and use SAP BTP services from your Kyma cluster.
+Learn more about the SAP BTP Operator module. Use it to enable Service Management and consume SAP BTP services from your Kyma cluster.
 
 ## What is SAP BTP Operator?
 
@@ -11,8 +11,8 @@ The SAP BTP service operator enables provisioning and managing Service Instances
 ## Features
 
 The SAP BTP Operator module provides the following features:
-* Preconfigured and managed Secret for your cluster: Your Secret is readily available on Kyma instance creation.
-* Managing access: <!--add what you can do-->
+* Preconfigured and managed Secret for your cluster: Your Secret is readily available on Kyma runtime creation.
+* Managing access: You can configure the module's permissions for all or limited number of namespaces in your cluster. <!--is this correct? do we have this feature?-->
 * Multitenancy: You can configure multiple subaccounts in a single cluster.
 * Lifecycle management of Service Instances and Service Bindings: You can create and delete Service Instances and Service Bindings. 
 * Service Binding rotation: You can enhance security by automatically rotating the credentials associated with your Service Bindings.
@@ -21,17 +21,17 @@ The SAP BTP Operator module provides the following features:
 
 ## Scope  
 
-By default, the scope of the SAP BTP Operator module is your Kyma runtime, which consumes SAP BTP services from the subaccount in which you created it. You can extend the scope of the module by adding more subaccounts and consuming services from them in one cluster. Depending on the number of configured Secrets, the scope can range from one to multiple subaccounts.
+By default, the scope of the SAP BTP Operator module is your Kyma runtime, which consumes SAP BTP services from the subaccount in which you created it. You can extend the the module's scope by adding more subaccounts and consuming services from them in one cluster. The scope can range from one to multiple subaccounts depending on the number of configured Secrets.
 
 ## Architecture
 
-The SAP BTP Operator module allows for the initial provisioning and retrieving credentials necessary for the application to use a SAP BTP service.
+The SAP BTP Operator module allows for the initial provisioning and retrieving of credentials necessary for the application to use an SAP BTP service.
 
 ![SAP BTP Operator architecture](../assets/BtpOperator_architecture.drawio.svg) <!-- the arrow to the module or to the service operator?-->
 
 ### SAP BTP, Kyma Runtime
 
-SAP BTP, Kyma runtime is <!--runs on(?)--> a Kubernetes cluster that wraps the SAP BTP Operator module, API server and one or more applications. The application or multiple applications are the actual consumers of SAP BTP services.
+SAP BTP, Kyma runtime runs on a Kubernetes cluster that wraps the SAP BTP Operator module, API server, and one or more applications. The application or multiple applications are the actual consumers of SAP BTP services.
 
 ### BTP Manager
 
@@ -59,13 +59,13 @@ Service Brokers manage the lifecycle of services. SAP Service Manager interacts 
 
 ## API / Custom Resource Definitions
 
-The `btpoperators.operator.kyma-project.io` Custom Resource Definition (CRD) describes the kind and the format of data that SAP BTP Operator <!--or is it BTP Manager?--> uses to configure resources.
+The `btpoperators.operator.kyma-project.io` Custom Resource Definition (CRD) describes the kind and the data format that SAP BTP Operator <!--or is it BTP Manager?--> uses to configure resources.
 
-See the documentation related to the BtpOperator custom resource (CR):
+<!--See the documentation related to the BtpOperator custom resource (CR):
 * SAP BTP Operator
-* Sercice Instance
+* Service Instance
 * Service Binding
-<!--add links to the new doc(s)-->
+add links to the new doc(s)-->
 
 ## Resource Consumption
 
