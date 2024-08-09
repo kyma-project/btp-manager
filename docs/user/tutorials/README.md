@@ -1,4 +1,4 @@
-# Use BTP Manager to Manage SAP BTP Service Operator 
+# Tutorials
 
 You can use BTP Manager to manage the SAP BTP service operator.
 Check the following tutorials to learn how to:
