@@ -46,17 +46,22 @@ func (p *FakeSecretManager) Clean() {
 
 func (p *FakeSecretManager) GetAllByLabels(ctx context.Context, labels map[string]string) (*corev1.SecretList, error) {
 	items := make([]corev1.Secret, 0)
+	mustMatchLen := len(labels)
 	for _, secret := range p.secrets {
 		if secret.Labels == nil {
 			continue
 		}
+		matchingLabelsNum := 0
 		secretLabels := secret.Labels
 		for key, value := range labels {
-			if secretLabels[key] != value {
+			if secretLabels[key] == value {
+				matchingLabelsNum++
 				continue
 			}
 		}
-		items = append(items, *secret)
+		if matchingLabelsNum == mustMatchLen {
+			items = append(items, *secret)
+		}
 	}
 	return &corev1.SecretList{
 		Items: items,

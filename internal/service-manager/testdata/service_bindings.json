@@ -10,8 +10,8 @@
         "account": "account"
       },
       "credentials": {
-        "username": "user",
-        "password": "pass"
+        "username": "user1",
+        "password": "pass1"
       },
       "bind_resource": {
         "app_guid": "550e8400-e29b-41d4-a716-446655440003",
@@ -91,8 +91,8 @@
         "account": "account-4"
       },
       "credentials": {
-        "username": "user3",
-        "password": "pass3"
+        "username": "user4",
+        "password": "pass4"
       },
       "bind_resource": {
         "app_guid": "8e97d56b-9fc1-43db-9d2e-e52f8ce91046",

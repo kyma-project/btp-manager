@@ -56,9 +56,11 @@ type ServiceOfferingPlan struct {
 }
 
 type ServiceBinding struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Credentials map[string]interface{} `json:"credentials"`
+	ID              string                 `json:"id"`
+	Name            string                 `json:"name"`
+	Credentials     map[string]interface{} `json:"credentials"`
+	SecretName      string                 `json:"secret_name"`
+	SecretNamespace string                 `json:"secret_namespace"`
 }
 
 type ServiceBindings struct {
