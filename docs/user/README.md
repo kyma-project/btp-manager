@@ -16,7 +16,7 @@ The SAP BTP Operator module provides the following features:
 * Multitenancy: You can configure multiple subaccounts in a single cluster.
 * Lifecycle management of Service Instances and Service Bindings: You can create and delete Service Instances and Service Bindings. 
 * Service Binding rotation: You can enhance security by automatically rotating the credentials associated with your Service Bindings.
-* Formatting Service Binding Secret:
+* Formatting Service Binding Secret: You can use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 * Subaccount for a ServiceInstance resource: You can deploy Service Instances belonging to different subaccounts within the same namespace.
 
 ## Scope  
