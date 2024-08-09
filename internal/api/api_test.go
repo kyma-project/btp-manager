@@ -23,9 +23,9 @@ import (
 
 const (
 	port         = "8080"
-	readTimeout  = 1 * time.Minute
-	writeTimeout = 1 * time.Minute
-	idleTimeout  = 2 * time.Minute
+	readTimeout  = 1 * time.Second
+	writeTimeout = 1 * time.Second
+	idleTimeout  = 2 * time.Second
 )
 
 func TestAPI(t *testing.T) {
@@ -60,7 +60,7 @@ func TestAPI(t *testing.T) {
 	go btpMgrAPI.Start()
 
 	apiClient := http.Client{
-		Timeout: 500 * time.Second,
+		Timeout: 500 * time.Millisecond,
 	}
 
 	t.Run("GET Service Instances", func(t *testing.T) {
