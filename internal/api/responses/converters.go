@@ -7,6 +7,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+type ServiceBindingSecret map[string]*v1.Secret
+
 func ToSecretVM(list v1.SecretList) Secrets {
 	secrets := Secrets{
 		Items: []Secret{},
@@ -75,9 +77,9 @@ func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 	}
 
 	for _, instance := range instances.Items {
-		namespace, _ := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
-		subaccountID, _ := instance.ContextValueByFieldName(types.ServiceInstanceSubaccountID)
-		clusterID, _ := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+		namespace, _ := instance.ContextValueByFieldName(types.ContextNamespace)
+		subaccountID, _ := instance.ContextValueByFieldName(types.ContextSubaccountID)
+		clusterID, _ := instance.ContextValueByFieldName(types.ContextClusterID)
 		instance := ServiceInstance{
 			ID:           instance.ID,
 			Name:         instance.Name,
@@ -91,9 +93,9 @@ func ToServiceInstancesVM(instances *types.ServiceInstances) ServiceInstances {
 }
 
 func ToServiceInstanceVM(instance *types.ServiceInstance) ServiceInstance {
-	namespace, _ := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
-	subaccountID, _ := instance.ContextValueByFieldName(types.ServiceInstanceSubaccountID)
-	clusterID, _ := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+	namespace, _ := instance.ContextValueByFieldName(types.ContextNamespace)
+	subaccountID, _ := instance.ContextValueByFieldName(types.ContextSubaccountID)
+	clusterID, _ := instance.ContextValueByFieldName(types.ContextClusterID)
 
 	return ServiceInstance{
 		ID:              instance.ID,
@@ -106,18 +108,22 @@ func ToServiceInstanceVM(instance *types.ServiceInstance) ServiceInstance {
 	}
 }
 
-func ToServiceBindingsVM(bindings *types.ServiceBindings) (ServiceBindings, error) {
+func ToServiceBindingsVM(serviceBindings *types.ServiceBindings, serviceBindingSecrets ServiceBindingSecret) (ServiceBindings, error) {
 	toReturn := ServiceBindings{
-		NumItems: len(bindings.Items),
+		NumItems: len(serviceBindings.Items),
 		Items:    []ServiceBinding{},
 	}
 
-	for _, binding := range bindings.Items {
-		binding, err := ToServiceBindingVM(&binding)
+	for _, sb := range serviceBindings.Items {
+		sbResponse, err := ToServiceBindingVM(&sb)
 		if err != nil {
 			return ServiceBindings{}, err
 		}
-		toReturn.Items = append(toReturn.Items, binding)
+		if secret, exists := serviceBindingSecrets[sb.ID]; exists {
+			sbResponse.SecretName = secret.Name
+			sbResponse.SecretNamespace = secret.Namespace
+		}
+		toReturn.Items = append(toReturn.Items, sbResponse)
 	}
 	return toReturn, nil
 }

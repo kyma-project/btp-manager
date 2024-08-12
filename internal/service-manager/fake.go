@@ -15,15 +15,22 @@ import (
 )
 
 const (
-	defaultDir               = "service-manager"
-	rootDir                  = "btp-manager"
-	serviceOfferingsJSONPath = "testdata/service_offerings.json"
-	servicePlansJSONPath     = "testdata/service_plans.json"
-	serviceInstancesJSONPath = "testdata/service_instances.json"
-	serviceBindingsJSONPath  = "testdata/service_bindings.json"
+	FakeJSONObjectCredentialsServiceInstanceID = "json-object-in-credentials"
+	testDataServiceInstanceID                  = "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
+	defaultDir                                 = "service-manager"
+	rootDir                                    = "btp-manager"
+	serviceOfferingsJSONPath                   = "testdata/service_offerings.json"
+	servicePlansJSONPath                       = "testdata/service_plans.json"
+	serviceInstancesJSONPath                   = "testdata/service_instances.json"
+	serviceBindingsJSONPath                    = "testdata/service_bindings.json"
 )
 
-func NewFakeServer() (*httptest.Server, error) {
+type FakeServiceManager struct {
+	*httptest.Server
+	handler *fakeSMHandler
+}
+
+func NewFakeServer() (*FakeServiceManager, error) {
 	smHandler, err := newFakeSMHandler()
 	if err != nil {
 		return nil, fmt.Errorf("while creating new fake SM handler: %w", err)
@@ -46,7 +53,19 @@ func NewFakeServer() (*httptest.Server, error) {
 
 	srv := httptest.NewUnstartedServer(mux)
 
-	return srv, nil
+	return &FakeServiceManager{srv, smHandler}, nil
+}
+
+func (s *FakeServiceManager) RestoreDefaults() error {
+	return s.handler.loadDefaultData()
+}
+
+func (s *FakeServiceManager) RespondWithErrors() {
+	s.handler.throwError = true
+}
+
+func (s *FakeServiceManager) RespondWithData() {
+	s.handler.throwError = false
 }
 
 type fakeSMHandler struct {
@@ -54,45 +73,60 @@ type fakeSMHandler struct {
 	servicePlans     *types.ServicePlans
 	serviceInstances *types.ServiceInstances
 	serviceBindings  *types.ServiceBindings
+	throwError       bool
 }
 
 func newFakeSMHandler() (*fakeSMHandler, error) {
+	h := &fakeSMHandler{}
+	if err := h.loadDefaultData(); err != nil {
+		return nil, fmt.Errorf("while loading default data: %w", err)
+	}
+	return h, nil
+}
+
+func (h *fakeSMHandler) loadDefaultData() error {
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	currentDir := filepath.Base(wd)
 	if currentDir != defaultDir {
 		// change working directory to service manager directory to read JSON files
 		if err := setDefaultDir(); err != nil {
-			return nil, fmt.Errorf("while setting default fake service manager directory: %w", err)
+			return fmt.Errorf("while setting default fake service manager directory: %w", err)
 		}
 	}
 
 	sos, err := GetServiceOfferingsFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service offerings from JSON: %w", err)
+		return fmt.Errorf("while getting service offerings from JSON: %w", err)
 
 	}
 	plans, err := GetServicePlansFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service plans from JSON: %w", err)
+		return fmt.Errorf("while getting service plans from JSON: %w", err)
 	}
 	sis, err := GetServiceInstancesFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service instances from JSON: %w", err)
+		return fmt.Errorf("while getting service instances from JSON: %w", err)
 
 	}
 	sbs, err := GetServiceBindingsFromJSON()
 	if err != nil {
-		return nil, fmt.Errorf("while getting service bindings from JSON: %w", err)
+		return fmt.Errorf("while getting service bindings from JSON: %w", err)
 
 	}
 	// restore working directory
 	if err = os.Chdir(wd); err != nil {
-		return nil, err
+		return err
 	}
-	return &fakeSMHandler{serviceOfferings: sos, servicePlans: plans, serviceInstances: sis, serviceBindings: sbs}, nil
+
+	h.serviceOfferings = sos
+	h.servicePlans = plans
+	h.serviceInstances = sis
+	h.serviceBindings = sbs
+
+	return nil
 }
 
 func setDefaultDir() error {
@@ -269,6 +303,20 @@ func (h *fakeSMHandler) getServicePlans(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *fakeSMHandler) getServiceInstances(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Forbidden",
+			Description: "not authorized",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusForbidden)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 	data, err := json.Marshal(h.serviceInstances)
 	if err != nil {
 		log.Println("error while marshalling service instances data: %w", err)
@@ -285,10 +333,26 @@ func (h *fakeSMHandler) getServiceInstances(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *fakeSMHandler) getServiceInstance(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Bad Request",
+			Description: "bad request",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusBadRequest)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
 	siID := r.PathValue("serviceInstanceID")
 	if len(siID) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+	if siID == FakeJSONObjectCredentialsServiceInstanceID {
+		siID = testDataServiceInstanceID
 	}
 
 	var err error
@@ -327,6 +391,19 @@ func (h *fakeSMHandler) getServiceInstance(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *fakeSMHandler) createServiceInstance(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Unprocessable Entity",
+			Description: "unprocessable entity",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusUnprocessableEntity)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
 	var siCreateRequest types.ServiceInstance
 	err := json.NewDecoder(r.Body).Decode(&siCreateRequest)
 	if err != nil {
@@ -365,6 +442,19 @@ func (h *fakeSMHandler) createServiceInstance(w http.ResponseWriter, r *http.Req
 }
 
 func (h *fakeSMHandler) updateServiceInstance(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Unprocessable Entity",
+			Description: "unprocessable entity",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusUnprocessableEntity)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
 	siID := r.PathValue("serviceInstanceID")
 	if len(siID) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -424,6 +514,20 @@ func (h *fakeSMHandler) updateServiceInstance(w http.ResponseWriter, r *http.Req
 }
 
 func (h *fakeSMHandler) deleteServiceInstance(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Forbidden",
+			Description: "not authorized",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusForbidden)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 	siID := r.PathValue("serviceInstanceID")
 	if len(siID) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -459,6 +563,20 @@ func (h *fakeSMHandler) deleteServiceInstance(w http.ResponseWriter, r *http.Req
 }
 
 func (h *fakeSMHandler) getServiceBindings(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Forbidden",
+			Description: "not authorized",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusForbidden)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 	data, err := json.Marshal(h.serviceBindings)
 	if err != nil {
 		log.Println("error while marshalling service bindings data: %w", err)
@@ -475,6 +593,20 @@ func (h *fakeSMHandler) getServiceBindings(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *fakeSMHandler) getServiceBinding(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Bad Request",
+			Description: "bad request",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusBadRequest)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 	sbID := r.PathValue("serviceBindingID")
 	if len(sbID) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -517,6 +649,20 @@ func (h *fakeSMHandler) getServiceBinding(w http.ResponseWriter, r *http.Request
 }
 
 func (h *fakeSMHandler) createServiceBinding(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Unprocessable Entity",
+			Description: "unprocessable entity",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusUnprocessableEntity)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 	var sbCreateRequest types.ServiceBinding
 	err := json.NewDecoder(r.Body).Decode(&sbCreateRequest)
 	if err != nil {
@@ -526,6 +672,11 @@ func (h *fakeSMHandler) createServiceBinding(w http.ResponseWriter, r *http.Requ
 	}
 
 	sbCreateRequest.ID = uuid.New().String()
+	if sbCreateRequest.ServiceInstanceID == FakeJSONObjectCredentialsServiceInstanceID {
+		sbCreateRequest.Credentials = []byte(`{"object":{"username":"user","password":"pass"}}`)
+	} else {
+		sbCreateRequest.Credentials = []byte(`{"username": "user", "password": "pass"}`)
+	}
 	h.serviceBindings.Items = append(h.serviceBindings.Items, sbCreateRequest)
 
 	data, err := json.Marshal(sbCreateRequest)
@@ -544,6 +695,19 @@ func (h *fakeSMHandler) createServiceBinding(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *fakeSMHandler) deleteServiceBinding(w http.ResponseWriter, r *http.Request) {
+	if h.throwError {
+		srvErr := types.ErrorResponse{
+			ErrorType:   "Forbidden",
+			Description: "not authorized",
+		}
+		err := h.respondWithError(w, srvErr, http.StatusForbidden)
+		if err != nil {
+			log.Println("error while responding with an expected server error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
 	sbID := r.PathValue("serviceBindingID")
 	if len(sbID) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -618,4 +782,22 @@ func (h *fakeSMHandler) getServicePlan(w http.ResponseWriter, r *http.Request) {
 		log.Println("error while writing plan data: %w", err)
 		return
 	}
+}
+
+func (h *fakeSMHandler) respondWithError(w http.ResponseWriter, srvErr types.ErrorResponse, httpStatusCode int) error {
+	data, err := json.Marshal(srvErr)
+	if err != nil {
+		log.Println("error while marshalling error response: %w", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return err
+	}
+
+	w.WriteHeader(httpStatusCode)
+	if _, err = w.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("error while writing error response data: %w", err)
+		return err
+	}
+
+	return nil
 }

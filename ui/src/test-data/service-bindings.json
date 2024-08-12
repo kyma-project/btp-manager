@@ -1,0 +1,20 @@
+{
+    "items": [
+        {
+            "id": "1",
+            "serviceInstanceId": "1",
+            "name": "Test Service Binding 1",
+            "namespace": "",
+            "secretName": "",
+            "secretNamespace": ""
+        },
+        {
+            "id": "2",
+            "serviceInstanceId": "2",
+            "name": "Test Service Binding 2",
+            "namespace": "",
+            "secretName": "",
+            "secretNamespace": ""
+        }
+    ]
+}

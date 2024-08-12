@@ -1,20 +1,35 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import Ok from "../shared/validator";
 import {
+  ApiError,
   ServiceInstance,
 } from "../shared/models";
 import { useEffect, useRef, useState } from "react";
 import ServiceBindingForm from "./ServiceBindingForm";
 
-function ServiceInstancesDetailsView(props: any) {
+const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(true);
-  const [error] = useState(null);
+  const [error] = useState<ApiError>();
+
   const [instance, setInstance] = useState<ServiceInstance>();
   const dialogRef = useRef(null);
 
+  useImperativeHandle(ref, () => ({
+
+    open() {
+      if (dialogRef.current) {
+        // @ts-ignore
+        dialogRef.current.show();
+      }
+    }
+
+  }));
+
   const handleClose = () => {
-    setOpen(false)
+    if (dialogRef.current) {
+      // @ts-ignore
+      dialogRef.current.close();
+    }
   };
 
   useEffect(() => {
@@ -26,18 +41,18 @@ function ServiceInstancesDetailsView(props: any) {
 
     setLoading(true)
 
-    // additional logic
-    setOpen(props.open)
-
     setLoading(false)
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [props.instance]);
 
   const renderData = () => {
 
     if (loading) {
-      return <ui5.Loader progress="100%" />
+      return <ui5.BusyIndicator
+        active
+        delay={1000}
+        size="Medium"
+      />
     }
 
     if (error) {
@@ -46,7 +61,6 @@ function ServiceInstancesDetailsView(props: any) {
 
     return (
       <ui5.Dialog
-        open={open}
         style={{ width: "50%" }}
         ref={dialogRef}
         header={
@@ -84,13 +98,12 @@ function ServiceInstancesDetailsView(props: any) {
         <ui5.Panel headerLevel="H2" headerText="Service Bindings">
           <ServiceBindingForm serviceInstanceID={instance?.id}/>
         </ui5.Panel>
-
-
+        
       </ui5.Dialog>
     )
   }
   // @ts-ignore
   return <>{renderData()}</>;
-}
+})
 
 export default ServiceInstancesDetailsView;

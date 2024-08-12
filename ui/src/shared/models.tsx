@@ -16,7 +16,7 @@ export interface ServiceOffering {
   id: string;
   description: string;
   catalogId: string;
-  catalogName: string;
+  catalog_name: string;
   metadata: ServiceOfferingMetadata;
 }
 
@@ -51,8 +51,39 @@ export interface ServiceInstance {
   serviceBindings: ServiceInstanceBinding[];
 }
 
-export interface ServiceInstanceBinding {
+export class ServiceInstanceBinding {
   id: string;
+  serviceInstanceId: string;
   name: string;
-  namespace: string;
+  secretName: string;
+  secretNamespace: string;
+}
+
+export class CreateServiceInstance {
+  id: string = "";
+  name: string = "";
+  service_plan_id: string = "";
+  labels: { [key: string]: string[] } = {};
+  parameters: string = "{}";
+}
+
+export class ApiError {
+  message: string = "";
+  name: string = "";
+  code: string = "";
+  config: string = "";
+  request: string = "";
+  response: Response = new Response();
+}
+
+export class Response {
+  data: string = "";
+  status: number = 0;
+  statusText: string = "";
+  headers: string = "";
+  config: string = "";
+}
+
+export interface ServiceInstanceBindings {
+  items: ServiceInstanceBinding[];
 }

@@ -8,6 +8,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import api from "../shared/api";
+import CreateInstanceForm from "./CreateInstanceForm";
 
 function ServiceOfferingsDetailsView(props: any) {
   const [plan, setPlan] = useState<ServiceOfferingPlan>();
@@ -38,10 +39,11 @@ function ServiceOfferingsDetailsView(props: any) {
 
     setLoading(true);
     axios
-      .get<ServiceOfferingDetails>(api(`service-offering/${props.offering.id}`))
+      .get<ServiceOfferingDetails>(api(`service-offerings/${props.offering.id}`))
       .then((response) => {
         setLoading(false);
         setDetails(response.data);
+        setPlan(response.data?.plans[0])
         setOffering(props.offering);
         // @ts-ignore
         dialogRef.current.show();
@@ -56,7 +58,11 @@ function ServiceOfferingsDetailsView(props: any) {
 
   const renderData = () => {
     if (loading) {
-      return <ui5.Loader progress="100%"/>
+      return <ui5.BusyIndicator
+      active
+      delay={1000}
+      size="Medium"
+      />
     }
 
     if (error) {
@@ -74,7 +80,7 @@ function ServiceOfferingsDetailsView(props: any) {
               startContent={
                 <>
                   <ui5.Title level="H5">
-                    Create {offering?.catalogName} Service Instance
+                    Create {offering?.metadata.displayName} Service Instance
                   </ui5.Title>
                 </>
               }
@@ -85,17 +91,16 @@ function ServiceOfferingsDetailsView(props: any) {
               design="Footer"
               endContent={
                 <>
-                  <ui5.Button>Create</ui5.Button>
                   <ui5.Button onClick={handleClose}>Close</ui5.Button>
                 </>
               }
             />
           }
         >
-          <ui5.Panel headerLevel="H2" headerText="Service Details">
+          <ui5.Panel headerLevel="H2" headerText="Service Instance Details">
             <ui5.Form>
               <ui5.FormItem label="Name">
-                <ui5.Text>{offering?.catalogName}</ui5.Text>
+                <ui5.Text>{offering?.metadata.displayName}</ui5.Text>
               </ui5.FormItem>
               <ui5.FormItem label="Description">
                 <ui5.Text>{offering?.description}</ui5.Text>
@@ -151,42 +156,13 @@ function ServiceOfferingsDetailsView(props: any) {
             </ui5.Form>
           </ui5.Panel>
           <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Create">
-            <ui5.Form>
-              <ui5.FormItem label="Name">
-                <ui5.Input
-                  style={{ width: "100vw" }}
-                  required
-                  value={generateServiceInstanceName(
-                    plan?.name,
-                    offering?.catalogName
-                  )}
-                ></ui5.Input>
-              </ui5.FormItem>
-              <ui5.FormItem label="Provisioning Parameters">
-                <ui5.TextArea
-                  style={{ width: "100%", height: "100px" }}
-                  valueState="None"
-                  title="Provisioning Parameters"
-                />
-              </ui5.FormItem>
-              <ui5.FormItem label="External Name">
-                <ui5.Input></ui5.Input>
-              </ui5.FormItem>
-            </ui5.Form>
+            <CreateInstanceForm plan={plan} offering={props.offering} />
           </ui5.Panel>
         </ui5.Dialog>
       </>
     )}
   // @ts-ignore
   return <>{renderData()}</>;
-}
-
-function generateServiceInstanceName(
-  plan: string | undefined,
-  service: string | undefined
-): string {
-  const id = window.crypto.randomUUID().substring(0, 4);
-  return `${service}-${plan}-${id}`;
 }
 
 export default ServiceOfferingsDetailsView;

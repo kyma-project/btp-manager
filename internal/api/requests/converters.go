@@ -5,24 +5,26 @@ import (
 )
 
 func ToServiceBinding(request CreateServiceBinding, instance *types.ServiceInstance) (types.ServiceBinding, error) {
-	clusterID, err := instance.ContextValueByFieldName(types.ServiceInstanceClusterID)
+	clusterID, err := instance.ContextValueByFieldName(types.ContextClusterID)
 	if err != nil {
 		return types.ServiceBinding{}, err
 	}
-	namespace, err := instance.ContextValueByFieldName(types.ServiceInstanceNamespace)
+	namespace, err := instance.ContextValueByFieldName(types.ContextNamespace)
 	if err != nil {
 		return types.ServiceBinding{}, err
+	}
+	labels := map[string][]string{
+		types.K8sNameLabel:   {request.Name},
+		types.NamespaceLabel: {namespace},
+		types.ClusterIDLabel: {clusterID},
 	}
 	sb := types.ServiceBinding{
 		Common: types.Common{
 			Name:   request.Name,
-			Labels: map[string][]string{},
+			Labels: labels,
 		},
-		ServiceInstanceID: request.ServiceInstanceId,
+		ServiceInstanceID: request.ServiceInstanceID,
 		Parameters:        request.Parameters,
 	}
-	sb.Labels["_clusterid"] = append(sb.Labels["_clusterid"], clusterID)
-	sb.Labels["_namespace"] = append(sb.Labels["_namespace"], namespace)
-	sb.Labels["_k8sname"] = append(sb.Labels["_k8sname"], request.Name)
 	return sb, nil
 }

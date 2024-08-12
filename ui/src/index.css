@@ -5,9 +5,88 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0.5rem 0.5rem 0 0.5rem;
+}
+
+.flex-container {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+  width: 100%;
+}
+
+.flex-row {
+  flex-direction: row;
+  height: 100%;
+}
+
+
+#App {
+  display: flex;
+  min-height: 0;
+  position: relative;
+  height: 100%;
+}
+
+.margin-wrapper {
+  margin: 0.5rem 0.5rem 0 0.5rem;
+  padding: 0.5rem 0.5rem 0 0.5rem;
+}
+
+.scrollable {
+  overflow-y: auto;
+  height: 100%;
+  width: 100%;
+}
+
+/* style for React <Outline/> element */
+.main-column {
+  width: 100%;
+  display: block; 
+}
+
+/* Customisations for UI5 */
+
+/* round corners for shellbar */
+ui5-shellbar::part(root) {
+  border-radius: .5rem;
+}
+
+/* round corners for a bar */
+ui5-bar::part(bar) {
+  border-radius: .5rem;
+}
+
+ui5-bar {
+  display: unset;
+}
+
+/* expand selects to fit their parents */
+ui5-select {
+  width: 100%;
+}
+
+/* corrected margins on object page */
+div[data-component-name="ObjectPage"] {
+  border-radius: 0.5em;
 }
