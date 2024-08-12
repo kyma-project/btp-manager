@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Secrets } from "../shared/models";
 import Ok from "../shared/validator";
 import api from "../shared/api";
-import { Button, DynamicPageTitle, Menu, MenuItem, MessageStrip, ObjectStatus } from "@ui5/webcomponents-react";
+import { Button, DynamicPageTitle, Menu, ObjectStatus } from "@ui5/webcomponents-react";
 
 function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) => void }) {
     const [secrets, setSecrets] = useState<Secrets>();
