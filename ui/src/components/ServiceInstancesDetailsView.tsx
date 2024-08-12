@@ -3,6 +3,7 @@ import Ok from "../shared/validator";
 import {
   ApiError,
   ServiceInstance,
+  ServiceInstanceBinding,
 } from "../shared/models";
 import { useEffect, useRef, useState } from "react";
 import ServiceBindingForm from "./ServiceBindingForm";
@@ -13,6 +14,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
 
   const [instance, setInstance] = useState<ServiceInstance>();
   const dialogRef = useRef(null);
+  const listRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
 
@@ -31,6 +33,11 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
       dialogRef.current.close();
     }
   };
+
+  const onBindingAdded = (binding: ServiceInstanceBinding) => {
+    // @ts-ignore
+    listRef.current.add(binding)
+  }
 
   useEffect(() => {
     if (!Ok(props.instance)) {
@@ -80,7 +87,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
             design="Footer"
             endContent={
               <>
-                <ui5.Button>Create</ui5.Button>
                 <ui5.Button onClick={handleClose}>Close</ui5.Button>
               </>
             }
@@ -98,7 +104,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
         <ui5.Panel headerLevel="H2" headerText="Service Bindings">
           <ServiceBindingForm serviceInstanceID={instance?.id}/>
         </ui5.Panel>
-        
       </ui5.Dialog>
     )
   }

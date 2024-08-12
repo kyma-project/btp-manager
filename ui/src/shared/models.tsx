@@ -51,12 +51,16 @@ export interface ServiceInstance {
   serviceBindings: ServiceInstanceBinding[];
 }
 
-export class ServiceInstanceBinding {
+export interface ServiceInstanceBinding {
   id: string;
-  serviceInstanceId: string;
   name: string;
+  serviceInstanceId: string;
   secretName: string;
   secretNamespace: string;
+}
+
+export interface ServiceInstanceBindings {
+  items: ServiceInstanceBinding[];
 }
 
 export class CreateServiceInstance {
@@ -82,8 +86,4 @@ export class Response {
   statusText: string = "";
   headers: string = "";
   config: string = "";
-}
-
-export interface ServiceInstanceBindings {
-  items: ServiceInstanceBinding[];
 }
