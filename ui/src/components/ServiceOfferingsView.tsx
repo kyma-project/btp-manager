@@ -29,7 +29,7 @@ function ServiceOfferingsView(props: any) {
             axios
                 .get<ServiceOfferings>(
                     api(
-                        `service-offerings/${secretText.namespace}/${secretText.secretName}`
+                        `service-offerings/${secretText.namespace}/${secretText.secret_name}`
                     )
                 )
                 .then((response) => {
@@ -121,10 +121,10 @@ function splitSecret(secret: string) {
         return {};
     }
     const secretParts = secret.split(" ");
-    const secretName = secretParts[0];
+    const secret_name = secretParts[0];
     let namespace = secretParts[2].replace("(", "");
     namespace = namespace.replace(")", "");
-    return {secretName, namespace};
+    return {secret_name, namespace};
 }
 
 function formatStatus(i: number, j: number) {
