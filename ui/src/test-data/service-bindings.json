@@ -2,19 +2,19 @@
     "items": [
         {
             "id": "1",
-            "serviceInstanceId": "1",
+            "service_instance_id": "1",
             "name": "Test Service Binding 1",
             "namespace": "",
-            "secretName": "",
-            "secretNamespace": ""
+            "secret_name": "",
+            "secret_namespace": ""
         },
         {
             "id": "2",
-            "serviceInstanceId": "2",
+            "service_instance_id": "2",
             "name": "Test Service Binding 2",
             "namespace": "",
-            "secretName": "",
-            "secretNamespace": ""
+            "secret_name": "",
+            "secret_namespace": ""
         }
     ]
 }
