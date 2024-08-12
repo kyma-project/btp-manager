@@ -718,7 +718,7 @@ func defaultServiceBindings() responses.ServiceBindings {
 
 func defaultServiceBindingsWithSecrets() responses.ServiceBindings {
 	return responses.ServiceBindings{
-		NumItems: 2,
+		NumItems: 4,
 		Items: []responses.ServiceBinding{
 			{
 				ID:              "550e8400-e29b-41d4-a716-446655440003",
