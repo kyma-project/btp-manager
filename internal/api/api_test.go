@@ -309,6 +309,61 @@ func TestAPI(t *testing.T) {
 		assert.ElementsMatch(t, sbs.Items, defaultSBs.Items)
 	})
 
+	t.Run("GET Service Bindings with Secrets", func(t *testing.T) {
+		// given
+		sb1ID, sb2ID := "550e8400-e29b-41d4-a716-446655440003", "9e420bca-4cf2-4858-ade2-e5ef23cd756f"
+		ns1, ns2 := "default", "kyma-system"
+		expectedSBs := defaultServiceBindingsWithSecrets()
+		secret1 := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      sb1ID + "-secret",
+				Namespace: ns1,
+				Labels: map[string]string{
+					clusterobject.ManagedByLabelKey:     clusterobject.OperatorName,
+					clusterobject.ServiceBindingIDLabel: sb1ID,
+				},
+			},
+			StringData: map[string]string{"username": "user1", "password": "pass1"},
+		}
+		secret2 := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      sb2ID + "-secret",
+				Namespace: ns2,
+				Labels: map[string]string{
+					clusterobject.ManagedByLabelKey:     clusterobject.OperatorName,
+					clusterobject.ServiceBindingIDLabel: sb2ID,
+				},
+			},
+			StringData: map[string]string{"username": "user2", "password": "pass2"},
+		}
+
+		err := secretMgr.Create(context.TODO(), secret1)
+		require.NoError(t, err)
+		err = secretMgr.Create(context.TODO(), secret2)
+		require.NoError(t, err)
+
+		// when
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings", nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		defer resp.Body.Close()
+
+		var sbs responses.ServiceBindings
+		err = json.NewDecoder(resp.Body).Decode(&sbs)
+		require.NoError(t, err)
+
+		// then
+		assert.Equal(t, sbs.NumItems, 4)
+		assert.ElementsMatch(t, sbs.Items, expectedSBs.Items)
+
+		//cleanup
+		err = secretMgr.Delete(context.TODO(), secret1)
+		require.NoError(t, err)
+		err = secretMgr.Delete(context.TODO(), secret2)
+		require.NoError(t, err)
+	})
+
 	t.Run("GET Service Bindings 403 error", func(t *testing.T) {
 		// when
 		fakeSM.RespondWithErrors()
@@ -324,7 +379,7 @@ func TestAPI(t *testing.T) {
 	t.Run("GET Service Binding by ID", func(t *testing.T) {
 		// given
 		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
-		expectedSI := getServiceBindingByID(defaultSBs, sbID)
+		expectedSB := getServiceBindingByID(defaultSBs, sbID)
 
 		// when
 		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
@@ -338,7 +393,46 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// then
-		assert.Equal(t, expectedSI, sb)
+		assert.Equal(t, expectedSB, sb)
+	})
+
+	t.Run("GET Service Binding by ID with Secret", func(t *testing.T) {
+		// given
+		sbID, ns := "550e8400-e29b-41d4-a716-446655440003", "default"
+		sbs := defaultServiceBindingsWithSecrets()
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      sbID + "-secret",
+				Namespace: ns,
+				Labels: map[string]string{
+					clusterobject.ManagedByLabelKey:     clusterobject.OperatorName,
+					clusterobject.ServiceBindingIDLabel: sbID,
+				},
+			},
+			StringData: map[string]string{"username": "user1", "password": "pass1"},
+		}
+		err := secretMgr.Create(context.TODO(), secret)
+		require.NoError(t, err)
+
+		expectedSB := getServiceBindingByID(sbs, sbID)
+
+		// when
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		defer resp.Body.Close()
+
+		var sb responses.ServiceBinding
+		err = json.NewDecoder(resp.Body).Decode(&sb)
+		require.NoError(t, err)
+
+		// then
+		assert.Equal(t, expectedSB, sb)
+
+		// cleanup
+		err = secretMgr.Delete(context.TODO(), secret)
+		require.NoError(t, err)
 	})
 
 	t.Run("GET Service Binding by ID 400 error", func(t *testing.T) {
@@ -400,6 +494,7 @@ func TestAPI(t *testing.T) {
 
 	t.Run("POST Service Binding with JSON object in credentials", func(t *testing.T) {
 		// given
+		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
 		sbCreateRequest := requests.CreateServiceBinding{
 			Name:              "sb-test-02",
 			ServiceInstanceID: servicemanager.FakeJSONObjectCredentialsServiceInstanceID,
@@ -428,7 +523,7 @@ func TestAPI(t *testing.T) {
 		// when
 		secrets, err := secretMgr.GetAllByLabels(context.TODO(), map[string]string{
 			clusterobject.ServiceBindingIDLabel:  sb.ID,
-			clusterobject.ServiceInstanceIDLabel: sbCreateRequest.ServiceInstanceID,
+			clusterobject.ServiceInstanceIDLabel: siID,
 		})
 		require.NoError(t, err)
 
@@ -600,7 +695,7 @@ func defaultServiceBindings() responses.ServiceBindings {
 			{
 				ID:          "550e8400-e29b-41d4-a716-446655440003",
 				Name:        "service-binding",
-				Credentials: map[string]interface{}{"username": "user", "password": "pass"},
+				Credentials: map[string]interface{}{"username": "user1", "password": "pass1"},
 			},
 			{
 				ID:          "9e420bca-4cf2-4858-ade2-e5ef23cd756f",
@@ -615,7 +710,39 @@ func defaultServiceBindings() responses.ServiceBindings {
 			{
 				ID:          "8e97d56b-9fc1-43db-9d2e-e52f8ce91046",
 				Name:        "service-binding-4",
+				Credentials: map[string]interface{}{"username": "user4", "password": "pass4"},
+			},
+		},
+	}
+}
+
+func defaultServiceBindingsWithSecrets() responses.ServiceBindings {
+	return responses.ServiceBindings{
+		NumItems: 4,
+		Items: []responses.ServiceBinding{
+			{
+				ID:              "550e8400-e29b-41d4-a716-446655440003",
+				Name:            "service-binding",
+				Credentials:     map[string]interface{}{"username": "user1", "password": "pass1"},
+				SecretName:      "550e8400-e29b-41d4-a716-446655440003-secret",
+				SecretNamespace: "default",
+			},
+			{
+				ID:              "9e420bca-4cf2-4858-ade2-e5ef23cd756f",
+				Name:            "service-binding-2",
+				Credentials:     map[string]interface{}{"username": "user2", "password": "pass2"},
+				SecretName:      "9e420bca-4cf2-4858-ade2-e5ef23cd756f-secret",
+				SecretNamespace: "kyma-system",
+			},
+			{
+				ID:          "318a16c3-7c80-485f-b55c-918629012c9a",
+				Name:        "service-binding-3",
 				Credentials: map[string]interface{}{"username": "user3", "password": "pass3"},
+			},
+			{
+				ID:          "8e97d56b-9fc1-43db-9d2e-e52f8ce91046",
+				Name:        "service-binding-4",
+				Credentials: map[string]interface{}{"username": "user4", "password": "pass4"},
 			},
 		},
 	}
