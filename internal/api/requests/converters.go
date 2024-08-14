@@ -4,21 +4,21 @@ import (
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 )
 
-func ToServiceBinding(request CreateServiceBinding, instance *types.ServiceInstance) (types.ServiceBinding, error) {
+func ToServiceBinding(request *CreateServiceBinding, instance *types.ServiceInstance) (*types.ServiceBinding, error) {
 	clusterID, err := instance.ContextValueByFieldName(types.ContextClusterID)
 	if err != nil {
-		return types.ServiceBinding{}, err
+		return nil, err
 	}
 	namespace, err := instance.ContextValueByFieldName(types.ContextNamespace)
 	if err != nil {
-		return types.ServiceBinding{}, err
+		return nil, err
 	}
 	labels := map[string][]string{
 		types.K8sNameLabel:   {request.Name},
 		types.NamespaceLabel: {namespace},
 		types.ClusterIDLabel: {clusterID},
 	}
-	sb := types.ServiceBinding{
+	sb := &types.ServiceBinding{
 		Common: types.Common{
 			Name:   request.Name,
 			Labels: labels,

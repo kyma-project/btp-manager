@@ -159,7 +159,7 @@ func (p *SecretManager) GetAllByLabels(ctx context.Context, labels map[string]st
 
 	if len(secrets.Items) == 0 {
 		p.logger.Warn(fmt.Sprintf("no secrets found with labels: %v", labels))
-		return nil, err
+		return secrets, err
 	}
 
 	return secrets, err

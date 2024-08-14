@@ -551,7 +551,7 @@ func TestSecretManager(t *testing.T) {
 		// when
 		actualSecrets, err := secretManager.GetAllByLabels(context.TODO(), map[string]string{"foo": "bar"})
 		require.NoError(t, err)
-		assert.Nil(t, actualSecrets)
+		assert.Empty(t, actualSecrets.Items)
 
 		// when
 		actualSecrets, err = secretManager.GetAllByLabels(context.TODO(), map[string]string{"keep": "me"})
