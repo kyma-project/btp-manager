@@ -197,6 +197,10 @@ func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Requ
 		a.handleError(writer, err)
 		return
 	}
+	if sbs == nil || len(sbs.Items) == 0 {
+		a.sendResponse(writer, nil, http.StatusNoContent)
+		return
+	}
 	sbSecrets := a.ServiceBindingsSecrets(sbs)
 	sbsVM, err := responses.ToServiceBindingsVM(sbs, sbSecrets)
 	if err != nil {
@@ -418,14 +422,14 @@ func (a *API) handleError(writer http.ResponseWriter, errToHandle error, fallbac
 }
 
 func (a *API) ServiceBindingsSecrets(sbs *types.ServiceBindings) responses.ServiceBindingSecret {
-	serviceBindingsSecrets := make(responses.ServiceBindingSecret, 0)
+	serviceBindingsSecrets := make(responses.ServiceBindingSecret)
 	for _, sb := range sbs.Items {
 		secrets, err := a.secretsForGivenServiceBindingID(sb.ID)
 		if err != nil {
 			a.logger.Error("failed to get secrets for service binding", "service binding id", sb.ID, "error", err)
 			continue
 		}
-		if len(secrets.Items) > 0 {
+		if secrets != nil && len(secrets.Items) > 0 {
 			serviceBindingsSecrets[sb.ID] = &secrets.Items[0]
 		}
 	}
