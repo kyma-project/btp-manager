@@ -197,6 +197,10 @@ func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Requ
 		a.handleError(writer, err)
 		return
 	}
+	if sbs == nil || len(sbs.Items) == 0 {
+		a.sendResponse(writer, nil, http.StatusNoContent)
+		return
+	}
 	sbSecrets := a.ServiceBindingsSecrets(sbs)
 	sbsVM, err := responses.ToServiceBindingsVM(sbs, sbSecrets)
 	if err != nil {
@@ -213,8 +217,8 @@ func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Requ
 
 func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	var serviceBindingRequest requests.CreateServiceBinding
-	err := json.NewDecoder(request.Body).Decode(&serviceBindingRequest)
+	serviceBindingRequest := &requests.CreateServiceBinding{}
+	err := json.NewDecoder(request.Body).Decode(serviceBindingRequest)
 	if err != nil {
 		a.handleError(writer, err)
 		return
@@ -229,12 +233,17 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 		a.handleError(writer, err)
 		return
 	}
-	createdServiceBinding, err := a.smClient.CreateServiceBinding(&sb)
+	createdServiceBinding, err := a.smClient.CreateServiceBinding(sb)
 	if err != nil {
 		a.handleError(writer, err)
 		return
 	}
-	secret, err := generateSecretFromSISBData(si, createdServiceBinding, &serviceBindingRequest)
+	secret, err := generateSecretFromSISBData(si, createdServiceBinding, serviceBindingRequest)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	sbVM, err := responses.ToServiceBindingVM(createdServiceBinding)
 	if err != nil {
 		a.handleError(writer, err)
 		return
@@ -245,11 +254,8 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 			a.handleError(writer, err)
 			return
 		}
-	}
-	sbVM, err := responses.ToServiceBindingVM(createdServiceBinding)
-	if err != nil {
-		a.handleError(writer, err)
-		return
+		sbVM.SecretName = secret.Name
+		sbVM.SecretNamespace = secret.Namespace
 	}
 	response, err := json.Marshal(sbVM)
 	if err != nil {
@@ -418,14 +424,14 @@ func (a *API) handleError(writer http.ResponseWriter, errToHandle error, fallbac
 }
 
 func (a *API) ServiceBindingsSecrets(sbs *types.ServiceBindings) responses.ServiceBindingSecret {
-	serviceBindingsSecrets := make(responses.ServiceBindingSecret, 0)
+	serviceBindingsSecrets := make(responses.ServiceBindingSecret)
 	for _, sb := range sbs.Items {
 		secrets, err := a.secretsForGivenServiceBindingID(sb.ID)
 		if err != nil {
 			a.logger.Error("failed to get secrets for service binding", "service binding id", sb.ID, "error", err)
 			continue
 		}
-		if len(secrets.Items) > 0 {
+		if secrets != nil && len(secrets.Items) > 0 {
 			serviceBindingsSecrets[sb.ID] = &secrets.Items[0]
 		}
 	}
@@ -457,8 +463,11 @@ func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBind
 		clusterobject.ServiceInstanceIDLabel:   si.ID,
 		clusterobject.ServiceInstanceNameLabel: si.Name,
 	}
-	if sb.Labels != nil && sb.Labels[types.ClusterIDLabel][0] != "" {
-		labels[clusterobject.ClusterIDLabel] = sb.Labels[types.ClusterIDLabel][0]
+	if sb.Labels != nil {
+		existingClusterIDLabels, exists := sb.Labels[types.ClusterIDLabel]
+		if exists && len(existingClusterIDLabels) > 0 {
+			labels[clusterobject.ClusterIDLabel] = existingClusterIDLabels[0]
+		}
 	}
 	creds, err := normalizeCredentials(sb.Credentials)
 	if err != nil {

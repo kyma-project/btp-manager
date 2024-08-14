@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
-type ServiceBindingSecret map[string]*v1.Secret
+type ServiceBindingSecret map[string]*corev1.Secret
 
-func ToSecretVM(list v1.SecretList) Secrets {
+func ToSecretVM(list corev1.SecretList) Secrets {
 	secrets := Secrets{
 		Items: []Secret{},
 	}
