@@ -43,7 +43,20 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
     }, []);
 
     const fetchSecrets = () => {
-        loadSecrets();
+        setLoading(true);
+        axios
+            .get<Secrets>(api("secrets"))
+            .then((response) => {
+                setLoading(false);
+                setSecrets(response.data);
+            })
+            .catch((error) => {
+                setLoading(false);
+                setError(error);
+                setSecrets(undefined);
+                onSecretChanged(formatSecretText("", ""));
+            });
+            setLoading(false);
     };
 
     const renderData = () => {
