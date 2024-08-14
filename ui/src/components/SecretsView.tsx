@@ -13,7 +13,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
     const [error, setError] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
 
-    useEffect(() => {
+    const loadSecrets = () => {
         setLoading(true);
         axios
             .get<Secrets>(api("secrets"))
@@ -34,9 +34,17 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 setSecrets(undefined);
                 onSecretChanged(formatSecretText("", ""));
             });
-        setLoading(false);
+            setLoading(false);
+    };
+
+    useEffect(() => {
+        loadSecrets();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const fetchSecrets = () => {
+        loadSecrets();
+    };
 
     const renderData = () => {
         if (loading) {
@@ -69,7 +77,10 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 <>
                     <Button
                         design="Emphasized"
-                        onClick={function _a() {setIsOpen(!isOpen)}}
+                        onClick={function _a() {
+                            setIsOpen(!isOpen);
+                            fetchSecrets();
+                        }}
                         id="openMenu"
                     >
                     Select a secret
