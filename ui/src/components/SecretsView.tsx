@@ -77,7 +77,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
 
                     <Menu
                         opener="openMenu"
-                        onAfterClose={function _a() { }}
+                        onAfterClose={function _a() {setIsOpen(false)}}
                         onAfterOpen={function _a() { }}
                         onBeforeClose={function _a() { }}
                         onBeforeOpen={function _a() { }}
