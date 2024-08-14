@@ -62,11 +62,11 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
         }
         return secrets?.items.map((secret, index) => {
             return (
-                <ui5.MenuItem text={formatSecretText(secret.name, secret.namespace)} onClick={function _a() {
-                    setSelectedSecret(formatSecretText(secret.name, secret.namespace));
-                    onSecretChanged(formatSecretText(secret.name, secret.namespace));
-                    setIsOpen(false);
-                }} />
+                <ui5.MenuItem
+                    text={formatSecretText(secret.name, secret.namespace)}
+                    data-secret-name={secret.name}
+                    data-secret-namespace={secret.namespace}
+                />
             );
         });
     };
@@ -92,7 +92,15 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                         onAfterOpen={function _a() { }}
                         onBeforeClose={function _a() { }}
                         onBeforeOpen={function _a() { }}
-                        onItemClick={function _a() { }}
+                        onItemClick={(event) => {
+                            const secretName = event.detail.item.dataset.secretName;
+                            const secretNamespace = event.detail.item.dataset.secretNamespace;                           
+                            if (secretName && secretNamespace) {
+                                setSelectedSecret(formatSecretText(secretName, secretNamespace));
+                                onSecretChanged(formatSecretText(secretName, secretNamespace));
+                            }
+                            setIsOpen(false);
+                        }}
                         onItemFocus={function _a() { }}
                         open={isOpen}
                     >
