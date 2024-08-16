@@ -18,8 +18,8 @@ function App() {
             <Route index element={<Navigate to="offerings" replace />} />
             <Route path="*" element={<Navigate to="offerings" replace />} />
 
-            <Route path="/instances" element={<ServiceInstancesView />} />
-            <Route path="/instances/:id" element={<ServiceInstancesView />} />
+            <Route path="/instances" element={<ServiceInstancesView secret={secret} />} />
+            <Route path="/instances/:id" element={<ServiceInstancesView secret={secret} />} />
             <Route path="/offerings" element={<ServiceOfferingsView secret={secret} />} />
           </Route>
         </Routes>
