@@ -90,3 +90,9 @@ ui5-select {
 div[data-component-name="ObjectPage"] {
   border-radius: 0.5em;
 }
+
+/* corrected margins on object page */
+header[data-component-name="ObjectPageTopHeader"] {
+  padding-top: 1rem;
+  display: inline !important;
+}
