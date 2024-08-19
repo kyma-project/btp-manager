@@ -23,8 +23,14 @@ function ServiceInstancesView(props: any) {
   let { id } = useParams();
 
   useEffect(() => {
+    if (!Ok(props.setTitle)) {
+      return;
+    }
+    props.setTitle("Service Instances");
+
     var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
+
       if (!Ok(props.secret)) {
         return;
       }
