@@ -114,9 +114,7 @@ function ServiceOfferingsView(props: any) {
                     columnsM={1}
                     columnsS={1}
                 >
-                    {/* <React.Fragment key=".0"> */}
                     {cards}
-                    {/* </React.Fragment> */}
                 </ResponsiveGridLayout>
             </div>
             {portal != null && portal}
