@@ -1,14 +1,14 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import {ServiceOfferings} from "../shared/models";
+import { ServiceOfferings } from "../shared/models";
 import api from "../shared/api";
 import "@ui5/webcomponents-icons/dist/AllIcons.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/NoEntries.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/NoData.js";
 import Ok from "../shared/validator";
-import {createPortal} from "react-dom";
+import { createPortal } from "react-dom";
 import ServiceOfferingsDetailsView from "./ServiceOfferingsDetailsView";
 import { ResponsiveGridLayout } from "@ui5/webcomponents-react";
 
@@ -18,8 +18,13 @@ function ServiceOfferingsView(props: any) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [portal, setPortal] = useState<JSX.Element>();
-    
+
     useEffect(() => {
+        if (!Ok(props.setTitle)) {
+            return;
+        }
+        props.setTitle("Service Offerings");
+
         if (!Ok(props.secret)) {
             return;
         }
@@ -50,47 +55,47 @@ function ServiceOfferingsView(props: any) {
         }
         return b64;
     }
-    
+
     const renderData = () => {
         if (loading) {
             return <ui5.BusyIndicator
-      active
-      delay={1000}
-      size="Medium"
-      />
+                active
+                delay={1000}
+                size="Medium"
+            />
         }
 
         if (error) {
-            return <ui5.IllustratedMessage name="UnableToLoad"/>
+            return <ui5.IllustratedMessage name="UnableToLoad" />
         }
 
         // @ts-ignore
         if (!Ok(offerings) || !Ok(offerings.items)) {
-            return <ui5.IllustratedMessage name="NoEntries"/>
+            return <ui5.IllustratedMessage name="NoEntries" />
         }
         const cards = offerings?.items.map((offering, index) => {
             // @ts-ignore
             return (
-                    <ui5.Card
-                        key={index}
-                        onClick={() => {
-                            setPortal(createPortal( <ServiceOfferingsDetailsView offering={offering} />, document.getElementById("App")!!, window.crypto.randomUUID()))
-                        }}
-                        header={
-                            <ui5.CardHeader
-                                avatar={
-                                    <ui5.Avatar>
-                                        <img alt="" src={getImg(offering.metadata.imageUrl)}></img>
-                                    </ui5.Avatar>
-                                }
-                                subtitleText={offering.catalog_name}
-                                titleText={offering.metadata.displayName}
-                                status={formatStatus(index, offerings?.numItems)}
-                                interactive
-                            /> 
-                        }
-                    > 
-                    </ui5.Card>
+                <ui5.Card
+                    key={index}
+                    onClick={() => {
+                        setPortal(createPortal(<ServiceOfferingsDetailsView offering={offering} />, document.getElementById("App")!!, window.crypto.randomUUID()))
+                    }}
+                    header={
+                        <ui5.CardHeader
+                            avatar={
+                                <ui5.Avatar>
+                                    <img alt="" src={getImg(offering.metadata.imageUrl)}></img>
+                                </ui5.Avatar>
+                            }
+                            subtitleText={offering.catalog_name}
+                            titleText={offering.metadata.displayName}
+                            status={formatStatus(index, offerings?.numItems)}
+                            interactive
+                        />
+                    }
+                >
+                </ui5.Card>
             );
         });
 
@@ -98,16 +103,16 @@ function ServiceOfferingsView(props: any) {
 
             <div className="margin-wrapper">
 
-            <ResponsiveGridLayout 
-                columnsXL={3}
-                columnsL={2}
-                columnsM={1}
-                columnsS={1}
-            >
-                {/* <React.Fragment key=".0"> */}
-                {cards}
-                {/* </React.Fragment> */}
-            </ResponsiveGridLayout>
+                <ResponsiveGridLayout
+                    columnsXL={3}
+                    columnsL={2}
+                    columnsM={1}
+                    columnsS={1}
+                >
+                    {/* <React.Fragment key=".0"> */}
+                    {cards}
+                    {/* </React.Fragment> */}
+                </ResponsiveGridLayout>
             </div>
             {portal != null && portal}
         </>
@@ -124,7 +129,7 @@ function splitSecret(secret: string) {
     const secret_name = secretParts[0];
     let namespace = secretParts[2].replace("(", "");
     namespace = namespace.replace(")", "");
-    return {secret_name, namespace};
+    return { secret_name, namespace };
 }
 
 function formatStatus(i: number, j: number) {
