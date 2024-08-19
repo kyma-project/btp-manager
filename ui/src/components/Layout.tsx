@@ -2,10 +2,10 @@ import * as ui5 from "@ui5/webcomponents-react";
 import Secrets from "./SecretsView";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { ObjectPage } from "@ui5/webcomponents-react";
+import { ObjectPage, Title } from "@ui5/webcomponents-react";
 
 
-function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void }) {
+function Layout({ onSecretChanged, title }: {  onSecretChanged: (secret: string) => void, title: string }) {
     const navigate = useNavigate();
     const location = useLocation();
     return (
@@ -21,9 +21,6 @@ function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void
 
                 </ui5.ShellBar>
             </div>
-
-
-
 
             <div className="flex-container flex-row">
                 <>
@@ -61,15 +58,15 @@ function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void
                     </div>
 
                     <div className="margin-wrapper main-column">
-                    
-
 
                         <ObjectPage className="scrollable flex-column"
-                              headerTitle={
-                                <Secrets onSecretChanged={(secret: string) => onSecretChanged(secret)} />
-                              }
+                            headerTitle={
+                                <>
+                                    <Title level="H2">{title}</Title>
+                                    <Secrets onSecretChanged={(secret: string) => onSecretChanged(secret)} />
+                                </>
+                            }
                         >
-
                             <Outlet />
                         </ObjectPage>
                     </div>
