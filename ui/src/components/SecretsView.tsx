@@ -13,7 +13,8 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
     const [error, setError] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
 
-    const loadSecrets = () => {
+    useEffect(() => {
+
         setLoading(true);
         axios
             .get<Secrets>(api("secrets"))
@@ -35,12 +36,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 onSecretChanged(formatSecretText("", ""));
             });
             setLoading(false);
-    };
-
-    useEffect(() => {
-        loadSecrets();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [onSecretChanged]);
 
     const fetchSecrets = () => {
         setLoading(true);
