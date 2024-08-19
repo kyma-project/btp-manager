@@ -51,7 +51,7 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
       return;
     }
 
-    var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
+    var useTestData = process.env.REACT_APP_USE_TEST_DATA === "false"
     if (!useTestData) {
       setLoading(true)
       axios

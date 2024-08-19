@@ -1,82 +1,116 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import Secrets from "./SecretsView";
+import SecretsView from "./SecretsView";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { ObjectPage } from "@ui5/webcomponents-react";
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { Secrets } from "../shared/models";
+import api from "../shared/api";
 
 
 function Layout({ onSecretChanged }: { onSecretChanged: (secret: string) => void }) {
     const navigate = useNavigate();
     const location = useLocation();
-    return (
-        <>
+    const [secretLoaded, setSecretLoaded] = useState(false);
 
-            <div className="margin-wrapper">
+    axios
+            .get<Secrets>(api("secrets"))
+            .then((response) => {
+               setSecretLoaded(true)
+               console.log(response.data)
+            })
+            .catch((error) => {
+                setSecretLoaded(false)
+            });
+    if (secretLoaded) {
 
-                <ui5.ShellBar style={{ "borderRadius": "var(--_ui5-v1-24-7_side_navigation_border_radius);" }}
-                    logo={<img alt="SAP Logo" src="https://sap.github.io/ui5-webcomponents/images/sap-logo-svg.svg" />}
-                    secondaryTitle="SAP BTP, Kyma runtime"
-                    primaryTitle="BTP Manager UI"
-                >
+        return (
+            <>
 
-                </ui5.ShellBar>
-            </div>
+                <div className="margin-wrapper">
+
+                    <ui5.ShellBar style={{ "borderRadius": "var(--_ui5-v1-24-7_side_navigation_border_radius);" }}
+                        logo={<img alt="SAP Logo" src="https://sap.github.io/ui5-webcomponents/images/sap-logo-svg.svg" />}
+                        secondaryTitle="SAP BTP, Kyma runtime"
+                        primaryTitle="BTP Manager UI"
+                    >
+
+                    </ui5.ShellBar>
+                </div>
 
 
 
 
-            <div className="flex-container flex-row">
-                <>
-                    <div className="margin-wrapper">
+                <div className="flex-container flex-row">
+                    <>
+                        <div className="margin-wrapper">
 
-                        <ui5.SideNavigation>
-                            <ui5.SideNavigationItem
-                                text="Marketplace"
-                                icon="puzzle"
-                                selected={!!matchPath(
-                                    location.pathname,
-                                    '/offerings'
-                                )
+                            <ui5.SideNavigation>
+                                <ui5.SideNavigationItem
+                                    text="Marketplace"
+                                    icon="puzzle"
+                                    selected={!!matchPath(
+                                        location.pathname,
+                                        '/offerings'
+                                    )
+                                    }
+                                    onClick={() => {
+                                        navigate("/offerings");
+                                    }}
+                                />
+
+                                <ui5.SideNavigationItem
+                                    text="Service Instances"
+                                    icon="connected"
+                                    selected={!!matchPath(
+                                        location.pathname,
+                                        '/instances'
+                                    )
+                                    }
+                                    onClick={() => {
+                                        navigate("/instances");
+                                    }}
+                                >
+
+                                </ui5.SideNavigationItem>
+                            </ui5.SideNavigation>
+                        </div>
+
+                        <div className="margin-wrapper main-column">
+                        
+
+
+                            <ObjectPage className="scrollable flex-column"
+                                headerTitle={
+                                    <SecretsView onSecretChanged={(secret: string) => onSecretChanged(secret)} />
                                 }
-                                onClick={() => {
-                                    navigate("/offerings");
-                                }}
-                            />
-
-                            <ui5.SideNavigationItem
-                                text="Service Instances"
-                                icon="connected"
-                                selected={!!matchPath(
-                                    location.pathname,
-                                    '/instances'
-                                )
-                                }
-                                onClick={() => {
-                                    navigate("/instances");
-                                }}
                             >
 
-                            </ui5.SideNavigationItem>
-                        </ui5.SideNavigation>
-                    </div>
+                                <Outlet />
+                            </ObjectPage>
+                        </div>
+                    </>
+                </div>
+            </>
+        );
+    }
+    else {
+        return (
+            <>
+            <div className="margin-wrapper">
 
-                    <div className="margin-wrapper main-column">
-                    
+                    <ui5.ShellBar style={{ "borderRadius": "var(--_ui5-v1-24-7_side_navigation_border_radius);" }}
+                        logo={<img alt="SAP Logo" src="https://sap.github.io/ui5-webcomponents/images/sap-logo-svg.svg" />}
+                        secondaryTitle="SAP BTP, Kyma runtime"
+                        primaryTitle="No secrets"
+                    >
 
-
-                        <ObjectPage className="scrollable flex-column"
-                              headerTitle={
-                                <Secrets onSecretChanged={(secret: string) => onSecretChanged(secret)} />
-                              }
-                        >
-
-                            <Outlet />
-                        </ObjectPage>
-                    </div>
+                    </ui5.ShellBar>
+                </div>
                 </>
-            </div>
-        </>
-    );
+        );
+    }
 }
 
 export default Layout;
