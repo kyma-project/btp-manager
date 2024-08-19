@@ -4,9 +4,9 @@
 
 BTP Manager performs the following operations:
 
-- provisioning of the SAP BTP service operator
-- update of the SAP BTP service operator
-- deprovisioning of the SAP BTP service operator and its resources, ServiceInstances, and ServiceBindings
+* Provisioning of the SAP BTP service operator
+* Updating of the SAP BTP service operator
+* Deprovisioning of the SAP BTP service operator and its ServiceInstance resources, and ServiceBinding resources
 
 ## Provisioning
 
@@ -14,12 +14,12 @@ BTP Manager performs the following operations:
 
 The prerequisites for the SAP BTP service operator provisioning are:
 
-- Namespace `kyma-system`
-- PriorityClass `kyma-system`
-- Secret `sap-btp-manager` with data for the SAP BTP service operator
+* Namespace `kyma-system`
+* PriorityClass `kyma-system`
+* Secret `sap-btp-manager` with data for the SAP BTP service operator
 
-The namespace and PriorityClass resources are created during Kyma installation. The Secret is injected into the cluster
-by Kyma Environment Broker (KEB). If you want to provision the SAP BTP service operator in a cluster without Kyma, you must create
+The namespace and PriorityClass resources are created during <!--SAP BTP, Kyma runtime?--> installation. The Secret is injected into the cluster
+by Kyma Environment Broker (KEB). If you want to provision the SAP BTP service operator in a cluster without Kyma <!--Kyma runtime?-->, you must create
 the prerequisites yourself.
 
 ### Process
@@ -41,7 +41,7 @@ The provisioning process is part of a module reconciliation.
 2. The BtpOperator reconciler picks up the created CR and determines whether it should be responsible for representing the module status. 
 3. The BtpOperator CR reflects the status of the operand, that is, the SAP BTP service operator, only when it is the oldest CR present in the cluster. Otherwise, it is given the `Error` state (3a) with the condition reason `OlderCRExists` and the message containing details about the CR responsible for reconciling the operand.
 4. For the only or the oldest CR present in the cluster,  a finalizer is added, the CR is set to the `Processing` state, and the reconciliation proceeds.
-5. The reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` namespace with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the Service Manager credentials for the SAP BTP service operator and should be delivered to the cluster by KEB. If the Secret is missing, an error is thrown (5a), and the reconciler sets the `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret is created. 
+5. The reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` namespace with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the SAP Service Manager credentials for the SAP BTP service operator and should be delivered to the cluster by KEB. If the Secret is missing, an error is thrown (5a), and the reconciler sets the `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret is created. 
 6. When the Secret is present in the cluster, the reconciler verifies whether it contains the required data. The Secret should contain the following keys: **clientid**, **clientsecret**, **sm_url**, **tokenurl**, **cluster_id**. None of the key values should be empty. 
 If some required data is missing, the reconciler throws an error (6a) with the message about missing keys/values, sets the CR in the `Error` state (reason `InvalidSecret`), and stops the reconciliation until there is a change in the required Secret.
 7. After checking the Secret, the reconciler performs the apply and delete operations of the [module resources](../../module-resources).
@@ -123,5 +123,5 @@ Only one Condition of type `Ready` is used.
 
 ## Updating
 
-The update process is almost the same as the provisioning process. The only difference is BtpOperator CR existence in the cluster. 
+The update process is almost the same as the provisioning process. The only difference is the BtpOperator CR's existence in the cluster. 
 For the update process, the CR should be present in the cluster with the `Ready` state.  

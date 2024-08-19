@@ -1,0 +1,57 @@
+# Service Binding Custom Resource
+
+The `servicebindings.services.cloud.sap.com` CustomResourceDefinition (CRD) is a comprehensive specification that defines the structure and format used to configure resources.
+
+<!--see CRD https://github.com/SAP/sap-btp-service-operator/blob/main/config/crd/bases/services.cloud.sap.com_servicebindings.yaml -->
+
+
+## Sample Custom Resource
+<!--don't think this is a good sample comparing to the list of parameters below-->
+<!--do we actually need this sample?-->
+```yaml
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: sample-binding
+spec:
+  serviceInstanceName: sample-instance
+  externalName: my-binding-external
+  secretName: my-secret
+  parameters:
+    key1: val1
+    key2: val2      
+```
+
+## Custom Resource Parameters
+
+The following table lists the parameters of the given resource with their descriptions:
+
+**Spec:**
+
+| Parameter             | Type   | Description                                                                                                                                    |
+|-------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| **serviceInstanceName** | string | The Kubernetes <!--??--> name of the service instance to bind. |
+| **serviceInstanceNamespace** | string | The namespace of the service instance to bind; if not specified' the default is the binding's namespace. |
+| **externalName**       | string  | The name for the service binding in SAP BTP; if not specified, defaults to the binding **metadata.name**. |
+| **secretName**         | string  | The name of the Secret where the credentials are stored; if not specified, defaults to the binding **metadata.name**. |
+| **secretKey**          | string  | The Secret key is part of the Secret object, which stores the service binding credentials received from the <!--what broker?--> broker. When the Secret key is used, all the credentials are stored under a single key. This makes it a convenient way to store credentials data in one file when using volumeMounts. See [Formatting Service Binding Secret](../03-60-formatting-service-binding-secret.md). |
+| **secretRootKey**       | string | The root key is part of the Secret object, which stores the service binding credentials received from the <!--what broker?--> broker, as well as additional service instance information. When the root key is used, all data is stored under a single key. This makes it a convenient way to store data in one file when using volumeMounts. See [Formatting Service Binding Secret](../03-60-formatting-service-binding-secret.md). |
+| **parameters**          | []object | Some services support the provisioning of additional configuration parameters during the bind request.<br/>For the list of supported parameters, check the documentation of particular service offerings. |
+| **parametersFrom**      | []object | List of sources that parameters are populated from. <!--List of sources to populate parameters.??-->  |
+| **userInfo**            | object | Contains information about the user that last modified this service binding. |
+| **credentialsRotationPolicy** | object | Holds automatic credentials rotation configuration.  |
+| **credentialsRotationPolicy.enabled** | boolean  | Indicates whether automatic credentials rotation is enabled. |
+| **credentialsRotationPolicy.rotationFrequency** | duration | Specifies the frequency at which the binding rotation is performed. |
+| **credentialsRotationPolicy.rotatedBindingTTL** | duration | Specifies the time period for which to keep the rotated binding. |
+| **SecretTemplate**      | string | A Go template used to generate a custom Kubernetes v1/Secret, working on both the access credentials returned by the <!--what broker?--> broker and instance attributes. See [Go Templates](https://pkg.go.dev/text/template) for more details. |
+
+**Status:**
+
+| Parameter         | Type     | Description                                                                                                   |
+|-----------------|---------|-----------------------------------------------------------------------------------------------------------|
+| **instanceID**   | string | The ID of the bound instance in the SAP Service Manager service. |
+| **bindingID**    | string | The service binding ID in the SAP Service Manager service. |
+| **operationURL** | string | The URL of the current operation performed on the service binding. |
+| **operationType**| string | The type of the current operation. Possible values are `CREATE`, `UPDATE`, or `DELETE`. |
+| **conditions** | []condition | An array of conditions describing the status of the service instance.<br/>The possible conditions types are: <br/>* `Ready:true` if the binding is ready and usable<br/>* `Failed:true` when an operation on the service binding fails.<br/> In the case of failure, the details about the error are available in the condition message.<br>* `Succeeded:true` when an operation on the service binding succeeded. If set to `false`, the operation is considered as in progress unless a `Failed` condition exists. |
+| **lastCredentialsRotationTime**| time | Indicates the last time the binding secret was rotated. |

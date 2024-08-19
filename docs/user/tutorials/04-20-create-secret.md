@@ -1,5 +1,7 @@
 # Create and Install a Secret
 
+<!--this content is for OS users only-->
+
 To create a real BTP Manager Secret, follow these steps:
 1. Create a ServiceBinding to obtain the access credentials to the ServiceInstance as described in the [Setup: Obtain the access credentials for the SAP BTP service operator](https://github.com/SAP/sap-btp-service-operator#setup) section in the SAP BTP service operator documentation.
 2. Copy and save the access credentials into your `creds.json` file in your working directory. 
