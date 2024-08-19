@@ -13,7 +13,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
     const [error, setError] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
 
-    useEffect(() => {
+    const loadSecrets = () => {
         setLoading(true);
         axios
             .get<Secrets>(api("secrets"))
@@ -34,9 +34,30 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 setSecrets(undefined);
                 onSecretChanged(formatSecretText("", ""));
             });
-        setLoading(false);
+            setLoading(false);
+    };
+
+    useEffect(() => {
+        loadSecrets();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const fetchSecrets = () => {
+        setLoading(true);
+        axios
+            .get<Secrets>(api("secrets"))
+            .then((response) => {
+                setLoading(false);
+                setSecrets(response.data);
+            })
+            .catch((error) => {
+                setLoading(false);
+                setError(error);
+                setSecrets(undefined);
+                onSecretChanged(formatSecretText("", ""));
+            });
+            setLoading(false);
+    };
 
     const renderData = () => {
         if (loading) {
@@ -54,11 +75,11 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
         }
         return secrets?.items.map((secret, index) => {
             return (
-                <ui5.MenuItem text={formatSecretText(secret.name, secret.namespace)} onClick={function _a() {
-                    setSelectedSecret(formatSecretText(secret.name, secret.namespace));
-                    onSecretChanged(formatSecretText(secret.name, secret.namespace));
-                    setIsOpen(false);
-                }} />
+                <ui5.MenuItem
+                    text={formatSecretText(secret.name, secret.namespace)}
+                    data-secret-name={secret.name}
+                    data-secret-namespace={secret.namespace}
+                />
             );
         });
     };
@@ -69,7 +90,10 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 <>
                     <Button
                         design="Emphasized"
-                        onClick={function _a() {setIsOpen(!isOpen)}}
+                        onClick={function _a() {
+                            setIsOpen(!isOpen);
+                            fetchSecrets();
+                        }}
                         id="openMenu"
                     >
                     Select a secret
@@ -81,7 +105,15 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                         onAfterOpen={function _a() { }}
                         onBeforeClose={function _a() { }}
                         onBeforeOpen={function _a() { }}
-                        onItemClick={function _a() { }}
+                        onItemClick={(event) => {
+                            const secretName = event.detail.item.dataset.secretName;
+                            const secretNamespace = event.detail.item.dataset.secretNamespace;                           
+                            if (secretName && secretNamespace) {
+                                setSelectedSecret(formatSecretText(secretName, secretNamespace));
+                                onSecretChanged(formatSecretText(secretName, secretNamespace));
+                            }
+                            setIsOpen(false);
+                        }}
                         onItemFocus={function _a() { }}
                         open={isOpen}
                     >

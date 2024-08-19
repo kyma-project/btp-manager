@@ -9,44 +9,64 @@ import serviceInstancesData from '../test-data/serivce-instances.json';
 import ServiceInstancesDetailsView from "./ServiceInstancesDetailsView";
 import { useParams } from "react-router-dom";
 import StatusMessage from "./StatusMessage";
+import {ServiceOfferings} from "../shared/models";
 
-function ServiceInstancesView() {
+function ServiceInstancesView(props: any) {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
   const dialogRef = useRef();
   const [success, setSuccess] = useState("");
+  const [, setOfferings] = useState<ServiceOfferings>();
 
   let { id } = useParams();
 
   useEffect(() => {
     var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
-      setLoading(true)
-      axios
-        .get<ServiceInstances>(api("service-instances"))
-        .then((response) => {
-          setLoading(false);
-          setServiceInstances(response.data);
-          if (id) {
-            const instance = response.data.items.find((instance) => instance.id === id);
-            if (instance) {
-              openPortal(instance)
-            }
-          }
-        })
-        .catch((error) => {
-          setLoading(false);
-          setError(error);
-        });
-      setLoading(false)
+      if (!Ok(props.secret)) {
+        return;
+      }
+      const secretText = splitSecret(props.secret);
+      if (Ok(secretText)) {
+        setLoading(true)
+        axios
+          .get<ServiceOfferings>(
+            api(`service-offerings/${secretText.namespace}/${secretText.secret_name}`)
+          )
+          .then((response) => {
+            setLoading(false);
+            setOfferings(response.data);
+            axios
+              .get<ServiceInstances>(api("service-instances"))
+              .then((response) => {
+                setLoading(false);
+                setServiceInstances(response.data);
+                if (id) {
+                  const instance = response.data.items.find((instance) => instance.id === id);
+                  if (instance) {
+                    openPortal(instance);
+                  }
+                }
+              })
+              .catch((error) => {
+                setLoading(false);
+                setError(error);
+              });
+          })
+          .catch((error) => {
+            setLoading(false);
+            setError(error);
+          });
+        setLoading(false)
+      } 
     } else {
       setLoading(true)
       setServiceInstances(serviceInstancesData)
       setLoading(false);
     }
-  }, [id]);
+  }, [id, props.secret]);
 
   if (loading) {
     return <ui5.BusyIndicator
@@ -162,6 +182,17 @@ function ServiceInstancesView() {
       {createPortal(<ServiceInstancesDetailsView instance={selectedInstance} ref={dialogRef} />, document.getElementById("App")!!)}
     </>
   );
+}
+
+function splitSecret(secret: string) {
+  if (secret == null) {
+      return {};
+  }
+  const secretParts = secret.split(" ");
+  const secret_name = secretParts[0];
+  let namespace = secretParts[2].replace("(", "");
+  namespace = namespace.replace(")", "");
+  return {secret_name, namespace};
 }
 
 export default ServiceInstancesView;
