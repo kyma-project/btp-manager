@@ -2,7 +2,7 @@ import * as ui5 from "@ui5/webcomponents-react";
 import Secrets from "./SecretsView";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { Bar, ObjectPage, Title } from "@ui5/webcomponents-react";
+import { ObjectPage, Title } from "@ui5/webcomponents-react";
 
 
 function Layout({ onSecretChanged, title }: {  onSecretChanged: (secret: string) => void, title: string }) {
