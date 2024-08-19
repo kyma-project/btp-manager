@@ -132,7 +132,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
 
 function formatSecretText(secretName: string, secretNamespace: string) {
     if (secretName === "" || secretNamespace === "") {
-        return "No secret found"
+        return ""
     }
     return `${secretName} in (${secretNamespace})`;
 }
