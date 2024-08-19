@@ -8,7 +8,7 @@ import serviceInstancesData from '../test-data/service-bindings.json';
 import StatusMessage from "./StatusMessage";
 
 const ServiceBindingsList= forwardRef((props: any, ref) => {
-  const [bindings, setServiceInstanceBindings] = useState<ServiceInstanceBindings>();
+  const [bindings, setServiceInstanceBindings] = useState<ServiceInstanceBindings>(new ServiceInstanceBindings());
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError>();
@@ -59,7 +59,9 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
           { params: { service_instance_id: props.instance.id } }
         )
         .then((response) => {
-          setServiceInstanceBindings(response.data);
+          if (Ok(response.data)) {
+            setServiceInstanceBindings(response.data);
+          }
           setLoading(false);
           setError(undefined);
         })
