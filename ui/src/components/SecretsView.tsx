@@ -59,16 +59,17 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
             setLoading(false);
     };
 
+    if (error) {
+        onSecretChanged(formatSecretText("", ""));
+        return <ui5.IllustratedMessage name="UnableToLoad" />
+    }
+
+    if (loading) {
+        return <ui5.IllustratedMessage name="UnableToLoad" />
+    }
+
     const renderData = () => {
-        if (loading) {
-            return <ui5.IllustratedMessage name="UnableToLoad" />
-        }
-
-        if (error) {
-            onSecretChanged(formatSecretText("", ""));
-            return <ui5.IllustratedMessage name="UnableToLoad" />
-        }
-
+        
         // @ts-ignore
         if (!Ok(secrets) || !Ok(secrets.items)) {
             return <ui5.MenuItem text={formatSecretText("", "")} />
