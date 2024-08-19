@@ -96,3 +96,7 @@ header[data-component-name="ObjectPageTopHeader"] {
   padding-top: 1rem;
   display: inline !important;
 }
+
+header[data-component-name="ObjectPageTopHeader"]:has(ui5-illustrated-message) {
+  height: 100%;
+}
