@@ -79,6 +79,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                     text={formatSecretText(secret.name, secret.namespace)}
                     data-secret-name={secret.name}
                     data-secret-namespace={secret.namespace}
+                    key={index}
                 />
             );
         });
