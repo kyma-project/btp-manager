@@ -33,6 +33,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
     if (dialogRef.current) {
       // @ts-ignore
       dialogRef.current.close();
+      setInstance(undefined);
     }
   };
 
@@ -72,6 +73,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
       <ui5.Dialog
         style={{ width: "50%" }}
         ref={dialogRef}
+        onAfterClose={handleClose}
         header={
           <ui5.Bar
             design="Header"

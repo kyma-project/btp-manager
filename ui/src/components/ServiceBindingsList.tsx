@@ -48,6 +48,12 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
 
   useEffect(() => {
     if (!Ok(props.instance)) {
+      setServiceInstanceBindings(new ServiceInstanceBindings());
+      return;
+    }
+
+    if (!Ok(props.instance.id)) {
+      setServiceInstanceBindings(new ServiceInstanceBindings());
       return;
     }
 
@@ -61,6 +67,8 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
         .then((response) => {
           if (Ok(response.data)) {
             setServiceInstanceBindings(response.data);
+          } else {
+            setServiceInstanceBindings(new ServiceInstanceBindings()); 
           }
           setLoading(false);
           setError(undefined);
