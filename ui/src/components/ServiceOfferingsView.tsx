@@ -34,7 +34,6 @@ function ServiceOfferingsView(props: any) {
         }
         const secretText = splitSecret(props.secret);
         if (Ok(secretText)) {
-            setLoading(true);
             axios
                 .get<ServiceOfferings>(
                     api(

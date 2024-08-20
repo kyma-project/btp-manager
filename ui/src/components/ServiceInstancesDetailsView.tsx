@@ -49,8 +49,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
 
     setInstance(props.instance);
 
-    setLoading(true)
-
     setLoading(false)
 
   }, [props.instance]);

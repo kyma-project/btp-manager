@@ -47,6 +47,7 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
   }
 
   useEffect(() => {
+    setLoading(true)
     if (!Ok(props.instance)) {
       setServiceInstanceBindings(new ServiceInstanceBindings());
       return;
@@ -59,7 +60,6 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
 
     var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
-      setLoading(true)
       axios
         .get<ServiceInstanceBindings>(api("service-bindings"),
           { params: { service_instance_id: props.instance.id } }
@@ -70,16 +70,15 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
           } else {
             setServiceInstanceBindings(new ServiceInstanceBindings()); 
           }
-          setLoading(false);
           setError(undefined);
+          setLoading(false);
         })
         .catch((error) => {
-          setLoading(false);
           setError(error);
+          setLoading(false);
         });
       setLoading(false)
     } else {
-      setLoading(true)
       setServiceInstanceBindings(serviceInstancesData)
       setLoading(false);
     }
