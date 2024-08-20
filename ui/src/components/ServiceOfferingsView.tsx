@@ -20,12 +20,16 @@ function ServiceOfferingsView(props: any) {
     const [portal, setPortal] = useState<JSX.Element>();
 
     useEffect(() => {
+        setLoading(true);
+
         if (!Ok(props.setTitle)) {
+            setLoading(false);
             return;
         }
         props.setTitle("Service Offerings");
 
         if (!Ok(props.secret)) {
+            setLoading(false);
             return;
         }
         const secretText = splitSecret(props.secret);
@@ -45,9 +49,10 @@ function ServiceOfferingsView(props: any) {
                     setLoading(false);
                     setError(error);
                 });
+        } else {
             setLoading(false);
         }
-    }, [props.secret]);
+    }, [props, props.secret]);
 
     function getImg(b64: string) {
         if (!Ok(b64) || b64 === "not found") {
@@ -109,9 +114,7 @@ function ServiceOfferingsView(props: any) {
                     columnsM={1}
                     columnsS={1}
                 >
-                    {/* <React.Fragment key=".0"> */}
                     {cards}
-                    {/* </React.Fragment> */}
                 </ResponsiveGridLayout>
             </div>
             {portal != null && portal}
