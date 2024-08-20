@@ -127,6 +127,10 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
     });
   };
 
+  if (!Ok(bindings) || !Ok(bindings.items)) {
+    return <ui5.IllustratedMessage name="NoEntries" size="Dot"/>
+  }
+
   return (
     <>
       <ui5.Form>
