@@ -97,6 +97,15 @@ header[data-component-name="ObjectPageTopHeader"] {
   display: inline !important;
 }
 
+div[data-component-name="ObjectPageContent"] {
+  padding-top: 1rem;
+}
+
 header[data-component-name="ObjectPageTopHeader"]:has(ui5-illustrated-message) {
   height: 100%;
+}
+
+ui5-busy-indicator {
+  padding-top: 1rem;
+  display: block;
 }
