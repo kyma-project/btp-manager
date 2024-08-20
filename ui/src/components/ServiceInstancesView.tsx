@@ -47,6 +47,7 @@ function ServiceInstancesView(props: any) {
               .get<ServiceInstances>(api("service-instances"))
               .then((response) => {
                 setServiceInstances(response.data);
+                setError(null);
                 if (id) {
                   const instance = response.data.items.find((instance) => instance.id === id);
                   if (instance) {
@@ -113,9 +114,9 @@ function ServiceInstancesView(props: any) {
     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
       return <ui5.IllustratedMessage name="NoEntries" />
     }
-
-
-
+    if (error) {
+      return <ui5.IllustratedMessage name="NoEntries"/>
+    }
     return serviceInstances?.items.map((instance, index) => {
 
 
