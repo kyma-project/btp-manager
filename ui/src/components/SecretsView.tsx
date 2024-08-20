@@ -13,7 +13,8 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
     const [error, setError] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
 
-    const loadSecrets = () => {
+    useEffect(() => {
+
         setLoading(true);
         axios
             .get<Secrets>(api("secrets"))
@@ -35,12 +36,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 onSecretChanged(formatSecretText("", ""));
             });
             setLoading(false);
-    };
-
-    useEffect(() => {
-        loadSecrets();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [onSecretChanged]);
 
     const fetchSecrets = () => {
         setLoading(true);
@@ -59,16 +55,17 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
             setLoading(false);
     };
 
+    if (error) {
+        onSecretChanged(formatSecretText("", ""));
+        return <ui5.IllustratedMessage name="UnableToLoad" />
+    }
+
+    if (loading) {
+        return <ui5.IllustratedMessage name="UnableToLoad" />
+    }
+
     const renderData = () => {
-        if (loading) {
-            return <ui5.IllustratedMessage name="UnableToLoad" />
-        }
-
-        if (error) {
-            onSecretChanged(formatSecretText("", ""));
-            return <ui5.IllustratedMessage name="UnableToLoad" />
-        }
-
+        
         // @ts-ignore
         if (!Ok(secrets) || !Ok(secrets.items)) {
             return <ui5.MenuItem text={formatSecretText("", "")} />
@@ -132,7 +129,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
 
 function formatSecretText(secretName: string, secretNamespace: string) {
     if (secretName === "" || secretNamespace === "") {
-        return "No secret found"
+        return ""
     }
     return `${secretName} in (${secretNamespace})`;
 }

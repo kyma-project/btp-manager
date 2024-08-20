@@ -3,11 +3,14 @@ import Secrets from "./SecretsView";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { ObjectPage, Title } from "@ui5/webcomponents-react";
+import { useState } from "react";
 
 
-function Layout({ onSecretChanged, title }: {  onSecretChanged: (secret: string) => void, title: string }) {
+function Layout({ onSecretChanged, title }: { onSecretChanged: (secret: string) => void, title: string }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const [secretsLoaded, setSecretsLoaded] = useState(false);
+
     return (
         <>
 
@@ -24,50 +27,60 @@ function Layout({ onSecretChanged, title }: {  onSecretChanged: (secret: string)
 
             <div className="flex-container flex-row">
                 <>
-                    <div className="margin-wrapper">
+                    {secretsLoaded &&
+                        <div className="margin-wrapper">
 
-                        <ui5.SideNavigation>
-                            <ui5.SideNavigationItem
-                                text="Marketplace"
-                                icon="puzzle"
-                                selected={!!matchPath(
-                                    location.pathname,
-                                    '/offerings'
-                                )
-                                }
-                                onClick={() => {
-                                    navigate("/offerings");
-                                }}
-                            />
+                            <ui5.SideNavigation>
+                                <ui5.SideNavigationItem
+                                    text="Marketplace"
+                                    icon="puzzle"
+                                    selected={!!matchPath(
+                                        location.pathname,
+                                        '/offerings'
+                                    )
+                                    }
+                                    onClick={() => {
+                                        navigate("/offerings");
+                                    }}
+                                />
 
-                            <ui5.SideNavigationItem
-                                text="Service Instances"
-                                icon="connected"
-                                selected={!!matchPath(
-                                    location.pathname,
-                                    '/instances'
-                                )
-                                }
-                                onClick={() => {
-                                    navigate("/instances");
-                                }}
-                            >
+                                <ui5.SideNavigationItem
+                                    text="Service Instances"
+                                    icon="connected"
+                                    selected={!!matchPath(
+                                        location.pathname,
+                                        '/instances'
+                                    )
+                                    }
+                                    onClick={() => {
+                                        navigate("/instances");
+                                    }}
+                                >
 
-                            </ui5.SideNavigationItem>
-                        </ui5.SideNavigation>
-                    </div>
+                                </ui5.SideNavigationItem>
+                            </ui5.SideNavigation>
+                        </div>
+                    }
 
                     <div className="margin-wrapper main-column">
 
                         <ObjectPage className="scrollable flex-column"
                             headerTitle={
                                 <>
-                                    <Title level="H2">{title}</Title>
-                                    <Secrets onSecretChanged={(secret: string) => onSecretChanged(secret)} />
+                                    {secretsLoaded &&
+                                        <Title level="H2">{title}</Title>
+                                    }
+                                    <Secrets onSecretChanged={(secret: string) => {
+                                        onSecretChanged(secret)
+                                        setSecretsLoaded(secret !== "");
+                                    }
+                                    } />
                                 </>
                             }
                         >
-                            <Outlet />
+                            {secretsLoaded &&
+                                <Outlet />
+                            }
                         </ObjectPage>
                     </div>
                 </>
