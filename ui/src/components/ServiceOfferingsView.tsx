@@ -42,6 +42,7 @@ function ServiceOfferingsView(props: any) {
                 )
                 .then((response) => {
                     setLoading(false);
+                    setError(null);
                     setOfferings(response.data);
                 })
                 .catch((error) => {
