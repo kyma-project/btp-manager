@@ -18,6 +18,7 @@ import (
 	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -221,6 +222,16 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 	err := json.NewDecoder(request.Body).Decode(serviceBindingRequest)
 	if err != nil {
 		a.handleError(writer, err)
+		return
+	}
+	secretExists, err := a.secretExists(serviceBindingRequest.SecretName, serviceBindingRequest.SecretNamespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	if secretExists {
+		secretExistsErr := fmt.Errorf("secret \"%s\" in \"%s\" namespace already exists", serviceBindingRequest.SecretName, serviceBindingRequest.SecretNamespace)
+		a.handleError(writer, secretExistsErr, http.StatusConflict)
 		return
 	}
 	si, err := a.smClient.ServiceInstance(serviceBindingRequest.ServiceInstanceID)
@@ -437,6 +448,17 @@ func (a *API) ServiceBindingsSecrets(sbs *types.ServiceBindings) responses.Servi
 	}
 
 	return serviceBindingsSecrets
+}
+
+func (a *API) secretExists(secretName, secretNamespace string) (bool, error) {
+	existingSecret, err := a.secretManager.GetByNameAndNamespace(context.Background(), secretName, secretNamespace)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return existingSecret != nil && existingSecret.Name == secretName && existingSecret.Namespace == secretNamespace, nil
 }
 
 func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBinding, createSBRequest *requests.CreateServiceBinding) (*corev1.Secret, error) {
