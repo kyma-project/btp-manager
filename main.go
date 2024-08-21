@@ -102,7 +102,7 @@ func main() {
 	sp := getSecretProvider(restCfg)
 	sm := setupSMClient(sp, signalContext)
 	api := api.NewAPI(cfg, sm.Client, sp, ui.NewUIStaticFS())
-	//test
+
 	// start components
 	go mgr.start()
 	go sm.start()
