@@ -33,6 +33,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
     if (dialogRef.current) {
       // @ts-ignore
       dialogRef.current.close();
+      setInstance(undefined);
     }
   };
 
@@ -48,8 +49,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
 
     setInstance(props.instance);
 
-    setLoading(true)
-
     setLoading(false)
 
   }, [props.instance]);
@@ -59,7 +58,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
     if (loading) {
       return <ui5.BusyIndicator
         active
-        delay={1000}
+        delay={1}
         size="Medium"
       />
     }
@@ -72,6 +71,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
       <ui5.Dialog
         style={{ width: "50%" }}
         ref={dialogRef}
+        onAfterClose={handleClose}
         header={
           <ui5.Bar
             design="Header"

@@ -23,6 +23,7 @@ function ServiceInstancesView(props: any) {
   let { id } = useParams();
 
   useEffect(() => {
+    setLoading(true)
     if (!Ok(props.setTitle)) {
       return;
     }
@@ -36,18 +37,15 @@ function ServiceInstancesView(props: any) {
       }
       const secretText = splitSecret(props.secret);
       if (Ok(secretText)) {
-        setLoading(true)
         axios
           .get<ServiceOfferings>(
             api(`service-offerings/${secretText.namespace}/${secretText.secret_name}`)
           )
           .then((response) => {
-            setLoading(false);
             setOfferings(response.data);
             axios
               .get<ServiceInstances>(api("service-instances"))
               .then((response) => {
-                setLoading(false);
                 setServiceInstances(response.data);
                 if (id) {
                   const instance = response.data.items.find((instance) => instance.id === id);
@@ -55,6 +53,7 @@ function ServiceInstancesView(props: any) {
                     openPortal(instance);
                   }
                 }
+                setLoading(false);
               })
               .catch((error) => {
                 setLoading(false);
@@ -65,19 +64,19 @@ function ServiceInstancesView(props: any) {
             setLoading(false);
             setError(error);
           });
-        setLoading(false)
       } 
     } else {
       setLoading(true)
       setServiceInstances(serviceInstancesData)
       setLoading(false);
     }
-  }, [id, props.secret]);
+  }, [id, props, props.secret]);
 
+    
   if (loading) {
     return <ui5.BusyIndicator
       active
-      delay={1000}
+      delay={1}
       size="Medium"
     />
   }
@@ -109,10 +108,14 @@ function ServiceInstancesView(props: any) {
   }
 
   const renderData = () => {
+    
     // @ts-ignore
     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
       return <ui5.IllustratedMessage name="NoEntries" />
     }
+
+
+
     return serviceInstances?.items.map((instance, index) => {
 
 
@@ -186,6 +189,7 @@ function ServiceInstancesView(props: any) {
         </ui5.Table>
       </ui5.Card>
       {createPortal(<ServiceInstancesDetailsView instance={selectedInstance} ref={dialogRef} />, document.getElementById("App")!!)}
+
     </>
   );
 }

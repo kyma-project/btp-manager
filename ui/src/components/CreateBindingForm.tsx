@@ -89,7 +89,7 @@ function CreateBindingForm(props: any) {
     if (loading) {
       return <ui5.BusyIndicator
         active
-        delay={1000}
+        delay={1}
         size="Medium"
       />
     }
