@@ -59,17 +59,23 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 setLoading(false);
                 setSecrets(response.data);
                 if (Ok(response.data) && Ok(response.data.items)) {
-                    const secret = formatSecretText(selectedSecretName, selectedSecretNamespace)                
-                    onSecretChanged(secret);
-                    setSelectedSecret(secret);
-                    axios
-                        .get<ServiceOfferings>(api(`service-offerings/${selectedSecretNamespace}/${selectedSecretName}`))
-                        .then(() => {
-                            setSecretConnection(true);
-                        })
-                        .catch(() => {
-                            setSecretConnection(false);
-                        });
+                    const secret = formatSecretText(selectedSecretName, selectedSecretNamespace);
+                    const containsSelectedSecret = response.data.items.some(item => item.name === selectedSecretName && item.namespace === selectedSecretNamespace);
+                    if (containsSelectedSecret) {
+                        onSecretChanged(secret);
+                        setSelectedSecret(secret);
+                        axios
+                            .get<ServiceOfferings>(api(`service-offerings/${selectedSecretNamespace}/${selectedSecretName}`))
+                            .then(() => {
+                                setSecretConnection(true);
+                            })
+                            .catch(() => {
+                                setSecretConnection(false);
+                            });
+                    } else {
+                        onSecretChanged(formatSecretText("", ""));
+                    }                
+                    
                 } else {
                     onSecretChanged(formatSecretText("", ""));
                 }
@@ -84,7 +90,6 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
             setLoading(false);
     }, [onSecretChanged]);
     
-
     const fetchSecrets = () => {
         setLoading(true);
         axios
