@@ -47,13 +47,19 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
   }
 
   useEffect(() => {
+    setLoading(true)
     if (!Ok(props.instance)) {
+      setServiceInstanceBindings(new ServiceInstanceBindings());
+      return;
+    }
+
+    if (!Ok(props.instance.id)) {
+      setServiceInstanceBindings(new ServiceInstanceBindings());
       return;
     }
 
     var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
-      setLoading(true)
       axios
         .get<ServiceInstanceBindings>(api("service-bindings"),
           { params: { service_instance_id: props.instance.id } }
@@ -61,17 +67,18 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
         .then((response) => {
           if (Ok(response.data)) {
             setServiceInstanceBindings(response.data);
+          } else {
+            setServiceInstanceBindings(new ServiceInstanceBindings()); 
           }
-          setLoading(false);
           setError(undefined);
+          setLoading(false);
         })
         .catch((error) => {
-          setLoading(false);
           setError(error);
+          setLoading(false);
         });
       setLoading(false)
     } else {
-      setLoading(true)
       setServiceInstanceBindings(serviceInstancesData)
       setLoading(false);
     }
@@ -80,7 +87,7 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
   if (loading) {
     return <ui5.BusyIndicator
       active
-      delay={1000}
+      delay={1}
       size="Medium"
     />
   }
