@@ -27,7 +27,6 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 setSecrets(response.data);
                 if (Ok(response.data) && Ok(response.data.items)) {
                     const secret = formatSecretText(response.data.items[0].name, response.data.items[0].namespace)                
-                    onSecretChanged(secret);
                     setSelectedSecret(secret);
                     axios
                         .get<ServiceOfferings>(api(`service-offerings/${response.data.items[0].namespace}/${response.data.items[0].name}`))
@@ -37,15 +36,12 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                         .catch(() => {
                             setSecretConnection(false);
                         });
-                } else {
-                    onSecretChanged(formatSecretText("", ""));
-                }
+                } 
             })
             .catch((error) => {
                 setLoading(false);
                 setError(error);
                 setSecrets(undefined);
-                onSecretChanged(formatSecretText("", ""));
             });    
             setLoading(false);
     }, []);
@@ -88,7 +84,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
             });
         
             setLoading(false);
-    }, [onSecretChanged]);
+    }, [onSecretChanged, selectedSecretName, selectedSecretNamespace]);
     
     const fetchSecrets = () => {
         setLoading(true);
