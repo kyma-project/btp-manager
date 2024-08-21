@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"testing"
@@ -553,6 +555,45 @@ func TestAPI(t *testing.T) {
 		// then
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		fakeSM.RespondWithData()
+	})
+
+	t.Run("POST Service Binding 409 error", func(t *testing.T) {
+		// given
+		secretName, secretNamespace := "sb-test-01-secret", "default"
+		sbCreateRequest := requests.CreateServiceBinding{
+			Name:              "sb-test-01",
+			ServiceInstanceID: "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+			Parameters:        []byte(`{"param1": "value1", "param2": "value2"}`),
+			SecretName:        secretName,
+			SecretNamespace:   secretNamespace,
+		}
+		sbCreateRequestJSON, err := json.Marshal(sbCreateRequest)
+		require.NoError(t, err)
+
+		existingSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: secretNamespace,
+			},
+			StringData: map[string]string{"foo": "bar"},
+		}
+		require.NoError(t, secretMgr.Create(context.TODO(), existingSecret))
+
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		require.NoError(t, err)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		defer resp.Body.Close()
+		msgBytes, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusConflict, resp.StatusCode)
+		assert.Contains(t, fmt.Sprintf("secret \"%s\" in \"%s\" namespace already exists", secretName, secretNamespace), string(msgBytes))
+
+		// cleanup
+		err = secretMgr.Delete(context.TODO(), existingSecret)
 	})
 
 	t.Run("DELETE Service Binding by ID", func(t *testing.T) {
