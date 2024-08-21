@@ -76,20 +76,20 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
 	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
 	router.HandleFunc("DELETE /api/service-bindings/{id}", a.DeleteServiceBinding)
-	
-    router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        if r.URL.Path != "/" {
-            fullPath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-            _, err := a.frontendFS.Open(fullPath)
-            if err != nil {
-                if !os.IsNotExist(err) {
-                    panic(err)
-                }
-                r.URL.Path = "/"
-            }
-        }
-        http.FileServer(a.frontendFS).ServeHTTP(w, r)
-    })
+
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			fullPath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+			_, err := a.frontendFS.Open(fullPath)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					panic(err)
+				}
+				r.URL.Path = "/"
+			}
+		}
+		http.FileServer(a.frontendFS).ServeHTTP(w, r)
+	})
 }
 
 func (a *API) Address() string {
