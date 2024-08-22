@@ -1,4 +1,4 @@
-name: pull-btp-manager-build-ga
+name: pull-btp-manager-build
 
 on:
    pull_request_target:
@@ -12,6 +12,6 @@ jobs:
    build-image:
       uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
       with: 
-         name: btp-manager/ga
-         dockerfile: Dockerfile.ga
+         name: btp-manager
+         dockerfile: Dockerfile
          context: .
