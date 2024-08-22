@@ -1,13 +1,15 @@
 # Service Binding Custom Resource
 
-The `servicebindings.services.cloud.sap.com` CustomResourceDefinition (CRD) is a comprehensive specification that defines the structure and format used to configure resources.
+The `servicebindings.services.cloud.sap.com` CustomResourceDefinition (CRD) is a comprehensive specification that defines the structure and format used to configure a ServiceBinding resource.
 
-<!--see CRD https://github.com/SAP/sap-btp-service-operator/blob/main/config/crd/bases/services.cloud.sap.com_servicebindings.yaml -->
+To get the latest CRD in the YAML format, run the following command:
 
+```shell
+kubectl get crd servicebindings.services.cloud.sap.com -o yaml
+```
 
-## Sample Custom Resource
-<!--don't think this is a good sample comparing to the list of parameters below-->
-<!--do we actually need this sample?-->
+## Example Custom Resource
+
 ```yaml
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding

@@ -2,18 +2,15 @@
 
 The SAP BTP Operator module supports multi-subaccount configurations in a single cluster.
 
-To apply the multitenancy feature, choose the method that suits your needs and application architecture better: <!--is the relative clause necessary? choose one of the following methods-->
-* Namespace-based mapping: Connect different <!--why different??--> namespaces to separate subaccounts by configuring dedicated credentials for each namespace.
-* <!--Explicit?--> Instance-level mapping: Define a specific subaccount for each service instance, regardless of the namespace context.
+To apply the multitenancy feature, choose the method that suits your needs and application architecture better: 
+* Namespace-based mapping: Connect namespaces to separate subaccounts by configuring dedicated credentials for each namespace.
+* Instance-level mapping: Define a specific subaccount for each service instance, regardless of the namespace context.
 
-Both can be achieved through dedicated secrets managed in the `kyma-system` namespace. <!--kyma-system??-->
-<!--the note is irrelevant, right? https://github.com/SAP/sap-btp-service-operator?tab=readme-ov-file#working-with-multiple-subaccounts-->
+Both can be achieved through dedicated secrets managed in the `kyma-system` namespace.
 
 ### Namespace-Based Mapping
 
-To connect a namespace to a specific subaccount, maintain access credentials to this subaccount in a Secret dedicated to the specific namespace. Define the `<namespace-name>-sap-btp-service-operator` Secret in the `kyma-system` namespace. <!--kyma-system??-->
-<!--do we need to include the default vesion? shouldn't we change something in the code block?-->
-<!--centrally-managed-namespace or kyma-system in the code below???-->
+To connect a namespace to a specific subaccount, maintain access credentials to this subaccount in a Secret dedicated to the specific namespace. Define the `<namespace-name>-sap-btp-service-operator` Secret in the `kyma-system` namespace. 
 mTLS <!--why does mTLS -mutual Transport Layer Security- pop up here without any prior mention?--> Access Credentials
 ```yaml
 apiVersion: v1
@@ -34,7 +31,7 @@ stringData:
 ### Instance-Level Mapping
 
 To deploy service instances belonging to different subaccounts within the same namespace, follow these steps:
-1. Define a new Secret <!--? or Store access credentials?-->: Securely store access credentials for each subaccount in a separate Secret <!--or Secret resources?--> in the the in the `kyma-system` namespace. <!--kyma-system??--> 
+1. Define a new Secret <!--? or Store access credentials?-->: Securely store access credentials for each subaccount in a separate Secret <!--or Secret resources?--> in the `kyma-system` namespace. <!--kyma-system??--> 
 
     mTLS Access Credentials
 <!--do we need to include the default vesion? shouldn't we change something in the code block?-->

@@ -1,39 +1,43 @@
 # Manage the Lifecycle of Service Instances and Service Bindings
 
-Use the SAP BTP Operator module to manage the lifecycle of service instances and service bindings.
+Use the SAP BTP Operator module to manage the lifecycle of service instances and service bindings in the Kyma environment.
 
 <!--it's very similar to 04-30-deploy-service-in-cluster.md, so maybe one should be for the OS and the other for commercial customers? There's also Using SAP BTP Services in the Kyma Environment: https://help.sap.com/docs/btp/sap-business-technology-platform/using-sap-btp-services-in-kyma-environment-->
 
 ## Create a Service Instance
 
-1.  To create an instance of a SAP BTP service, create a ServiceInstance custom resource file:
+1.  To create an instance of an SAP BTP service, create a ServiceInstance custom resource file following this example:
 
     ```yaml
         apiVersion: services.cloud.sap.com/v1
         kind: ServiceInstance
         metadata:
-            name: my-service-instance
+            name: {INSTANCE_NAME}
         spec:
-            serviceOfferingName: sample-service
-            servicePlanName: sample-plan
-            externalName: my-service-btp-name
+            serviceOfferingName: {NAME_FROM_SERVICE_MARKETPLACE}
+            servicePlanName: {PLAN_FROM_SERVICE_MARKETPLACE}
+            externalName: {INSTANCE_NAME}
             parameters:
-            key1: val1
-            key2: val2
+              key1: val1
+              key2: val2
     ```
-
+<!-- in the HP, there's also namespace: {NAMESPACE} under the name; shouldn't it be added here?-->
 1.  Apply the custom resource file in your cluster to create the service instance.
 
     ```bash
     kubectl apply -f path/to/my-service-instance.yaml
     ```
-
-2.  Check the service's status in your cluster. The expected result is **Created**.
+<!-- how to add {INSTANCE_NAME} here? maybe: ??-->
+```bash
+kubectl apply -f path/to/{INSTANCE_NAME}.yaml
+```
+<!-- REMOVE ONE OF THE OPTIONS!!!!!!-->
+1.  Check the service's status in your cluster. The expected result is **Created**.
 
     ```bash
     kubectl get serviceinstances
     NAME                  OFFERING          PLAN        STATUS    AGE
-    my-service-instance   <offering>        <plan>      Created   44s
+    {INSTANCE_NAME}       <offering>        <plan>      Created   44s
     ```
 
 ## Service Binding
@@ -48,16 +52,16 @@ See the structure of the ServiceBinding CR:
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: sample-binding
+  name: {BINDING_NAME}
 spec:
-  serviceInstanceName: sample-instance
-  externalName: my-binding-external
+  serviceInstanceName: {INSTANCE_NAME}
+  externalName: {BINDING_NAME}
   secretName: my-secret
   parameters:
     key1: val1
     key2: val2      
 ```
-
+<!--WHAT ABOUT secretName: my secret? In HP it's secretName:{BINDING_NAME}; should it be the same here???-->
 ### Create a Service Binding
 
 1.  Apply the custom resource file in your cluster to create the service binding:
@@ -65,13 +69,17 @@ spec:
     ```bash
     kubectl apply -f path/to/my-binding.yaml
     ```
-
+    <!--OR:???-->
+    ```bash
+    kubectl apply -f path/to/{BINDING_NAME}.yaml
+    ```
+    <!-- REMOVE ONE OF THE OPTIONS!!!!!!-->
 2.  Verify that your service binding status is **Created** before you proceed:
 
     ```bash
     kubectl get servicebindings
-    NAME         INSTANCE              STATUS    AGE
-    my-binding   my-service-instance   Created   16s
+    NAME             INSTANCE              STATUS    AGE
+    {BINDING_NAME}   {INSTANCE_NAME}       Created   16s
     
     ```
 
@@ -82,12 +90,22 @@ spec:
     NAME         TYPE     DATA   AGE
     my-secret   Opaque   5      32s
     ```
-    
-    See [Using Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets) to learn about different options on how to use the credentials from your application running in the Kubernetes cluster.
+    <!--WHAT ABOUT secretName: my secret?-->
+    See [Uses for Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#uses-for-secrets) to learn about different options on how to use the credentials from your application running in the Kubernetes cluster.
 
-### Update <!-- if relevant-->
 
-### Delete Service Instances
+### Delete Service Instances and Service Bindings
 
-When you delete a Kyma cluster, ensure that you first delete all the associated service instances and service bindings using Kyma dashboard. Otherwise, the deletion of your cluster is blocked.
-If your free tier service or trial cluster expired and you did not delete the service instances and bindings connected to it, you can still find the cluster credentials in the Service Manager details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings. <!--how??-->
+When you delete a Kyma cluster, ensure that you first delete all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace. Otherwise, the deletion of your cluster is blocked.
+If your free tier service or trial cluster expires and you do not delete the service instances and bindings connected to it, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings. <!--CreatedBy
+:
+CIS-->
+
+ <!--add instructions on how to delete a cluster?? SIs and SBs???-->
+To delete a service instance and service binding, use the following commands:
+
+```bash
+kubectl delete servicebindings.services.cloud.sap.com {BINDING_NAME}
+kubectl delete serviceinstances.services.cloud.sap.com {INSTANCE_NAME}
+```
+<!--link do preconfigured credentials or related info??-->

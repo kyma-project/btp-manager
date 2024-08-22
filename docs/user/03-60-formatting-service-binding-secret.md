@@ -3,7 +3,7 @@
 Use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 
 Secret resources share a common set of basic parameters that can be divided into two categories:
-* Credentials returned from the broker <!--what broker?-->: They allow your application to access and consume a SAP BTP service.
+* Credentials returned from the service broker: They allow your application to access and consume a SAP BTP service.
 * Attributes of the associated service instance: The details of the service instance itself.
 
 However, the Secret resources can come in various formats:

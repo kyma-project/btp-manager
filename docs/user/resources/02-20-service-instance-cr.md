@@ -1,12 +1,15 @@
 # Service Instance Custom Resource
 
-The `serviceinstances.services.cloud.sap.com` CustomResourceDefinition (CRD) is a comprehensive specification that defines the structure and format used to configure resources.
+The `serviceinstances.services.cloud.sap.com` CustomResourceDefinition (CRD) is a comprehensive specification that defines the structure and format used to configure a ServiceInstance resource.
 
-<!--see CRD https://github.com/SAP/sap-btp-service-operator/blob/main/config/crd/bases/services.cloud.sap.com_serviceinstances.yaml -->
+To get the latest CRD in the YAML format, run the following command:
 
-## Sample Custom Resource
-<!--don't think this is a good sample comparing to the list of parameters below-->
-<!--do we actually need this sample?-->
+```shell
+kubectl get crd serviceinstances.services.cloud.sap.com -o yaml
+```
+
+## Example Custom Resource
+
 ```yaml
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceInstance
@@ -34,9 +37,9 @@ The following table lists the parameters of the given resource with their descri
 | **externalName**         | string   | The name for the service instance in SAP BTP; if not specified, defaults to the instance **metadata.name**. |
 | **parameters**           | []object | Some services support the provisioning of additional configuration parameters during the instance creation.<br/>For the list of supported parameters, check the documentation of the particular service offering. |
 | **parametersFrom**       | []object | List of sources that parameters are populated from. <!--List of sources to populate parameters.??--> |
-| **customTags**           | []string | List of custom tags describing the service instance; copied to the `ServiceBinding` Secret in the key called **tags**. |
+| **customTags**           | []string | List of custom tags describing the service instance; copied to the ServiceBinding Secret in the key called **tags**. |
 | **userInfo**             | object   | Contains information about the user that last modified this service instance. |
-| **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or `nil`.<br> If not specified, the value is `false`. |
+| **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or nil`<!--shouldn't this be: or none/unknown, no nil in the code --> <br> (If not specified, the value defaults to`false`). |<--check that against https://github.com/SAP/sap-btp-service-operator/blob/main/README.md#reference-documentation -->
 | **btpAccessCredentialsSecret** | string   | The name of the secret that contains access credentials for the SAP BTP service operator. See [Working with Multiple Subaccounts](../03-30-multitenancy.md). |
 
 **Status:**
@@ -49,4 +52,17 @@ The following table lists the parameters of the given resource with their descri
 | **conditions**   | []condition | An array of conditions describing the status of the service instance.<br/>The possible condition types are:<br>* `Ready:true` if the instance is ready and usable<br/>* `Failed:true` when an operation on the service instance fails.<br/> In the case of failure, the details about the error are available in the condition message.<br>* `Succeeded:true` when an operation on the service instance succeeded. If set to `false`, it is considered as in progress unless a `Failed` condition exists.<br>* `Shared:true` when sharing of the service instance succeeded. If set to `false`, unsharing of the service instance succeeded or the service instance is not shared. |
 | **tags**       | []string   | Tags describing the service instance as provided in the service catalog; it's copied to the `ServiceBinding` Secret in the key called **tags**.|
 
-<!--should I also add Annotations: https://github.com/SAP/sap-btp-service-operator/blob/main/README.md#annotations?-->
+### Status
+| Parameter         | Type     | Description                                                                                                   |
+|:-----------------|:---------|:-----------------------------------------------------------------------------------------------------------|
+| instanceID   | string | The service instance ID in SAP Service Manager service.  |
+| operationURL | string | The URL of the current operation performed on the service instance.  |
+| operationType   |  string| The type of the current operation. Possible values are CREATE, UPDATE, or DELETE. |
+| conditions       | []condition | An array of conditions describing the status of the service instance.<br/>The possible condition types are:<br>* `Ready:true`  if the instance is ready and usable<br/>* `Failed:true` when an operation on the service instance fails.<br/> In the case of failure, the details about the error are available in the condition message.<br>* `Succeeded:true` when an operation on the service instance succeeded. In case of state `false`, the operation is considered to be in progress unless a `Failed` condition exists.<br>* `Shared:true` when sharing of the service instance succeeded. set to `false` when unsharing of the service instance succeeded or when the service instance is not shared. |
+| tags       | []string | Tags describing the service instance as provided in the service catalog, will be copied to the ServiceBinding Secret in the key called `tags`.|
+
+## Annotations
+
+| Parameter         | Type                 | Description                                                                                                                                                                                                     |
+|-----------------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| services.cloud.sap.com/preventDeletion   | map[string] string | You can prevent deletion of any service instance by adding the following annotation: `services.cloud.sap.com/preventDeletion : "true"`.<br>To enable back the deletion of the instance, either remove the annotation or set it to `false`. |
