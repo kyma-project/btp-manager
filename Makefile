@@ -69,7 +69,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: test
-test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run tests.
+test: manifests kustomize generate ui-build fmt vet envtest ginkgo test-docs ## Run tests.
 	@. ./scripts/testing/set-env-vars.sh; \
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
 	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
@@ -192,10 +192,26 @@ go-lint-install: ## linter config in file at root of project -> '.golangci.yaml'
 	fi;
 
 .PHONY: go-lint
-go-lint: go-lint-install ## linter config in file at root of project -> '.golangci.yaml'
+go-lint: ui-build go-lint-install ## linter config in file at root of project -> '.golangci.yaml'
 	golangci-lint run --timeout=$(GOLINT_TIMEOUT)
 
 .PHONY: fix
 fix: go-lint-install ## try to fix automatically issues
 	go mod tidy
 	golangci-lint run --fix
+
+.PHONE: app
+app: ## Run the app
+	go run main.go
+
+.PHONY: ui
+ui: ## Run the ui
+	cd ui && npm install && npm start
+
+.PHONE: webapp
+webapp: ## Run App and UI
+	 @$(MAKE) -j ui app
+
+.PHONY: ui-build
+ui-build: ## Build the UI
+	cd ui && npm install && npm run build

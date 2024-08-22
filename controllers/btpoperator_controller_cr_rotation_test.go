@@ -110,8 +110,8 @@ var _ = Describe("BTP Operator CR leader replacement", func() {
 				Eventually(func() error { return k8sClient.Create(ctx, btpOperator1) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 				Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
-				siUnstructured := createResource(instanceGvk, kymaNamespace, instanceName)
-				ensureResourceExists(instanceGvk)
+				siUnstructured := createResource(InstanceGvk, kymaNamespace, instanceName)
+				ensureResourceExists(InstanceGvk)
 
 				sbUnstructured := createResource(bindingGvk, kymaNamespace, bindingName)
 				ensureResourceExists(bindingGvk)

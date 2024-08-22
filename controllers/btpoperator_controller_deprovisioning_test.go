@@ -49,8 +49,8 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 		})
 
 		It("Delete should fail because of existing instances and bindings", func() {
-			_ = createResource(instanceGvk, kymaNamespace, instanceName)
-			ensureResourceExists(instanceGvk)
+			_ = createResource(InstanceGvk, kymaNamespace, instanceName)
+			ensureResourceExists(InstanceGvk)
 
 			_ = createResource(bindingGvk, kymaNamespace, bindingName)
 			ensureResourceExists(bindingGvk)
@@ -78,8 +78,8 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).Should(Succeed())
 
-			siUnstructured = createResource(instanceGvk, kymaNamespace, instanceName)
-			ensureResourceExists(instanceGvk)
+			siUnstructured = createResource(InstanceGvk, kymaNamespace, instanceName)
+			ensureResourceExists(InstanceGvk)
 
 			sbUnstructured = createResource(bindingGvk, kymaNamespace, bindingName)
 			ensureResourceExists(bindingGvk)
