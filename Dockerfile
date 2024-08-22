@@ -1,7 +1,7 @@
 # Build UI static files
 FROM node:22.3.0 as ui-builder
 
-WORKDIR /workspace
+WORKDIR /btp-manager-workspace
 
 COPY ui/package.json ./
 RUN npm install
@@ -24,7 +24,7 @@ RUN go mod download
 COPY . ./
 
 # Copy UI static files
-COPY --from=ui-builder /workspace/build ui/build
+COPY --from=ui-builder /btp-manager-workspace/build ui/build
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
