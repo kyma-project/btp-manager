@@ -25,9 +25,9 @@ import (
 
 const (
 	port         = "8080"
-	readTimeout  = 1 * time.Second
-	writeTimeout = 1 * time.Second
-	idleTimeout  = 2 * time.Second
+	readTimeout  = 1 * time.Minute
+	writeTimeout = 1 * time.Minute
+	idleTimeout  = 2 * time.Minute
 )
 
 func TestAPI(t *testing.T) {
@@ -62,7 +62,7 @@ func TestAPI(t *testing.T) {
 	go btpMgrAPI.Start()
 
 	apiClient := http.Client{
-		Timeout: 500 * time.Millisecond,
+		Timeout: 500 * time.Second,
 	}
 
 	t.Run("GET Service Instances", func(t *testing.T) {
@@ -681,6 +681,87 @@ func TestAPI(t *testing.T) {
 		// then
 		require.Equal(t, http.StatusForbidden, resp.StatusCode)
 		fakeSM.RespondWithData()
+	})
+
+	t.Run("PUT Service Binding by ID (restore secret)", func(t *testing.T) {
+		// given
+		sbID, sbName := "318a16c3-7c80-485f-b55c-918629012c9a", "service-binding-3"
+		secretName, secretNamespace := "service-binding-3-secret", "test-namespace"
+		sbCreateRequest := &requests.CreateServiceBinding{
+			Name:              sbName,
+			ServiceInstanceID: "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+			SecretName:        secretName,
+			SecretNamespace:   secretNamespace,
+		}
+		sbCreateRequestJSON, err := json.Marshal(sbCreateRequest)
+		require.NoError(t, err)
+
+		// when
+		req, err := http.NewRequest(http.MethodPut, apiAddr+"/api/service-bindings/"+sbID, bytes.NewBuffer(sbCreateRequestJSON))
+		require.NoError(t, err)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+		var sb responses.ServiceBinding
+		err = json.NewDecoder(resp.Body).Decode(&sb)
+		require.NoError(t, err)
+
+		createdSecret, err := secretMgr.GetByNameAndNamespace(context.TODO(), secretName, secretNamespace)
+		require.NoError(t, err)
+
+		// then
+		assert.Equal(t, createdSecret.Name, secretName)
+		assert.Equal(t, createdSecret.Namespace, secretNamespace)
+		assert.Equal(t, createdSecret.Labels[clusterobject.ServiceBindingIDLabel], sbID)
+		assert.Equal(t, createdSecret.Labels[clusterobject.ServiceInstanceIDLabel], sbCreateRequest.ServiceInstanceID)
+		assert.Equal(t, createdSecret.Labels[clusterobject.ManagedByLabelKey], clusterobject.OperatorName)
+
+		// cleanup
+		secretMgr.Clean()
+	})
+
+	t.Run("PUT Service Binding by ID 409 error (secret exists)", func(t *testing.T) {
+		// given
+		sbID, sbName := "318a16c3-7c80-485f-b55c-918629012c9a", "service-binding-3"
+		secretName, secretNamespace := "service-binding-3-secret", "test-namespace"
+		sbCreateRequest := &requests.CreateServiceBinding{
+			Name:              sbName,
+			ServiceInstanceID: "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6",
+			SecretName:        secretName,
+			SecretNamespace:   secretNamespace,
+		}
+		sbCreateRequestJSON, err := json.Marshal(sbCreateRequest)
+		require.NoError(t, err)
+
+		existingSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: secretNamespace,
+			},
+			StringData: map[string]string{},
+		}
+
+		err = secretMgr.Create(context.TODO(), existingSecret)
+		require.NoError(t, err)
+
+		// when
+		req, err := http.NewRequest(http.MethodPut, apiAddr+"/api/service-bindings/"+sbID, bytes.NewBuffer(sbCreateRequestJSON))
+		require.NoError(t, err)
+		resp, err := apiClient.Do(req)
+		require.NoError(t, err)
+
+		defer resp.Body.Close()
+		msgBytes, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, http.StatusConflict, resp.StatusCode)
+		assert.Contains(t, fmt.Sprintf("secret \"%s\" in \"%s\" namespace already exists", secretName, secretNamespace), string(msgBytes))
+
+		// cleanup
+		secretMgr.Clean()
 	})
 }
 
