@@ -26,9 +26,9 @@ To create a release, follow these steps:
 3. If you chose in step 1.vi to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
 4. A code owner approves the PR. 
 5. The GitHub action creates a GitHub tag and draft release with the provided name.
-6. The GitHub action asynchronously initiates unit tests and the image builders.
-7. The Image builders upload the binary images.
-8. The GitHub action asynchronously initiates stress tests jobs and E2E tests jobs upon Prow job success status. E2E upgrade tests run only with real credentials for Service Manager.
+6. The GitHub action asynchronously initiates unit tests and the Image Builder.
+7. The Image Builder upload the binary image.
+8. The GitHub action asynchronously initiates stress tests jobs and E2E tests jobs upon Image Builder job success status. E2E upgrade tests run only with real credentials for Service Manager.
 9. The GitHub action runs E2E tests in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable. 
 10. If the unit tests, stress tests, and E2E tests are completed successfully and you have chosen to publish in step 1.vii, the GitHub action publishes the release.
 
