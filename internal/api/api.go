@@ -76,6 +76,7 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/service-bindings/{id}", a.GetServiceBinding)
 	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
 	router.HandleFunc("DELETE /api/service-bindings/{id}", a.DeleteServiceBinding)
+	router.HandleFunc("PUT /api/service-bindings/{id}", a.RestoreSecret)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -472,6 +473,61 @@ func (a *API) secretExists(secretName, secretNamespace string) (bool, error) {
 		return false, err
 	}
 	return existingSecret != nil && existingSecret.Name == secretName && existingSecret.Namespace == secretNamespace, nil
+}
+
+func (a *API) RestoreSecret(writer http.ResponseWriter, request *http.Request) {
+	a.setupCors(writer, request)
+	sbID := request.PathValue("id")
+	sb, err := a.smClient.ServiceBinding(sbID)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	serviceBindingRequest := &requests.CreateServiceBinding{}
+	err = json.NewDecoder(request.Body).Decode(serviceBindingRequest)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	secretExists, err := a.secretExists(serviceBindingRequest.SecretName, serviceBindingRequest.SecretNamespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	if secretExists {
+		secretExistsErr := fmt.Errorf("secret \"%s\" in \"%s\" namespace already exists", serviceBindingRequest.SecretName, serviceBindingRequest.SecretNamespace)
+		a.handleError(writer, secretExistsErr, http.StatusConflict)
+		return
+	}
+	si, err := a.smClient.ServiceInstance(serviceBindingRequest.ServiceInstanceID)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	secret, err := generateSecretFromSISBData(si, sb, serviceBindingRequest)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	sbVM, err := responses.ToServiceBindingVM(sb)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	err = a.secretManager.Create(context.Background(), secret)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	sbVM.SecretName = secret.Name
+	sbVM.SecretNamespace = secret.Namespace
+
+	response, err := json.Marshal(sbVM)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	a.sendResponse(writer, response, http.StatusCreated)
 }
 
 func generateSecretFromSISBData(si *types.ServiceInstance, sb *types.ServiceBinding, createSBRequest *requests.CreateServiceBinding) (*corev1.Secret, error) {
