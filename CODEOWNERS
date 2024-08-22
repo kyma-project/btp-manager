@@ -3,3 +3,6 @@
 
 # Owners of all .md files in the repository
 *.md @kyma-project/technical-writers
+
+# Temporary owners of 09-10-ui.md
+/docs/contributor/09-10-ui.md @kyma-project/gopher
