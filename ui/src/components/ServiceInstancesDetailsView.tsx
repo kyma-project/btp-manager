@@ -35,7 +35,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
       // @ts-ignore
       dialogRef.current.close();
       setInstance(undefined);
-      setSecret(undefined);
     }
   };
 
