@@ -29,21 +29,27 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                     const secret = formatSecretText(response.data.items[0].name, response.data.items[0].namespace)                
                     setSelectedSecret(secret);
                     axios
-                        .get<ServiceOfferings>(api(`service-offerings/${response.data.items[0].namespace}/${response.data.items[0].name}`))
+                        .get<ServiceOfferings>(api(`service-offerings/${response.data.items[0].namespace}/${response.data.items[0].name}`), {
+                            params:
+                            {
+                                secret_name: response.data.items[0].name,
+                                secret_namespace: response.data.items[0].namespace
+                            }
+                        })
                         .then(() => {
                             setSecretConnection(true);
                         })
                         .catch(() => {
                             setSecretConnection(false);
                         });
-                } 
+                }
             })
             .catch((error) => {
                 setLoading(false);
                 setError(error);
                 setSecrets(undefined);
-            });    
-            setLoading(false);
+            });
+        setLoading(false);
     }, []);
 
     useEffect(() => {
@@ -70,8 +76,8 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                             });
                     } else {
                         onSecretChanged(formatSecretText("", ""));
-                    }                
-                    
+                    }
+
                 } else {
                     onSecretChanged(formatSecretText("", ""));
                 }
@@ -82,10 +88,10 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 setSecrets(undefined);
                 onSecretChanged(formatSecretText("", ""));
             });
-        
-            setLoading(false);
+
+        setLoading(false);
     }, [onSecretChanged, selectedSecretName, selectedSecretNamespace]);
-    
+
     const fetchSecrets = () => {
         setLoading(true);
         axios
@@ -100,7 +106,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                 setSecrets(undefined);
                 onSecretChanged(formatSecretText("", ""));
             });
-            setLoading(false);
+        setLoading(false);
     };
 
     if (error) {
@@ -113,7 +119,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
     }
 
     const renderData = () => {
-        
+
         // @ts-ignore
         if (!Ok(secrets) || !Ok(secrets.items)) {
             return <ui5.MenuItem text={formatSecretText("", "")} />
@@ -141,18 +147,18 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                         }}
                         id="openMenu"
                     >
-                    Select a secret
+                        Select a secret
                     </Button>
 
                     <Menu
                         opener="openMenu"
-                        onAfterClose={function _a() {setIsOpen(false)}}
+                        onAfterClose={function _a() { setIsOpen(false) }}
                         onAfterOpen={function _a() { }}
                         onBeforeClose={function _a() { }}
                         onBeforeOpen={function _a() { }}
                         onItemClick={(event) => {
                             const secretName = event.detail.item.dataset.secretName;
-                            const secretNamespace = event.detail.item.dataset.secretNamespace;                           
+                            const secretNamespace = event.detail.item.dataset.secretNamespace;
                             if (secretName && secretNamespace) {
                                 setSelectedSecret(formatSecretText(secretName, secretNamespace));
                                 setSelectedSecretName(secretName);

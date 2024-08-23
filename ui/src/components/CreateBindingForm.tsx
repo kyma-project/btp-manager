@@ -35,12 +35,18 @@ function CreateBindingForm(props: any) {
         service_instance_id: createdBinding.service_instance_id,
         secret_name: createdBinding.secret_name,
         secret_namespace: createdBinding.secret_namespace
+      }, {
+        params:
+        {
+          secret_name: props.secret!!.name,
+          secret_namespace: props.secret!!.namespace
+        }
       })
       .then((response) => {
-        
+
         // propagate the created binding
         props.onCreate(response.data);
-        
+
         // reset binding
         const binding = new ServiceInstanceBinding()
         binding.name = props.instanceName
@@ -72,6 +78,10 @@ function CreateBindingForm(props: any) {
       return;
     }
 
+    if (!Ok(props.secret) || !Ok(props.secret.name) || !Ok(props.secret.namespace)) {
+      return;
+    }
+
     setLoading(true)
 
     setLoading(false)
@@ -82,7 +92,7 @@ function CreateBindingForm(props: any) {
     createdBinding.secret_namespace = "default"
     setCreatedBinding(createdBinding)
 
-  }, [createdBinding, props.instanceId, props.instanceName, props.onCreate]);
+  }, [createdBinding, props.instanceId, props.instanceName, props.onCreate, props.secret]);
 
   const renderData = () => {
 

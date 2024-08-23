@@ -1,6 +1,7 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import Ok from "../shared/validator";
 import {
+  Secret,
   ServiceOffering,
   ServiceOfferingDetails,
   ServiceOfferingPlan,
@@ -12,6 +13,7 @@ import CreateInstanceForm from "./CreateInstanceForm";
 
 function ServiceOfferingsDetailsView(props: any) {
   const [plan, setPlan] = useState<ServiceOfferingPlan>();
+  const [secret, setSecret] = useState<Secret>(new Secret());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [offering, setOffering] = useState<ServiceOffering>();
@@ -37,9 +39,21 @@ function ServiceOfferingsDetailsView(props: any) {
       return;
     }
 
+    if (!Ok(props.secret) || !Ok(props.secret.name) || !Ok(props.secret.namespace)) {
+      return;
+    }
+
+    setSecret(props.secret);
     setLoading(true);
     axios
-      .get<ServiceOfferingDetails>(api(`service-offerings/${props.offering.id}`))
+      .get<ServiceOfferingDetails>(api(`service-offerings/${props.offering.id}`),
+      {
+        params:
+        {
+          secret_name: secret!!.name,
+          secret_namespace: secret!!.namespace
+        }
+      })
       .then((response) => {
         setLoading(false);
         setDetails(response.data);
@@ -156,7 +170,7 @@ function ServiceOfferingsDetailsView(props: any) {
             </ui5.Form>
           </ui5.Panel>
           <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Create">
-            <CreateInstanceForm plan={plan} offering={props.offering} />
+            <CreateInstanceForm secret={secret} plan={plan} offering={props.offering} />
           </ui5.Panel>
         </ui5.Dialog>
       </>

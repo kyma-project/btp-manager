@@ -7,7 +7,7 @@ import Ok from "../shared/validator";
 import serviceInstancesData from '../test-data/service-bindings.json';
 import StatusMessage from "./StatusMessage";
 
-const ServiceBindingsList= forwardRef((props: any, ref) => {
+const ServiceBindingsList = forwardRef((props: any, ref) => {
   const [bindings, setServiceInstanceBindings] = useState<ServiceInstanceBindings>(new ServiceInstanceBindings());
 
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
 
   useImperativeHandle(ref, () => ({
 
-    add(binding : ServiceInstanceBinding) {
+    add(binding: ServiceInstanceBinding) {
       bindings?.items.push(binding);
       console.log(bindings)
       const newbindings = new ServiceInstanceBindings();
@@ -31,9 +31,14 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
     setLoading(true);
 
     axios
-      .delete(api("service-bindings") + "/" + id)
+      .delete(api("service-bindings") + "/" + id, {
+        params: {
+          secret_name: props.secret.name,
+          secret_namespace: props.secret.namespace
+        }
+      })
       .then((response) => {
-        bindings!!.items = bindings!!.items.filter(instance=> instance.id !== id)
+        bindings!!.items = bindings!!.items.filter(instance => instance.id !== id)
         setServiceInstanceBindings(bindings);
         setLoading(false);
         setError(undefined);
@@ -48,6 +53,12 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
 
   useEffect(() => {
     setLoading(true)
+
+    if (!Ok(props.secret) || !Ok(props.secret.name) || !Ok(props.secret.namespace)) {
+      setServiceInstanceBindings(new ServiceInstanceBindings());
+      return;
+    }
+
     if (!Ok(props.instance)) {
       setServiceInstanceBindings(new ServiceInstanceBindings());
       return;
@@ -57,18 +68,25 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
       setServiceInstanceBindings(new ServiceInstanceBindings());
       return;
     }
-
+  
     var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
       axios
         .get<ServiceInstanceBindings>(api("service-bindings"),
-          { params: { service_instance_id: props.instance.id } }
+          {
+            params:
+            {
+              service_instance_id: props.instance.id,
+              secret_name: props.secret.name,
+              secret_namespace: props.secret.namespace
+            }
+          }
         )
         .then((response) => {
           if (Ok(response.data)) {
             setServiceInstanceBindings(response.data);
           } else {
-            setServiceInstanceBindings(new ServiceInstanceBindings()); 
+            setServiceInstanceBindings(new ServiceInstanceBindings());
           }
           setError(undefined);
           setLoading(false);
@@ -82,7 +100,7 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
       setServiceInstanceBindings(serviceInstancesData)
       setLoading(false);
     }
-  }, [props.instance]);
+  }, [props.instance, props.instance.id, props.secret]);
 
   if (loading) {
     return <ui5.BusyIndicator
@@ -99,43 +117,43 @@ const ServiceBindingsList= forwardRef((props: any, ref) => {
     }
     return bindings?.items.map((binding, index) => {
       return (
-          <ui5.TableRow>
+        <ui5.TableRow>
 
-            <ui5.TableCell>
-              <ui5.Label>{binding.id}</ui5.Label>
-            </ui5.TableCell>
+          <ui5.TableCell>
+            <ui5.Label>{binding.id}</ui5.Label>
+          </ui5.TableCell>
 
-            <ui5.TableCell>
-              <ui5.Label>{binding.name}</ui5.Label>
-            </ui5.TableCell>
+          <ui5.TableCell>
+            <ui5.Label>{binding.name}</ui5.Label>
+          </ui5.TableCell>
 
-            <ui5.TableCell>
-              <ui5.Label>{binding.secret_name}</ui5.Label>
-            </ui5.TableCell>
+          <ui5.TableCell>
+            <ui5.Label>{binding.secret_name}</ui5.Label>
+          </ui5.TableCell>
 
-            <ui5.TableCell>
-              <ui5.Label>{binding.secret_namespace}</ui5.Label>
-            </ui5.TableCell>
+          <ui5.TableCell>
+            <ui5.Label>{binding.secret_namespace}</ui5.Label>
+          </ui5.TableCell>
 
-            <ui5.TableCell>
-              <ui5.Button
-                design="Default"
-                icon="delete"
-                onClick={function _a(e: any) {
-                  e.stopPropagation();
-                  return deleteBinding(binding.id);
-                }}
-              >
-              </ui5.Button>            
-            </ui5.TableCell>
+          <ui5.TableCell>
+            <ui5.Button
+              design="Default"
+              icon="delete"
+              onClick={function _a(e: any) {
+                e.stopPropagation();
+                return deleteBinding(binding.id);
+              }}
+            >
+            </ui5.Button>
+          </ui5.TableCell>
 
-          </ui5.TableRow>
+        </ui5.TableRow>
       );
     });
   };
 
   if (!Ok(bindings) || !Ok(bindings.items)) {
-    return <ui5.IllustratedMessage name="NoEntries" size="Dot"/>
+    return <ui5.IllustratedMessage name="NoEntries" size="Dot" />
   }
 
   return (
