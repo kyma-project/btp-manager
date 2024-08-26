@@ -29,7 +29,7 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                     const secret = formatSecretText(response.data.items[0].name, response.data.items[0].namespace)                
                     setSelectedSecret(secret);
                     axios
-                        .get<ServiceOfferings>(api(`service-offerings/${response.data.items[0].namespace}/${response.data.items[0].name}`), {
+                        .get<ServiceOfferings>(api(`service-offerings`), {
                             params:
                             {
                                 sm_secret_name: response.data.items[0].name,
@@ -67,7 +67,13 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                         onSecretChanged(secret);
                         setSelectedSecret(secret);
                         axios
-                            .get<ServiceOfferings>(api(`service-offerings/${selectedSecretNamespace}/${selectedSecretName}`))
+                            .get<ServiceOfferings>(api(`service-offerings`), {
+                                params:                         
+                                {
+                                    sm_secret_name: selectedSecretName, 
+                                    sm_secret_namespace: selectedSecretNamespace
+                                }
+                            })
                             .then(() => {
                                 setSecretConnection(true);
                             })

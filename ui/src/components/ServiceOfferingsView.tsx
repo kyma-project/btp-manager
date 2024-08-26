@@ -42,7 +42,7 @@ function ServiceOfferingsView(props: any) {
             axios
                 .get<ServiceOfferings>(
                     api(
-                        `service-offerings/${secret.namespace}/${secret.name}`
+                        `service-offerings`
                     ), {
                         params:
                         {

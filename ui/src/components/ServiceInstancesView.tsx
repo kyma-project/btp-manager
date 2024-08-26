@@ -46,7 +46,7 @@ function ServiceInstancesView(props: any) {
       if (Ok(secret)) {
         axios
           .get<ServiceOfferings>(
-            api(`service-offerings/${secret.namespace}/${secret.name}`), {
+            api(`service-offerings`), {
               params: {
                 sm_secret_name: secret.name,
                 sm_secret_namespace: secret.namespace
@@ -108,8 +108,9 @@ function ServiceInstancesView(props: any) {
   function deleteInstance(id: string): boolean {
     setLoading(true);
     axios
-      .delete(api("service-instances") + "/" + id, {
+      .delete(api("service-instances"), {
         params: {
+          id: id,
           sm_secret_name: secret.name,
           sm_secret_namespace: secret.namespace
         }

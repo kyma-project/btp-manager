@@ -46,12 +46,13 @@ function ServiceOfferingsDetailsView(props: any) {
     setSecret(props.secret);
     setLoading(true);
     axios
-      .get<ServiceOfferingDetails>(api(`service-offerings/${props.offering.id}`),
+      .get<ServiceOfferingDetails>(api(`service-offerings`),
       {
         params:
         {
-          sm_secret_name: secret!!.name,
-          sm_secret_namespace: secret!!.namespace
+          id: props.offering.id,
+          sm_secret_name: props.secret.name,
+          sm_secret_namespace: props.secret.namespace
         }
       })
       .then((response) => {
