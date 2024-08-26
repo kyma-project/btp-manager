@@ -37,22 +37,27 @@ function CreateInstanceForm(props: any) {
 
         var createdJson = {
             id: createServiceInstance?.id,
-            name: createServiceInstance?.name, 
-            service_plan_id: createServiceInstance?.service_plan_id, 
-            labels: createServiceInstance?.labels, 
+            name: createServiceInstance?.name,
+            service_plan_id: createServiceInstance?.service_plan_id,
+            labels: createServiceInstance?.labels,
             parameters: {}
         }
 
-        if(createServiceInstance?.parameters !== undefined) {
+        if (createServiceInstance?.parameters !== undefined) {
             createdJson.parameters = JSON.parse(createServiceInstance?.parameters)
         }
 
         axios
-            .post<CreateServiceInstance>(api("service-instances"), createdJson)
+            .post<CreateServiceInstance>(api("service-instances"), createdJson, {
+                params:
+                {
+                    secret_name: props.secret!!.name,
+                    secret_namespace: props.secret!!.namespace
+                }
+            })
             .then((response) => {
                 setLoading(false);
                 setSuccess("Item with id " + response.data.name + " created, redirecting to instances page...");
-                setCreateServiceInstance(new CreateServiceInstance());
 
                 setTimeout(() => {
                     navigate("/instances/" + response.data.id);
@@ -76,6 +81,10 @@ function CreateInstanceForm(props: any) {
             return;
         }
 
+        if (!Ok(props.secret) || !Ok(props.secret.name) || !Ok(props.secret.namespace)) {
+            return;
+        }
+
         var createServiceInstance = new CreateServiceInstance();
         createServiceInstance.name = generateServiceInstanceName(
             props.plan?.name,
@@ -86,7 +95,7 @@ function CreateInstanceForm(props: any) {
 
         setCreateServiceInstance(createServiceInstance);
 
-    }, [props.plan, props.offering]);
+    }, [props.plan, props.offering, props.secret]);
 
     function refresh(addedValue: string[]) {
         var allLabels = [...labels, ...addedValue]

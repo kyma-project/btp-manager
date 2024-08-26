@@ -12,6 +12,7 @@ import CreateBindingForm from "./CreateBindingForm";
 
 const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
   const [loading, setLoading] = useState(true);
+  const [secret, setSecret] = useState();
   const [error] = useState<ApiError>();
 
   const [instance, setInstance] = useState<ServiceInstance>();
@@ -47,11 +48,16 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
       return;
     }
 
+    if (!Ok(props.secret) || !Ok(props.secret.name) || !Ok(props.secret.namespace)) {
+      return;
+    }
+
+    setSecret(props.secret);
     setInstance(props.instance);
 
     setLoading(false)
 
-  }, [props.instance]);
+  }, [props.instance, props.secret]);
 
   const renderData = () => {
 
@@ -104,11 +110,11 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
         </ui5.Panel>
 
         <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Bindings">
-          <ServiceBindingsList ref={listRef} instance={props.instance} />
+          <ServiceBindingsList secret={secret} ref={listRef} instance={props.instance} />
         </ui5.Panel>
 
         <ui5.Panel headerLevel="H2" headerText="Create Binding">
-          <CreateBindingForm onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding) } instanceId={props.instance.id} instanceName={props.instance.name}></CreateBindingForm>
+          <CreateBindingForm secret={secret} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} />
         </ui5.Panel>
 
       </ui5.Dialog>

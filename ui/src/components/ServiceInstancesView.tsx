@@ -1,5 +1,5 @@
 import * as ui5 from "@ui5/webcomponents-react";
-import { ServiceInstance, ServiceInstances } from "../shared/models";
+import { Secret, ServiceInstance, ServiceInstances } from "../shared/models";
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -10,9 +10,11 @@ import ServiceInstancesDetailsView from "./ServiceInstancesDetailsView";
 import { useParams } from "react-router-dom";
 import StatusMessage from "./StatusMessage";
 import {ServiceOfferings} from "../shared/models";
+import { splitSecret } from "../shared/common";
 
 function ServiceInstancesView(props: any) {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
+  const [secret, setSecret] = useState<Secret>(new Secret());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
@@ -24,6 +26,10 @@ function ServiceInstancesView(props: any) {
 
   useEffect(() => {
     setLoading(true)
+
+    // disable selection when page refresh is done
+    setSelectedInstance(new ServiceInstance());
+
     if (!Ok(props.setTitle)) {
       return;
     }
@@ -35,16 +41,27 @@ function ServiceInstancesView(props: any) {
       if (!Ok(props.secret)) {
         return;
       }
-      const secretText = splitSecret(props.secret);
-      if (Ok(secretText)) {
+      const secret = splitSecret(props.secret);
+      setSecret(secret);
+      if (Ok(secret)) {
         axios
           .get<ServiceOfferings>(
-            api(`service-offerings/${secretText.namespace}/${secretText.secret_name}`)
+            api(`service-offerings/${secret.namespace}/${secret.name}`), {
+              params: {
+                secret_name: secret.name,
+                secret_namespace: secret.namespace
+              }
+            }
           )
           .then((response) => {
             setOfferings(response.data);
             axios
-              .get<ServiceInstances>(api("service-instances"))
+              .get<ServiceInstances>(api("service-instances"), {
+                params: {
+                  secret_name: secret.name,
+                  secret_namespace: secret.namespace
+                }
+              })
               .then((response) => {
                 setServiceInstances(response.data);
                 setError(null);
@@ -91,14 +108,18 @@ function ServiceInstancesView(props: any) {
   function deleteInstance(id: string): boolean {
     setLoading(true);
     axios
-      .delete(api("service-instances") + "/" + id)
+      .delete(api("service-instances") + "/" + id, {
+        params: {
+          secret_name: secret.name,
+          secret_namespace: secret.namespace
+        }
+      })
       .then((response) => {
         serviceInstances!!.items = serviceInstances!!.items.filter(instance => instance.id !== id)
         setServiceInstances(serviceInstances);
         setSuccess("Service instance deleted successfully")
         setError(null)
         setLoading(false);
-
       })
       .catch((error) => {
         setLoading(false);
@@ -187,21 +208,12 @@ function ServiceInstancesView(props: any) {
           {renderData()}
         </ui5.Table>
       </ui5.Card>
-      {createPortal(<ServiceInstancesDetailsView instance={selectedInstance} ref={dialogRef} />, document.getElementById("App")!!)}
+      {createPortal(<ServiceInstancesDetailsView secret={secret} instance={selectedInstance} ref={dialogRef} />, document.getElementById("App")!!)}
 
     </>
   );
 }
 
-function splitSecret(secret: string) {
-  if (secret == null) {
-      return {};
-  }
-  const secretParts = secret.split(" ");
-  const secret_name = secretParts[0];
-  let namespace = secretParts[2].replace("(", "");
-  namespace = namespace.replace(")", "");
-  return {secret_name, namespace};
-}
+
 
 export default ServiceInstancesView;

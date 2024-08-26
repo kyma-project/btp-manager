@@ -43,6 +43,10 @@ export interface ServiceInstances {
   items: ServiceInstance[];
 }
 
+export class Secret {
+  name: string = "";
+  namespace: string = "";
+}
 export class CreateServiceInstance {
   id: string = "";
   name: string = "";
