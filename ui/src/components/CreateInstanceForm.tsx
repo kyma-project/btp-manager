@@ -51,8 +51,8 @@ function CreateInstanceForm(props: any) {
             .post<CreateServiceInstance>(api("service-instances"), createdJson, {
                 params:
                 {
-                    secret_name: props.secret!!.name,
-                    secret_namespace: props.secret!!.namespace
+                    sm_secret_name: props.secret!!.name,
+                    sm_secret_namespace: props.secret!!.namespace
                 }
             })
             .then((response) => {

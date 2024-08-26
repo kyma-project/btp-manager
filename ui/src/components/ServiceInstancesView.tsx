@@ -48,8 +48,8 @@ function ServiceInstancesView(props: any) {
           .get<ServiceOfferings>(
             api(`service-offerings/${secret.namespace}/${secret.name}`), {
               params: {
-                secret_name: secret.name,
-                secret_namespace: secret.namespace
+                sm_secret_name: secret.name,
+                sm_secret_namespace: secret.namespace
               }
             }
           )
@@ -58,8 +58,8 @@ function ServiceInstancesView(props: any) {
             axios
               .get<ServiceInstances>(api("service-instances"), {
                 params: {
-                  secret_name: secret.name,
-                  secret_namespace: secret.namespace
+                  sm_secret_name: secret.name,
+                  sm_secret_namespace: secret.namespace
                 }
               })
               .then((response) => {
@@ -110,8 +110,8 @@ function ServiceInstancesView(props: any) {
     axios
       .delete(api("service-instances") + "/" + id, {
         params: {
-          secret_name: secret.name,
-          secret_namespace: secret.namespace
+          sm_secret_name: secret.name,
+          sm_secret_namespace: secret.namespace
         }
       })
       .then((response) => {
