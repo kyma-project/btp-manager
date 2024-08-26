@@ -23,6 +23,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type MockSMClient struct {
+	fakeSMClient api.SMClient
+}
+
 const (
 	port         = "8080"
 	readTimeout  = 1 * time.Second
@@ -56,8 +60,8 @@ func TestAPI(t *testing.T) {
 	fakeSMClient := servicemanager.NewClient(context.TODO(), slog.Default(), secretMgr)
 	fakeSMClient.SetHTTPClient(httpClient)
 	fakeSMClient.SetSMURL(url)
-	mockSMClient := &api.MockSMClient{
-		Original: fakeSMClient,
+	mockSMClient := &MockSMClient{
+		fakeSMClient: fakeSMClient,
 	}
 	btpMgrAPI := api.NewAPI(cfg, mockSMClient, secretMgr, nil)
 	apiAddr := "http://localhost" + btpMgrAPI.Address()
@@ -879,4 +883,59 @@ func getServiceBindingByID(serviceBinding responses.ServiceBindings, serviceBind
 		}
 	}
 	return responses.ServiceBinding{}
+}
+
+func (m *MockSMClient) SetForGivenSecret(ctx context.Context, name, namespace string) error {
+	if name == "" || namespace == "" {
+		return types.NewServiceManagerClientError("no namespace or name set", http.StatusInternalServerError)
+	}
+	return nil
+}
+
+func (m *MockSMClient) ServiceInstances() (*types.ServiceInstances, error) {
+	return m.fakeSMClient.ServiceInstances()
+}
+
+func (m *MockSMClient) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.CreateServiceInstance(si)
+}
+
+func (m *MockSMClient) ServiceOfferingDetails(id string) (*types.ServiceOfferingDetails, error) {
+	return m.fakeSMClient.ServiceOfferingDetails(id)
+}
+
+func (m *MockSMClient) ServiceOfferings() (*types.ServiceOfferings, error) {
+	return m.fakeSMClient.ServiceOfferings()
+}
+
+func (m *MockSMClient) ServiceInstanceWithPlanName(id string) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.ServiceInstanceWithPlanName(id)
+}
+
+func (m *MockSMClient) UpdateServiceInstance(siuReq *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.UpdateServiceInstance(siuReq)
+}
+
+func (m *MockSMClient) DeleteServiceInstance(id string) error {
+	return m.fakeSMClient.DeleteServiceInstance(id)
+}
+
+func (m *MockSMClient) ServiceBindingsFor(serviceInstanceID string) (*types.ServiceBindings, error) {
+	return m.fakeSMClient.ServiceBindingsFor(serviceInstanceID)
+}
+
+func (m *MockSMClient) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
+	return m.fakeSMClient.CreateServiceBinding(sb)
+}
+
+func (m *MockSMClient) ServiceBinding(id string) (*types.ServiceBinding, error) {
+	return m.fakeSMClient.ServiceBinding(id)
+}
+
+func (m *MockSMClient) DeleteServiceBinding(id string) error {
+	return m.fakeSMClient.DeleteServiceBinding(id)
+}
+
+func (m *MockSMClient) ServiceInstance(id string) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.ServiceInstance(id)
 }

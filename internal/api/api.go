@@ -38,61 +38,6 @@ type SMClient interface {
 	DeleteServiceBinding(id string) error
 	ServiceInstance(id string) (*types.ServiceInstance, error)
 }
-type MockSMClient struct {
-	Original SMClient
-}
-
-func (m *MockSMClient) SetForGivenSecret(ctx context.Context, name, namespace string) error {
-	return nil
-}
-
-func (m *MockSMClient) ServiceInstances() (*types.ServiceInstances, error) {
-	return m.Original.ServiceInstances()
-}
-
-func (m *MockSMClient) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
-	return m.Original.CreateServiceInstance(si)
-}
-
-func (m *MockSMClient) ServiceOfferingDetails(id string) (*types.ServiceOfferingDetails, error) {
-	return m.Original.ServiceOfferingDetails(id)
-}
-
-func (m *MockSMClient) ServiceOfferings() (*types.ServiceOfferings, error) {
-	return m.Original.ServiceOfferings()
-}
-
-func (m *MockSMClient) ServiceInstanceWithPlanName(id string) (*types.ServiceInstance, error) {
-	return m.Original.ServiceInstanceWithPlanName(id)
-}
-
-func (m *MockSMClient) UpdateServiceInstance(siuReq *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
-	return m.Original.UpdateServiceInstance(siuReq)
-}
-
-func (m *MockSMClient) DeleteServiceInstance(id string) error {
-	return m.Original.DeleteServiceInstance(id)
-}
-
-func (m *MockSMClient) ServiceBindingsFor(serviceInstanceID string) (*types.ServiceBindings, error) {
-	return m.Original.ServiceBindingsFor(serviceInstanceID)
-}
-
-func (m *MockSMClient) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
-	return m.Original.CreateServiceBinding(sb)
-}
-
-func (m *MockSMClient) ServiceBinding(id string) (*types.ServiceBinding, error) {
-	return m.Original.ServiceBinding(id)
-}
-
-func (m *MockSMClient) DeleteServiceBinding(id string) error {
-	return m.Original.DeleteServiceBinding(id)
-}
-
-func (m *MockSMClient) ServiceInstance(id string) (*types.ServiceInstance, error) {
-	return m.Original.ServiceInstance(id)
-}
 
 type Config struct {
 	Port         string        `envconfig:"default=8080"`
