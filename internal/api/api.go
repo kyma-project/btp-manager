@@ -17,12 +17,82 @@ import (
 	"github.com/kyma-project/btp-manager/internal/api/requests"
 	"github.com/kyma-project/btp-manager/internal/api/responses"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
-	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type SMClient interface {
+	SetForGivenSecret(ctx context.Context, name, namespace string) error
+	ServiceInstances() (*types.ServiceInstances, error)
+	CreateServiceInstance(*types.ServiceInstance) (*types.ServiceInstance, error)
+	ServiceOfferingDetails(id string) (*types.ServiceOfferingDetails, error)
+	ServiceOfferings() (*types.ServiceOfferings, error)
+	ServiceInstanceWithPlanName(id string) (*types.ServiceInstance, error)
+	UpdateServiceInstance(*types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error)
+	DeleteServiceInstance(id string) error
+	ServiceBindingsFor(serviceInstanceID string) (*types.ServiceBindings, error)
+	CreateServiceBinding(*types.ServiceBinding) (*types.ServiceBinding, error)
+	ServiceBinding(id string) (*types.ServiceBinding, error)
+	DeleteServiceBinding(id string) error
+	ServiceInstance(id string) (*types.ServiceInstance, error)
+}
+type MockSMClient struct {
+	Original SMClient
+}
+
+func (m *MockSMClient) SetForGivenSecret(ctx context.Context, name, namespace string) error {
+	return nil
+}
+
+func (m *MockSMClient) ServiceInstances() (*types.ServiceInstances, error) {
+	return m.Original.ServiceInstances()
+}
+
+func (m *MockSMClient) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
+	return m.Original.CreateServiceInstance(si)
+}
+
+func (m *MockSMClient) ServiceOfferingDetails(id string) (*types.ServiceOfferingDetails, error) {
+	return m.Original.ServiceOfferingDetails(id)
+}
+
+func (m *MockSMClient) ServiceOfferings() (*types.ServiceOfferings, error) {
+	return m.Original.ServiceOfferings()
+}
+
+func (m *MockSMClient) ServiceInstanceWithPlanName(id string) (*types.ServiceInstance, error) {
+	return m.Original.ServiceInstanceWithPlanName(id)
+}
+
+func (m *MockSMClient) UpdateServiceInstance(siuReq *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
+	return m.Original.UpdateServiceInstance(siuReq)
+}
+
+func (m *MockSMClient) DeleteServiceInstance(id string) error {
+	return m.Original.DeleteServiceInstance(id)
+}
+
+func (m *MockSMClient) ServiceBindingsFor(serviceInstanceID string) (*types.ServiceBindings, error) {
+	return m.Original.ServiceBindingsFor(serviceInstanceID)
+}
+
+func (m *MockSMClient) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
+	return m.Original.CreateServiceBinding(sb)
+}
+
+func (m *MockSMClient) ServiceBinding(id string) (*types.ServiceBinding, error) {
+	return m.Original.ServiceBinding(id)
+}
+
+func (m *MockSMClient) DeleteServiceBinding(id string) error {
+	return m.Original.DeleteServiceBinding(id)
+}
+
+func (m *MockSMClient) ServiceInstance(id string) (*types.ServiceInstance, error) {
+	return m.Original.ServiceInstance(id)
+}
 
 type Config struct {
 	Port         string        `envconfig:"default=8080"`
@@ -33,13 +103,13 @@ type Config struct {
 
 type API struct {
 	server        *http.Server
-	smClient      *servicemanager.Client
+	smClient      SMClient
 	secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret]
 	frontendFS    http.FileSystem
 	logger        *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManagerClient *servicemanager.Client, secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret], fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManagerClient SMClient, secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret], fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
