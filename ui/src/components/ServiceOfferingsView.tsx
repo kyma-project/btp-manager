@@ -46,8 +46,8 @@ function ServiceOfferingsView(props: any) {
                     ), {
                         params:
                         {
-                          secret_name: secret.name,
-                          secret_namespace: secret.namespace
+                          sm_secret_name: secret.name,
+                          sm_secret_namespace: secret.namespace
                         }
                       }
                 )

@@ -32,8 +32,8 @@ function SecretsView({ onSecretChanged }: { onSecretChanged: (secret: string) =>
                         .get<ServiceOfferings>(api(`service-offerings/${response.data.items[0].namespace}/${response.data.items[0].name}`), {
                             params:
                             {
-                                secret_name: response.data.items[0].name,
-                                secret_namespace: response.data.items[0].namespace
+                                sm_secret_name: response.data.items[0].name,
+                                sm_secret_namespace: response.data.items[0].namespace
                             }
                         })
                         .then(() => {
