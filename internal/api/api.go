@@ -88,7 +88,7 @@ func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/service-bindings", a.HandleGetServiceBinding)
 	router.HandleFunc("POST /api/service-bindings", a.CreateServiceBinding)
 	router.HandleFunc("DELETE /api/service-bindings", a.DeleteServiceBinding)
-	router.HandleFunc("PUT /api/service-bindings/{id}", a.RestoreSecret)
+	router.HandleFunc("PUT /api/service-bindings", a.RestoreSecret)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -559,7 +559,14 @@ func (a *API) secretExists(secretName, secretNamespace string) (bool, error) {
 
 func (a *API) RestoreSecret(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	sbID := request.PathValue("id")
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	sbID := request.URL.Query().Get("id")
 	sb, err := a.smClient.ServiceBinding(sbID)
 	if err != nil {
 		a.handleError(writer, err)
