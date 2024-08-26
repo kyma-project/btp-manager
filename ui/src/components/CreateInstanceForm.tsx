@@ -162,6 +162,7 @@ function CreateInstanceForm(props: any) {
                             tokens={labels.map(label => <ui5.Token text={label} />)}
                             type="Text"
                             valueState="None"
+                            placeholder='Enter a label with a "key=value" format. After adding a label, press "Enter" to add another label'
                         />
                     </ui5.FormItem>
 
