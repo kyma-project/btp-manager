@@ -70,7 +70,7 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
       return;
     }
   
-    var useTestData = process.env.REACT_APP_USE_TEST_DATA === "false"
+    var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
       axios
         .get<ServiceInstanceBindings>(api("service-bindings"),

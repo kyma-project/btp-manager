@@ -61,7 +61,7 @@ function ServiceInstancesView(props: any) {
             setLoading(false);
           })
           .catch((error) => {
-            setServiceInstances(error);
+            setServiceInstances(undefined);
             setLoading(false);
             setError(error);
           });
