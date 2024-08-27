@@ -138,7 +138,7 @@ func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Re
 	a.sendResponse(writer, response, http.StatusCreated)
 }
 
-func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request, id string) {
+func (a *API) getServiceOffering(writer http.ResponseWriter, id string) {
 	details, err := a.smClient.ServiceOfferingDetails(id)
 	if err != nil {
 		a.handleError(writer, err)
@@ -152,7 +152,7 @@ func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Reque
 	a.sendResponse(writer, response)
 }
 
-func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
+func (a *API) listServiceOfferings(writer http.ResponseWriter) {
 	offerings, err := a.smClient.ServiceOfferings()
 	if err != nil {
 		a.handleError(writer, err)
@@ -177,10 +177,10 @@ func (a *API) HandleGetServiceOffering(writer http.ResponseWriter, request *http
 	}
 	id := request.URL.Query().Get("id")
 	if id == "" {
-		a.ListServiceOfferings(writer, request)
+		a.listServiceOfferings(writer)
 		return
 	}
-	a.GetServiceOffering(writer, request, id)
+	a.getServiceOffering(writer, id)
 }
 
 func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
@@ -243,9 +243,7 @@ func (a *API) HandleGetServiceInstances(writer http.ResponseWriter, request *htt
 	a.GetServiceInstance(writer, request, id)
 }
 
-func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Request) {
-	queryParams := request.URL.Query()
-	serviceInstanceId := queryParams.Get("service_instance_id")
+func (a *API) listServiceBindings(writer http.ResponseWriter, serviceInstanceId string) {
 	sbs, err := a.smClient.ServiceBindingsFor(serviceInstanceId)
 	if err != nil {
 		a.handleError(writer, err)
@@ -336,7 +334,7 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 	a.sendResponse(writer, response, http.StatusCreated)
 }
 
-func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Request, id string) {
+func (a *API) getServiceBinding(writer http.ResponseWriter, id string) {
 	sb, err := a.smClient.ServiceBinding(id)
 	if err != nil {
 		a.handleError(writer, err)
@@ -375,10 +373,11 @@ func (a *API) HandleGetServiceBinding(writer http.ResponseWriter, request *http.
 	}
 	id := request.URL.Query().Get("id")
 	if id == "" {
-		a.ListServiceBindings(writer, request)
+		serviceInstanceId := request.URL.Query().Get("service_instance_id")
+		a.listServiceBindings(writer, serviceInstanceId)
 		return
 	}
-	a.GetServiceBinding(writer, request, id)
+	a.getServiceBinding(writer, id)
 }
 
 func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Request) {
