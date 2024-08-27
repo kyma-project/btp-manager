@@ -68,7 +68,7 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
       setServiceInstanceBindings(new ServiceInstanceBindings());
       return;
     }
-  
+
     var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
     if (!useTestData) {
       axios
@@ -135,15 +135,29 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
           </ui5.TableCell>
 
           <ui5.TableCell>
+
+            <ui5.ToggleButton
+                design="Default"
+                icon="synchronize"
+                tooltip="Restore Secret"
+                onClick={function _a(e: any) {
+                  e.stopPropagation();
+                  return deleteBinding(binding.id);
+                }}
+            >
+            </ui5.ToggleButton>
+
             <ui5.Button
-              design="Default"
-              icon="delete"
-              onClick={function _a(e: any) {
-                e.stopPropagation();
-                return deleteBinding(binding.id);
-              }}
+                design="Default"
+                icon="delete"
+                tooltip="Delete Service Binding"
+                onClick={function _a(e: any) {
+                  e.stopPropagation();
+                  return deleteBinding(binding.id);
+                }}
             >
             </ui5.Button>
+
           </ui5.TableCell>
 
         </ui5.TableRow>
@@ -156,12 +170,12 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
   }
 
   return (
-    <>
-      <ui5.Form>
-        <StatusMessage error={error ?? undefined} success={success} />
-      </ui5.Form>
+      <>
+        <ui5.Form>
+          <StatusMessage error={error ?? undefined} success={success}/>
+        </ui5.Form>
 
-      {
+        {
 
         <ui5.Table
           columns={
