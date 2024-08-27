@@ -42,7 +42,7 @@ To enable the SAP BTP Operator module from the latest release, you must install 
    ```sh
    kubectl get btpoperators btpoperator
    ```
-   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Create and Install a Secret](./docs/user/tutorials/02-20-create-secret.md).
+   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md).
 
 For more installation options, read the [Install and Uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
@@ -87,7 +87,7 @@ In the [`user`](./docs/user) folder, you will find the following documents:
 * [Tutorials](./docs/user/tutorials/README.md)
   * [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md)
   * [Create a SAP BTP Service Operator Secret](./docs/user/tutorials/04-20-create-btp-service-operator-secret.md)
-  * [Install a Secret](04-30-install-secret.md)
+  * [Install a Secret](./docs/user/tutorials/04-30-install-secret.md)
   * [Deploy an SAP BTP Service in Your Kyma Cluster](./docs/user/tutorials/04-40-deploy-service-in-cluster.md)
   * [Create a ServiceInstance with a Custom Secret](./docs/user/tutorials/04-50-create-service-instance-with-custom-secret.md)
 
