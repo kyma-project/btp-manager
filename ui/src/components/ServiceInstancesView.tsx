@@ -118,10 +118,6 @@ function ServiceInstancesView(props: any) {
     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
       return <ui5.IllustratedMessage name="NoEntries" />
     }
-
-    if (error) {
-      return <ui5.IllustratedMessage name="UnableToLoad" />
-    }
     
     return serviceInstances?.items.map((instance, index) => {
 
