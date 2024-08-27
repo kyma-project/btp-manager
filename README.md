@@ -74,17 +74,22 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 
 In the [`user`](./docs/user) folder, you will find the following documents:
 * [SAP BTP Operator Module](./docs/user/README.md)
+* [Preconfigured Credentials and Access](./docs/user/03-10-preconfigured-secret.md)
+* [Working with Multiple Subaccounts](./docs//user/03-30-multitenancy.md)
+* [Management of the Service Instances and Service Bindings Lifecycle](./docs//user/03-40-management-of-service-instances-and-bindings.md)
+* [Service Binding Rotation](./docs//user/03-50-service-binding-rotation.md)
+* [Formats of Service Binding Secrets](./docs//user/03-60-formatting-service-binding-secret.md)
+* [SAP BTP Service Operator Examples](./docs/user/05-10-examples.md)
 * [Resources](./docs/user/resources/README.md)
-  * [SAP BTP Operator](./docs/user/resources/02-10-sap-btp-operator-cr.md)
-  * [Service instance](./docs/user/resources/02-20-service-instance-cr.md)
-  * [Service binding](./docs/user/resources/02-30-service-binding-cr.md)
+  * [SAP BTP Operator Custom Resource](./docs/user/resources/02-10-sap-btp-operator-cr.md)
+  * [Service Instance Custom Resource](./docs/user/resources/02-20-service-instance-cr.md)
+  * [Service Binding Custom Resource](./docs/user/resources/02-30-service-binding-cr.md)
 * [Tutorials](./docs/user/tutorials/README.md)
   * [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md)
   * [Create a SAP BTP Service Operator Secret](./docs/user/tutorials/04-20-create-btp-service-operator-secret.md)
   * [Install a Secret](04-30-install-secret.md)
   * [Deploy an SAP BTP Service in Your Kyma Cluster](./docs/user/tutorials/04-40-deploy-service-in-cluster.md)
   * [Create a ServiceInstance with a Custom Secret](./docs/user/tutorials/04-50-create-service-instance-with-custom-secret.md)
-* [SAP BTP Service Operator Examples](./docs/user/05-10-examples.md)
 
 ## Contributing
 <!--- mandatory section - do not change this! --->

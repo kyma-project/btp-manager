@@ -1,4 +1,4 @@
-# Manage the Lifecycle of Service Instances and Service Bindings
+# Management of the Service Instances and Service Bindings Lifecycle
 
 Use the SAP BTP Operator module to manage the lifecycle of service instances and service bindings in the Kyma environment.
 

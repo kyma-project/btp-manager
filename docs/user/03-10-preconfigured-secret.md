@@ -17,7 +17,7 @@ When you create a Kyma cluster, the SAP BTP Operator module is installed by defa
 * The `sap-btp-operator-config` Config Map.
 
 > [!NOTE]
-> In this scenario, the `sap-btp-service-operator` Secret is automatically created when you enable Kyma runtime. If you want to create this Secret manually for a specific namespaace, follow the instructions in [Create SAP BTP Service Operator Secret](./tutorials/04-10-create-btp-swervice-operator-secret.md).
+> In this scenario, the `sap-btp-service-operator` Secret is automatically created when you enable Kyma runtime. If you want to create this Secret manually for a specific namespaace, follow the instructions in [Create SAP BTP Service Operator Secret](./tutorials/04-20-create-btp-service-operator-secret.md).
 
 The `sap-btp-manager` Secret provides the following credentials.
 * Client ID

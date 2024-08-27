@@ -8,7 +8,7 @@ To create a service instance, you must use the **btpAccessCredentialsSecret** fi
 Adding the access credentials of the SAP Service Manager instance in your service instance results in displaying the subaccount ID to which the instance belongs in the status **subaccountID** field.
 
 > [!TIP]
-> For instructions on how to create a SAP BTP service operator Secret, see the [dedicated tutorial](04-10-create-btp-manager-secret.md).
+> For instructions on how to create a SAP BTP service operator Secret, see the [dedicated tutorial](04-20-create-btp-service-operator-secret.md).
 
 To create a service instance with a custom Secret, follow these steps:
 
