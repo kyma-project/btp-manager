@@ -31,8 +31,9 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
     setLoading(true);
 
     axios
-      .delete(api("service-bindings") + "/" + id, {
+      .delete(api("service-bindings"), {
         params: {
+          id: id,
           sm_secret_name: props.secret.name,
           sm_secret_namespace: props.secret.namespace
         }
@@ -69,7 +70,7 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
       return;
     }
   
-    var useTestData = process.env.REACT_APP_USE_TEST_DATA === "true"
+    var useTestData = process.env.REACT_APP_USE_TEST_DATA === "false"
     if (!useTestData) {
       axios
         .get<ServiceInstanceBindings>(api("service-bindings"),
