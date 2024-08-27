@@ -1,17 +1,17 @@
 # SAP BTP Operator Module
 
-Learn more about the SAP BTP Operator module. Use it to enable Service Management and consume SAP BTP services from your Kyma cluster.
+Learn more about the SAP BTP Operator module. <!-- in HP?: The module is added to your Kyma cluster by default. --> Use it to enable Service Management and consume SAP BTP services from your Kyma cluster.
 
 ## What is SAP BTP Operator?
 
 The SAP BTP Operator module provides Service Management, which allows you to consume [SAP BTP services](https://discovery-center.cloud.sap/protected/index.html#/viewServices) from your Kyma cluster using Kubernetes-native tools.
 Within the SAP BTP Operator module, [BTP Manager](https://github.com/kyma-project/btp-manager) installs an open source component: the [SAP BTP service operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md).
-The SAP BTP service operator, which enables provisioning and managing service instances and service bindings of SAP BTP services so that your Kubernetes-native applications can access and use the services from your cluster.
+The SAP BTP service operator enables provisioning and managing service instances and service bindings of SAP BTP services so that your Kubernetes-native applications can access and use the services from your cluster.
 
 ## Features
 
 The SAP BTP Operator module provides the following features:
-* [Credentials and access preconfiguration](03-10-preconfigured-secret.md): Your Secret is readily available on Kyma runtime creation.
+* [Credentials and access preconfiguration](03-10-preconfigured-secret.md): Your Secret <!--shouldn't this be more specific?--> is readily available on Kyma runtime creation.
 * [Multitenancy](03-30-multitenancy.md): You can configure multiple subaccounts in a single cluster.
 * [Lifecycle management of service instances and service bindings](03-40-management-of-service-instances-and-bindings.md): You can create and delete service instances and service bindings.
 * [Service binding rotation](03-50-service-binding-rotation.md): You can enhance security by automatically rotating the credentials associated with your service bindings.
@@ -33,14 +33,14 @@ SAP BTP, Kyma runtime runs on a Kubernetes cluster and wraps the SAP BTP Operato
 
 ### BTP Manager
 
-BTP Manager is an operator based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator CustomResourceDefinition (CRD)](https://github.com/kyma-project/btp-manager/blob/main/config/crd/bases/operator.kyma-project.io_btpoperators.yaml). 
+BTP Manager is an operator based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator Custom Resource Definition (CRD)](https://github.com/kyma-project/btp-manager/blob/main/config/crd/bases/operator.kyma-project.io_btpoperators.yaml). 
 BTP Manager performs the following operations:
 * Manages the lifecycle of the SAP BTP service operator, including provisioning of the latest version, updating, and deprovisioning
 * Configures the SAP BTP service operator
 
 ### SAP BTP Service Operator
 
-The SAP BTP service operator is an open source component, which allows you to connect SAP BTP services to your cluster and then manage them using Kubernetes-native tools. It is responsible for communicating with SAP Service Manager. The operator's resources, service instances and service bindings, come from the `services.cloud.sap.com` API group.
+The SAP BTP service operator is an open-source component that allows you to connect SAP BTP services to your cluster and manage them using Kubernetes-native tools. It is responsible for communicating with SAP Service Manager. The operator's resources, service instances and service bindings, come from the `services.cloud.sap.com` API group.
 
 ### SAP Service Manager
 
@@ -53,7 +53,7 @@ SAP Service Manager uses [Open Service Broker API](https://www.openservicebroker
 
 ### Service Brokers
 
-Service Brokers manage the lifecycle of services. SAP Service Manager interacts with service brokers using OSB API to provision and manage service instances and service bindings.
+Service brokers manage the lifecycle of services. SAP Service Manager interacts with service brokers using OSB API to provision and manage service instances and service bindings.
 
 ## API / Custom Resource Definitions
 

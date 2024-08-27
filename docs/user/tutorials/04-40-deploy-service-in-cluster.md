@@ -1,11 +1,11 @@
 # Deploy an SAP BTP Service in Your Kyma Cluster
 
-After successfully installing your Secret, you can create a ServiceInstance and a ServiceBinding.
+After successfully installing your Secret, create a service instance and a service binding.
 
 > [!NOTE] 
 > This section provides a real example with the real `xsuaa` service. Use your real Secret to successfully complete the procedure.
 
-1. To create a ServiceInstance, run the following script:
+1. To create a service instance, run the following script:
 
     ```yaml
     kubectl create -f - <<EOF
@@ -30,9 +30,9 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     kubectl get serviceinstances.services.cloud.sap.com test-service-instance -o yaml
     ```
 
-    You see the status `created` and the message `ServiceInstance provisioned successfully`.
+    You see the status `Created` and the message `ServiceInstance provisioned successfully`.
 
-3. To create a ServiceBinding, run this script:
+3. To create a service binding, run this script:
 
     ```yaml
     kubectl create -f - <<EOF
@@ -54,15 +54,15 @@ After successfully installing your Secret, you can create a ServiceInstance and 
     kubectl get servicebindings.services.cloud.sap.com test-service-binding -o yaml
     ```
 
-    You see the status `created` and the message `ServiceBinding provisioned successfully`.
+    You see the status `Created` and the message `ServiceBinding provisioned successfully`.
 
-5. Now use a given service in your Kyma cluster. To see credentials, run:
+5. Now, use a given service in your Kyma cluster. To see credentials, run:
 
     ```bash
     kubectl get secret test-service-binding -o yaml
     ```
 
-6. Clean up your resources by running the following command:
+6. To clean up your resources, run the following command:
 
     ```bash
     kubectl delete servicebindings.services.cloud.sap.com test-service-binding

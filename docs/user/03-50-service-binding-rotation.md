@@ -4,7 +4,7 @@ Enhance security by automatically rotating the credentials associated with your 
 
 ## Enable Automatic Rotation
 
-To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. The field allows you to configure several parameters:
+To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. The field allows you to configure the following parameters:
 
 | Parameter         | Type     | Description                                                                                                                               | Valid Values |
 |-----------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------|--------------|
@@ -13,7 +13,7 @@ To enable automatic service binding rotation, use the **credentialsRotationPolic
 | **rotatedBindingTTL** | string  | Determines how long to keep the old ServiceBinding resource after rotation and before deletion. The actual TTL may be slightly longer. | "m" (minute), "h" (hour) |   
 
 > [!NOTE] 
-> The `credentialsRotationPolicy` does not manage the validity or expiration of the credentials themselves. This is determined by the specific service you are using.
+> The `credentialsRotationPolicy` does not manage the validity or expiration of the credentials themselves. This is determined by the service you are using.
 
 ## Rotation Process
 
@@ -23,15 +23,15 @@ The `credentialsRotationPolicy` is evaluated periodically during a [control loop
 
 You can trigger an immediate rotation regardless of the configured **rotationFrequency** by adding the `services.cloud.sap.com/forceRotate: "true"` annotation to the ServiceBinding resource. The immediate rotation only works if automatic rotation is already enabled. 
 
-The following example shows the configuration of a ServiceBinding resource to rotate credentials every 25 days (600 hours) and keep the old ServiceBinding resource for 2 days (48 hours) before deleting it:
+The following example shows the configuration of a ServiceBinding resource for rotating credentials every 25 days (600 hours) and keep the old ServiceBinding resource for 2 days (48 hours) before deleting it:
 
 ```yaml
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: {BINDING_NAME}
+  name: sample-binding
 spec:
-  serviceInstanceName: {INSTANCE_NAME}
+  serviceInstanceName: sample-instance
   credentialsRotationPolicy:
     enabled: true
     rotatedBindingTTL: 48h
@@ -42,7 +42,7 @@ spec:
 
 Once the ServiceBinding is rotated:
 * The Secret is updated with the latest credentials. 
-* The old credentials are kept in a newly-created Secret named `original-secret-name(variable)-guid(variable)`. <!-- HOW CAN I CHANGE IT using a placeholder?-->
+* The old credentials are kept in a newly-created Secret named `original-secret-name(variable)-guid(variable)`.
 This temporary Secret is kept until the configured deletion time (TTL) expires.
 
 ## Check Last Rotation
@@ -63,7 +63,7 @@ fields:
   in the case of the `spec` field being specified as `YAML`. Any valid `YAML` or
   `JSON` constructs are supported. Only one parameter field may be specified per
   `spec`.
-- **parametersFrom**: can be used to specify which Secret, and key in that Secret,
+- **parametersFrom**: can be used to specify which Secret, and the key in that Secret,
   which contains a `string` that represents the JSON to include in the set of
   parameters to be sent to the broker. The **parametersFrom** field is a list that
   supports multiple sources referenced per `spec`.
@@ -74,7 +74,7 @@ If there are any duplicate properties defined at the top level, the specificatio
 is considered to be invalid. The further processing of the ServiceInstance or ServiceBinding
 resource stops and its `status` is marked with an error condition.
 
-The format of the `spec` in YAML
+See the example of the `spec` format in YAML:
 ```yaml
 spec:
   ...
@@ -86,7 +86,7 @@ spec:
         key: secret-parameter
 ```
 
-The format of the `spec` in JSON
+See the example of the `spec` format in JSON:
 ```json
 {
   "spec": {
@@ -102,7 +102,7 @@ The format of the `spec` in JSON
   } 
 }
 ```
-The `secret` with the `secret-parameter`- named key:
+The Secret with the `secret-parameter`- named key: <!--what's this one about?-->
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -123,7 +123,7 @@ The final JSON payload to send to the broker:
 }
 ```
 
-You can list multiple parameters in the `secret`. To do so, separate "key": "value" pairs with commas as in this example:
+To list multiple parameters in the Secret, separate "key": "value" pairs with commas. See this example:
 ```yaml
 secret-parameter:
   '{
