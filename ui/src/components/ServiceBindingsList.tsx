@@ -51,6 +51,98 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
     return true;
   }
 
+    function restoreSecret(id: string): boolean {
+        setLoading(true);
+
+        axios
+            .put(api("service-bindings") + "/" + id, {
+                params: {
+                    sm_secret_name: props.secret.name,
+                    sm_secret_namespace: props.secret.namespace
+                }
+            })
+            .then((response) => {
+                bindings!!.items = bindings!!.items.filter(instance => instance.id !== id)
+                setServiceInstanceBindings(bindings);
+                setLoading(false);
+                setError(undefined);
+            })
+            .catch((error) => {
+                setLoading(false);
+                setError(error);
+            });
+
+        return true;
+    }
+
+  function sbTableRow(sb: ServiceInstanceBinding) {
+      let buttons;
+      if (!Ok(sb.secret_name) || !Ok(sb.secret_namespace)) {
+          buttons =
+              <ui5.TableCell>
+
+                  <ui5.ToggleButton
+                      design="Default"
+                      icon="synchronize"
+                      tooltip="Restore Secret"
+                      onClick={function _a(e: any) {
+                          e.stopPropagation();
+                          return restoreSecret(sb.id);
+                      }}
+                  />
+
+                  <ui5.Button
+                      design="Default"
+                      icon="delete"
+                      tooltip="Delete Service Binding"
+                      onClick={function _a(e: any) {
+                          e.stopPropagation();
+                          return deleteBinding(sb.id);
+                      }}
+                  />
+
+              </ui5.TableCell>
+      } else {
+            buttons =
+                <ui5.TableCell>
+
+                    <ui5.Button
+                        design="Default"
+                        icon="delete"
+                        tooltip="Delete Service Binding"
+                        onClick={function _a(e: any) {
+                            e.stopPropagation();
+                            return deleteBinding(sb.id);
+                        }}
+                    />
+
+                </ui5.TableCell>
+      }
+      return (
+          <ui5.TableRow>
+
+              <ui5.TableCell>
+                  <ui5.Label>{sb.id}</ui5.Label>
+              </ui5.TableCell>
+
+              <ui5.TableCell>
+                  <ui5.Label>{sb.name}</ui5.Label>
+              </ui5.TableCell>
+
+              <ui5.TableCell>
+                  <ui5.Label>{sb.secret_name}</ui5.Label>
+              </ui5.TableCell>
+
+              <ui5.TableCell>
+                  <ui5.Label>{sb.secret_namespace}</ui5.Label>
+              </ui5.TableCell>
+
+              {buttons}
+
+        </ui5.TableRow>
+    );
+  }
+
   useEffect(() => {
     setLoading(true)
 
@@ -115,53 +207,7 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
       return <ui5.IllustratedMessage name="NoEntries" />
     }
     return bindings?.items.map((binding, index) => {
-      return (
-        <ui5.TableRow>
-
-          <ui5.TableCell>
-            <ui5.Label>{binding.id}</ui5.Label>
-          </ui5.TableCell>
-
-          <ui5.TableCell>
-            <ui5.Label>{binding.name}</ui5.Label>
-          </ui5.TableCell>
-
-          <ui5.TableCell>
-            <ui5.Label>{binding.secret_name}</ui5.Label>
-          </ui5.TableCell>
-
-          <ui5.TableCell>
-            <ui5.Label>{binding.secret_namespace}</ui5.Label>
-          </ui5.TableCell>
-
-          <ui5.TableCell>
-
-            <ui5.ToggleButton
-                design="Default"
-                icon="synchronize"
-                tooltip="Restore Secret"
-                onClick={function _a(e: any) {
-                  e.stopPropagation();
-                  return deleteBinding(binding.id);
-                }}
-            >
-            </ui5.ToggleButton>
-
-            <ui5.Button
-                design="Default"
-                icon="delete"
-                tooltip="Delete Service Binding"
-                onClick={function _a(e: any) {
-                  e.stopPropagation();
-                  return deleteBinding(binding.id);
-                }}
-            >
-            </ui5.Button>
-
-          </ui5.TableCell>
-
-        </ui5.TableRow>
-      );
+      return sbTableRow(binding);
     });
   };
 
