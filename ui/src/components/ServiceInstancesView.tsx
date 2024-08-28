@@ -18,7 +18,6 @@ function ServiceInstancesView(props: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
-  const dialogRef = useRef();
   const [success, setSuccess] = useState("");
   const [layout, setLayout] = useState(FCLLayout.OneColumn);
 
@@ -57,7 +56,8 @@ function ServiceInstancesView(props: any) {
             if (id) {
               const instance = response.data.items.find((instance) => instance.id === id);
               if (instance) {
-                openPortal(instance);
+                setSelectedInstance(instance)
+                setLayout(FCLLayout.TwoColumnsMidExpanded)
               }
             }
             setLoading(false);
@@ -82,12 +82,6 @@ function ServiceInstancesView(props: any) {
       delay={1}
       size="Medium"
     />
-  }
-
-  function openPortal(instance: any) {
-    setSelectedInstance(instance)
-    //@ts-ignore
-    dialogRef.current.open()
   }
 
   function deleteInstance(id: string): boolean {

@@ -18,12 +18,6 @@ function ServiceOfferingsDetailsView(props: any) {
   const [error, setError] = useState(null);
   const [offering, setOffering] = useState<ServiceOffering>();
   const [details, setDetails] = useState<ServiceOfferingDetails>();
-  const dialogRef = useRef(null);
-
-  const handleClose = () => {
-    // @ts-ignore
-    dialogRef.current.close();
-  };
 
   const onChangeSelect = (e: any) => {
     // @ts-ignore
