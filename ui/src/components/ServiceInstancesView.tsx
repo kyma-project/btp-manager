@@ -91,9 +91,8 @@ function ServiceInstancesView(props: any) {
   function deleteInstance(id: string): boolean {
     setLoading(true);
     axios
-      .delete(api("service-instances"), {
+      .delete(api("service-instances") + "/" + id, {
         params: {
-          id: id,
           sm_secret_name: secret.name,
           sm_secret_namespace: secret.namespace
         }

@@ -31,9 +31,8 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
     setLoading(true);
 
     axios
-      .delete(api("service-bindings"), {
+      .delete(api("service-bindings") + "/" + id, {
         params: {
-          id: id,
           sm_secret_name: props.secret.name,
           sm_secret_namespace: props.secret.namespace
         }
