@@ -17,12 +17,27 @@ import (
 	"github.com/kyma-project/btp-manager/internal/api/requests"
 	"github.com/kyma-project/btp-manager/internal/api/responses"
 	clusterobject "github.com/kyma-project/btp-manager/internal/cluster-object"
-	servicemanager "github.com/kyma-project/btp-manager/internal/service-manager"
 	"github.com/kyma-project/btp-manager/internal/service-manager/types"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type SMClient interface {
+	SetForGivenSecret(ctx context.Context, name, namespace string) error
+	ServiceInstances() (*types.ServiceInstances, error)
+	CreateServiceInstance(*types.ServiceInstance) (*types.ServiceInstance, error)
+	ServiceOfferingDetails(id string) (*types.ServiceOfferingDetails, error)
+	ServiceOfferings() (*types.ServiceOfferings, error)
+	ServiceInstanceWithPlanName(id string) (*types.ServiceInstance, error)
+	UpdateServiceInstance(*types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error)
+	DeleteServiceInstance(id string) error
+	ServiceBindingsFor(serviceInstanceID string) (*types.ServiceBindings, error)
+	CreateServiceBinding(*types.ServiceBinding) (*types.ServiceBinding, error)
+	ServiceBinding(id string) (*types.ServiceBinding, error)
+	DeleteServiceBinding(id string) error
+	ServiceInstance(id string) (*types.ServiceInstance, error)
+}
 
 type Config struct {
 	Port         string        `envconfig:"default=8080"`
@@ -33,13 +48,13 @@ type Config struct {
 
 type API struct {
 	server        *http.Server
-	smClient      *servicemanager.Client
+	smClient      SMClient
 	secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret]
 	frontendFS    http.FileSystem
 	logger        *slog.Logger
 }
 
-func NewAPI(cfg Config, serviceManagerClient *servicemanager.Client, secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret], fs http.FileSystem) *API {
+func NewAPI(cfg Config, serviceManagerClient SMClient, secretManager clusterobject.Manager[*corev1.SecretList, *corev1.Secret], fs http.FileSystem) *API {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		ReadTimeout:  cfg.ReadTimeout,
@@ -65,7 +80,7 @@ func (a *API) Start() {
 
 func (a *API) AttachRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/secrets", a.ListSecrets)
-	router.HandleFunc("GET /api/service-offerings/{namespace}/{name}", a.ListServiceOfferings)
+	router.HandleFunc("GET /api/service-offerings", a.ListServiceOfferings)
 	router.HandleFunc("GET /api/service-offerings/{id}", a.GetServiceOffering)
 	router.HandleFunc("GET /api/service-instances", a.ListServiceInstances)
 	router.HandleFunc("GET /api/service-instances/{id}", a.GetServiceInstance)
@@ -99,6 +114,13 @@ func (a *API) Address() string {
 
 func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	csiRequest, err := a.decodeCreateServiceInstanceRequest(request)
 	if err != nil {
 		a.handleError(writer, err)
@@ -121,6 +143,13 @@ func (a *API) CreateServiceInstance(writer http.ResponseWriter, request *http.Re
 
 func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	id := request.PathValue("id")
 	details, err := a.smClient.ServiceOfferingDetails(id)
 	if err != nil {
@@ -137,8 +166,8 @@ func (a *API) GetServiceOffering(writer http.ResponseWriter, request *http.Reque
 
 func (a *API) ListServiceOfferings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	namespace := request.PathValue("namespace")
-	name := request.PathValue("name")
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
 	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
 	if err != nil {
 		a.handleError(writer, err)
@@ -174,6 +203,13 @@ func (a *API) ListSecrets(writer http.ResponseWriter, request *http.Request) {
 
 func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	id := request.PathValue("id")
 	si, err := a.smClient.ServiceInstanceWithPlanName(id)
 	if err != nil {
@@ -190,6 +226,13 @@ func (a *API) GetServiceInstance(writer http.ResponseWriter, request *http.Reque
 
 func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	sis, err := a.smClient.ServiceInstances()
 	if err != nil {
 		a.handleError(writer, err)
@@ -205,8 +248,14 @@ func (a *API) ListServiceInstances(writer http.ResponseWriter, request *http.Req
 
 func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
-	queryParams := request.URL.Query()
-	serviceInstanceId := queryParams.Get("service_instance_id")
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
+	serviceInstanceId := request.URL.Query().Get("service_instance_id")
 	sbs, err := a.smClient.ServiceBindingsFor(serviceInstanceId)
 	if err != nil {
 		a.handleError(writer, err)
@@ -232,8 +281,15 @@ func (a *API) ListServiceBindings(writer http.ResponseWriter, request *http.Requ
 
 func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	serviceBindingRequest := &requests.CreateServiceBinding{}
-	err := json.NewDecoder(request.Body).Decode(serviceBindingRequest)
+	err = json.NewDecoder(request.Body).Decode(serviceBindingRequest)
 	if err != nil {
 		a.handleError(writer, err)
 		return
@@ -292,6 +348,13 @@ func (a *API) CreateServiceBinding(writer http.ResponseWriter, request *http.Req
 
 func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	id := request.PathValue("id")
 	sb, err := a.smClient.ServiceBinding(id)
 	if err != nil {
@@ -322,6 +385,13 @@ func (a *API) GetServiceBinding(writer http.ResponseWriter, request *http.Reques
 
 func (a *API) DeleteServiceBinding(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	id := request.PathValue("id")
 	secrets, err := a.secretsForGivenServiceBindingID(id)
 	if err != nil {
@@ -366,6 +436,13 @@ func (a *API) decodeCreateServiceInstanceRequest(request *http.Request) (*reques
 
 func (a *API) UpdateServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	id := request.PathValue("id")
 	siuReq, err := a.decodeServiceInstanceUpdateRequest(request)
 	if err != nil {
@@ -397,6 +474,13 @@ func (a *API) decodeServiceInstanceUpdateRequest(request *http.Request) (*types.
 
 func (a *API) DeleteServiceInstance(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	id := request.PathValue("id")
 	if err := a.smClient.DeleteServiceInstance(id); err != nil {
 		a.handleError(writer, err)
@@ -477,6 +561,13 @@ func (a *API) secretExists(secretName, secretNamespace string) (bool, error) {
 
 func (a *API) RestoreSecret(writer http.ResponseWriter, request *http.Request) {
 	a.setupCors(writer, request)
+	namespace := request.URL.Query().Get("sm_secret_namespace")
+	name := request.URL.Query().Get("sm_secret_name")
+	err := a.smClient.SetForGivenSecret(context.Background(), name, namespace)
+	if err != nil {
+		a.handleError(writer, err)
+		return
+	}
 	sbID := request.PathValue("id")
 	sb, err := a.smClient.ServiceBinding(sbID)
 	if err != nil {

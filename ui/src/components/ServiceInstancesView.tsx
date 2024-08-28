@@ -9,7 +9,6 @@ import serviceInstancesData from '../test-data/serivce-instances.json';
 import ServiceInstancesDetailsView from "./ServiceInstancesDetailsView";
 import { useParams } from "react-router-dom";
 import StatusMessage from "./StatusMessage";
-import {ServiceOfferings} from "../shared/models";
 import { splitSecret } from "../shared/common";
 
 function ServiceInstancesView(props: any) {
@@ -20,7 +19,6 @@ function ServiceInstancesView(props: any) {
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
   const dialogRef = useRef();
   const [success, setSuccess] = useState("");
-  const [, setOfferings] = useState<ServiceOfferings>();
 
   let { id } = useParams();
 
@@ -45,40 +43,25 @@ function ServiceInstancesView(props: any) {
       setSecret(secret);
       if (Ok(secret)) {
         axios
-          .get<ServiceOfferings>(
-            api(`service-offerings/${secret.namespace}/${secret.name}`), {
-              params: {
-                sm_secret_name: secret.name,
-                sm_secret_namespace: secret.namespace
+          .get<ServiceInstances>(api("service-instances"), {
+            params: {
+              sm_secret_name: secret.name,
+              sm_secret_namespace: secret.namespace
+            }
+          })
+          .then((response) => {
+            setServiceInstances(response.data);
+            setError(null);
+            if (id) {
+              const instance = response.data.items.find((instance) => instance.id === id);
+              if (instance) {
+                openPortal(instance);
               }
             }
-          )
-          .then((response) => {
-            setOfferings(response.data);
-            axios
-              .get<ServiceInstances>(api("service-instances"), {
-                params: {
-                  sm_secret_name: secret.name,
-                  sm_secret_namespace: secret.namespace
-                }
-              })
-              .then((response) => {
-                setServiceInstances(response.data);
-                setError(null);
-                if (id) {
-                  const instance = response.data.items.find((instance) => instance.id === id);
-                  if (instance) {
-                    openPortal(instance);
-                  }
-                }
-                setLoading(false);
-              })
-              .catch((error) => {
-                setLoading(false);
-                setError(error);
-              });
+            setLoading(false);
           })
           .catch((error) => {
+            setServiceInstances(undefined);
             setLoading(false);
             setError(error);
           });

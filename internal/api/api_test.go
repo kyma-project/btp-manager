@@ -23,6 +23,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type MockSMClient struct {
+	fakeSMClient api.SMClient
+}
+
 const (
 	port         = "8080"
 	readTimeout  = 1 * time.Second
@@ -56,8 +60,10 @@ func TestAPI(t *testing.T) {
 	fakeSMClient := servicemanager.NewClient(context.TODO(), slog.Default(), secretMgr)
 	fakeSMClient.SetHTTPClient(httpClient)
 	fakeSMClient.SetSMURL(url)
-
-	btpMgrAPI := api.NewAPI(cfg, fakeSMClient, secretMgr, nil)
+	mockSMClient := &MockSMClient{
+		fakeSMClient: fakeSMClient,
+	}
+	btpMgrAPI := api.NewAPI(cfg, mockSMClient, secretMgr, nil)
 	apiAddr := "http://localhost" + btpMgrAPI.Address()
 	go btpMgrAPI.Start()
 
@@ -67,7 +73,8 @@ func TestAPI(t *testing.T) {
 
 	t.Run("GET Service Instances", func(t *testing.T) {
 		// when
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances", nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -85,7 +92,8 @@ func TestAPI(t *testing.T) {
 	t.Run("GET Service Instances 403 error", func(t *testing.T) {
 		// when
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances", nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -102,7 +110,8 @@ func TestAPI(t *testing.T) {
 		expectedSI.ServicePlanName = "service1-plan2"
 
 		// when
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID, nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -120,7 +129,8 @@ func TestAPI(t *testing.T) {
 		// when
 		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID, nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -153,7 +163,8 @@ func TestAPI(t *testing.T) {
 		}
 
 		// when
-		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-instances", bytes.NewBuffer(siToCreateJSON))
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-instances?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(siToCreateJSON))
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -191,7 +202,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-instances", bytes.NewBuffer(siToCreateJSON))
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-instances?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(siToCreateJSON))
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -217,7 +229,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		req, err := http.NewRequest(http.MethodPatch, apiAddr+"/api/service-instances/"+siID, bytes.NewBuffer(siToUpdateJSON))
+		req, err := http.NewRequest(http.MethodPatch, apiAddr+"/api/service-instances/"+siID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(siToUpdateJSON))
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -250,7 +263,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodPatch, apiAddr+"/api/service-instances/"+siID, bytes.NewBuffer(siToUpdateJSON))
+		req, err := http.NewRequest(http.MethodPatch, apiAddr+"/api/service-instances/"+siID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(siToUpdateJSON))
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -264,13 +278,15 @@ func TestAPI(t *testing.T) {
 		siID := "a7e240d6-e348-4fc0-a54c-7b7bfe9b9da6"
 
 		// when
-		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-instances/"+siID, nil)
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-instances/"+siID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// then
-		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID, nil)
+		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-instances/"+siID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err = apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)
@@ -285,7 +301,8 @@ func TestAPI(t *testing.T) {
 
 		// when
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-instances/"+siID, nil)
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-instances/"+siID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -296,7 +313,8 @@ func TestAPI(t *testing.T) {
 
 	t.Run("GET Service Bindings", func(t *testing.T) {
 		// when
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings", nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -345,7 +363,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings", nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -369,7 +388,8 @@ func TestAPI(t *testing.T) {
 	t.Run("GET Service Bindings 403 error", func(t *testing.T) {
 		// when
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings", nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -384,7 +404,8 @@ func TestAPI(t *testing.T) {
 		expectedSB := getServiceBindingByID(defaultSBs, sbID)
 
 		// when
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -419,7 +440,8 @@ func TestAPI(t *testing.T) {
 		expectedSB := getServiceBindingByID(sbs, sbID)
 
 		// when
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -443,7 +465,8 @@ func TestAPI(t *testing.T) {
 
 		// when
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err := http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -465,7 +488,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(sbCreateRequestJSON))
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -508,7 +532,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(sbCreateRequestJSON))
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -548,7 +573,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(sbCreateRequestJSON))
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -579,7 +605,7 @@ func TestAPI(t *testing.T) {
 		}
 		require.NoError(t, secretMgr.Create(context.TODO(), existingSecret))
 
-		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings", bytes.NewBuffer(sbCreateRequestJSON))
+		req, err := http.NewRequest(http.MethodPost, apiAddr+"/api/service-bindings?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(sbCreateRequestJSON))
 		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
@@ -594,6 +620,7 @@ func TestAPI(t *testing.T) {
 
 		// cleanup
 		err = secretMgr.Delete(context.TODO(), existingSecret)
+		require.NoError(t, err)
 	})
 
 	t.Run("DELETE Service Binding by ID", func(t *testing.T) {
@@ -615,7 +642,8 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -624,7 +652,8 @@ func TestAPI(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// when
-		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err = apiClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -648,7 +677,8 @@ func TestAPI(t *testing.T) {
 		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
 
 		// when
-		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -657,7 +687,8 @@ func TestAPI(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// when
-		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err = http.NewRequest(http.MethodGet, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err = apiClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -674,7 +705,8 @@ func TestAPI(t *testing.T) {
 		sbID := "318a16c3-7c80-485f-b55c-918629012c9a"
 
 		fakeSM.RespondWithErrors()
-		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID, nil)
+		req, err := http.NewRequest(http.MethodDelete, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", nil)
+		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
 
@@ -697,7 +729,7 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		req, err := http.NewRequest(http.MethodPut, apiAddr+"/api/service-bindings/"+sbID, bytes.NewBuffer(sbCreateRequestJSON))
+		req, err := http.NewRequest(http.MethodPut, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(sbCreateRequestJSON))
 		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
@@ -747,7 +779,7 @@ func TestAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		req, err := http.NewRequest(http.MethodPut, apiAddr+"/api/service-bindings/"+sbID, bytes.NewBuffer(sbCreateRequestJSON))
+		req, err := http.NewRequest(http.MethodPut, apiAddr+"/api/service-bindings/"+sbID+"?sm_secret_name=sap-btp-service-operator&sm_secret_namespace=kyma-system", bytes.NewBuffer(sbCreateRequestJSON))
 		require.NoError(t, err)
 		resp, err := apiClient.Do(req)
 		require.NoError(t, err)
@@ -877,4 +909,61 @@ func getServiceBindingByID(serviceBinding responses.ServiceBindings, serviceBind
 		}
 	}
 	return responses.ServiceBinding{}
+}
+
+func (m *MockSMClient) SetForGivenSecret(ctx context.Context, name, namespace string) error {
+	if name == "" || namespace == "" {
+		slog := slog.Default()
+		slog.Error("no sm_secret_namespace namespace or sm_secret_name set in URL")
+		return types.NewServiceManagerClientError("no sm_secret_namespace namespace or sm_secret_name set in URL", http.StatusInternalServerError)
+	}
+	return nil
+}
+
+func (m *MockSMClient) ServiceInstances() (*types.ServiceInstances, error) {
+	return m.fakeSMClient.ServiceInstances()
+}
+
+func (m *MockSMClient) CreateServiceInstance(si *types.ServiceInstance) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.CreateServiceInstance(si)
+}
+
+func (m *MockSMClient) ServiceOfferingDetails(id string) (*types.ServiceOfferingDetails, error) {
+	return m.fakeSMClient.ServiceOfferingDetails(id)
+}
+
+func (m *MockSMClient) ServiceOfferings() (*types.ServiceOfferings, error) {
+	return m.fakeSMClient.ServiceOfferings()
+}
+
+func (m *MockSMClient) ServiceInstanceWithPlanName(id string) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.ServiceInstanceWithPlanName(id)
+}
+
+func (m *MockSMClient) UpdateServiceInstance(siuReq *types.ServiceInstanceUpdateRequest) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.UpdateServiceInstance(siuReq)
+}
+
+func (m *MockSMClient) DeleteServiceInstance(id string) error {
+	return m.fakeSMClient.DeleteServiceInstance(id)
+}
+
+func (m *MockSMClient) ServiceBindingsFor(serviceInstanceID string) (*types.ServiceBindings, error) {
+	return m.fakeSMClient.ServiceBindingsFor(serviceInstanceID)
+}
+
+func (m *MockSMClient) CreateServiceBinding(sb *types.ServiceBinding) (*types.ServiceBinding, error) {
+	return m.fakeSMClient.CreateServiceBinding(sb)
+}
+
+func (m *MockSMClient) ServiceBinding(id string) (*types.ServiceBinding, error) {
+	return m.fakeSMClient.ServiceBinding(id)
+}
+
+func (m *MockSMClient) DeleteServiceBinding(id string) error {
+	return m.fakeSMClient.DeleteServiceBinding(id)
+}
+
+func (m *MockSMClient) ServiceInstance(id string) (*types.ServiceInstance, error) {
+	return m.fakeSMClient.ServiceInstance(id)
 }

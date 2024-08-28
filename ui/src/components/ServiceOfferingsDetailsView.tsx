@@ -50,8 +50,8 @@ function ServiceOfferingsDetailsView(props: any) {
       {
         params:
         {
-          sm_secret_name: secret!!.name,
-          sm_secret_namespace: secret!!.namespace
+          sm_secret_name: props.secret.name,
+          sm_secret_namespace: props.secret.namespace
         }
       })
       .then((response) => {

@@ -33,8 +33,8 @@ function CreateBindingForm(props: any) {
       .post<ServiceInstanceBinding>(api("service-bindings"), {
         name: createdBinding.name,
         service_instance_id: createdBinding.service_instance_id,
-        sm_secret_name: createdBinding.secret_name,
-        sm_secret_namespace: createdBinding.secret_namespace
+        secret_name: createdBinding.secret_name,
+        secret_namespace: createdBinding.secret_namespace
       }, {
         params:
         {
