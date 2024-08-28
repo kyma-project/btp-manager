@@ -48,7 +48,7 @@ code {
   height: 100%;
 }
 
-.margin-wrapper {
+.margin-wrapper, ui5-panel {
   margin: 0.5rem 0.5rem 0 0.5rem;
   padding: 0.5rem 0.5rem 0 0.5rem;
 }
@@ -97,10 +97,6 @@ header[data-component-name="ObjectPageTopHeader"] {
   display: inline !important;
 }
 
-div[data-component-name="ObjectPageContent"] {
-  padding-top: 1rem;
-}
-
 header[data-component-name="ObjectPageTopHeader"]:has(ui5-illustrated-message) {
   height: 100%;
 }
@@ -108,4 +104,16 @@ header[data-component-name="ObjectPageTopHeader"]:has(ui5-illustrated-message) {
 ui5-busy-indicator {
   padding-top: 1rem;
   display: block;
+}
+
+div[data-component-name="ObjectPageContent"] {
+  padding-inline: 0;
+}
+
+ui5-flexible-column-layout {
+  height: 100%;
+}
+
+.icons-container {
+  display: flex;
 }

@@ -95,7 +95,6 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
           setError(error);
           setLoading(false);
         });
-      setLoading(false)
     } else {
       setServiceInstanceBindings(serviceInstancesData)
       setLoading(false);

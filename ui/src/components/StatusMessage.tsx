@@ -34,18 +34,19 @@ function StatusMessage(props: StatusMessageProps) {
             return (
                     <ui5.MessageStrip
                         design="Negative"
-                        onClose={function _a() { }}>
+                        >
                         {message}
                     </ui5.MessageStrip>
             );
         } else if (props.success) {
             return (
                     <ui5.MessageStrip
-                        design="Information"
-                        onClose={function _a() { }}>
+                        design="Information">
                         {props.success}
                     </ui5.MessageStrip>
             );
+        } else {
+            <div></div>
         }
     };
 

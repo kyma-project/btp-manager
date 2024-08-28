@@ -16,27 +16,8 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
   const [error] = useState<ApiError>();
 
   const [instance, setInstance] = useState<ServiceInstance>();
-  const dialogRef = useRef(null);
   const listRef = useRef(null);
 
-  useImperativeHandle(ref, () => ({
-
-    open() {
-      if (dialogRef.current) {
-        // @ts-ignore
-        dialogRef.current.show();
-      }
-    }
-
-  }));
-
-  const handleClose = () => {
-    if (dialogRef.current) {
-      // @ts-ignore
-      dialogRef.current.close();
-      setInstance(undefined);
-    }
-  };
 
   const onBindingAdded = (binding: ServiceInstanceBinding) => {
     // @ts-ignore
@@ -44,6 +25,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
   }
 
   useEffect(() => {
+    setLoading(true);
     if (!Ok(props.instance)) {
       return;
     }
@@ -74,33 +56,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
     }
 
     return (
-      <ui5.Dialog
-        style={{ width: "50%" }}
-        ref={dialogRef}
-        onAfterClose={handleClose}
-        header={
-          <ui5.Bar
-            design="Header"
-            startContent={
-              <>
-                <ui5.Title level="H5">
-                  Create {instance?.name} Service Instance
-                </ui5.Title>
-              </>
-            }
-          />
-        }
-        footer={
-          <ui5.Bar
-            design="Footer"
-            endContent={
-              <>
-                <ui5.Button onClick={handleClose}>Close</ui5.Button>
-              </>
-            }
-          />
-        }
-      >
+    <>
         <ui5.Panel headerLevel="H2" headerText="Service Details">
           <ui5.Form>
             <ui5.FormItem label="Name">
@@ -116,8 +72,8 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
         <ui5.Panel headerLevel="H2" headerText="Create Binding">
           <CreateBindingForm secret={secret} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} />
         </ui5.Panel>
+    </>
 
-      </ui5.Dialog>
     )
   }
   // @ts-ignore
