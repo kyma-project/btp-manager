@@ -16,6 +16,7 @@ function ServiceInstancesView(props: any) {
   const [secret, setSecret] = useState<Secret>(new Secret());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unableToLoadError, setUnableToLoadError] = useState(null);
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
   const [success, setSuccess] = useState("");
   const [layout, setLayout] = useState(FCLLayout.OneColumn);
@@ -30,6 +31,9 @@ function ServiceInstancesView(props: any) {
 
     // close side panel
     setLayout(FCLLayout.OneColumn)
+
+    setError(null);
+    setUnableToLoadError(null);
 
     if (!Ok(props.setTitle)) {
       return;
@@ -55,6 +59,7 @@ function ServiceInstancesView(props: any) {
           .then((response) => {
             setServiceInstances(response.data);
             setError(null);
+            setUnableToLoadError(null);
             if (id) {
               const instance = response.data.items.find((instance) => instance.id === id);
               if (instance) {
@@ -67,7 +72,7 @@ function ServiceInstancesView(props: any) {
           .catch((error) => {
             setServiceInstances(undefined);
             setLoading(false);
-            setError(error);
+            setUnableToLoadError(error);
           });
       }
     } else {
@@ -86,6 +91,8 @@ function ServiceInstancesView(props: any) {
   }
 
   function deleteInstance(id: string): boolean {
+    setError(null);
+    setUnableToLoadError(null);
     setLoading(true);
     axios
       .delete(api("service-instances") + "/" + id, {
@@ -172,7 +179,7 @@ function ServiceInstancesView(props: any) {
       />
     }
 
-    if (error) {
+    if (unableToLoadError) {
 
       return <>
           <div className="margin-wrapper">
