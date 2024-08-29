@@ -8,7 +8,6 @@ import "@ui5/webcomponents-fiori/dist/illustrations/NoEntries.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/NoData.js";
 import Ok from "../shared/validator";
-import { createPortal } from "react-dom";
 import ServiceOfferingsDetailsView from "./ServiceOfferingsDetailsView";
 import { FCLLayout, FlexibleColumnLayout, ResponsiveGridLayout, Title } from "@ui5/webcomponents-react";
 import { splitSecret } from "../shared/common";

@@ -1,8 +1,7 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import { Secret, ServiceInstance, ServiceInstances } from "../shared/models";
 import axios from "axios";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 import api from "../shared/api";
 import Ok from "../shared/validator";
 import serviceInstancesData from '../test-data/serivce-instances.json';
