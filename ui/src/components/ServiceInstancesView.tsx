@@ -182,12 +182,13 @@ function ServiceInstancesView(props: any) {
     if (unableToLoadError) {
 
       return <>
-          <div className="margin-wrapper">
-              <StatusMessage error={error ?? undefined} success={undefined} />
-              <ui5.IllustratedMessage name="UnableToLoad" />
-          </div>
+        <div className="margin-wrapper">
+          <StatusMessage error={unableToLoadError ?? undefined} success={undefined} />
+          <ui5.IllustratedMessage name="UnableToLoad" />
+        </div>
       </>
-  }
+    }
+
     return (
       <>
         <FlexibleColumnLayout id="fcl" layout={layout}>
