@@ -106,6 +106,7 @@ function ServiceInstancesView(props: any) {
         setServiceInstances(serviceInstances);
         setSuccess("Service instance " + id + " deleted successfully");
         setLoading(false);
+        setLayout(FCLLayout.OneColumn);
       })
       .catch((error) => {
         setLoading(false);
