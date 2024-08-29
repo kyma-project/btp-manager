@@ -97,8 +97,7 @@ function ServiceInstancesView(props: any) {
       .then((response) => {
         serviceInstances!!.items = serviceInstances!!.items.filter(instance => instance.id !== id)
         setServiceInstances(serviceInstances);
-        setSuccess("Service instance deleted successfully")
-        setError(null)
+        setSuccess("Service instance " + id + " deleted successfully");
         setLoading(false);
       })
       .catch((error) => {
