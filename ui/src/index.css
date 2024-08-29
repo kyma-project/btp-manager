@@ -88,7 +88,7 @@ ui5-select {
 
 /* corrected margins on object page */
 div[data-component-name="ObjectPage"] {
-  border-radius: 0.5em;
+  border-radius: 0.5em 0.5em 0 0;
 }
 
 /* corrected margins on object page */
@@ -116,4 +116,8 @@ ui5-flexible-column-layout {
 
 .icons-container {
   display: flex;
+}
+
+ui5-message-strip {
+  margin-bottom: 1rem;
 }
