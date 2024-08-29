@@ -74,7 +74,6 @@ function ServiceInstancesView(props: any) {
     }
   }, [id, props, props.secret]);
 
-
   if (loading) {
     return <ui5.BusyIndicator
       active
@@ -107,7 +106,7 @@ function ServiceInstancesView(props: any) {
     return true;
   }
 
-  const renderData = () => {
+  const renderTableData = () => {
 
     // @ts-ignore
     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
@@ -158,62 +157,86 @@ function ServiceInstancesView(props: any) {
     });
   };
 
-  return (
-    <>
-      <FlexibleColumnLayout id="fcl" layout={layout}>
+  const renderData = () => {
+    if (loading) {
+      return <ui5.BusyIndicator
+        active
+        delay={1}
+        size="Medium"
+      />
+    }
 
-      <div  selection-mode="Single" slot="startColumn" className="margin-wrapper">
+    if (error) {
 
-        <StatusMessage
-          error={error ?? undefined} success={success} />
+      return <>
+          <div className="margin-wrapper">
+              <StatusMessage error={error ?? undefined} success={undefined} />
+              <ui5.IllustratedMessage name="UnableToLoad" />
+          </div>
+      </>
+  }
+    return (
+      <>
+        <FlexibleColumnLayout id="fcl" layout={layout}>
 
-        <ui5.Card>
-          <ui5.Table
-            columns={
-              <>
-                <ui5.TableColumn>
-                  <ui5.Label>Service Instance</ui5.Label>
-                </ui5.TableColumn>
+          <div selection-mode="Single" slot="startColumn" className="margin-wrapper">
 
-                <ui5.TableColumn>
-                  <ui5.Label>Service Namespace</ui5.Label>
-                </ui5.TableColumn>
+            <StatusMessage
+              error={error ?? undefined} success={success} />
 
-                <ui5.TableColumn>
-                  <ui5.Label>Action</ui5.Label>
-                </ui5.TableColumn>
-              </>
-            }
-          >
-            {renderData()}
-          </ui5.Table>
-        </ui5.Card>
+            <ui5.Card>
+              <ui5.Table
+                columns={
+                  <>
+                    <ui5.TableColumn>
+                      <ui5.Label>Service Instance</ui5.Label>
+                    </ui5.TableColumn>
 
-      </div>
+                    <ui5.TableColumn>
+                      <ui5.Label>Service Namespace</ui5.Label>
+                    </ui5.TableColumn>
 
-
-        <div slot="midColumn" >
-          <ui5.Bar>
-            <div className="icons-container" slot="endContent">
-              <ui5.Button design="Transparent" icon="full-screen" onClick={() => {
-                if (layout === FCLLayout.MidColumnFullScreen) {
-                  setLayout(FCLLayout.TwoColumnsMidExpanded)
-                } else {
-                  setLayout(FCLLayout.MidColumnFullScreen)
+                    <ui5.TableColumn>
+                      <ui5.Label>Action</ui5.Label>
+                    </ui5.TableColumn>
+                  </>
                 }
-              }}></ui5.Button>
-              <ui5.Button icon="decline" design="Transparent" onClick={() => {
-                setLayout(FCLLayout.OneColumn)
-              }}></ui5.Button>
-            </div>
-          </ui5.Bar>
-          <ServiceInstancesDetailsView secret={secret} instance={selectedInstance} />
-        </div>
+              >
+                {renderTableData()}
+              </ui5.Table>
+            </ui5.Card>
 
-      </FlexibleColumnLayout>
+          </div>
 
-    </>
-  );
+
+          <div slot="midColumn" >
+            <ui5.Bar>
+              <div className="icons-container" slot="endContent">
+                <ui5.Button design="Transparent" icon="full-screen" onClick={() => {
+                  if (layout === FCLLayout.MidColumnFullScreen) {
+                    setLayout(FCLLayout.TwoColumnsMidExpanded)
+                  } else {
+                    setLayout(FCLLayout.MidColumnFullScreen)
+                  }
+                }}></ui5.Button>
+                <ui5.Button icon="decline" design="Transparent" onClick={() => {
+                  setLayout(FCLLayout.OneColumn)
+                }}></ui5.Button>
+              </div>
+            </ui5.Bar>
+            <ServiceInstancesDetailsView secret={secret} instance={selectedInstance} />
+          </div>
+
+        </FlexibleColumnLayout>
+
+      </>
+    );
+
+  };
+
+  return <>{renderData()}</>;
+
+
 }
 
 
