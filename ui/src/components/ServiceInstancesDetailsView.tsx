@@ -5,7 +5,7 @@ import {
   ServiceInstance,
   ServiceInstanceBinding,
 } from "../shared/models";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import ServiceBindingsList from "./ServiceBindingsList";
 import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
 import CreateBindingForm from "./CreateBindingForm";
