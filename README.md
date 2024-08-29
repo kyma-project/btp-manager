@@ -14,10 +14,11 @@ To enable the SAP BTP Operator module from the latest release, you must install 
 
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * Kubernetes cluster, or [k3d](https://k3d.io) for local installation
-* [jq](https://github.com/stedolan/jq) 
+* [jq](https://github.com/stedolan/jq)
+* BTP Manager Secret created. See the instructions in [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md).
 
 > [!WARNING] 
-> You also need the `kyma-system` Namespace. If you don't have it in your cluster, use the following command to create it:
+> You also need the `kyma-system` namespace. If you don't have it in your cluster, use the following command to create it:
 > ```bash
 > kubectl create namespace kyma-system
 > ```
@@ -38,11 +39,12 @@ To enable the SAP BTP Operator module from the latest release, you must install 
     ```bash
     kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator-default-cr.yaml
     ```
-3. To check the `BtpOperator` CR status, run the following command:
+3. To check the BtpOperator CR status, run the following command:
    ```sh
    kubectl get btpoperators btpoperator
    ```
-   > **NOTE:** The CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`. To create a Secret, follow the instructions in [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md).
+   > **NOTE:**
+   > If the BtpOperator CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`, you must create the Secret. See the instructions in [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md).
 
 For more installation options, read the [Install and Uninstall BTP Manager](./docs/contributor/01-10-installation.md) document.
 
@@ -88,8 +90,8 @@ In the [`user`](./docs/user) folder, you will find the following documents:
   * [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md)
   * [Create a SAP BTP Service Operator Secret](./docs/user/tutorials/04-20-create-btp-service-operator-secret.md)
   * [Install a Secret](./docs/user/tutorials/04-30-install-secret.md)
-  * [Deploy an SAP BTP Service in Your Kyma Cluster](./docs/user/tutorials/04-40-deploy-service-in-cluster.md)
-  * [Create a ServiceInstance with a Custom Secret](./docs/user/tutorials/04-50-create-service-instance-with-custom-secret.md)
+  * [Create an SAP BTP Service in Your Kyma Cluster](./docs/user/tutorials/04-40-deploy-service-in-cluster.md)
+  * [Create a Service Instance with a Custom Secret](./docs/user/tutorials/04-50-create-service-instance-with-custom-secret.md)
 
 ## Contributing
 <!--- mandatory section - do not change this! --->

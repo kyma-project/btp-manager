@@ -1,9 +1,9 @@
-# Deploy an SAP BTP Service in Your Kyma Cluster
+# Create an SAP BTP Service in Your Kyma Cluster
 
 After successfully installing your Secret, create a service instance and a service binding.
 
 > [!NOTE] 
-> This section provides a real example with the real `xsuaa` service. Use your real Secret to successfully complete the procedure.
+> This section provides a real example with the real `xsuaa` service. Use your real Secret to complete the procedure successfully.
 
 1. To create a service instance, run the following script:
 
@@ -22,7 +22,7 @@ After successfully installing your Secret, create a service instance and a servi
     ```
 
    > [!TIP] 
-   > You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
+   > You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find the **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
 
 2. To check the output, run:
 

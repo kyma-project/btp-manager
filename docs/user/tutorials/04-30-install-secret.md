@@ -4,7 +4,7 @@
 After successfully creating your Secret, install it in your cluster.
 
 > [!TIP]
-> For instructions on how to create a BTP Manager Secret, see the [dedicated tutorial](04-10-create-btp-manager-secret.md).
+> For instructions on creating a BTP Manager Secret, see the [dedicated tutorial](04-10-create-btp-manager-secret.md).
 
 1. To apply the Secret in your cluster, run the following command: 
 

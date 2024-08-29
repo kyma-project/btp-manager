@@ -1,13 +1,13 @@
 # SAP BTP Operator Custom Resource
 
-The `btpoperators.operator.kyma-project.io` CustomResourceDefinition (CRD) is a comprehensive specification that defines the structure and format used to manage the configuration and status of the SAP BTP Operator module within your Kyma environment.
+The `btpoperators.operator.kyma-project.io` Custom Resource Definition (CRD) is a comprehensive specification that defines the structure and format used to manage the configuration and status of the SAP BTP Operator module within your Kyma environment.
 
 To get the latest CRD in the YAML format, run the following command:
 
 ```shell
 kubectl get crd btpoperators.operator.kyma-project.io -o yaml
 ```
-You can only have one SAP BTP Operator (`BtpOperator`) CR. If there are multiple BtpOperator CRs in the cluster, the oldest one reconciles the module. An additional BtpOperator CR has the `Warning` state.
+You can only have one SAP BTP Operator (BtpOperator) CR. If multiple BtpOperator CRs exist in the cluster, the oldest one reconciles the module. An additional BtpOperator CR has the `Warning` state.
 
 ## Sample Custom Resource
 
@@ -40,9 +40,11 @@ status:
 
 ## Custom Resource Parameters
 
-Currently, you cannot configure any entry parameters <!-- there are no entry parameters available for configuration--> in the BtpOperator CR.
+**Spec:** 
+<!-- is this section corrct?-->
+Currently, no entry parameters are available for configuration in the BtpOperator CR.
 
-## Status
+**Status:**
 
 | No.        | CR state             | Condition type       | Condition status     | Condition reason                                | Description                                                                                |
 | ---------- | -------------------- | -------------------- | -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -56,7 +58,7 @@ Currently, you cannot configure any entry parameters <!-- there are no entry par
 | 8          | Deleting             | Ready                | false                | HardDeleting                                    | Trying to hard delete                                                                      |
 | 9          | Deleting             | Ready                | false                | SoftDeleting                                    | Trying to soft delete after hard delete failed                                             |
 | 10         | Warning              | Ready                | false                | ServiceInstancesAndBindingsNotCleaned           | Deprovisioning blocked because of service instances and/or service bindings existence      |
-| 11         | Warning              | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one so does not represent the module State                       |
+| 11         | Warning              | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one, so does not represent the module State                       |
 | 12         | Warning              | Ready                | false                | MissingSecret                                   | `sap-btp-manager` Secret was not found - create proper Secret                              |
 | 13         | Error                | Ready                | false                | ChartInstallFailed                              | Failure during chart installation                                                          |
 | 14         | Error                | Ready                | false                | ChartPathEmpty                                  | No chart path available for processing                                                     |
@@ -72,4 +74,4 @@ Currently, you cannot configure any entry parameters <!-- there are no entry par
 | 24         | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                           |
 
 > [!NOTE]
-> If an operation returns the `Warning` CR state, it has encountered a problem. You can take action to solve it. <!--Read the relevant description in the table and take action to solve the problem.--> 
+> If an operation returns the `Warning` CR state, it has encountered a problem. Read the relevant description in the table and take action to solve the problem.

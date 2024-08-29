@@ -1,6 +1,6 @@
 # SAP BTP Operator Module
 
-Learn more about the SAP BTP Operator module. <!-- in HP?: The module is added to your Kyma cluster by default. --> Use it to enable Service Management and consume SAP BTP services from your Kyma cluster.
+Learn more about the SAP BTP Operator module. <!-- in HP: The module is added to your Kyma cluster by default. --> Use it to enable Service Management and consume SAP BTP services from your Kyma cluster.
 
 ## What is SAP BTP Operator?
 
@@ -25,7 +25,13 @@ By default, the scope of the SAP BTP Operator module is your Kyma runtime, which
 
 The SAP BTP Operator module allows for the initial provisioning and retrieving of credentials necessary for the application to use an SAP BTP service.
 
-![SAP BTP Operator architecture](../assets/BtpOperator_architecture.drawio.svg)
+![SAP BTP Operator architecture](../assets/module_architecture.drawio.svg)
+
+SAP BTP Operator can have access to multiple subaccounts within your cluster depending on the number of configured Secrets.
+
+![Access configuration](../assets/access_configuration.drawio.svg)
+
+For more informatin on multitenancy, see [Working with Multiple Subaccounts](03-30-multitenancy.md).
 
 ### SAP BTP, Kyma Runtime
 

@@ -2,8 +2,10 @@
 
 Use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 
+## Overview
+
 Secret resources share a common set of basic parameters that can be divided into two categories:
-* Credentials returned from the service broker: They allow your application to access and consume a SAP BTP service.
+* Credentials returned from the service broker that allow your application to access and consume an SAP BTP service.
 * Attributes of the associated service instance: The details of the service instance itself.
 
 However, the Secret resources can come in various formats:
@@ -46,8 +48,8 @@ If you do not use any of the attributes, the generated Secret is by default in t
 
 ## Credentials as a JSON Object
 
-To show credentials that the service broker returns within the Secret resource as a JSON object, use the **secretKey** attribute in the service binding spec.
-The value of the **secretKey** is the name of the key that stores the credentials in the JSON format, as in the following examples:
+To show credentials that the service broker returns within the Secret resource as a JSON object, use the **secretKey** attribute in the service binding `spec`. <!--Wojtek says it's wrong-->
+The value of the **secretKey** is the name of the key that stores the credentials in the JSON format, as in the following examples: <!--no JSON example provided-->
 
 * Service binding
 
@@ -122,7 +124,7 @@ Ensure the template is in the YAML format and has the structure of a Kubernetes 
 In the provided Secret, you can customize the `metadata` and `stringData` sections with the following options:
 
 - `metadata`: labels and annotations
-- `stringData`: customize or utilize one of the available formatting options as detailed in the [Formats of Service Binding Secrets](#formats-of-service-binding-secrets) section.
+- `stringData`: customize or utilize one of the available formatting options following the instructions in the [Overview](#overview) section.
 
 
 > [!NOTE]  

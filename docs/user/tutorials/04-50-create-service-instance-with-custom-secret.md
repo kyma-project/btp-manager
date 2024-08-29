@@ -1,6 +1,6 @@
 # Create a Service Instance with a Custom Secret
 <!--not ready?-->
-To create a service instance, you must use the **btpAccessCredentialsSecret** field in the spec of the service instance. In it, you pass the Secret from the `kyma-system` namespace to create your service instance. You can use different Secrets for different service instances.
+To create a service instance, you must use the **btpAccessCredentialsSecret** field in the of the service instance spec. In it, you pass the Secret from the `kyma-system` namespace to create your service instance. You can use different Secrets for different service instances.
 
 > [!WARNING] 
 > Once you set a Secret name in the service instance, you cannot change it in the future.
@@ -34,7 +34,7 @@ To create a service instance with a custom Secret, follow these steps:
    EOF
    ```
 
-4. To verify that your service instance has been created successfully, run:
+4. To verify that your service instance has been created successfully, run the following command:
 
     ```bash
     kubectl get serviceinstances.services.cloud.sap.com test-service-instance -o yaml

@@ -10,6 +10,8 @@ kubectl get crd serviceinstances.services.cloud.sap.com -o yaml
 
 ## Example Custom Resource
 
+The following ServiceInstance object is an example of a service instance configuration:
+
 ```yaml
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceInstance
@@ -31,16 +33,16 @@ The following table lists the parameters of the given resource with their descri
 **Spec:**
 | Parameter             | Type   | Description                                                                                                                                    |
 |-------------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| **serviceOfferingName** | string    | The name of the SAP BTP service you want to consume. <!--or create as in the original version?--> |
-| **servicePlanName**     | string    | The plan of the selected service offering you want to consume. <!--same as above--> |
+| **serviceOfferingName** | string    | The name of the SAP BTP service you want to consume. |
+| **servicePlanName**     | string    | The plan of the selected service offering you want to consume. |
 | **servicePlanID**        | string   | The plan ID. |
 | **externalName**         | string   | The name for the service instance in SAP BTP; if not specified, defaults to the instance **metadata.name**. |
 | **parameters**           | []object | Some services support the provisioning of additional configuration parameters during the instance creation.<br/>For the list of supported parameters, check the documentation of the particular service offering. |
-| **parametersFrom**       | []object | List of sources that parameters are populated from. <!--List of sources to populate parameters.??--> |
+| **parametersFrom**       | []object | List of sources from which parameters are populated. |
 | **customTags**           | []string | List of custom tags describing the service instance; copied to the ServiceBinding Secret in the key called **tags**. |
 | **userInfo**             | object   | Contains information about the user that last modified this service instance. |
-| **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or nil`<!--shouldn't this be: or none/unknown, no nil in the code --> <br> (If not specified, the value defaults to`false`). |<--check that against https://github.com/SAP/sap-btp-service-operator/blob/main/README.md#reference-documentation -->
-| **btpAccessCredentialsSecret** | string   | The name of the secret that contains access credentials for the SAP BTP service operator. See [Working with Multiple Subaccounts](../03-30-multitenancy.md). |
+| **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or nil <!--shouldn't this be: or none/unknown, no nil in the code --> <br> (If not specified, the value defaults to `false`). |<--check that against https://github.com/SAP/sap-btp-service-operator/blob/main/README.md#reference-documentation -->
+| **btpAccessCredentialsSecret** | string   | The name of the Secret that contains access credentials for the SAP BTP service operator. See [Working with Multiple Subaccounts](../03-30-multitenancy.md). |
 
 **Status:**
 
@@ -49,17 +51,17 @@ The following table lists the parameters of the given resource with their descri
 | **instanceID**   | string | The service instance ID in the SAP Service Manager service.  |
 | **operationURL** | string | The URL of the current operation performed on the service instance.  |
 | **operationType** | string | The type of the current operation. Possible values are `CREATE`, `UPDATE`, or `DELETE`. |
-| **conditions**   | []condition | An array of conditions describing the status of the service instance.<br/>The possible condition types are:<br>* `Ready:true` if the instance is ready and usable<br/>* `Failed:true` when an operation on the service instance fails.<br/> In the case of failure, the details about the error are available in the condition message.<br>* `Succeeded:true` when an operation on the service instance succeeded. If set to `false`, it is considered as in progress unless a `Failed` condition exists.<br>* `Shared:true` when sharing of the service instance succeeded. If set to `false`, unsharing of the service instance succeeded or the service instance is not shared. |
-| **tags**       | []string   | Tags describing the service instance as provided in the service catalog; it's copied to the `ServiceBinding` Secret in the key called **tags**.|
+| **conditions**   | []condition | An array of conditions describing the status of the service instance.<br/>The possible condition types are:<br>* `Ready: true` if the instance is ready and usable<br/>* `Failed: true` when an operation on the service instance fails.<br/> In the case of failure, the details about the error are available in the condition message.<br>* `Succeeded: true` when an operation on the service instance succeeded. If set to `false`, it is considered in progress unless a `Failed` condition exists.<br>* `Shared: true` when sharing of the service instance succeeded. If set to `false`, unsharing of the service instance succeeded or the service instance is not shared. |
+| **tags**       | []string   | Tags describing the service instance as provided in the service catalog, which is copied to the service binding Secret in the key called **tags**.|
 
 ### Status
 | Parameter         | Type     | Description                                                                                                   |
 |:-----------------|:---------|:-----------------------------------------------------------------------------------------------------------|
-| instanceID   | string | The service instance ID in SAP Service Manager service.  |
+| instanceID   | string | The service instance ID in the SAP Service Manager service.  |
 | operationURL | string | The URL of the current operation performed on the service instance.  |
 | operationType   |  string| The type of the current operation. Possible values are CREATE, UPDATE, or DELETE. |
-| conditions       | []condition | An array of conditions describing the status of the service instance.<br/>The possible condition types are:<br>* `Ready:true`  if the instance is ready and usable<br/>* `Failed:true` when an operation on the service instance fails.<br/> In the case of failure, the details about the error are available in the condition message.<br>* `Succeeded:true` when an operation on the service instance succeeded. In case of state `false`, the operation is considered to be in progress unless a `Failed` condition exists.<br>* `Shared:true` when sharing of the service instance succeeded. set to `false` when unsharing of the service instance succeeded or when the service instance is not shared. |
-| tags       | []string | Tags describing the service instance as provided in the service catalog, will be copied to the ServiceBinding Secret in the key called `tags`.|
+| conditions       | []condition | An array of conditions describing the status of the service instance.<br/>The possible condition types are:<br>* `Ready:true`  if the instance is ready and usable<br/>* `Failed:true` when an operation on the service instance fails.<br/> In the case of failure, the details about the error are available in the condition message.<br>* `Succeeded:true` when an operation on the service instance succeeded. If the state is `false`, the operation is considered in progress unless a `Failed` condition exists.<br>* `Shared:true` when sharing of the service instance succeeded. Set to `false` when unsharing of the service instance succeeded or when the service instance is not shared. |
+| tags       | []string | Tags describing the service instance, as provided in the service catalog, are copied to the service binding Secret in the key called `tags`.|
 
 ## Annotations
 
