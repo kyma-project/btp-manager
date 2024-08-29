@@ -9,7 +9,7 @@ import "@ui5/webcomponents-fiori/dist/illustrations/AllIllustrations.js"
 import "@ui5/webcomponents-fiori/dist/illustrations/NoData.js";
 import Ok from "../shared/validator";
 import ServiceOfferingsDetailsView from "./ServiceOfferingsDetailsView";
-import { FCLLayout, FlexibleColumnLayout, ResponsiveGridLayout, Title } from "@ui5/webcomponents-react";
+import { FCLLayout, FlexibleColumnLayout, ResponsiveGridLayout } from "@ui5/webcomponents-react";
 import { splitSecret } from "../shared/common";
 import StatusMessage from "./StatusMessage";
 
@@ -20,7 +20,6 @@ function ServiceOfferingsView(props: any) {
     const [secret, setSecret] = useState<Secret>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [portal, setPortal] = useState<JSX.Element>();
     const [layout, setLayout] = useState(FCLLayout.OneColumn);
 
     useEffect(() => {
