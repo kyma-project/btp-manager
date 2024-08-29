@@ -16,6 +16,7 @@ function ServiceInstancesView(props: any) {
   const [secret, setSecret] = useState<Secret>(new Secret());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unableToLoadError, setUnableToLoadError] = useState(null);
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
   const [success, setSuccess] = useState("");
   const [layout, setLayout] = useState(FCLLayout.OneColumn);
@@ -30,6 +31,9 @@ function ServiceInstancesView(props: any) {
 
     // close side panel
     setLayout(FCLLayout.OneColumn)
+
+    setError(null);
+    setUnableToLoadError(null);
 
     if (!Ok(props.setTitle)) {
       return;
@@ -55,6 +59,7 @@ function ServiceInstancesView(props: any) {
           .then((response) => {
             setServiceInstances(response.data);
             setError(null);
+            setUnableToLoadError(null);
             if (id) {
               const instance = response.data.items.find((instance) => instance.id === id);
               if (instance) {
@@ -67,7 +72,7 @@ function ServiceInstancesView(props: any) {
           .catch((error) => {
             setServiceInstances(undefined);
             setLoading(false);
-            setError(error);
+            setUnableToLoadError(error);
           });
       }
     } else {
@@ -86,6 +91,8 @@ function ServiceInstancesView(props: any) {
   }
 
   function deleteInstance(id: string): boolean {
+    setError(null);
+    setUnableToLoadError(null);
     setLoading(true);
     axios
       .delete(api("service-instances") + "/" + id, {
@@ -97,9 +104,9 @@ function ServiceInstancesView(props: any) {
       .then((response) => {
         serviceInstances!!.items = serviceInstances!!.items.filter(instance => instance.id !== id)
         setServiceInstances(serviceInstances);
-        setSuccess("Service instance deleted successfully")
-        setError(null)
+        setSuccess("Service instance " + id + " deleted successfully");
         setLoading(false);
+        setLayout(FCLLayout.OneColumn);
       })
       .catch((error) => {
         setLoading(false);
@@ -128,6 +135,10 @@ function ServiceInstancesView(props: any) {
               setLayout(FCLLayout.TwoColumnsMidExpanded)
             }}
           >
+
+            <ui5.TableCell>
+              <ui5.Label>{instance.id}</ui5.Label>
+            </ui5.TableCell>
 
             <ui5.TableCell>
               <ui5.Label>{instance.name}</ui5.Label>
@@ -169,15 +180,16 @@ function ServiceInstancesView(props: any) {
       />
     }
 
-    if (error) {
+    if (unableToLoadError) {
 
       return <>
-          <div className="margin-wrapper">
-              <StatusMessage error={error ?? undefined} success={undefined} />
-              <ui5.IllustratedMessage name="UnableToLoad" />
-          </div>
+        <div className="margin-wrapper">
+          <StatusMessage error={unableToLoadError ?? undefined} success={undefined} />
+          <ui5.IllustratedMessage name="UnableToLoad" />
+        </div>
       </>
-  }
+    }
+
     return (
       <>
         <FlexibleColumnLayout id="fcl" layout={layout}>
@@ -191,6 +203,10 @@ function ServiceInstancesView(props: any) {
               <ui5.Table
                 columns={
                   <>
+                    <ui5.TableColumn>
+                      <ui5.Label>ID</ui5.Label>
+                    </ui5.TableColumn>
+
                     <ui5.TableColumn>
                       <ui5.Label>Service Instance</ui5.Label>
                     </ui5.TableColumn>
@@ -231,7 +247,6 @@ function ServiceInstancesView(props: any) {
           </div>
 
         </FlexibleColumnLayout>
-
       </>
     );
 
