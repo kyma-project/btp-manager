@@ -28,6 +28,9 @@ function ServiceInstancesView(props: any) {
     // disable selection when page refresh is done
     setSelectedInstance(new ServiceInstance());
 
+    // close side panel
+    setLayout(FCLLayout.OneColumn)
+
     if (!Ok(props.setTitle)) {
       return;
     }
