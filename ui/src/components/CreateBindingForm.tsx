@@ -18,6 +18,7 @@ function CreateBindingForm(props: any) {
   const [success, setSuccess] = useState("");
 
   const handleCreate = (e: any): boolean => {
+    setLoading(true)
     e.preventDefault();
     e.stopPropagation();
 
@@ -28,7 +29,6 @@ function CreateBindingForm(props: any) {
 
     createdBinding.service_instance_id = props.instanceId ?? ""
 
-    setLoading(true)
     axios
       .post<ServiceInstanceBinding>(api("service-bindings"), {
         name: createdBinding.name,
@@ -70,6 +70,7 @@ function CreateBindingForm(props: any) {
   }
 
   useEffect(() => {
+    setLoading(true)
     if (!Ok(props.instanceId)) {
       return;
     }
@@ -82,7 +83,6 @@ function CreateBindingForm(props: any) {
       return;
     }
 
-    setLoading(true)
 
     setLoading(false)
     setError(undefined)

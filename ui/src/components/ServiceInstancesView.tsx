@@ -1,8 +1,7 @@
 import * as ui5 from "@ui5/webcomponents-react";
 import { Secret, ServiceInstance, ServiceInstances } from "../shared/models";
 import axios from "axios";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 import api from "../shared/api";
 import Ok from "../shared/validator";
 import serviceInstancesData from '../test-data/serivce-instances.json';
@@ -10,6 +9,7 @@ import ServiceInstancesDetailsView from "./ServiceInstancesDetailsView";
 import { useParams } from "react-router-dom";
 import StatusMessage from "./StatusMessage";
 import { splitSecret } from "../shared/common";
+import { FCLLayout, FlexibleColumnLayout } from "@ui5/webcomponents-react";
 
 function ServiceInstancesView(props: any) {
   const [serviceInstances, setServiceInstances] = useState<ServiceInstances>();
@@ -17,8 +17,8 @@ function ServiceInstancesView(props: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
-  const dialogRef = useRef();
   const [success, setSuccess] = useState("");
+  const [layout, setLayout] = useState(FCLLayout.OneColumn);
 
   let { id } = useParams();
 
@@ -27,6 +27,9 @@ function ServiceInstancesView(props: any) {
 
     // disable selection when page refresh is done
     setSelectedInstance(new ServiceInstance());
+
+    // close side panel
+    setLayout(FCLLayout.OneColumn)
 
     if (!Ok(props.setTitle)) {
       return;
@@ -55,7 +58,8 @@ function ServiceInstancesView(props: any) {
             if (id) {
               const instance = response.data.items.find((instance) => instance.id === id);
               if (instance) {
-                openPortal(instance);
+                setSelectedInstance(instance)
+                setLayout(FCLLayout.TwoColumnsMidExpanded)
               }
             }
             setLoading(false);
@@ -65,7 +69,7 @@ function ServiceInstancesView(props: any) {
             setLoading(false);
             setError(error);
           });
-      } 
+      }
     } else {
       setLoading(true)
       setServiceInstances(serviceInstancesData)
@@ -73,19 +77,12 @@ function ServiceInstancesView(props: any) {
     }
   }, [id, props, props.secret]);
 
-    
   if (loading) {
     return <ui5.BusyIndicator
       active
       delay={1}
       size="Medium"
     />
-  }
-
-  function openPortal(instance: any) {
-    setSelectedInstance(instance)
-    //@ts-ignore
-    dialogRef.current.open()
   }
 
   function deleteInstance(id: string): boolean {
@@ -112,13 +109,13 @@ function ServiceInstancesView(props: any) {
     return true;
   }
 
-  const renderData = () => {
-    
+  const renderTableData = () => {
+
     // @ts-ignore
     if (!Ok(serviceInstances) || !Ok(serviceInstances.items)) {
       return <ui5.IllustratedMessage name="NoEntries" />
     }
-    
+
     return serviceInstances?.items.map((instance, index) => {
 
 
@@ -127,7 +124,8 @@ function ServiceInstancesView(props: any) {
           <ui5.TableRow
             selected={id === instance.id}
             onClick={() => {
-              openPortal(instance)
+              setSelectedInstance(instance)
+              setLayout(FCLLayout.TwoColumnsMidExpanded)
             }}
           >
 
@@ -162,39 +160,86 @@ function ServiceInstancesView(props: any) {
     });
   };
 
-  return (
-    <>
+  const renderData = () => {
+    if (loading) {
+      return <ui5.BusyIndicator
+        active
+        delay={1}
+        size="Medium"
+      />
+    }
 
-        <StatusMessage 
-         error={error ?? undefined} success={success} />
+    if (error) {
 
-      <ui5.Card>
+      return <>
+          <div className="margin-wrapper">
+              <StatusMessage error={error ?? undefined} success={undefined} />
+              <ui5.IllustratedMessage name="UnableToLoad" />
+          </div>
+      </>
+  }
+    return (
+      <>
+        <FlexibleColumnLayout id="fcl" layout={layout}>
+
+          <div selection-mode="Single" slot="startColumn" className="margin-wrapper">
+
+            <StatusMessage
+              error={error ?? undefined} success={success} />
+
+            <ui5.Card>
+              <ui5.Table
+                columns={
+                  <>
+                    <ui5.TableColumn>
+                      <ui5.Label>Service Instance</ui5.Label>
+                    </ui5.TableColumn>
+
+                    <ui5.TableColumn>
+                      <ui5.Label>Service Namespace</ui5.Label>
+                    </ui5.TableColumn>
+
+                    <ui5.TableColumn>
+                      <ui5.Label>Action</ui5.Label>
+                    </ui5.TableColumn>
+                  </>
+                }
+              >
+                {renderTableData()}
+              </ui5.Table>
+            </ui5.Card>
+
+          </div>
 
 
-        <ui5.Table
-          columns={
-            <>
-              <ui5.TableColumn>
-                <ui5.Label>Service Instance</ui5.Label>
-              </ui5.TableColumn>
+          <div slot="midColumn" >
+            <ui5.Bar>
+              <div className="icons-container" slot="endContent">
+                <ui5.Button design="Transparent" icon="full-screen" onClick={() => {
+                  if (layout === FCLLayout.MidColumnFullScreen) {
+                    setLayout(FCLLayout.TwoColumnsMidExpanded)
+                  } else {
+                    setLayout(FCLLayout.MidColumnFullScreen)
+                  }
+                }}></ui5.Button>
+                <ui5.Button icon="decline" design="Transparent" onClick={() => {
+                  setLayout(FCLLayout.OneColumn)
+                }}></ui5.Button>
+              </div>
+            </ui5.Bar>
+            <ServiceInstancesDetailsView secret={secret} instance={selectedInstance} />
+          </div>
 
-              <ui5.TableColumn>
-                <ui5.Label>Service Namespace</ui5.Label>
-              </ui5.TableColumn>
+        </FlexibleColumnLayout>
 
-              <ui5.TableColumn>
-                <ui5.Label>Action</ui5.Label>
-              </ui5.TableColumn>
-            </>
-          }
-        >
-          {renderData()}
-        </ui5.Table>
-      </ui5.Card>
-      {createPortal(<ServiceInstancesDetailsView secret={secret} instance={selectedInstance} ref={dialogRef} />, document.getElementById("App")!!)}
+      </>
+    );
 
-    </>
-  );
+  };
+
+  return <>{renderData()}</>;
+
+
 }
 
 

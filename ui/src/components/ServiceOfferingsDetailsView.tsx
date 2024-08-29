@@ -6,7 +6,7 @@ import {
   ServiceOfferingDetails,
   ServiceOfferingPlan,
 } from "../shared/models";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import api from "../shared/api";
 import CreateInstanceForm from "./CreateInstanceForm";
@@ -18,12 +18,6 @@ function ServiceOfferingsDetailsView(props: any) {
   const [error, setError] = useState(null);
   const [offering, setOffering] = useState<ServiceOffering>();
   const [details, setDetails] = useState<ServiceOfferingDetails>();
-  const dialogRef = useRef(null);
-
-  const handleClose = () => {
-    // @ts-ignore
-    dialogRef.current.close();
-  };
 
   const onChangeSelect = (e: any) => {
     // @ts-ignore
@@ -35,6 +29,7 @@ function ServiceOfferingsDetailsView(props: any) {
   };
 
   useEffect(() => {
+    setLoading(true);
     if (!Ok(props.offering)) {
       return;
     }
@@ -44,7 +39,6 @@ function ServiceOfferingsDetailsView(props: any) {
     }
 
     setSecret(props.secret);
-    setLoading(true);
     axios
       .get<ServiceOfferingDetails>(api(`service-offerings/${props.offering.id}`),
       {
@@ -59,16 +53,13 @@ function ServiceOfferingsDetailsView(props: any) {
         setDetails(response.data);
         setPlan(response.data?.plans[0])
         setOffering(props.offering);
-        // @ts-ignore
-        dialogRef.current.show();
+        setError(null)
       })
       .catch((error) => {
         setLoading(false);
         setError(error);
       });
-    setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [props.offering, props.secret]);
 
   const renderData = () => {
     if (loading) {
@@ -84,34 +75,8 @@ function ServiceOfferingsDetailsView(props: any) {
     }
 
     return (
-      <>
-        <ui5.Dialog
-          style={{ width: "50%" }}
-          ref={dialogRef}
-          header={
-            <ui5.Bar
-              design="Header"
-              startContent={
-                <>
-                  <ui5.Title level="H5">
-                    Create {offering?.metadata.displayName} Service Instance
-                  </ui5.Title>
-                </>
-              }
-            />
-          }
-          footer={
-            <ui5.Bar
-              design="Footer"
-              endContent={
-                <>
-                  <ui5.Button onClick={handleClose}>Close</ui5.Button>
-                </>
-              }
-            />
-          }
-        >
-          <ui5.Panel headerLevel="H2" headerText="Service Instance Details">
+        <div slot="midColumn">
+          <ui5.Panel  headerLevel="H2" headerText="Service Instance Details">
             <ui5.Form>
               <ui5.FormItem label="Name">
                 <ui5.Text>{offering?.metadata.displayName}</ui5.Text>
@@ -172,10 +137,9 @@ function ServiceOfferingsDetailsView(props: any) {
           <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Create">
             <CreateInstanceForm secret={secret} plan={plan} offering={props.offering} />
           </ui5.Panel>
-        </ui5.Dialog>
-      </>
+      </div>
     )}
-  // @ts-ignore
+  
   return <>{renderData()}</>;
 }
 
