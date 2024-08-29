@@ -59,6 +59,11 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
     <>
         <ui5.Panel headerLevel="H2" headerText="Service Details">
           <ui5.Form>
+            
+            <ui5.FormItem label="ID">
+              <ui5.Text>{instance?.id}</ui5.Text>
+            </ui5.FormItem>
+
             <ui5.FormItem label="Name">
               <ui5.Text>{instance?.name}</ui5.Text>
             </ui5.FormItem>

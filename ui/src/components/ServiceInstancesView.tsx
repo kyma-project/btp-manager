@@ -130,6 +130,10 @@ function ServiceInstancesView(props: any) {
           >
 
             <ui5.TableCell>
+              <ui5.Label>{instance.id}</ui5.Label>
+            </ui5.TableCell>
+
+            <ui5.TableCell>
               <ui5.Label>{instance.name}</ui5.Label>
             </ui5.TableCell>
 
@@ -192,6 +196,10 @@ function ServiceInstancesView(props: any) {
                 columns={
                   <>
                     <ui5.TableColumn>
+                      <ui5.Label>ID</ui5.Label>
+                    </ui5.TableColumn>
+
+                    <ui5.TableColumn>
                       <ui5.Label>Service Instance</ui5.Label>
                     </ui5.TableColumn>
 
@@ -231,7 +239,6 @@ function ServiceInstancesView(props: any) {
           </div>
 
         </FlexibleColumnLayout>
-
       </>
     );
 
