@@ -51,27 +51,13 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
     return true;
   }
 
-    function restoreSecret(id: string): boolean {
-        setLoading(true);
-
-        axios
-            .put(api("service-bindings") + "/" + id, {
-                params: {
-                    sm_secret_name: props.secret.name,
-                    sm_secret_namespace: props.secret.namespace
-                }
-            })
-            .then((response) => {
-                bindings!!.items = bindings!!.items.filter(instance => instance.id !== id)
-                setServiceInstanceBindings(bindings);
-                setLoading(false);
-                setError(undefined);
-            })
-            .catch((error) => {
-                setLoading(false);
-                setError(error);
-            });
-
+    function toggleSecretRestore(sb: ServiceInstanceBinding, buttonPressed: boolean): boolean {
+      props.setSecretRestoreButtonPressedState(buttonPressed);
+      if (buttonPressed) {
+            props.setServiceBinding(sb);
+        } else {
+            props.setServiceBinding(new ServiceInstanceBinding());
+      }
         return true;
     }
 
@@ -87,7 +73,7 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
                       tooltip="Restore Secret"
                       onClick={function _a(e: any) {
                           e.stopPropagation();
-                          return restoreSecret(sb.id);
+                          return toggleSecretRestore(sb, e.target.pressed);
                       }}
                   />
 
