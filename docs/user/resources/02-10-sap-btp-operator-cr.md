@@ -41,7 +41,7 @@ status:
 ## Custom Resource Parameters
 
 **Spec:** 
-<!-- is this section corrct?-->
+
 Currently, no entry parameters are available for configuration in the BtpOperator CR.
 
 **Status:**

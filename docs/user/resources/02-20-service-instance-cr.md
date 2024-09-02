@@ -41,7 +41,7 @@ The following table lists the parameters of the given resource with their descri
 | **parametersFrom**       | []object | List of sources from which parameters are populated. |
 | **customTags**           | []string | List of custom tags describing the service instance; copied to the ServiceBinding Secret in the key called **tags**. |
 | **userInfo**             | object   | Contains information about the user that last modified this service instance. |
-| **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or nil <!--shouldn't this be: or none/unknown, no nil in the code --> <br> (If not specified, the value defaults to `false`). |<--check that against https://github.com/SAP/sap-btp-service-operator/blob/main/README.md#reference-documentation -->
+| **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or none.<br> If not specified, the value defaults to `false`. |
 | **btpAccessCredentialsSecret** | string   | The name of the Secret that contains access credentials for the SAP BTP service operator. See [Working with Multiple Subaccounts](../03-30-multitenancy.md). |
 
 **Status:**

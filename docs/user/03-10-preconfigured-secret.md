@@ -3,7 +3,6 @@
 ## Credentials
 
 On enabling SAP BTP, Kyma runtime, all necessary resources for consuming SAP BTP services are created, and the basic cluster access is configured.
-<!-- ~~The SAP BTP Operator module configures and installs the SAP BTP service operator, which allows you to immediately create Kyma service instances and service bindings.~~ -->
 
 When you click on `Enable Kyma` in the SAP BTP cockpit, the following events happen in your subaccount:
 1. An SAP Service Manager service instance with the `service-operator-access` plan is created.

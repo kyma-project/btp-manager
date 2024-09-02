@@ -1,5 +1,5 @@
 # Create a Service Instance with a Custom Secret
-<!--not ready?-->
+
 To create a service instance, you must use the **btpAccessCredentialsSecret** field in the of the service instance spec. In it, you pass the Secret from the `kyma-system` namespace to create your service instance. You can use different Secrets for different service instances.
 
 > [!WARNING] 
@@ -12,7 +12,7 @@ Adding the access credentials of the SAP Service Manager instance in your servic
 
 To create a service instance with a custom Secret, follow these steps:
 
-1. Get the access credentials of the SAP Service Manager instance with the `service-operator-access` plan from its service binding. Copy them from the BTP cockpit as a JSON. 
+1. Get the access credentials of the SAP Service Manager instance with the `service-operator-access` plan from its service binding. Copy them as a JSON from the BTP cockpit. 
 
 2. Create the `creds.json` file in your working directory and save the credentials there. <!--is this step necessary for the managed offering; if not, what's the next step?-->
 

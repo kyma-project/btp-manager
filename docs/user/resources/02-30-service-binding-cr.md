@@ -34,20 +34,20 @@ The following table lists the parameters of the given resource with their descri
 
 | Parameter             | Type   | Description                                                                                                                                    |
 |-------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| **serviceInstanceName** | string | The Kubernetes <!--??--> name of the service instance to bind. |
+| **serviceInstanceName** | string | The Kubernetes name of the service instance to bind. |
 | **serviceInstanceNamespace** | string | The namespace of the service instance to bind; if not specified, the default is the binding's namespace. |
 | **externalName**       | string  | The name for the service binding in SAP BTP; if not specified, defaults to the binding **metadata.name**. |
 | **secretName**         | string  | The name of the Secret where the credentials are stored; if not specified, defaults to the binding **metadata.name**. |
-| **secretKey**          | string  | The Secret key is part of the Secret object, which stores the service binding credentials received from the <!--what broker?--> broker. When the Secret key is used, all the credentials are stored under a single key. This makes it a convenient way to store credentials data in one file when using volumeMounts. See [Formatting Service Binding Secret](../03-60-formatting-service-binding-secret.md). |
+| **secretKey**          | string  | The Secret key is part of the Secret object, which stores the service binding credentials received from the service broker. When the Secret key is used, all the credentials are stored under a single key. This makes it a convenient way to store credentials data in one file when using volumeMounts. See [Formatting Service Binding Secret](../03-60-formatting-service-binding-secret.md). |
 | **secretRootKey**       | string | The root key is part of the Secret object, which stores the service binding credentials received from the service broker, and additional service instance information. When the root key is used, all data is stored under a single key. This makes it a convenient way to store data in one file when using volumeMounts. See [Formatting Service Binding Secret](../03-60-formatting-service-binding-secret.md). |
 | **parameters**          | []object | Some services support the provisioning of additional configuration parameters during the bind request.<br/>For the list of supported parameters, check the documentation of particular service offerings. |
-| **parametersFrom**      | []object | List of sources from which parameters are populated. <!--List of sources to populate parameters.??-->  |
+| **parametersFrom**      | []object | List of sources from which parameters are populated. |
 | **userInfo**            | object | Contains information about the user that last modified this service binding. |
 | **credentialsRotationPolicy** | object | Holds automatic credentials rotation configuration.  |
 | **credentialsRotationPolicy.enabled** | boolean  | Indicates whether automatic credentials rotation is enabled. |
 | **credentialsRotationPolicy.rotationFrequency** | duration | Specifies the frequency at which the binding rotation is performed. |
 | **credentialsRotationPolicy.rotatedBindingTTL** | duration | Specifies the period for which the rotated binding is kept. |
-| **SecretTemplate**      | string | A Go template used to generate a custom Kubernetes v1/Secret, working on both the access credentials returned by the <!--what broker?--> broker and instance attributes. See [Go Templates](https://pkg.go.dev/text/template) for more details. |
+| **SecretTemplate**      | string | A Go template used to generate a custom Kubernetes v1/Secret, working on both the access credentials returned by the service broker and instance attributes. See [Go Templates](https://pkg.go.dev/text/template) for more details. |
 
 **Status:**
 
