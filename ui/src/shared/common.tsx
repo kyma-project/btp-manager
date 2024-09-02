@@ -11,3 +11,7 @@ export function splitSecret(secret: string) : Secret {
   output.namespace = output.namespace.replace(")", "");
   return output;
 }
+
+export function generateRandom5CharString() : string {
+  return Math.random().toString(20).substring(2, 7)
+}

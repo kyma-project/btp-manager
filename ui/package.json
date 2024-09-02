@@ -1,6 +1,6 @@
 {
-  "name": "smuiii",
-  "version": "0.1.0",
+  "name": "btp-manager-ui",
+  "version": "0.0.1",
   "private": true,
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.3",

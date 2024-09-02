@@ -17,13 +17,16 @@ function StatusMessage(props: StatusMessageProps) {
     useEffect(() => {
 
         if (props.error) {
-            var message = props.error!!.name + " - " + props.error!!.code + " - " + props.error!!.message;
+            if ("name" in props.error && "code" in props.error && "message" in props.error) {
+                var message = props.error!!.name + " - " + props.error!!.code + " - " + props.error!!.message;
 
-            if (props.error!!.response) {
-                message += " - " + props.error!!.response.data;
-                setMessage(message);
+                if (props.error!!.response) {
+                    message += " - " + props.error!!.response.data;
+                    setMessage(message);
+                }
+            } else {
+                console.log(props.error);
             }
-
         }
     }, [props.error, props.success]);
 

@@ -16,12 +16,27 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
   const [error] = useState<ApiError>();
 
   const [instance, setInstance] = useState<ServiceInstance>();
+  const [binding, setBinding] = useState<ServiceInstanceBinding>(new ServiceInstanceBinding());
+  const [secretRestoreButtonPressed, setSecretRestoreButtonPressed] = useState(false);
   const listRef = useRef(null);
 
 
   const onBindingAdded = (binding: ServiceInstanceBinding) => {
     // @ts-ignore
     listRef.current.add(binding)
+  }
+
+  function setServiceBinding(sb: ServiceInstanceBinding) {
+    setBinding(sb);
+  }
+
+  function setSecretRestoreButtonPressedState(pressed: boolean) {
+    setSecretRestoreButtonPressed(pressed)
+  }
+
+  function onSecretRestore(sb: ServiceInstanceBinding) {
+    // @ts-ignore
+    listRef.current.refresh(sb)
   }
 
   useEffect(() => {
@@ -71,11 +86,11 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
         </ui5.Panel>
 
         <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Bindings">
-          <ServiceBindingsList secret={secret} ref={listRef} instance={props.instance} />
+          <ServiceBindingsList secret={secret} ref={listRef} instance={props.instance} setServiceBinding={setServiceBinding} setSecretRestoreButtonPressedState={setSecretRestoreButtonPressedState} />
         </ui5.Panel>
 
         <ui5.Panel headerLevel="H2" headerText="Create Binding">
-          <CreateBindingForm secret={secret} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} />
+          <CreateBindingForm secret={secret} binding={binding} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} buttonPressed={secretRestoreButtonPressed} onSecretRestore={(binding: ServiceInstanceBinding) => onSecretRestore(binding)} />
         </ui5.Panel>
     </>
 
