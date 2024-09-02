@@ -26,6 +26,7 @@ The `sap-btp-manager` Secret provides the following credentials:
 * **tokenurl**
 
 When you add the SAP BTP Operator module to your cluster, the `sap-btp-manager` Secret generates the SAP BTP service operator's resources as shown in the following diagram:
+<!-- for the HP doc this sentence is different: The SAP BTP Operator module is added by default to your cluster and the `sap-btp-manager` (...) -->
 
 ![module_credentials](../assets/module_credentials.drawio.svg)
 

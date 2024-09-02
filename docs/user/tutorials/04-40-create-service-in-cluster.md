@@ -1,4 +1,4 @@
-# Create an SAP BTP Service in Your Kyma Cluster
+# Create an SAP BTP Service Instance in Your Kyma Cluster
 
 After successfully installing your Secret, create a service instance and a service binding.
 
