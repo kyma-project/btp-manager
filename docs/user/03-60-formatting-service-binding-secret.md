@@ -25,31 +25,32 @@ If you do not use any of the attributes, the generated Secret is by default in t
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: sample-binding
+    name: my-binding
   spec:
-    serviceInstanceName: sample-instance
+    serviceInstanceName: my-service-instance
   ```
 * Secret
 
   ```yaml
   apiVersion: v1
   metadata:
-    name: sample-binding
+    name: my-binding
   kind: Secret
   stringData:
     uri: https://my-service.authentication.eu10.hana.ondemand.com
     client_id: admin
     client_secret: ********
-    instance_guid: your-sample-instance-guid // The service instance ID
-    instance_name: sample-instance // Taken from the service instance external_name field if set. Otherwise from metadata.name
+    instance_guid: my-sample-instance-guid // The service instance ID
+    instance_name: my-service-instance // Taken from the service instance external_name field if set. Otherwise from metadata.name
     plan: sample-plan // The service plan name                
     type: sample-service  // The service offering name
   ```
 
 ## Credentials as a JSON Object
 
-To show credentials that the service broker returns within the Secret resource as a JSON object, use the **secretKey** attribute in the service binding `spec`. <!--Wojtek says it's wrong-->
-The value of the **secretKey** is the name of the key that stores the credentials in the JSON format, as in the following examples: <!--no JSON example provided-->
+To show credentials that the service broker returns within the Secret resource as a JSON object, use the **secretKey** attribute in the service binding `spec`.
+The value of the **secretKey** is the name of the key that stores the credentials. The credentials are represented in both formats: YAML or JSON.
+See the following examples:
 
 * Service binding
 
@@ -57,9 +58,9 @@ The value of the **secretKey** is the name of the key that stores the credential
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: sample-binding
+    name: my-binding
   spec:
-    serviceInstanceName: sample-instance
+    serviceInstanceName: my-service-instance
     secretKey: myCredentials
   ```
 * Secret
@@ -68,14 +69,14 @@ The value of the **secretKey** is the name of the key that stores the credential
   apiVersion: v1
   kind: Secret
   metadata:
-    name: sample-binding
+    name: my-binding
   stringData:
       myCredentials:
         uri: https://my-service.authentication.eu10.hana.ondemand.com,
         client_id: admin,
         client_secret: ********
-      instance_guid: your-sample-instance-guid // The service instance ID
-      instance_name: sample-binding // Taken from the service instance external_name field if set. Otherwise from metadata.name 
+      instance_guid: my-service-instance-guid // The service instance ID
+      instance_name: my-binding // Taken from the service instance external_name field if set. Otherwise from metadata.name 
       plan: sample-plan // The service plan name
       type: sample-service // The service offering name
   ```
@@ -84,7 +85,8 @@ The value of the **secretKey** is the name of the key that stores the credential
 
 To show both credentials returned from the service broker and additional **ServiceInstance** attributes as a JSON object, use the **secretRootKey** attribute in the service binding spec.
 
-The **secretRootKey** value is the name of the key that stores both credentials and service instance info in the JSON format, as in the following examples:
+The **secretRootKey** value is the name of the key that stores both credentials and service instance info. The credentials are represented in both formats: YAML or JSON.
+See the following examples:
 
 * Service binding
 
@@ -92,9 +94,9 @@ The **secretRootKey** value is the name of the key that stores both credentials 
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: sample-binding
+    name: my-binding
   spec:
-    serviceInstanceName: sample-instance
+    serviceInstanceName: my-service-instance
     secretRootKey: myCredentialsAndInstance
   ```
 * Secret
@@ -103,16 +105,16 @@ The **secretRootKey** value is the name of the key that stores both credentials 
   apiVersion: v1
   kind: Secret
   metadata:
-    name: sample-binding
+    name: my-binding
   stringData:
       myCredentialsAndInstance:
           uri: https://my-service.authentication.eu10.hana.ondemand.com,
           client_id: admin,
           client_secret: ********,
-          instance_guid: your-sample-instance-guid, // The service instance id
-          instance_name: sample-instance-name, // Taken from the service instance external_name field if set. Otherwise from metadata.name
-          plan: sample-instance-plan, // The service plan name
-          type: sample-instance-offering, // The service offering name
+          instance_guid: my-service-instance-guid, // The service instance id
+          instance_name: my-service-instance, // Taken from the service instance external_name field if set. Otherwise from metadata.name
+          plan: sample-plan, // The service plan name
+          type: sample-service, // The service offering name
   ```
 ## Custom Formats 
 
@@ -152,9 +154,9 @@ See two examples demonstrating the ServiceBinding and generated Secret resources
       apiVersion: services.cloud.sap.com/v1
       kind: ServiceBinding
       metadata:
-        name: sample-binding
+        name: my-binding
       spec:
-        serviceInstanceName: sample-instance
+        serviceInstanceName: my-service-instance
         secretTemplate: |
           apiVersion: v1
           kind: Secret
@@ -177,13 +179,13 @@ See two examples demonstrating the ServiceBinding and generated Secret resources
         labels:
           service_plan: sample-plan
         annotations:
-          instance: sample-instance
+          instance: my-service-instance
       stringData:
         USERNAME: admin
         PASSWORD: ********
       ```
 
-* Example of a binding with a customized `metadata` section and applied pre-existing formatting option for `stringData` (credentials as a JSON object):
+* Example of a binding with a customized `metadata` section and applied pre-existing formatting option for `stringData` with credentials as a JSON object:
 
     In this example, you omit `stringData` from the `secretTemplate` and use the `secretKey` to format your `stringData` instead.
 
@@ -193,9 +195,9 @@ See two examples demonstrating the ServiceBinding and generated Secret resources
       apiVersion: services.cloud.sap.com/v1
       kind: ServiceBinding
       metadata:
-        name: sample-binding
+        name: my-binding
       spec:
-        serviceInstanceName: sample-instance
+        serviceInstanceName: my-service-instance
         secretKey: myCredentials
         secretTemplate: |
           apiVersion: v1
@@ -216,15 +218,15 @@ See two examples demonstrating the ServiceBinding and generated Secret resources
         labels:
           service_plan: sample-plan
         annotations:
-          instance: sample-instance
+          instance: my-service-instance
       stringData:
         myCredentials:
           uri: https://my-service.authentication.eu10.hana.ondemand.com,
           client_id: admin,
           client_secret: ********
-        instance_guid: your-sample-instance-guid // The service instance ID
-        instance_name: sample-binding // Taken from the service instance external_name field if set. Otherwise from metadata.name
+        instance_guid: my-service-instance-guid // The service instance ID
+        instance_name: my-service-instance // Taken from the service instance external_name field if set. Otherwise from metadata.name
         plan: sample-plan // The service plan name
-        type: sample-service // The service offering name
+        type: sample-service // The service name
         ```
     

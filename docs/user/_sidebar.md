@@ -6,7 +6,6 @@
 * [Management of the Service Instances and Service Bindings Lifecycle](/btp-manager/user/03-40-management-of-service-instances-and-bindings.md)
 * [Service Binding Rotation](/btp-manager/user/03-50-service-binding-rotation.md)
 * [Formats of Service Binding Secrets](/btp-manager/user/03-60-formatting-service-binding-secret.md)
-* [SAP BTP Service Operator Examples](/btp-manager/user/05-10-examples.md)
 * [Resources](/btp-manager/user/resources/README.md)
   * [SAP BTP Operator Custom Resource](/btp-manager/user/resources/02-10-sap-btp-operator-cr.md)
   * [Service Instance Custom Resource](/btp-manager/user/resources/02-20-service-instance-cr.md)

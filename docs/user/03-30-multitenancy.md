@@ -88,12 +88,13 @@ To deploy service instances belonging to different subaccounts within the same n
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceInstance
     metadata:
-      name: sample-instance-1
+      name: my-instance-1
     spec:
       serviceOfferingName: service-manager
       servicePlanName: subaccount-audit
       btpAccessCredentialsSecret: mybtpsecret
     ```
+### Secrets Precedence
 
 SAP BTP Operator searches for the credentials in the following order:
 1. Explicit Secret defined in a service instance

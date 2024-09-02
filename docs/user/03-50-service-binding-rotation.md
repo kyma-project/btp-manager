@@ -29,9 +29,9 @@ The following example shows the configuration of a ServiceBinding resource for r
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: sample-binding
+  name: my-binding
 spec:
-  serviceInstanceName: sample-instance
+  serviceInstanceName: my-service-instance
   credentialsRotationPolicy:
     enabled: true
     rotatedBindingTTL: 48h
@@ -54,7 +54,7 @@ To view the timestamp of the last service binding rotation, refer to the **statu
 Automatic credential rotation cannot be enabled for a backup ServiceBinding (named: original-binding-name(variable)-guid(variable)) marked with the `services.cloud.sap.com/stale` label.
 This backup service binding is created during the credentials rotation process to facilitate the process.
 
-# Passing Parameters <!--where should this topic go, if anywhere?-->
+## Passing Parameters <!--where should this topic go, if anywhere?-->
 To set input parameters, go to the `spec` of the ServiceInstance or ServiceBinding resource, and use both or one of the following fields:
 * **parameters**: Specifies a set of properties sent to the service broker.
   The specified data is passed to the service broker without any modifications - aside from converting it to JSON for transmission to the broker if the `spec` field is specified as YAML.

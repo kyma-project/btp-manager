@@ -13,7 +13,7 @@ After successfully creating your Secret, install it in your cluster.
    ```
 
    > [!WARNING] 
-   > The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret would not be visible to BTP Manager.
+   > The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret is not visible to BTP Manager.
 
 2. To check the `BtpOperator` custom resource (CR) status, run the following command:
 

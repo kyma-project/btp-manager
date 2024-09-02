@@ -86,7 +86,7 @@ spec:
 
 ## Passing Parameters
 
-To set input parameters, go to the spec of the ServiceInstance or ServiceBinding resource, and use both or one of the following fields:
+To set input parameters, go to the `spec` of the ServiceInstance or ServiceBinding resource, and use both or one of the following fields:
 * **parameters**: Specifies a set of properties sent to the service broker.
   The specified data is passed to the service broker without any modifications - aside from converting it to JSON for transmission to the broker if the `spec` field is specified as YAML.
   All valid YAML or JSON constructs are supported. 

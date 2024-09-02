@@ -16,6 +16,7 @@ To enable the SAP BTP Operator module from the latest release, you must install 
 * Kubernetes cluster, or [k3d](https://k3d.io) for local installation
 * [jq](https://github.com/stedolan/jq)
 * BTP Manager Secret created. See the instructions in [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md).
+* `sap-btp-manager` Secret
 
 > [!WARNING] 
 > You also need the `kyma-system` namespace. If you don't have it in your cluster, use the following command to create it:
@@ -81,7 +82,6 @@ In the [`user`](./docs/user) folder, you will find the following documents:
 * [Management of the Service Instances and Service Bindings Lifecycle](./docs//user/03-40-management-of-service-instances-and-bindings.md)
 * [Service Binding Rotation](./docs//user/03-50-service-binding-rotation.md)
 * [Formats of Service Binding Secrets](./docs//user/03-60-formatting-service-binding-secret.md)
-* [SAP BTP Service Operator Examples](./docs/user/05-10-examples.md)
 * [Resources](./docs/user/resources/README.md)
   * [SAP BTP Operator Custom Resource](./docs/user/resources/02-10-sap-btp-operator-cr.md)
   * [Service Instance Custom Resource](./docs/user/resources/02-20-service-instance-cr.md)
