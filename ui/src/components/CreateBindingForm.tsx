@@ -9,6 +9,7 @@ import api from "../shared/api";
 import axios from "axios";
 import StatusMessage from "./StatusMessage";
 import '@ui5/webcomponents/dist/features/InputElementsFormSupport.js';
+import { generateRandom5CharString } from "../shared/common";
 
 function CreateBindingForm(props: any) {
   const [loading, setLoading] = useState(true);
@@ -16,10 +17,6 @@ function CreateBindingForm(props: any) {
 
   const [createdBinding, setCreatedBinding] = useState<ServiceInstanceBinding>(new ServiceInstanceBinding());
   const [success, setSuccess] = useState("");
-
-  const generateRandom5CharString = function(){
-      return Math.random().toString(20).substring(2, 7)
-  }
 
   function resetCreateBindingForm(response: any) {
       const suffix = "-" + generateRandom5CharString()
@@ -83,30 +80,28 @@ function CreateBindingForm(props: any) {
         }
 
         setLoading(true)
-        if (props.buttonPressed) {
-            axios
-                .put(api("service-bindings") + "/" + createdBinding.id, {
-                    name: createdBinding.name,
-                    service_instance_id: props.instanceId ?? "",
-                    secret_name: createdBinding.secret_name,
-                    secret_namespace: createdBinding.secret_namespace
-                }, {
-                    params: {
-                        sm_secret_name: props.secret.name,
-                        sm_secret_namespace: props.secret.namespace
-                    }
-                })
-                .then(resetCreateBindingForm)
-                .then((response) => {
-                    props.onSecretRestore(createdBinding);
-                    setSuccess("Item with id " + response.data.name + " updated.");
-                })
-                .catch((error: ApiError) => {
-                    setLoading(false);
-                    setError(error);
-                    setSuccess("");
-                });
-        }
+        axios
+            .put(api("service-bindings") + "/" + createdBinding.id, {
+                name: createdBinding.name,
+                service_instance_id: props.instanceId ?? "",
+                secret_name: createdBinding.secret_name,
+                secret_namespace: createdBinding.secret_namespace
+            }, {
+                params: {
+                    sm_secret_name: props.secret.name,
+                    sm_secret_namespace: props.secret.namespace
+                }
+            })
+            .then(resetCreateBindingForm)
+            .then((response) => {
+                props.onSecretRestore(createdBinding);
+                setSuccess("Item with id " + response.data.name + " updated.");
+            })
+            .catch((error: ApiError) => {
+                setLoading(false);
+                setError(error);
+                setSuccess("");
+            });
 
         e.preventDefault();
         return false;
