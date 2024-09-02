@@ -25,12 +25,17 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
       setServiceInstanceBindings(newbindings);
     },
 
-      refresh() {
-          console.log(bindings)
-          const newbindings = new ServiceInstanceBindings();
-          newbindings.items = bindings?.items ?? [];
-          setServiceInstanceBindings(newbindings);
-      }
+    refresh(binding: ServiceInstanceBinding) {
+      const newbindings = new ServiceInstanceBindings();
+      newbindings.items = bindings?.items ?? [];
+      let bindingIndex = newbindings!!.items.findIndex(bindingInArray => bindingInArray.id === binding.id)
+      let foundBinding = newbindings.items[bindingIndex]
+      foundBinding!!.secret_name = binding.secret_name
+      foundBinding!!.secret_namespace = binding.secret_namespace
+      newbindings.items[bindingIndex] = foundBinding
+      console.log(newbindings)
+      setServiceInstanceBindings(newbindings);
+    }
 
   }));
 
@@ -74,16 +79,6 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
           buttons =
               <ui5.TableCell>
 
-                  <ui5.ToggleButton
-                      design="Default"
-                      icon="synchronize"
-                      tooltip="Restore Secret"
-                      onClick={function _a(e: any) {
-                          e.stopPropagation();
-                          return toggleSecretRestore(sb, e.target.pressed);
-                      }}
-                  />
-
                   <ui5.Button
                       design="Default"
                       icon="delete"
@@ -91,6 +86,16 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
                       onClick={function _a(e: any) {
                           e.stopPropagation();
                           return deleteBinding(sb.id);
+                      }}
+                  />
+
+                  <ui5.ToggleButton
+                      design="Default"
+                      icon="synchronize"
+                      tooltip="Restore Secret"
+                      onClick={function _a(e: any) {
+                          e.stopPropagation();
+                          return toggleSecretRestore(sb, e.target.pressed);
                       }}
                   />
 

@@ -18,7 +18,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
   const [instance, setInstance] = useState<ServiceInstance>();
   const [binding, setBinding] = useState<ServiceInstanceBinding>(new ServiceInstanceBinding());
   const [secretRestoreButtonPressed, setSecretRestoreButtonPressed] = useState(false);
-  const dialogRef = useRef(null);
   const listRef = useRef(null);
 
 
@@ -35,9 +34,9 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
     setSecretRestoreButtonPressed(pressed)
   }
 
-  function onSecretRestore() {
+  function onSecretRestore(sb: ServiceInstanceBinding) {
     // @ts-ignore
-    listRef.current.refresh()
+    listRef.current.refresh(sb)
   }
 
   useEffect(() => {
@@ -91,7 +90,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
         </ui5.Panel>
 
         <ui5.Panel headerLevel="H2" headerText="Create Binding">
-          <CreateBindingForm secret={secret} binding={binding} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} buttonPressed={secretRestoreButtonPressed} onSecretRestore={onSecretRestore} />
+          <CreateBindingForm secret={secret} binding={binding} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} buttonPressed={secretRestoreButtonPressed} onSecretRestore={(binding: ServiceInstanceBinding) => onSecretRestore(binding)} />
         </ui5.Panel>
     </>
 

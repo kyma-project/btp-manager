@@ -21,7 +21,19 @@ function CreateBindingForm(props: any) {
       return Math.random().toString(20).substring(2, 7)
   }
 
-  const suffix = "-" + generateRandom5CharString()
+  function resetCreateBindingForm(response: any) {
+      const suffix = "-" + generateRandom5CharString()
+
+      const binding = new ServiceInstanceBinding()
+      binding.name = props.instanceName
+      binding.secret_name = props.instanceName + suffix
+      binding.secret_namespace = "default"
+
+      setCreatedBinding(binding);
+      setError(undefined);
+      setLoading(false);
+      return response;
+  }
 
   const handleCreate = (e: any): boolean => {
     setLoading(true)
@@ -33,13 +45,11 @@ function CreateBindingForm(props: any) {
       return false;
     }
 
-    createdBinding.service_instance_id = props.instanceId ?? ""
-
     setLoading(true)
       axios
           .post<ServiceInstanceBinding>(api("service-bindings"), {
               name: createdBinding.name,
-              service_instance_id: createdBinding.service_instance_id,
+              service_instance_id: props.instanceId ?? "",
               secret_name: createdBinding.secret_name,
               secret_namespace: createdBinding.secret_namespace
           }, {
@@ -49,21 +59,10 @@ function CreateBindingForm(props: any) {
                       sm_secret_namespace: props.secret!!.namespace
                   }
           })
+          .then(resetCreateBindingForm)
           .then((response) => {
-
-              // propagate the created binding
               props.onCreate(response.data);
-
-              // reset binding
-              const binding = new ServiceInstanceBinding()
-              binding.name = props.instanceName
-              binding.secret_name = props.instanceName + suffix
-              binding.secret_namespace = "default"
-
               setSuccess("Item with id " + response.data.name + " created.");
-              setCreatedBinding(binding);
-              setError(undefined);
-              setLoading(false);
           })
           .catch((error: ApiError) => {
               setLoading(false);
@@ -78,20 +77,17 @@ function CreateBindingForm(props: any) {
 
     const handleSecretRestore = (e: any): boolean => {
         e.preventDefault();
-
         if (e.nativeEvent.submitter.localName === "ui5-multi-input") {
             e.preventDefault()
             return false;
         }
-
-        createdBinding.service_instance_id = props.instanceId ?? ""
 
         setLoading(true)
         if (props.buttonPressed) {
             axios
                 .put(api("service-bindings") + "/" + createdBinding.id, {
                     name: createdBinding.name,
-                    service_instance_id: createdBinding.service_instance_id,
+                    service_instance_id: props.instanceId ?? "",
                     secret_name: createdBinding.secret_name,
                     secret_namespace: createdBinding.secret_namespace
                 }, {
@@ -100,18 +96,10 @@ function CreateBindingForm(props: any) {
                         sm_secret_namespace: props.secret.namespace
                     }
                 })
+                .then(resetCreateBindingForm)
                 .then((response) => {
-                    const binding = new ServiceInstanceBinding()
-                    binding.name = props.instanceName
-                    binding.secret_name = props.instanceName + suffix
-                    binding.secret_namespace = "default"
-
-                    props.onSecretRestore();
-
+                    props.onSecretRestore(createdBinding);
                     setSuccess("Item with id " + response.data.name + " updated.");
-                    setCreatedBinding(binding);
-                    setError(undefined);
-                    setLoading(false);
                 })
                 .catch((error: ApiError) => {
                     setLoading(false);
@@ -140,21 +128,22 @@ function CreateBindingForm(props: any) {
 
     setLoading(false);
     setError(undefined);
-
+      const suffix = "-" + generateRandom5CharString()
+      const currentBinding = new ServiceInstanceBinding()
     if (props.buttonPressed) {
-      createdBinding.id = props.binding.id
-      createdBinding.name = props.binding.name
-      createdBinding.secret_name = props.binding.name + suffix
-      createdBinding.secret_namespace = "default"
-      setCreatedBinding(createdBinding)
+        currentBinding.id = props.binding.id
+        currentBinding.name = props.binding.name
+        currentBinding.secret_name = props.binding.name + suffix
+        currentBinding.secret_namespace = "default"
+      setCreatedBinding(currentBinding)
     } else {
-      createdBinding.name = props.instanceName
-      createdBinding.secret_name = props.instanceName + suffix
-      createdBinding.secret_namespace = "default"
-      setCreatedBinding(createdBinding)
+        currentBinding.name = props.instanceName
+        currentBinding.secret_name = props.instanceName + suffix
+        currentBinding.secret_namespace = "default"
+      setCreatedBinding(currentBinding)
     }
 
-  }, [createdBinding, suffix, props.instanceId, props.instanceName, props.onCreate, props.secret, props.binding, props.buttonPressed]);
+  }, [props.instanceId, props.instanceName, props.onCreate, props.secret, props.binding, props.buttonPressed]);
 
   const renderData = () => {
 
