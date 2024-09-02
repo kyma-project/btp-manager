@@ -36,70 +36,93 @@ function CreateBindingForm(props: any) {
     createdBinding.service_instance_id = props.instanceId ?? ""
 
     setLoading(true)
-      if (props.buttonPressed) {
-          axios
-              .put(api("service-bindings") + "/" + createdBinding.id, {
-                  name: createdBinding.name,
-                  service_instance_id: createdBinding.service_instance_id,
-                  secret_name: createdBinding.secret_name,
-                  secret_namespace: createdBinding.secret_namespace
-              }, {
-                  params: {
-                      sm_secret_name: props.secret.name,
-                      sm_secret_namespace: props.secret.namespace
+      axios
+          .post<ServiceInstanceBinding>(api("service-bindings"), {
+              name: createdBinding.name,
+              service_instance_id: createdBinding.service_instance_id,
+              secret_name: createdBinding.secret_name,
+              secret_namespace: createdBinding.secret_namespace
+          }, {
+              params:
+                  {
+                      sm_secret_name: props.secret!!.name,
+                      sm_secret_namespace: props.secret!!.namespace
                   }
-              })
-              .then((response) => {
-                  props.onCreate(response.data);
-                  setError(undefined);
-                  setLoading(false);
-              })
-              .catch((error: ApiError) => {
-                  setLoading(false);
-                  setError(error);
-                  setSuccess("");
-              });
-      } else {
-          axios
-              .post<ServiceInstanceBinding>(api("service-bindings"), {
-                  name: createdBinding.name,
-                  service_instance_id: createdBinding.service_instance_id,
-                  secret_name: createdBinding.secret_name,
-                  secret_namespace: createdBinding.secret_namespace
-              }, {
-                  params:
-                      {
-                          sm_secret_name: props.secret!!.name,
-                          sm_secret_namespace: props.secret!!.namespace
-                      }
-              })
-              .then((response) => {
+          })
+          .then((response) => {
 
-                  // propagate the created binding
-                  props.onCreate(response.data);
+              // propagate the created binding
+              props.onCreate(response.data);
 
-                  // reset binding
-                  const binding = new ServiceInstanceBinding()
-                  binding.name = props.instanceName
-                  binding.secret_name = props.instanceName + suffix
-                  binding.secret_namespace = "default"
+              // reset binding
+              const binding = new ServiceInstanceBinding()
+              binding.name = props.instanceName
+              binding.secret_name = props.instanceName + suffix
+              binding.secret_namespace = "default"
 
-                  setSuccess("Item with id " + response.data.name + " created.");
-                  setCreatedBinding(binding);
-                  setError(undefined);
-                  setLoading(false);
-              })
-              .catch((error: ApiError) => {
-                  setLoading(false);
-                  setError(error);
-                  setSuccess("");
-              });
-      }
+              setSuccess("Item with id " + response.data.name + " created.");
+              setCreatedBinding(binding);
+              setError(undefined);
+              setLoading(false);
+          })
+          .catch((error: ApiError) => {
+              setLoading(false);
+              setError(error);
+              setSuccess("");
+          });
 
     e.preventDefault();
     e.stopPropagation();
     return false;
   }
+
+    const handleSecretRestore = (e: any): boolean => {
+        e.preventDefault();
+
+        if (e.nativeEvent.submitter.localName === "ui5-multi-input") {
+            e.preventDefault()
+            return false;
+        }
+
+        createdBinding.service_instance_id = props.instanceId ?? ""
+
+        setLoading(true)
+        if (props.buttonPressed) {
+            axios
+                .put(api("service-bindings") + "/" + createdBinding.id, {
+                    name: createdBinding.name,
+                    service_instance_id: createdBinding.service_instance_id,
+                    secret_name: createdBinding.secret_name,
+                    secret_namespace: createdBinding.secret_namespace
+                }, {
+                    params: {
+                        sm_secret_name: props.secret.name,
+                        sm_secret_namespace: props.secret.namespace
+                    }
+                })
+                .then((response) => {
+                    const binding = new ServiceInstanceBinding()
+                    binding.name = props.instanceName
+                    binding.secret_name = props.instanceName + suffix
+                    binding.secret_namespace = "default"
+
+                    props.onSecretRestore();
+
+                    setSuccess("Item with id " + response.data.name + " updated.");
+                    setCreatedBinding(binding);
+                    setError(undefined);
+                    setLoading(false);
+                })
+                .catch((error: ApiError) => {
+                    setLoading(false);
+                    setError(error);
+                    setSuccess("");
+                });
+        }
+
+        e.preventDefault();
+        return false;
+    }
 
   useEffect(() => {
     setLoading(true)
@@ -131,7 +154,7 @@ function CreateBindingForm(props: any) {
       setCreatedBinding(createdBinding)
     }
 
-  }, [createdBinding, props.instanceId, props.instanceName, props.onCreate, props.secret]);
+  }, [createdBinding, suffix, props.instanceId, props.instanceName, props.onCreate, props.secret, props.binding, props.buttonPressed]);
 
   const renderData = () => {
 
@@ -146,7 +169,7 @@ function CreateBindingForm(props: any) {
     if (props.buttonPressed) {
         return (
             <ui5.Form
-                onSubmit={handleCreate}>
+                onSubmit={handleSecretRestore}>
                 <ui5.FormItem>
                     <StatusMessage error={error ?? undefined} success={success} />
                 </ui5.FormItem>

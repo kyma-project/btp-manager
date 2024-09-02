@@ -23,7 +23,14 @@ const ServiceBindingsList = forwardRef((props: any, ref) => {
       const newbindings = new ServiceInstanceBindings();
       newbindings.items = bindings?.items ?? [];
       setServiceInstanceBindings(newbindings);
-    }
+    },
+
+      refresh() {
+          console.log(bindings)
+          const newbindings = new ServiceInstanceBindings();
+          newbindings.items = bindings?.items ?? [];
+          setServiceInstanceBindings(newbindings);
+      }
 
   }));
 
