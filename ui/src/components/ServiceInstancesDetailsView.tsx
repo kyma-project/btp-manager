@@ -86,7 +86,7 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
         </ui5.Panel>
 
         <ui5.Panel headerLevel="H2" headerText="Create Binding">
-          <CreateBindingForm secret={secret} binding={binding} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} buttonPressed={props.secretRestoreButtonPressed} onSecretRestore={(binding: ServiceInstanceBinding) => onSecretRestore(binding)} />
+          <CreateBindingForm secret={secret} binding={binding} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} setSecretRestoreButtonPressedState={props.setSecretRestoreButtonPressedState} buttonPressed={props.secretRestoreButtonPressed} onSecretRestore={(binding: ServiceInstanceBinding) => onSecretRestore(binding)} />
         </ui5.Panel>
     </>
 

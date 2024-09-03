@@ -27,6 +27,7 @@ function CreateBindingForm(props: any) {
       binding.secret_namespace = "default"
 
       setCreatedBinding(binding);
+      props.setSecretRestoreButtonPressedState(false);
       setError(undefined);
       setLoading(false);
       return response;
