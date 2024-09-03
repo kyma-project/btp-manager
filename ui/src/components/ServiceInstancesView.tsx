@@ -249,7 +249,7 @@ function ServiceInstancesView(props: any) {
                 }}></ui5.Button>
               </div>
             </ui5.Bar>
-            <ServiceInstancesDetailsView secret={secret} instance={selectedInstance} setSecretRestoreButtonPressedState={setSecretRestoreButtonPressedState} secretRestoreButtonPressed={secretRestoreButtonPressed}  />
+            <ServiceInstancesDetailsView secret={secret} instance={selectedInstance} setSecretRestoreButtonPressedState={setSecretRestoreButtonPressedState} secretRestoreButtonPressed={secretRestoreButtonPressed} />
           </div>
 
         </FlexibleColumnLayout>
