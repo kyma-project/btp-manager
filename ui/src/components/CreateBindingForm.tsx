@@ -128,7 +128,7 @@ function CreateBindingForm(props: any) {
     if (props.buttonPressed) {
         currentBinding.id = props.binding.id
         currentBinding.name = props.binding.name
-        currentBinding.secret_name = props.binding.name + suffix
+        currentBinding.secret_name = props.binding.name
         currentBinding.secret_namespace = "default"
       setCreatedBinding(currentBinding)
     } else {
