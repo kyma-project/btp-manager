@@ -24,29 +24,37 @@ function StatusMessage(props: StatusMessageProps) {
                     message += " - " + props.error!!.response.data;
                     setMessage(message);
                 }
+
             } else {
                 console.log(props.error);
             }
+        } else if (props.success) {
+            setMessage(props.success);
         }
     }, [props.error, props.success]);
 
 
     const renderData = () => {
 
-        if (props.error) {
+        if (props.error && message) {
             return (
-                    <ui5.MessageStrip
-                        design="Negative"
-                        >
-                        {message}
-                    </ui5.MessageStrip>
+                <ui5.MessageStrip
+                    design="Negative"
+                    onClose={function _s() {
+                        setMessage("");
+                    }}>
+                    {message}
+                </ui5.MessageStrip>
             );
-        } else if (props.success) {
+        } else if (props.success && message) {
             return (
-                    <ui5.MessageStrip
-                        design="Information">
-                        {props.success}
-                    </ui5.MessageStrip>
+                <ui5.MessageStrip
+                    design="Information"
+                    onClose={function _s() {
+                        setMessage("");
+                    }}>
+                    {message}
+                </ui5.MessageStrip>
             );
         } else {
             <div></div>
