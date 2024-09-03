@@ -127,7 +127,7 @@ function CreateBindingForm(props: any) {
       const currentBinding = new ServiceInstanceBinding()
     if (props.buttonPressed) {
         currentBinding.id = props.binding.id
-        currentBinding.name = props.binding.name + suffix
+        currentBinding.name = props.binding.name
         currentBinding.secret_name = props.binding.name + suffix
         currentBinding.secret_namespace = "default"
       setCreatedBinding(currentBinding)
