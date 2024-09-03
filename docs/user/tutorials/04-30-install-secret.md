@@ -4,9 +4,9 @@
 After successfully creating your Secret, install it in your cluster.
 
 > [!TIP]
-> For instructions on creating a BTP Manager Secret, see the [dedicated tutorial](04-10-create-btp-manager-secret.md).
+> For instructions on creating a BTP Manager Secret, see [Create BTP Manager Secret](04-10-create-btp-manager-secret.md).
 
-1. To apply the Secret in your cluster, run the following command: 
+1. To apply the Secret in your cluster, run: 
 
    ```sh
    kubectl apply -f operator-secret.yaml
@@ -15,7 +15,7 @@ After successfully creating your Secret, install it in your cluster.
    > [!WARNING] 
    > The Secret already contains the required label: `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without this label, the Secret is not visible to BTP Manager.
 
-2. To check the BtpOperator custom resource (CR) status, run the following command:
+2. To check the BtpOperator custom resource (CR) status, run:
 
    ```sh
    kubectl get btpoperators btpoperator

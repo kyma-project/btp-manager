@@ -5,6 +5,8 @@ After successfully installing your Secret, create a service instance and a servi
 > [!NOTE] 
 > This section provides a real example with the real `xsuaa` service. Use your real Secret to complete the procedure successfully.
 
+## Procedure
+
 1. To create a service instance, run the following script:
 
     ```yaml
@@ -22,7 +24,7 @@ After successfully installing your Secret, create a service instance and a servi
     ```
 
    > [!TIP] 
-   > You can find values for the **serviceOfferingName** and **servicePlanName** parameters in the Service Marketplace of the SAP BTP cockpit. Click on the service's tile and find the **name** and **Plan** respectively. The value of the **externalName** parameter must be unique.
+   > To find values for the **serviceOfferingName** and **servicePlanName** parameters, go to the SAP BTP cockpit > **Service Marketplace**, select the service's tile, and find the **name** and **Plan**. The value of the **externalName** parameter must be unique.
 
 2. To check the output, run:
 
@@ -62,9 +64,11 @@ After successfully installing your Secret, create a service instance and a servi
     kubectl get secret my-service-binding -o yaml
     ```
 
-6. To clean up your resources, run the following command:
+## Next Steps
 
-    ```bash
-    kubectl delete servicebindings.services.cloud.sap.com my-service-binding
-    kubectl delete serviceinstances.services.cloud.sap.com my-service-instance
-    ```
+To clean up your resources, run the following command:
+
+```bash
+kubectl delete servicebindings.services.cloud.sap.com my-service-binding
+kubectl delete serviceinstances.services.cloud.sap.com my-service-instance
+```

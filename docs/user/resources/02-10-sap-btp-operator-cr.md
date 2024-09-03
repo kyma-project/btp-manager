@@ -42,7 +42,7 @@ status:
 
 **Spec:** 
 
-Currently, no entry parameters are available for configuration in the BtpOperator CR.
+No entry parameters are available for configuration in the BtpOperator CR.
 
 **Status:**
 

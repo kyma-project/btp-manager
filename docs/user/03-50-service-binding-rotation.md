@@ -4,7 +4,7 @@ Enhance security by automatically rotating the credentials associated with your 
 
 ## Enable Automatic Rotation
 
-To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. The field allows you to configure the following parameters:
+To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. You can configure the following parameters:
 
 | Parameter         | Type     | Description                                                                                                                               | Valid Values |
 |-----------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------|--------------|
@@ -21,7 +21,8 @@ The `credentialsRotationPolicy` is evaluated periodically during a [control loop
 
 ## Immediate Rotation
 
-You can trigger an immediate rotation regardless of the configured **rotationFrequency** by adding the `services.cloud.sap.com/forceRotate: "true"` annotation to the ServiceBinding resource. The immediate rotation only works if automatic rotation is already enabled. 
+To trigger an immediate rotation regardless of the configured **rotationFrequency**, add the `services.cloud.sap.com/forceRotate: "true"` annotation to the ServiceBinding resource.
+The immediate rotation only works if automatic rotation is already enabled. 
 
 The following example shows the configuration of a ServiceBinding resource for rotating credentials every 25 days (600 hours) and keeping the old ServiceBinding resource for 2 days (48 hours) before deleting it:
 
@@ -38,14 +39,14 @@ spec:
     rotationFrequency: 600h
  ```
 
-## After Rotation
+## Result
 
-Once the ServiceBinding is rotated:
+Rotating the service binding has the following results:
 * The Secret is updated with the latest credentials. 
 * The old credentials are kept in a newly-created Secret named `original-secret-name(variable)-guid(variable)`.
 This temporary Secret is kept until the configured deletion time (TTL) expires.
 
-To view the timestamp of the last service binding rotation, refer to the **status.lastCredentialsRotationTime** field.
+To see the timestamp of the last service binding rotation, go to the **status.lastCredentialsRotationTime** field.
 
 ## Limitations
 

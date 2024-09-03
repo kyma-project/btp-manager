@@ -15,14 +15,12 @@ To enable the SAP BTP Operator module from the latest release, you must install 
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * Kubernetes cluster, or [k3d](https://k3d.io) for local installation
 * [jq](https://github.com/stedolan/jq)
-* BTP Manager Secret created. See the instructions in [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md).
+* BTP Manager Secret created. See [Create a BTP Manager Secret](./docs/user/tutorials/04-10-create-btp-manager-secret.md).
 * `sap-btp-manager` Secret
-
-> [!WARNING] 
-> You also need the `kyma-system` namespace. If you don't have it in your cluster, use the following command to create it:
-> ```bash
-> kubectl create namespace kyma-system
-> ```
+* `kyma-system` namespace. If you don't have it in your cluster, use the following command to create it:
+    ```bash
+    kubectl create namespace kyma-system
+    ```
 
 ### Steps
  

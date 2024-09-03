@@ -18,10 +18,9 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
             key1: val1
             key2: val2
     ```
-    > [!NOTE]
-    > In the **serviceOfferingName** and  **servicePlanName** fields, enter the name of the SAP BTP service you want to use and the service's plan respectively.
+      In the **serviceOfferingName** and  **servicePlanName** fields, enter the name of the SAP BTP service you want to use and the service's plan respectively.
 
-2.  Apply the CR file in your cluster to create the service instance.
+2.  To create the service instance, apply the CR file in your cluster.
 
     ```bash
     kubectl apply -f path/to/my-service-instance.yaml
@@ -35,38 +34,36 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
     my-service-instance   sample-service    sample-plan      Created   44s
     ```
 
-## Service Binding
+## Create a Service Binding
 
-A ServiceBinding CR allows an application to obtain access credentials for communicating with an SAP BTP service. 
+With a ServiceBinding CR, your application can get access credentials for communicating with an SAP BTP service. 
 These access credentials are available to applications through a Secret resource generated in your cluster.
 
-The following is an example of the ServiceBinding CR:
+1. Create a ServiceBinding CR based on the following example:
 
-```yaml
-apiVersion: services.cloud.sap.com/v1
-kind: ServiceBinding
-metadata:
-  name: my-binding
-spec:
-  serviceInstanceName: my-service-instance
-  externalName: my-binding-external
-  secretName: my-secret
-  parameters:
-    key1: val1
-    key2: val2           
-```
-> [!NOTE] 
-> In the **serviceInstanceName** field of the ServiceBinding, enter the name of the ServiceInstance resource you previously created.
+    ```yaml
+    apiVersion: services.cloud.sap.com/v1
+    kind: ServiceBinding
+    metadata:
+      name: my-binding
+    spec:
+      serviceInstanceName: my-service-instance
+      externalName: my-binding-external
+      secretName: my-secret
+      parameters:
+        key1: val1
+        key2: val2           
+    ```
 
-### Create a Service Binding
+    In the **serviceInstanceName** field of the ServiceBinding, enter the name of the ServiceInstance resource you previously created.
 
-1.  Apply the CR file in your cluster to create the service binding:
+2.  To create the service binding, apply the CR file in your cluster:
 
     ```bash
     kubectl apply -f path/to/my-binding.yaml
     ```
     
-2.  Verify that your service binding status is `Created`:
+3.  Verify that your service binding status is `Created`:
 
     ```bash
     kubectl get servicebindings
@@ -74,7 +71,7 @@ spec:
     my-binding   my-service-instance   Created   16s    
     ```
 
-3.  Verify the Secret is created with the name specified in the  **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that the applications require to use the service:
+4.  Verify the Secret is created with the name specified in the  **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that the applications need to use the service:
 
     ```bash
     kubectl get secrets
@@ -82,7 +79,7 @@ spec:
     my-secret    Opaque   5      32s
     ```
 
-    See [Uses for Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#uses-for-secrets) to learn about different options for using the credentials from your application running in the Kubernetes cluster.
+    To learn about different options for using the credentials from your application running in the Kubernetes cluster, see [Uses for Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#uses-for-secrets).
 
 ## Passing Parameters
 
@@ -95,7 +92,7 @@ To set input parameters, go to the `spec` of the ServiceInstance or ServiceBindi
 * **parametersFrom**: Specifies which Secret, together with the key in it, to include in the set of parameters sent to the service broker.
   The key contains a `string` that represents the JSON. The **parametersFrom** field is a list that supports multiple sources referenced per `spec`.
 
-If multiple sources in the **parameters** and **parametersFrom** fields are specified, the final payload results from merging all of them at the top level.
+If you specified multiple sources in the **parameters** and **parametersFrom** fields, the final payload results from merging all of them at the top level.
 If there are any duplicate properties defined at the top level, the specification is considered to be invalid. 
 The further processing of the ServiceInstance or ServiceBinding resource stops with the status `Error`.
 

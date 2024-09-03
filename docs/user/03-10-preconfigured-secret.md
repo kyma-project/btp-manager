@@ -1,22 +1,21 @@
 # Preconfigured Credentials and Access
 
+When you create SAP BTP, Kyma runtime, all necessary resources for consuming SAP BTP services are created, and the basic cluster access is configured.
+
 ## Credentials
 
-On enabling SAP BTP, Kyma runtime, all necessary resources for consuming SAP BTP services are created, and the basic cluster access is configured.
-
-When you click on `Enable Kyma` in the SAP BTP cockpit, the following events happen in your subaccount:
+When you create a Kyma instance in the SAP BTP cockpit, the following events happen in your subaccount:
 1. An SAP Service Manager service instance with the `service-operator-access` plan is created.
 2. An SAP Service Manager service binding with access credentials for the SAP BTP Operator is created.
 3. The credentials from the service binding are passed on to the Kyma service instance in the creation process.
 4. The `sap-btp-manager` Secret is created and managed in the `kyma-system` namespace.
-
-When you create a Kyma cluster, the SAP BTP Operator module is installed by default together with:
-* The `sap-btp-manager` Secret.
-* The `sap-btp-service-operator` Secret with the access credentials for the SAP BTP service operator. You can view the credentials.
-* The `sap-btp-operator-config` Config Map.
+5. The SAP BTP Operator module is installed by default together with:
+   * The `sap-btp-manager` Secret.
+   * The `sap-btp-service-operator` Secret with the access credentials for the SAP BTP service operator. You can view the credentials in the `kyma-system` namespace.
+   * The `sap-btp-operator-config` ConfigMap.
 
 > [!TIP]
-> In this scenario, the `sap-btp-service-operator` Secret is automatically generated when you enable Kyma runtime. If you want to create this Secret manually for a specific namespace, follow the instructions in [Create an SAP BTP Service Operator Secret](./tutorials/04-20-create-btp-service-operator-secret.md).
+> In this scenario, the `sap-btp-service-operator` Secret is automatically generated when you create Kyma runtime. To create this Secret manually for a specific namespace, see [Create an SAP BTP Service Operator Secret](./tutorials/04-20-create-btp-service-operator-secret.md).
 
 The `sap-btp-manager` Secret provides the following credentials:
 * **clientid**
@@ -33,16 +32,16 @@ When you add the SAP BTP Operator module to your cluster, the `sap-btp-manager` 
 > [!NOTE]
 > If you modify or delete the `sap-btp-manager` Secret, it is modified back to its previous settings or regenerated within up to 24 hours.
 
-The cluster ID represents a Kyma service instance created in a particular subacoount and allows for its identification. You can view a cluster ID in the SAP BTP cockpit:
+The cluster ID represents a Kyma service instance created in a particular subaccount and allows for its identification. You can view the cluster ID in the SAP BTP cockpit:
 * In the list of instances as your Kyma service instance's scope
 * In the `sap-btp-manager` Secret
-* In the `sap-btp-operator-config` Config Map
+* In the `sap-btp-operator-config` ConfigMap
 
 ## Cluster Access
 
-By default, SAP BTP Operator has cluster-wide permissions. Currently, reconfiguring the predefined settings is not possible.
+By default, SAP BTP Operator has cluster-wide permissions. You cannot reconfigure the predefined settings.
 
-The following table lists the parameters managing cluster access:
+The following parameters manage cluster access:
 
 | Parameter                     | Description                                                                                   |
 |-------------------------------|-----------------------------------------------------------------------------------------------|

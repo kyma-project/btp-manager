@@ -12,8 +12,6 @@ BTP Manager performs the following operations:
 
 ### Prerequisites
 
-The prerequisites for the SAP BTP service operator provisioning are:
-
 * Namespace `kyma-system`
 * PriorityClass `kyma-system`
 * Secret `sap-btp-manager` with data for the SAP BTP service operator
@@ -37,10 +35,10 @@ The provisioning process is part of a module reconciliation.
    EOF
    ```
 
-2. The BtpOperator reconciler picks up the created CR and determines whether it should be responsible for representing the module status. 
+2. The BtpOperator reconciler picks up the created CR and determines whether the CR should be responsible for representing the module status. 
 3. The BtpOperator CR reflects the status of the operand, that is, the SAP BTP service operator, only when it is the oldest CR present in the cluster. Otherwise, it is given the `Error` state (3a) with the condition reason `OlderCRExists` and the message containing details about the CR responsible for reconciling the operand.
 4. For the only or the oldest CR present in the cluster,  a finalizer is added, the CR is set to the `Processing` state, and the reconciliation proceeds.
-5. The reconciler looks for a `sap-btp-manager` Secret in the `kyma-system` namespace with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the SAP Service Manager credentials for the SAP BTP service operator and should be delivered to the cluster by KEB. If the Secret is missing, an error is thrown (5a), and the reconciler sets the `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret is created. 
+5. In the `kyma-system` namespace, the reconciler looks for a `sap-btp-manager` Secret with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the SAP Service Manager credentials for the SAP BTP service operator and should be delivered to the cluster by KEB. If the Secret is missing, an error is thrown (5a), and the reconciler sets the `Warning` state (with the condition reason `MissingSecret`) in the CR and stops the reconciliation until the Secret is created. 
 6. When the Secret is present in the cluster, the reconciler verifies whether it contains the required data. The Secret should contain the following keys: **clientid**, **clientsecret**, **sm_url**, **tokenurl**, **cluster_id**. None of the key values should be empty. 
 If some required data is missing, the reconciler throws an error (6a) with the message about missing keys/values, sets the CR in the `Error` state (reason `InvalidSecret`), and stops the reconciliation until there is a change in the required Secret.
 7. After checking the Secret, the reconciler performs the apply and delete operations of the [module resources](../../module-resources).

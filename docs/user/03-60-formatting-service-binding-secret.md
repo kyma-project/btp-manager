@@ -142,7 +142,7 @@ The provided templates are executed on a map with the following available attrib
 | **instance.type**   |  The name of the associated service offering. |  
 | **credentials.attributes(var)**   |  The content of the credentials depends on a service. For more details, refer to the documentation of the service you're using. |  
 
-See two examples demonstrating the ServiceBinding and generated Secret resources:
+The following examples demonstrate the ServiceBinding and generated Secret resources:
 
 * Service binding with customized `metadata` and `stringData` sections:
 

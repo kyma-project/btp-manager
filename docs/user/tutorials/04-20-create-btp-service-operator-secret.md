@@ -1,7 +1,5 @@
 # Create a Custom SAP BTP Service Operator Secret
 
-To create a custom SAP BTP service operator Secret, follow these steps:
-
 1. Get the access credentials of the SAP Service Manager instance with the `service-operator-access` plan from its ServiceBinding. Copy them from the BTP cockpit as a JSON. 
 
 2. Create the `creds.json` file in your working directory and save the credentials there.
