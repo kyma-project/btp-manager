@@ -20,8 +20,13 @@ function ServiceInstancesView(props: any) {
   const [selectedInstance, setSelectedInstance] = useState<ServiceInstance>(new ServiceInstance());
   const [success, setSuccess] = useState("");
   const [layout, setLayout] = useState(FCLLayout.OneColumn);
+  const [secretRestoreButtonPressed, setSecretRestoreButtonPressed] = useState(false);
 
   let { id } = useParams();
+
+  function setSecretRestoreButtonPressedState(pressed: boolean) {
+    setSecretRestoreButtonPressed(pressed)
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -133,6 +138,7 @@ function ServiceInstancesView(props: any) {
             onClick={() => {
               setSelectedInstance(instance)
               setLayout(FCLLayout.TwoColumnsMidExpanded)
+              setSecretRestoreButtonPressed(false);
             }}
           >
 
@@ -243,7 +249,7 @@ function ServiceInstancesView(props: any) {
                 }}></ui5.Button>
               </div>
             </ui5.Bar>
-            <ServiceInstancesDetailsView secret={secret} instance={selectedInstance} />
+            <ServiceInstancesDetailsView secret={secret} instance={selectedInstance} setSecretRestoreButtonPressedState={setSecretRestoreButtonPressedState} secretRestoreButtonPressed={secretRestoreButtonPressed} />
           </div>
 
         </FlexibleColumnLayout>

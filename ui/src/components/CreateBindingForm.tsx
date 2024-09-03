@@ -22,11 +22,12 @@ function CreateBindingForm(props: any) {
       const suffix = "-" + generateRandom5CharString()
 
       const binding = new ServiceInstanceBinding()
-      binding.name = props.instanceName
+      binding.name = props.instanceName + suffix
       binding.secret_name = props.instanceName + suffix
       binding.secret_namespace = "default"
 
       setCreatedBinding(binding);
+      props.setSecretRestoreButtonPressedState(false);
       setError(undefined);
       setLoading(false);
       return response;
@@ -128,11 +129,11 @@ function CreateBindingForm(props: any) {
     if (props.buttonPressed) {
         currentBinding.id = props.binding.id
         currentBinding.name = props.binding.name
-        currentBinding.secret_name = props.binding.name + suffix
+        currentBinding.secret_name = props.binding.name
         currentBinding.secret_namespace = "default"
       setCreatedBinding(currentBinding)
     } else {
-        currentBinding.name = props.instanceName
+        currentBinding.name = props.instanceName + suffix
         currentBinding.secret_name = props.instanceName + suffix
         currentBinding.secret_namespace = "default"
       setCreatedBinding(currentBinding)
