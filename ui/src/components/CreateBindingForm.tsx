@@ -22,7 +22,7 @@ function CreateBindingForm(props: any) {
       const suffix = "-" + generateRandom5CharString()
 
       const binding = new ServiceInstanceBinding()
-      binding.name = props.instanceName
+      binding.name = props.instanceName + suffix
       binding.secret_name = props.instanceName + suffix
       binding.secret_namespace = "default"
 
