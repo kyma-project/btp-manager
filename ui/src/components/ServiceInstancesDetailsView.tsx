@@ -17,7 +17,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
 
   const [instance, setInstance] = useState<ServiceInstance>();
   const [binding, setBinding] = useState<ServiceInstanceBinding>(new ServiceInstanceBinding());
-  const [secretRestoreButtonPressed, setSecretRestoreButtonPressed] = useState(false);
   const listRef = useRef(null);
 
 
@@ -30,9 +29,6 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
     setBinding(sb);
   }
 
-  function setSecretRestoreButtonPressedState(pressed: boolean) {
-    setSecretRestoreButtonPressed(pressed)
-  }
 
   function onSecretRestore(sb: ServiceInstanceBinding) {
     // @ts-ignore
@@ -86,11 +82,11 @@ const ServiceInstancesDetailsView = forwardRef((props: any, ref) => {
         </ui5.Panel>
 
         <ui5.Panel accessibleRole="Form" headerLevel="H2" headerText="Bindings">
-          <ServiceBindingsList secret={secret} ref={listRef} instance={props.instance} setServiceBinding={setServiceBinding} setSecretRestoreButtonPressedState={setSecretRestoreButtonPressedState} />
+          <ServiceBindingsList secret={secret} ref={listRef} instance={props.instance} setServiceBinding={setServiceBinding} setSecretRestoreButtonPressedState={props.setSecretRestoreButtonPressedState} />
         </ui5.Panel>
 
         <ui5.Panel headerLevel="H2" headerText="Create Binding">
-          <CreateBindingForm secret={secret} binding={binding} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} buttonPressed={secretRestoreButtonPressed} onSecretRestore={(binding: ServiceInstanceBinding) => onSecretRestore(binding)} />
+          <CreateBindingForm secret={secret} binding={binding} onCreate={(binding: ServiceInstanceBinding) => onBindingAdded(binding)} instanceId={props.instance.id} instanceName={props.instance.name} buttonPressed={props.secretRestoreButtonPressed} onSecretRestore={(binding: ServiceInstanceBinding) => onSecretRestore(binding)} />
         </ui5.Panel>
     </>
 
