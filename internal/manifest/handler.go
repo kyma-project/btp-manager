@@ -82,7 +82,6 @@ func (h *Handler) CreateObjectsFromManifests(manifests []string) ([]runtime.Obje
 	objects := make([]runtime.Object, 0, len(manifests))
 	for _, manifest := range manifests {
 		obj, err := h.CreateObjectFromManifest(manifest)
-
 		if err != nil {
 			return nil, fmt.Errorf("while creating object from manifest: %w", err)
 		}
