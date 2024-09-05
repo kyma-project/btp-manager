@@ -3,6 +3,7 @@ package manifest
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -61,7 +62,9 @@ func (h *Handler) GetManifestsFromYaml(yamlFile string) ([]string, error) {
 	}
 
 	manifests := make([]string, 0)
-	yamlParts := strings.Split(string(data), "---\n")
+	// matches lines that start with "---" and may have trailing spaces after and have a newline
+	re := regexp.MustCompile(`(?m)^---\s*\n`)
+	yamlParts := re.Split(string(data), -1)
 	for _, part := range yamlParts {
 		if part == "" || part == "\n" {
 			continue
