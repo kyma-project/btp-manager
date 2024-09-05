@@ -84,9 +84,6 @@ func (h *Handler) CreateObjectsFromManifests(manifests []string) ([]runtime.Obje
 		obj, err := h.CreateObjectFromManifest(manifest)
 
 		if err != nil {
-			fmt.Println("\n\n\neeeeeeeeeee")
-			fmt.Print(manifest)
-			os.Exit(1)
 			return nil, fmt.Errorf("while creating object from manifest: %w", err)
 		}
 		objects = append(objects, obj)
