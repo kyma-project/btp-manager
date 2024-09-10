@@ -129,27 +129,15 @@ jobs:
     outputs:
       latest_commit: ${{ steps.pull-ref.outputs.latest_commit }}  
 
-  wait-for-prow-jobs:
-    name: Wait for prow jobs
+  build-image:
+    name: Build image
     needs: [create-draft, bump-sec-scanners-config]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Wait for post-btp-manager-build status
-        uses: autotelic/action-wait-for-status-check@6556cf50c8fb6608412945382eae73581f56cbb4
-        id: wait-for-image-build-status
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          statusName: "post-btp-manager-build"
-          timeoutSeconds: "300"
-          ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
-
-      - name: Check if post-btp-manager-build status is success
-        if: steps.wait-for-image-build-status.outputs.state != 'success'
-        run: |
-          echo 'post-btp-manager-build failed.'
-          exit 1
-  
+    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+    with:
+      name: btp-manager
+      dockerfile: Dockerfile
+      context: .
+      tags: ${{ inputs.name }}
 
   run-unit-tests:
     name: Unit tests
@@ -160,7 +148,7 @@ jobs:
 
   run-e2e-tests:
     name: E2E tests
-    needs: wait-for-prow-jobs
+    needs: build-image
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -171,7 +159,7 @@ jobs:
 
   run-stress-tests:
     name: Stress tests
-    needs: wait-for-prow-jobs
+    needs: build-image
     runs-on: ubuntu-latest
 
     steps:
@@ -212,7 +200,7 @@ jobs:
 
   run-e2e-upgrade-tests:
     name: E2E upgrade tests
-    needs: wait-for-prow-jobs
+    needs: build-image
     secrets: inherit
     if: ${{ inputs.credentials == 'real' }}
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
@@ -222,7 +210,7 @@ jobs:
 
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
-    needs: wait-for-prow-jobs
+    needs: build-image
     secrets: inherit
     uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
     with:

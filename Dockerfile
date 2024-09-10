@@ -1,7 +1,7 @@
 # Build the manager binary
-FROM golang:1.22.6-alpine3.20 as builder
+FROM golang:1.23.1-alpine3.20 as builder
 
-WORKDIR /workspace
+WORKDIR /btp-manager-workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -23,9 +23,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/manager .
-COPY --from=builder /workspace/module-chart ./module-chart
-COPY --from=builder /workspace/module-resources ./module-resources
+COPY --chown=65532:65532 --from=builder /btp-manager-workspace/manager .
+COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-chart ./module-chart
+COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-resources ./module-resources
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

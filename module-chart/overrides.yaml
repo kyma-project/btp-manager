@@ -11,3 +11,4 @@ manager:
   kubernetesMatchLabels:
     enabled: true
   enable_limited_cache: false
+  priorityClassName: "btp-manager-kyma-priority"
