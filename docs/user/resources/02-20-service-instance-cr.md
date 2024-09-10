@@ -42,7 +42,7 @@ The following table lists the parameters of the given resource with their descri
 | **customTags**           | []string | List of custom tags describing the service instance; copied to the ServiceBinding Secret in the key called **tags**. |
 | **userInfo**             | object   | The user that last modified this service instance. |
 | **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or none.<br> If not specified, the value defaults to `false`. |
-| **btpAccessCredentialsSecret** | string   | The name of the Secret that contains access credentials for the SAP BTP service operator. See [Working with Multiple Subaccounts](../03-30-multitenancy.md). |
+| **btpAccessCredentialsSecret** | string   | The name of the Secret that contains access credentials for the SAP BTP service operator. See [Working with Multiple Subaccounts](../03-20-multitenancy.md). |
 
 **Status:**
 

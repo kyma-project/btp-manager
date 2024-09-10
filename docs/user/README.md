@@ -12,10 +12,10 @@ The SAP BTP service operator enables provisioning and managing service instances
 
 The SAP BTP Operator module provides the following features:
 * [Credentials and access preconfiguration](03-10-preconfigured-secret.md): Your Secret is provided on Kyma runtime creation.
-* [Multitenancy](03-30-multitenancy.md): You can configure multiple subaccounts in a single cluster.
-* [Lifecycle management of service instances and service bindings](03-40-management-of-service-instances-and-bindings.md): You can create and delete service instances and service bindings.
-* [Service binding rotation](03-50-service-binding-rotation.md): You can enhance security by automatically rotating the credentials associated with your service bindings.
-* [Service binding Secret formatting](03-60-formatting-service-binding-secret.md): You can use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
+* [Multitenancy](03-20-multitenancy.md): You can configure multiple subaccounts in a single cluster.
+* [Lifecycle management of service instances and service bindings](03-30-management-of-service-instances-and-bindings.md): You can create and delete service instances and service bindings.
+* [Service binding rotation](03-40-service-binding-rotation.md): You can enhance security by automatically rotating the credentials associated with your service bindings.
+* [Service binding Secret formatting](03-50-formatting-service-binding-secret.md): You can use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 
 ## Scope
 
