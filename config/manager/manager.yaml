@@ -19,6 +19,7 @@ spec:
       labels:
         app.kubernetes.io/component: btp-manager.kyma-project.io
     spec:
+      priorityClassName: "kyma-priority"
       securityContext:
         runAsNonRoot: true
       containers:
