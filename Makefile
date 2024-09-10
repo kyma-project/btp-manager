@@ -145,15 +145,15 @@ $(LOCALBIN):
 
 ########## Kustomize ###########
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
-KUSTOMIZE_VERSION ?= v4.5.6
+KUSTOMIZE_VERSION ?= v5.4.3
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download & Build kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION)
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION)
 
 ########## controller-gen ###########
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-CONTROLLER_TOOLS_VERSION ?= v0.15.0
+CONTROLLER_TOOLS_VERSION ?= v0.16.1
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download & Build controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
@@ -164,14 +164,14 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download & Build envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240426121724-77435913f513
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240820183333-e6c3d139d2b6
 
 ########## ginkgo ###########
 GINKGO ?= $(LOCALBIN)/ginkgo
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download & Build ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.2
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.20.0
 
 ##@ Checks
 

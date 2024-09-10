@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kyma-project/btp-manager/internal/conditions"
 
@@ -99,7 +100,7 @@ func (r *ServiceInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(sb,
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates(r.deletionPredicate())).
-		WithOptions(controller.Options{RateLimiter: workqueue.NewItemExponentialFailureRateLimiter(10*time.Millisecond, 1000*time.Second)}).
+		WithOptions(controller.Options{RateLimiter: workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](10*time.Millisecond, 1000*time.Second)}).
 		Complete(r)
 }
 

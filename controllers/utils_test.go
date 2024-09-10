@@ -27,7 +27,6 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	schedulingv1 "k8s.io/api/scheduling/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +54,6 @@ const (
 	btpOperatorKind                = "BtpOperator"
 	btpOperatorApiVersion          = `operator.kyma-project.io\v1alpha1`
 	secretYamlPath                 = "testdata/test-secret.yaml"
-	priorityClassYamlPath          = "testdata/test-priorityclass.yaml"
 	k8sOpsTimeout                  = time.Second * 3
 	k8sOpsPollingInterval          = time.Millisecond * 200
 	extraLabelKey                  = "reconciler.kyma-project.io/managed-by"
@@ -324,16 +322,6 @@ func copyDirRecursively(src, target string) {
 }
 
 func createPrereqs() error {
-	pClass := &schedulingv1.PriorityClass{}
-	Expect(createK8sResourceFromYaml(pClass, priorityClassYamlPath)).To(Succeed())
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pClass), pClass); err != nil {
-		if k8serrors.IsNotFound(err) {
-			Eventually(func() error { return k8sClient.Create(ctx, pClass) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-		} else {
-			return err
-		}
-	}
-
 	kymaNs := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: kymaNamespace}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(kymaNs), kymaNs); err != nil {
 		if k8serrors.IsNotFound(err) {

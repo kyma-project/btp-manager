@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: c536157434d3bdf2c1acc132135ad6e4c924c823b411795cd264736d154145ef
+        checksum/config: 3dd2cec012010df6af87da6c9dabac0cd304b4f394accd784f317635324f4e55
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
@@ -52,7 +52,7 @@ spec:
             - secretRef:
                 name: sap-btp-operator-clusterid
                 optional: true
-          image: "ghcr.io/sap/sap-btp-service-operator/controller:v0.6.5"
+          image: "ghcr.io/sap/sap-btp-service-operator/controller:v0.6.8"
           imagePullPolicy: IfNotPresent
           name: manager
           ports:
@@ -83,6 +83,7 @@ spec:
               name: cert
               readOnly: true
       terminationGracePeriodSeconds: 10
+      priorityClassName: btp-manager-kyma-priority
       volumes:
         - name: cert
           secret:
