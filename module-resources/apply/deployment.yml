@@ -83,6 +83,7 @@ spec:
               name: cert
               readOnly: true
       terminationGracePeriodSeconds: 10
+      priorityClassName: btp-manager-kyma-priority
       volumes:
         - name: cert
           secret:
