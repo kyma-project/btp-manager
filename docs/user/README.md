@@ -31,7 +31,7 @@ SAP BTP Operator can have access to multiple subaccounts within your cluster dep
 
 ![Access configuration](../assets/access_configuration.drawio.svg)
 
-For more information on multitenancy, see [Working with Multiple Subaccounts](03-30-multitenancy.md).
+For more information on multitenancy, see [Working with Multiple Subaccounts](03-20-multitenancy.md).
 
 ### SAP BTP, Kyma Runtime
 
