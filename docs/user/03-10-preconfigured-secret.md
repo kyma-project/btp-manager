@@ -33,7 +33,6 @@ When you add the SAP BTP Operator module to your cluster, the `sap-btp-manager` 
 > If you modify or delete the `sap-btp-manager` Secret, it is modified back to its previous settings or regenerated within up to 24 hours.
 
 The cluster ID represents a Kyma service instance created in a particular subaccount and allows for its identification. You can view the cluster ID in the SAP BTP cockpit:
-* In the list of instances as your Kyma service instance's scope
 * In the `sap-btp-manager` Secret
 * In the `sap-btp-operator-config` ConfigMap
 

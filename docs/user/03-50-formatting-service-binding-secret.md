@@ -25,25 +25,25 @@ If you do not use any of the attributes, the generated Secret is by default in t
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: my-binding
+    name: {SERVICE_BINDING}
   spec:
-    serviceInstanceName: my-service-instance
+    serviceInstanceName: {SERVICE_INSTANCE_NAME}
   ```
 * Secret
 
   ```yaml
   apiVersion: v1
   metadata:
-    name: my-binding
+    name: {SERVICE_BINDING}
   kind: Secret
-  stringData:
+  data:
     uri: https://my-service.authentication.eu10.hana.ondemand.com
     client_id: admin
     client_secret: ********
-    instance_guid: my-sample-instance-guid // The service instance ID
-    instance_name: my-service-instance // Taken from the service instance external_name field if set. Otherwise from metadata.name
-    plan: sample-plan // The service plan name                
-    type: sample-service  // The service offering name
+    instance_guid: {SERVICE_INSTANCE_ID}
+    instance_name: {SERVICE_INSTANCE_NAME}
+    plan: {SERVICE_PLAN_NAME}               
+    type: {SERVICE_OFFERING_NAME}  
   ```
 
 ## Credentials as a JSON Object
@@ -58,9 +58,9 @@ See the following examples:
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: my-binding
+    name: {SERVICE_BINDING}
   spec:
-    serviceInstanceName: my-service-instance
+    serviceInstanceName: {SERVICE_INSTANCE_NAME}
     secretKey: myCredentials
   ```
 * Secret
@@ -69,16 +69,16 @@ See the following examples:
   apiVersion: v1
   kind: Secret
   metadata:
-    name: my-binding
-  stringData:
+    name: {SERVICE_BINDING}
+  data:
       myCredentials:
-        uri: https://my-service.authentication.eu10.hana.ondemand.com,
+        uri": https://my-service.authentication.eu10.hana.ondemand.com,
         client_id: admin,
         client_secret: ********
-      instance_guid: my-service-instance-guid // The service instance ID
-      instance_name: my-binding // Taken from the service instance external_name field if set. Otherwise from metadata.name 
-      plan: sample-plan // The service plan name
-      type: sample-service // The service offering name
+      instance_guid: {SERVICE_INSTANCE_ID}
+      instance_name: {SERVICE_BINDING}
+      plan: {SERVICE_PLAN_NAME}
+      type: {SERVICE_OFFERING_NAME}
   ```
 
 ## Credentials and Service Info as One JSON Object
@@ -94,9 +94,9 @@ See the following examples:
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: my-binding
+    name: {SERVICE_BINDING}
   spec:
-    serviceInstanceName: my-service-instance
+    serviceInstanceName: {SERVICE_INSTANCE_NAME}
     secretRootKey: myCredentialsAndInstance
   ```
 * Secret
@@ -105,16 +105,16 @@ See the following examples:
   apiVersion: v1
   kind: Secret
   metadata:
-    name: my-binding
-  stringData:
+    name: {SERVICE_BINDING}
+  data:
       myCredentialsAndInstance:
-          uri: https://my-service.authentication.eu10.hana.ondemand.com,
+          uri": https://my-service.authentication.eu10.hana.ondemand.com,
           client_id: admin,
-          client_secret: ********,
-          instance_guid: my-service-instance-guid, // The service instance id
-          instance_name: my-service-instance, // Taken from the service instance external_name field if set. Otherwise from metadata.name
-          plan: sample-plan, // The service plan name
-          type: sample-service, // The service offering name
+          client_secret: ********
+          instance_guid: {SERVICE_INSTANCE_ID}
+          instance_name: {SERVICE_INSTANCE_NAME}
+          plan: {SERVICE_PLAN_NAME}
+          type: {SERVICE_OFFERING_NAME}
   ```
 ## Custom Formats 
 
@@ -123,14 +123,14 @@ To generate a custom-formatted Secret, use the **secretTemplate** attribute in t
 This attribute expects a Go template as its value. For more information, see [Go Templates](https://pkg.go.dev/text/template).<br>
 Ensure the template is in the YAML format and has the structure of a Kubernetes Secret. 
 
-In the provided Secret, you can customize the `metadata` and `stringData` sections with the following options:
+In the provided Secret, you can customize the `metadata` and `data` sections with the following options:
 
 - `metadata`: labels and annotations
-- `stringData`: customize or utilize one of the available formatting options following the instructions in the [Overview](#overview) section.
+- `data`: customize or utilize one of the available formatting options following the instructions in the [Overview](#overview) section.
 
 
 > [!NOTE]  
-> If you customize `stringData`, it takes precedence over the provided pre-defined formats.
+> If you customize `data`, it takes precedence over the provided pre-defined formats.
 
 The provided templates are executed on a map with the following available attributes:
 
@@ -141,12 +141,13 @@ The provided templates are executed on a map with the following available attrib
 | **instance.plan**   |  The name of the service plan used to create this service instance. |  
 | **instance.type**   |  The name of the associated service offering. |  
 | **credentials.attributes(var)**   |  The content of the credentials depends on a service. For more details, refer to the documentation of the service you're using. |  
+| **instance.label**  | The service offering name.  |
 
 The following examples demonstrate the ServiceBinding and generated Secret resources:
 
-* Service binding with customized `metadata` and `stringData` sections:
+* Service binding with customized `metadata` and `data` sections:
 
-    In this example, you specify both `metadata` and `stringData` in the `secretTemplate`:
+    In this example, you specify both `metadata` and `data` in the `secretTemplate`:
 
     * Service binding
 
@@ -154,9 +155,9 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
       apiVersion: services.cloud.sap.com/v1
       kind: ServiceBinding
       metadata:
-        name: my-binding
+        name: {SERVICE_BINDING}
       spec:
-        serviceInstanceName: my-service-instance
+        serviceInstanceName: {SERVICE_INSTANCE_NAME}
         secretTemplate: |
           apiVersion: v1
           kind: Secret
@@ -165,7 +166,7 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
               service_plan: {{ .instance.plan }}
             annotations:
               instance: {{ .instance.instance_name }}
-          stringData:
+          data:
             USERNAME: {{ .credentials.client_id }}
             PASSWORD: {{ .credentials.client_secret }}
       ```
@@ -177,17 +178,17 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
       kind: Secret
       metadata:
         labels:
-          service_plan: sample-plan
+          service_plan: {SERVICE_PLAN_NAME}
         annotations:
-          instance: my-service-instance
-      stringData:
+          instance: {SERVICE_INSTANCE_NAME}
+      data:
         USERNAME: admin
         PASSWORD: ********
       ```
 
-* Example of a binding with a customized `metadata` section and applied pre-existing formatting option for `stringData` with credentials as a JSON object:
+* Example of a binding with a customized `metadata` section and applied pre-existing formatting option for `data` with credentials as a JSON object:
 
-    In this example, you omit `stringData` from the `secretTemplate` and use the `secretKey` to format your `stringData` instead.
+    In this example, you omit `data` from the `secretTemplate` and use the `secretKey` to format your `data` instead.
 
     * Service binding
 
@@ -195,9 +196,9 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
       apiVersion: services.cloud.sap.com/v1
       kind: ServiceBinding
       metadata:
-        name: my-binding
+        name: {SERVICE_BINDING}
       spec:
-        serviceInstanceName: my-service-instance
+        serviceInstanceName: {SERVICE_INSTANCE_NAME}
         secretKey: myCredentials
         secretTemplate: |
           apiVersion: v1
@@ -216,17 +217,17 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
       kind: Secret
       metadata:
         labels:
-          service_plan: sample-plan
+          service_plan: {SERVICE_PLAN_NAME}
         annotations:
-          instance: my-service-instance
-      stringData:
+          instance: {SERVICE_INSTANCE_NAME}
+      data:
         myCredentials:
           uri: https://my-service.authentication.eu10.hana.ondemand.com,
           client_id: admin,
           client_secret: ********
-        instance_guid: my-service-instance-guid // The service instance ID
-        instance_name: my-service-instance // Taken from the service instance external_name field if set. Otherwise from metadata.name
-        plan: sample-plan // The service plan name
-        type: sample-service // The service name
+        instance_guid: {SERVICE_INSTANCE_ID}
+        instance_name: {SERVICE_INSTANCE_NAME}
+        plan: {SERVICE_PLAN_NAME}
+        type: {SERVICE_OFFERING_NAME}
         ```
     

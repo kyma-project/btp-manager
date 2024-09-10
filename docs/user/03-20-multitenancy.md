@@ -10,7 +10,7 @@ Regardless of the method, you must create Secrets managed in the `kyma-system` n
 
 ### Namespace-Based Mapping
 
-To connect a namespace to a specific subaccount, maintain access credentials to this subaccount in a Secret dedicated to the specific namespace. Define the `<namespace-name>-sap-btp-service-operator` Secret in the `kyma-system` namespace. 
+To connect a namespace to a specific subaccount, maintain access credentials to this subaccount in a Secret dedicated to the specific namespace. Define the `{NAMESPACE-NAME}-sap-btp-service-operator` Secret in the `kyma-system` namespace. 
 See the following examples:
 * Default access credentials:
 
@@ -18,14 +18,14 @@ See the following examples:
   apiVersion: v1
   kind: Secret
   metadata:
-    name: <namespace-name>-sap-btp-service-operator
+    name: {NAMESPACE_NAME}-sap-btp-service-operator
     namespace: kyma-system
   type: Opaque
   stringData:
-    clientid: "<clientid>"
-    clientsecret: "<clientsecret>"
-    sm_url: "<sm_url>"
-    tokenurl: "<auth_url>"
+    clientid: {CLIENT_ID}
+    clientsecret: {CLIENT_SECRET}
+    sm_url: {SM_URL}
+    tokenurl: {AUTH_URL}
     tokenurlsuffix: "/oauth/token"
   ```
 
@@ -35,15 +35,15 @@ See the following examples:
   apiVersion: v1
   kind: Secret
   metadata:
-    name: <namespace-name>-sap-btp-service-operator
+    name: {NAMESPACE_NAME}-sap-btp-service-operator
     namespace: kyma-system
   type: Opaque
   stringData:
-    clientid: <clientid>
-    tls.crt: <certificate>
-    tls.key: <key>
-    sm_url: <sm_url>
-    tokenurl: <auth_url>
+    clientid: {CLIENT_ID}
+    tls.crt: {CERTIFICATE}
+    tls.key: {KEY}
+    sm_url: {SM_URL}
+    tokenurl: {AUTH_URL}
     tokenurlsuffix: "/oauth/token"
   ```
 
@@ -57,14 +57,14 @@ To deploy service instances belonging to different subaccounts within the same n
       apiVersion: v1
       kind: Secret
       metadata:
-        name: <my-secret>
+        name: {YOUR_SECRET_NAME}
         namespace: kyma-system
       type: Opaque
       stringData:
-        clientid: "<clientid>"
-        clientsecret: "<clientsecret>"
-        sm_url: "<sm_url>"
-        tokenurl: "<auth_url>"
+        clientid: {CLIENT_ID}
+        clientsecret: {CLIENT_SECRET}
+        sm_url: {SM_URL}
+        tokenurl: {AUTH_URL}
         tokenurlsuffix: "/oauth/token"
       ```
     * mTLS access credentials
@@ -72,28 +72,28 @@ To deploy service instances belonging to different subaccounts within the same n
       apiVersion: v1
       kind: Secret
       metadata:
-        name: <my-secret>
+        name: {YOUR_SECRET_NAME}
         namespace: kyma-system
       type: Opaque
       stringData:
-        clientid: <clientid>
-        tls.crt: <certificate>
-        tls.key: <key>
-        sm_url: <sm_url>
-        tokenurl: <auth_url>
+        clientid: {CLIENT_ID}
+        tls.crt: {CERTIFICATE}
+        tls.key: {KEY}
+        sm_url: {SM_URL}
+        tokenurl: {AUTH_URL}
         tokenurlsuffix: "/oauth/token"
       ```
 
-2. Specify a subaccount per service: Configure the Secret name in the ServiceInstance resource within the `btpAccessCredentialsSecret` property. The Secret containing the relevant subaccount's credentials tells SAP BTP Operator explicitly which subaccount to use to provision the service instance. The Secret must be located in the `kyma-system` namespace. 
+2. Specify a subaccount per service: Configure the Secret name in the ServiceInstance resource within the **btpAccessCredentialsSecret** property. The Secret containing the relevant subaccount's credentials tells SAP BTP Operator explicitly which subaccount to use to provision the service instance. The Secret must be located in the `kyma-system` namespace.
     ```yaml
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceInstance
     metadata:
-      name: my-instance-1
+      name: {SERVICE_INSTANCE_NAME}
     spec:
       serviceOfferingName: service-manager
       servicePlanName: subaccount-audit
-      btpAccessCredentialsSecret: mybtpsecret
+      btpAccessCredentialsSecret: {YOUR_SECRET_NAME}
     ```
 ### Secrets Precedence
 

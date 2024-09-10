@@ -42,7 +42,7 @@ status:
 
 **Spec:** 
 
-No entry parameters are available for configuration in the BtpOperator CR.
+You can't configure any entry parameters in the BtpOperator CR.
 
 **Status:**
 
@@ -72,6 +72,3 @@ No entry parameters are available for configuration in the BtpOperator CR.
 | 22         | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                      |
 | 23         | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                     |
 | 24         | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                           |
-
-> [!NOTE]
-> If an operation returns the `Warning` CR state, it has encountered a problem. Read the relevant description in the table and take action to solve the problem.

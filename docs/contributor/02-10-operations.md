@@ -13,10 +13,9 @@ BTP Manager performs the following operations:
 ### Prerequisites
 
 * Namespace `kyma-system`
-* PriorityClass `kyma-system`
 * Secret `sap-btp-manager` with data for the SAP BTP service operator
 
-The namespace and PriorityClass resources are created during SAP BTP, Kyma runtime installation. The Secret is injected into the cluster by Kyma Environment Broker (KEB).
+The namespace is created during SAP BTP, Kyma runtime installation. The Secret is injected into the cluster by Kyma Environment Broker (KEB).
 If you want to provision the SAP BTP service operator in a cluster without Kyma runtime, you must create the prerequisites yourself.
 
 ### Process

@@ -13,7 +13,7 @@
 * [Tutorials](/btp-manager/user/tutorials/README.md)
   * [Create a BTP Manager Secret](/btp-manager/user/tutorials/04-10-create-btp-manager-secret.md)
   * [Create a SAP BTP Service Operator Secret](/btp-manager/user/tutorials/04-20-create-btp-service-operator-secret.md)
-  * [Install a Secret](/btp-manager/user/tutorials/04-30-install-secret.md)
-  * [Deploy an SAP BTP Service in Your Kyma Cluster](/btp-manager/user/tutorials/04-40-deploy-service-in-cluster.md)
-  * [Create a ServiceInstance with a Custom Secret](/btp-manager/user/tutorials/04-50-create-service-instance-with-custom-secret.md)
+  * [Install the SAP BTP Operator Module](/btp-manager/user/tutorials/04-30-install-module.md)
+  * [Create an SAP BTP Service in Your Kyma Cluster](/btp-manager/user/tutorials/04-40-deploy-service-in-cluster.md)
+  * [Create a Service Instance with a Custom Secret](/btp-manager/user/tutorials/04-50-create-service-instance-with-custom-secret.md)
 <!-- markdown-link-check-enable -->

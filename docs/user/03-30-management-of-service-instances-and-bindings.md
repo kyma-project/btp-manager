@@ -4,34 +4,31 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
 
 ## Create a Service Instance
 
-1.  To create an instance of an SAP BTP service, create a ServiceInstance custom resource (CR) file following this example:
+1.  To create an instance of an SAP BTP service, create a ServiceInstance custom resource (CR) file following this example: <!--add line 9 and skip step 2?; any namespace or kyma-system; REMOVE line 23-->
     ```yaml
+        kubectl create -f - <<EOF 
         apiVersion: services.cloud.sap.com/v1
         kind: ServiceInstance
         metadata:
-            name: my-service-instance
+            name: {SERVICE_INSTANCE_NAME}
+            namespace: {NAMESPACE} 
         spec:
-            serviceOfferingName: sample-service
-            servicePlanName: sample-plan
-            externalName: my-service-btp-name
+            serviceOfferingName: {SERVICE_OFFERING_NAME}
+            servicePlanName: {SERVICE_PLAN_NAME}
+            externalName: {SERVICE_INSTANCE_NAME}
             parameters:
-            key1: val1
-            key2: val2
+              key1: val1
+              key2: val2
+        EOF
     ```
       In the **serviceOfferingName** and  **servicePlanName** fields, enter the name of the SAP BTP service you want to use and the service's plan respectively.
-
-2.  To create the service instance, apply the CR file in your cluster.
-
-    ```bash
-    kubectl apply -f path/to/my-service-instance.yaml
-    ```
     
-3.  Check the service's status in your cluster. The expected result is `Created`.
+2.  Check the service's status in your cluster. The expected result is `Created`.
    
     ```bash
-    kubectl get serviceinstances
-    NAME                  OFFERING          PLAN             STATUS    AGE
-    my-service-instance   sample-service    sample-plan      Created   44s
+    kubectl get serviceinstances -n {SERVICE-INSTANCE-NAME}
+    NAME                      OFFERING                    PLAN                     STATUS    AGE
+    {SERVICE-INSTANCE-NAME}   {SERVICE_OFFERING_NAME}     {SERVICE_PLAN_NAME}      Created   44s
     ```
 
 ## Create a Service Binding
@@ -39,49 +36,45 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
 With a ServiceBinding CR, your application can get access credentials for communicating with an SAP BTP service. 
 These access credentials are available to applications through a Secret resource generated in your cluster.
 
-1. Create a ServiceBinding CR based on the following example:
+1. Create a ServiceBinding CR based on the following example:<!--externalName? secretName?-->
 
-    ```yaml
-    apiVersion: services.cloud.sap.com/v1
-    kind: ServiceBinding
-    metadata:
-      name: my-binding
-    spec:
-      serviceInstanceName: my-service-instance
-      externalName: my-binding-external
-      secretName: my-secret
-      parameters:
-        key1: val1
-        key2: val2           
-    ```
+      ```yaml
+      kubectl create -f - <<EOF
+      apiVersion: services.cloud.sap.com/v1
+      kind: ServiceBinding
+      metadata:
+        name: {BINDING_NAME}
+      spec:
+        serviceInstanceName: {SERVICE_INSTANCE_NAME}
+        externalName: {BINDING_NAME}
+        secretName: {BINDING_NAME}
+        parameters:
+          key1: val1
+          key2: val2   
+      EOF        
+      ```
 
     In the **serviceInstanceName** field of the ServiceBinding, enter the name of the ServiceInstance resource you previously created.
-
-2.  To create the service binding, apply the CR file in your cluster:
-
-    ```bash
-    kubectl apply -f path/to/my-binding.yaml
-    ```
     
-3.  Verify that your service binding status is `Created`:
+2.  Verify that your service binding status is `Created`:
 
     ```bash
     kubectl get servicebindings
-    NAME         INSTANCE              STATUS    AGE
-    my-binding   my-service-instance   Created   16s    
+    NAME              INSTANCE                  STATUS    AGE
+    {BINDING_NAME}    {SERVICE_INSTANCE_NAME}   Created   16s    
     ```
 
-4.  Verify the Secret is created with the name specified in the  **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that the applications need to use the service:
+3.  Verify the Secret is created with the name specified in the  **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that the applications need to use the service:
 
     ```bash
     kubectl get secrets
-    NAME         TYPE     DATA   AGE
-    my-secret    Opaque   5      32s
+    NAME              TYPE     DATA   AGE
+    {BINDING_NAME}    Opaque   5      32s
     ```
 
     To learn about different options for using the credentials from your application running in the Kubernetes cluster, see [Uses for Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#uses-for-secrets).
 
-## Passing Parameters
+## Pass Parameters
 
 To set input parameters, go to the `spec` of the ServiceInstance or ServiceBinding resource, and use both or one of the following fields:
 * **parameters**: Specifies a set of properties sent to the service broker.
@@ -109,6 +102,7 @@ spec:
 ```
 
 See the following example of the `spec` format in JSON:
+
 ```json
 {
   "spec": {
@@ -124,7 +118,9 @@ See the following example of the `spec` format in JSON:
   } 
 }
 ```
+
 See the exampple of a Secret with the key named **secret-parameter**:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -137,6 +133,7 @@ stringData:
       "password": "password"
     }'
 ```
+
 See the example of the final JSON payload sent to the service broker:
 ```json
 {
@@ -146,6 +143,7 @@ See the example of the final JSON payload sent to the service broker:
 ```
 
 To list multiple parameters in the Secret, separate key-value pairs with commas. See the following example:
+
 ```yaml
 secret-parameter:
   '{
@@ -156,13 +154,35 @@ secret-parameter:
 ```
 
 
-## Delete Service Instances and Service Bindings
+## Delete Service Bindigs and Service Instance
 
-To delete a service instance and service binding, use commands such as:
+You can't delete service instances or service bindings created in Kyma using the SAP BTP cockpit. You can only perform these operations using Kyma dashboard or kubectl.
+
+> [!WARNING]
+> Once you delete your service instance and service bindings, you cannot revert the operation.
+
+### Delete Resources Using Kyma Dashboard
+
+> [!TIP]
+> To successfully delete a service instance, first delete its service binding(s).
+
+1. In the **Namespace** view, go to **Service Management** -> **Service Bindings**/**Service Instances**.
+2. Use the trashbin icon to delete the service binding/instance.
+
+### Delete Resources Using kubectl
+
+To delete a service binding, run:
 
 ```bash
-kubectl delete servicebindings.services.cloud.sap.com my-service-binding
-kubectl delete serviceinstances.services.cloud.sap.com my-service-instance
+kubectl delete serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_BINDING}
 ```
 
-To delete a Kyma cluster, click on **Disable Kyma** in the SAP BTP cockpit. If you haven't deleted all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace, you get the message that the deletion of your cluster is blocked. Go to Kyma dashboard to delete the remaining service instances and service bindings.<br>If you have not deleted service instances and bindings connected to your expired free tier service or trial cluster, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
+To delete a service instance, run:
+
+```bash
+kubectl delete serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE}
+```
+
+> [!NOTE]
+> If you haven't deleted all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace, you can't delete your Kyma cluster from the SAP BTP cockpit. To delete the remaining service instances and service bindings, go to Kyma dashboard.<br>
+> If you have not deleted service instances and bindings connected to your expired free tier service or trial cluster, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
