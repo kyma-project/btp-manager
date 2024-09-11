@@ -30,9 +30,9 @@ The following example shows the configuration of a ServiceBinding resource for r
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: {SERVICE_BINDING}
+  name: {BINDING_NAME}
 spec:
-  serviceInstanceName: {SERVICE_INSTANCE}
+  serviceInstanceName: {SERVICE_INSTANCE_NAME}
   credentialsRotationPolicy:
     enabled: true
     rotatedBindingTTL: 48h
@@ -50,5 +50,5 @@ To see the timestamp of the last service binding rotation, go to the **status.la
 
 ## Limitations 
 
-Automatic credential rotation cannot be enabled for a backup ServiceBinding (named: original-binding-name(variable)-guid(variable)) marked with the `services.cloud.sap.com/stale` label.
+Automatic credential rotation cannot be enabled for a backup service binding (named: original-binding-name(variable)-guid(variable)) marked with the `services.cloud.sap.com/stale` label.
 This backup service binding is created during the credentials rotation process to facilitate the process.

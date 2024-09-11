@@ -25,16 +25,16 @@ If you do not use any of the attributes, the generated Secret is by default in t
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: {SERVICE_BINDING}
+    name: {BINDING_NAME}
   spec:
     serviceInstanceName: {SERVICE_INSTANCE_NAME}
   ```
-* Secret <!--in line 40, should it be uri? in the created service bhinding secret, there was no uri, there was sburl; should I change it?-->
+* Secret <!--in line 40, should it be uri? in the created service binding secret, there was no uri, there was sburl; should I change it?-->
 
   ```yaml
   apiVersion: v1
   metadata:
-    name: {SERVICE_BINDING}
+    name: {BINDING_NAME}
   kind: Secret
   data:
     uri: {URI}
@@ -58,7 +58,7 @@ See the following examples:
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: {SERVICE_BINDING}
+    name: {BINDING_NAME}
   spec:
     serviceInstanceName: {SERVICE_INSTANCE_NAME}
     secretKey: myCredentials
@@ -69,14 +69,14 @@ See the following examples:
   apiVersion: v1
   kind: Secret
   metadata:
-    name: {SERVICE_BINDING}
+    name: {BINDING_NAME}
   data:
       myCredentials:
         uri: {URI}
         client_id: {CLIENT_ID},
         client_secret: {CLIENT_SECRET}
       instance_guid: {SERVICE_INSTANCE_ID}
-      instance_name: {SERVICE_BINDING}
+      instance_name: {BINDING_NAME}
       plan: {SERVICE_PLAN_NAME}
       type: {SERVICE_OFFERING_NAME}
   ```
@@ -94,7 +94,7 @@ See the following examples:
   apiVersion: services.cloud.sap.com/v1
   kind: ServiceBinding
   metadata:
-    name: {SERVICE_BINDING}
+    name: {BINDING_NAME}
   spec:
     serviceInstanceName: {SERVICE_INSTANCE_NAME}
     secretRootKey: myCredentialsAndInstance
@@ -106,7 +106,7 @@ See the following examples:
   apiVersion: v1
   kind: Secret
   metadata:
-    name: {SERVICE_BINDING}
+    name: {BINDING_NAME}
   data:
       myCredentialsAndInstance:
           uri: {URI}
@@ -157,7 +157,7 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
       apiVersion: services.cloud.sap.com/v1
       kind: ServiceBinding
       metadata:
-        name: {SERVICE_BINDING}
+        name: {BINDING_NAME}
       spec:
         serviceInstanceName: {SERVICE_INSTANCE_NAME}
         secretTemplate: |
@@ -198,7 +198,7 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
       apiVersion: services.cloud.sap.com/v1
       kind: ServiceBinding
       metadata:
-        name: {SERVICE_BINDING}
+        name: {BINDING_NAME}
       spec:
         serviceInstanceName: {SERVICE_INSTANCE_NAME}
         secretKey: myCredentials

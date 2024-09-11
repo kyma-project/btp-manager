@@ -13,23 +13,23 @@ When you add the access credentials of the SAP Service Manager instance in your 
 
 ## Procedure
 
-1. When you have the Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in the `spec` pointing to the new {YOUR_SECRET_NAME} Secret and with other parameters as needed.
+When you have the Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in the `spec` pointing to the new {YOUR_SECRET_NAME} Secret and with other parameters as needed.
 
-   Here is an example of a ServiceInstance custom resource:
+Here is an example of a ServiceInstance custom resource:
 
-   ```yaml
-   kubectl create -f - <<EOF
-   apiVersion: services.cloud.sap.com/v1
-   kind: ServiceInstance
-   metadata:
-     name: {SERVICE_INSTANCE_NAME}
-     namespace: default
-   spec:
-     serviceOfferingName: xsuaa
-     servicePlanName: application
-     btpAccessCredentialsSecret: {YOUR_SECRET_NAME}
-   EOF
-   ```
+```yaml
+kubectl create -f - <<EOF
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  name: {SERVICE_INSTANCE_NAME}
+  namespace: default
+spec:
+  serviceOfferingName: xsuaa
+  servicePlanName: application
+  btpAccessCredentialsSecret: {YOUR_SECRET_NAME}
+EOF
+```
 
 ## Result
 

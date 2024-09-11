@@ -91,6 +91,7 @@ If there are any duplicate properties defined at the top level, the specificatio
 The further processing of the ServiceInstance or ServiceBinding resource stops with the status `Error`.
 
 See the following example of the `spec` format in YAML:
+
 ```yaml
 spec:
   ...
@@ -154,7 +155,6 @@ secret-parameter:
   }'
 ```
 
-
 ## Delete Service Bindigs and Service Instances
 
 You can't delete service instances or service bindings created in Kyma using the SAP BTP cockpit. You can only perform these operations using Kyma dashboard or kubectl.
@@ -164,7 +164,7 @@ You can't delete service instances or service bindings created in Kyma using the
 
 > [!NOTE]
 > If you haven't deleted all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace, you can't delete your Kyma cluster from the SAP BTP cockpit. To delete the remaining service instances and service bindings, go to Kyma dashboard.<br>
-> If you have not deleted service instances and bindings connected to your expired free tier service or trial cluster, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
+> If you have not deleted service instances and bindings connected to your expired free tier service, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
 
 ### Delete Resources Using Kyma Dashboard
 
