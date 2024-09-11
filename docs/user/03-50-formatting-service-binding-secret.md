@@ -29,7 +29,7 @@ If you do not use any of the attributes, the generated Secret is by default in t
   spec:
     serviceInstanceName: {SERVICE_INSTANCE_NAME}
   ```
-* Secret
+* Secret <!--in line 40, should it be uri? in the created service bhinding secret, there was no uri, there was sburl; should I change it?-->
 
   ```yaml
   apiVersion: v1
@@ -37,9 +37,9 @@ If you do not use any of the attributes, the generated Secret is by default in t
     name: {SERVICE_BINDING}
   kind: Secret
   data:
-    uri: https://my-service.authentication.eu10.hana.ondemand.com
-    client_id: admin
-    client_secret: ********
+    uri: {URI}
+    client_id: {CLIENT_ID}
+    client_secret: {CLIENT_SECRET}
     instance_guid: {SERVICE_INSTANCE_ID}
     instance_name: {SERVICE_INSTANCE_NAME}
     plan: {SERVICE_PLAN_NAME}               
@@ -72,9 +72,9 @@ See the following examples:
     name: {SERVICE_BINDING}
   data:
       myCredentials:
-        uri": https://my-service.authentication.eu10.hana.ondemand.com,
-        client_id: admin,
-        client_secret: ********
+        uri: {URI}
+        client_id: {CLIENT_ID},
+        client_secret: {CLIENT_SECRET}
       instance_guid: {SERVICE_INSTANCE_ID}
       instance_name: {SERVICE_BINDING}
       plan: {SERVICE_PLAN_NAME}
@@ -99,6 +99,7 @@ See the following examples:
     serviceInstanceName: {SERVICE_INSTANCE_NAME}
     secretRootKey: myCredentialsAndInstance
   ```
+
 * Secret
 
   ```yaml
@@ -108,14 +109,15 @@ See the following examples:
     name: {SERVICE_BINDING}
   data:
       myCredentialsAndInstance:
-          uri": https://my-service.authentication.eu10.hana.ondemand.com,
-          client_id: admin,
-          client_secret: ********
+          uri: {URI}
+          client_id: {CLIENT_ID}
+          client_secret: {CLIENT_SECRET}
           instance_guid: {SERVICE_INSTANCE_ID}
           instance_name: {SERVICE_INSTANCE_NAME}
           plan: {SERVICE_PLAN_NAME}
           type: {SERVICE_OFFERING_NAME}
   ```
+
 ## Custom Formats 
 
 For additional flexibility, you can model the Secret resources according to your needs. 
@@ -182,8 +184,8 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
         annotations:
           instance: {SERVICE_INSTANCE_NAME}
       data:
-        USERNAME: admin
-        PASSWORD: ********
+        USERNAME: {CLIENT_ID}
+        PASSWORD: {CLIENT_SECRET}
       ```
 
 * Example of a binding with a customized `metadata` section and applied pre-existing formatting option for `data` with credentials as a JSON object:
@@ -222,9 +224,9 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
           instance: {SERVICE_INSTANCE_NAME}
       data:
         myCredentials:
-          uri: https://my-service.authentication.eu10.hana.ondemand.com,
-          client_id: admin,
-          client_secret: ********
+          uri: {URI}
+          client_id: {CLIENT_ID}
+          client_secret: {CLIENT_SECRET}
         instance_guid: {SERVICE_INSTANCE_ID}
         instance_name: {SERVICE_INSTANCE_NAME}
         plan: {SERVICE_PLAN_NAME}

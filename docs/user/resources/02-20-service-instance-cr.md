@@ -16,11 +16,11 @@ The following ServiceInstance object is an example of a service instance configu
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceInstance
     metadata:
-        name: my-service-instance
+        name: {SERVICE_INSTANCE_NAME}
     spec:
-        serviceOfferingName: sample-service
-        servicePlanName: sample-plan
-        externalName: my-service-btp-name
+        serviceOfferingName: {SERVICE_OFFERING_NAME}
+        servicePlanName: {SERVICE_PLAN_NAME}
+        externalName: {SERVICE_INSTANCE_NAME}
         parameters:
           key1: val1
           key2: val2

@@ -41,19 +41,19 @@ After successfully installing your Secret, create a service instance and a servi
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceBinding
     metadata:
-      name: {SERVICE_BINDING_NAME}
+      name: {BINDING_NAME}
       namespace: default
     spec:
       serviceInstanceName: {SERVICE_INSTANCE_NAME}
-      externalName: {SERVICE_BINDING_NAME}
-      secretName: {SERVICE_BINDING_NAME}
+      externalName: {BINDING_NAME}
+      secretName: {BINDING_NAME}
     EOF
     ```
 
 4. To check the output, run:
 
     ```bash
-    kubectl get servicebindings.services.cloud.sap.com {SERVICE_BINDING_NAME} -o yaml
+    kubectl get servicebindings.services.cloud.sap.com {BINDING_NAME} -o yaml
     ```
 
     You see the status `Created` and the message `ServiceBinding provisioned successfully`.
@@ -61,5 +61,5 @@ After successfully installing your Secret, create a service instance and a servi
 5. Now, use a given service in your Kyma cluster. To see credentials, run:
 
     ```bash
-    kubectl get secret {SERVICE_BINDING_NAME} -o yaml
+    kubectl get secret {BINDING_NAME} -o yaml
     ```

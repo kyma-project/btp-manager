@@ -4,7 +4,8 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
 
 ## Create a Service Instance
 
-1.  To create an instance of an SAP BTP service, create a ServiceInstance custom resource (CR) file following this example: <!--add line 9 and skip step 2?; any namespace or kyma-system; REMOVE line 23-->
+1.  To create an instance of an SAP BTP service, create a ServiceInstance custom resource (CR) file following this example:
+
     ```yaml
         kubectl create -f - <<EOF 
         apiVersion: services.cloud.sap.com/v1
@@ -26,9 +27,9 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
 2.  Check the service's status in your cluster. The expected result is `Created`.
    
     ```bash
-    kubectl get serviceinstances -n {SERVICE-INSTANCE-NAME}
+    kubectl get serviceinstances {SERVICE_INSTANCE_NAME} -n {NAMESPACE}
     NAME                      OFFERING                    PLAN                     STATUS    AGE
-    {SERVICE-INSTANCE-NAME}   {SERVICE_OFFERING_NAME}     {SERVICE_PLAN_NAME}      Created   44s
+    {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}     {SERVICE_PLAN_NAME}      Created   44s
     ```
 
 ## Create a Service Binding
@@ -36,7 +37,7 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
 With a ServiceBinding CR, your application can get access credentials for communicating with an SAP BTP service. 
 These access credentials are available to applications through a Secret resource generated in your cluster.
 
-1. Create a ServiceBinding CR based on the following example:<!--externalName? secretName?-->
+1. Create a ServiceBinding CR based on the following example:<!--externalName? secretName? should this the default BINDING_NAME or EXTERNAL_NAME/ SECRET_NAME?-->
 
       ```yaml
       kubectl create -f - <<EOF
@@ -59,7 +60,7 @@ These access credentials are available to applications through a Secret resource
 2.  Verify that your service binding status is `Created`:
 
     ```bash
-    kubectl get servicebindings
+    kubectl get servicebindings {BINDING_NAME} -n {NAMESPACE}
     NAME              INSTANCE                  STATUS    AGE
     {BINDING_NAME}    {SERVICE_INSTANCE_NAME}   Created   16s    
     ```
@@ -67,7 +68,7 @@ These access credentials are available to applications through a Secret resource
 3.  Verify the Secret is created with the name specified in the  **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that the applications need to use the service:
 
     ```bash
-    kubectl get secrets
+    kubectl get secrets {BINDING_NAME} -n {NAMESPACE}
     NAME              TYPE     DATA   AGE
     {BINDING_NAME}    Opaque   5      32s
     ```
@@ -161,6 +162,10 @@ You can't delete service instances or service bindings created in Kyma using the
 > [!WARNING]
 > Once you delete your service instances and service bindings, you cannot revert the operation.
 
+> [!NOTE]
+> If you haven't deleted all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace, you can't delete your Kyma cluster from the SAP BTP cockpit. To delete the remaining service instances and service bindings, go to Kyma dashboard.<br>
+> If you have not deleted service instances and bindings connected to your expired free tier service or trial cluster, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
+
 ### Delete Resources Using Kyma Dashboard
 
 > [!TIP]
@@ -174,15 +179,11 @@ You can't delete service instances or service bindings created in Kyma using the
 To delete a service binding, run:
 
 ```bash
-kubectl delete serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_BINDING}
+kubectl delete servicebindings.services.cloud.sap.com {BINDING_NAME}
 ```
 
 To delete a service instance, run:
 
 ```bash
-kubectl delete serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE}
+kubectl delete serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME}
 ```
-
-> [!NOTE]
-> If you haven't deleted all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace, you can't delete your Kyma cluster from the SAP BTP cockpit. To delete the remaining service instances and service bindings, go to Kyma dashboard.<br>
-> If you have not deleted service instances and bindings connected to your expired free tier service or trial cluster, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.

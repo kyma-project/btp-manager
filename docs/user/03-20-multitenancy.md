@@ -40,8 +40,8 @@ See the following examples:
   type: Opaque
   stringData:
     clientid: {CLIENT_ID}
-    tls.crt: {CERTIFICATE}
-    tls.key: {KEY}
+    tls.crt: {TLS_CERTIFICATE}
+    tls.key: {TLS_KEY}
     sm_url: {SM_URL}
     tokenurl: {AUTH_URL}
     tokenurlsuffix: "/oauth/token"
@@ -77,8 +77,8 @@ To deploy service instances belonging to different subaccounts within the same n
       type: Opaque
       stringData:
         clientid: {CLIENT_ID}
-        tls.crt: {CERTIFICATE}
-        tls.key: {KEY}
+        tls.crt: {TLS_CERTIFICATE}
+        tls.key: {TLS_KEY}
         sm_url: {SM_URL}
         tokenurl: {AUTH_URL}
         tokenurlsuffix: "/oauth/token"

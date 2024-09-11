@@ -13,7 +13,7 @@ When you add the access credentials of the SAP Service Manager instance in your 
 
 ## Procedure
 
-1. When you have the Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in the `spec` pointing to the new `my-secret` Secret and with other parameters as needed.
+1. When you have the Secret, create your ServiceInstance with the **btpAccessCredentialsSecret** field in the `spec` pointing to the new {YOUR_SECRET_NAME} Secret and with other parameters as needed.
 
    Here is an example of a ServiceInstance custom resource:
 

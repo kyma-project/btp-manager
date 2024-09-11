@@ -4,7 +4,7 @@ Enhance security by automatically rotating the credentials associated with your 
 
 ## Enable Automatic Rotation
 
-To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. You can configure the following parameters:
+To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. You can configure the following parameters: <!-- In line 11, shouldn't this be `true` or `false`-->
 
 | Parameter         | Type     | Description                                                                                                                               | Valid Values |
 |-----------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------|--------------|
@@ -30,9 +30,9 @@ The following example shows the configuration of a ServiceBinding resource for r
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: {YOUR_SERVICE_BINDING}
+  name: {SERVICE_BINDING}
 spec:
-  serviceInstanceName: {YOUR_SERVICE_INSTANCE}
+  serviceInstanceName: {SERVICE_INSTANCE}
   credentialsRotationPolicy:
     enabled: true
     rotatedBindingTTL: 48h

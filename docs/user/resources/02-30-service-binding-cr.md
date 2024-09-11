@@ -16,11 +16,11 @@ The following ServiceBinding object is an example of a service binding configura
 apiVersion: services.cloud.sap.com/v1
 kind: ServiceBinding
 metadata:
-  name: sample-binding
+  name: {BINDING_NAME}
 spec:
-  serviceInstanceName: sample-instance
-  externalName: my-binding-external
-  secretName: my-secret
+  serviceInstanceName: {SERVICE_INSTANCE_NAME}
+  externalName: {BINDING_NAME}
+  secretName: {BINDING_NAME}
   parameters:
     key1: val1
     key2: val2      
