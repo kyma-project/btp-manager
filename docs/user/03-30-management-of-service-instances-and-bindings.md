@@ -97,7 +97,7 @@ spec:
     name: value
   parametersFrom:
     - secretKeyRef:
-        name: my-secret
+        name: {SECRET_NAME}
         key: secret-parameter
 ```
 
@@ -111,7 +111,7 @@ See the following example of the `spec` format in JSON:
     },
     "parametersFrom": {
       "secretKeyRef": {
-        "name": "my-secret",
+        "name": "{SECRET_NAME}",
         "key": "secret-parameter"
       }
     }
@@ -125,7 +125,7 @@ See the exampple of a Secret with the key named **secret-parameter**:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-secret
+  name: {SECRET_NAME}
 type: Opaque
 stringData:
   secret-parameter:
