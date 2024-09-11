@@ -154,17 +154,17 @@ secret-parameter:
 ```
 
 
-## Delete Service Bindigs and Service Instance
+## Delete Service Bindigs and Service Instances
 
 You can't delete service instances or service bindings created in Kyma using the SAP BTP cockpit. You can only perform these operations using Kyma dashboard or kubectl.
 
 > [!WARNING]
-> Once you delete your service instance and service bindings, you cannot revert the operation.
+> Once you delete your service instances and service bindings, you cannot revert the operation.
 
 ### Delete Resources Using Kyma Dashboard
 
 > [!TIP]
-> To successfully delete a service instance, first delete its service binding(s).
+> To successfully delete a service instance, first delete its service bindings.
 
 1. In the **Namespace** view, go to **Service Management** -> **Service Bindings**/**Service Instances**.
 2. Use the trashbin icon to delete the service binding/instance.
