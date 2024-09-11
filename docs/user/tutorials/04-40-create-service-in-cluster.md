@@ -63,3 +63,7 @@ After successfully installing your Secret, create a service instance and a servi
     ```bash
     kubectl get secret {BINDING_NAME} -o yaml
     ```
+
+## Result
+
+You can use the Secret to communicate with the service instance.
