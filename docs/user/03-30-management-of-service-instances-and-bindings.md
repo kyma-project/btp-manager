@@ -22,7 +22,7 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
               key2: val2
         EOF
     ```
-      In the **serviceOfferingName** and  **servicePlanName** fields, enter the name of the SAP BTP service you want to use and the service's plan respectively.
+      In the **serviceOfferingName** and  **servicePlanName** fields, enter the name of the SAP BTP service you want to use and the service plan respectively.
     
 2.  Check the service's status in your cluster. The expected result is `Created`.
    
@@ -162,9 +162,8 @@ You can't delete service instances or service bindings created in Kyma using the
 > [!WARNING]
 > Once you delete your service instances and service bindings, you cannot revert the operation.
 
-> [!NOTE]
-> If you haven't deleted all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace, you can't delete your Kyma cluster from the SAP BTP cockpit. To delete the remaining service instances and service bindings, go to Kyma dashboard.<br>
-> If you have not deleted service instances and bindings connected to your expired free tier service, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
+If you haven't deleted all the service instances and service bindings associated  with the `sap-btp-service-operator` Secret in the `kyma-system` namespace, you can't delete your Kyma cluster from the SAP BTP cockpit. To delete the remaining service instances and service bindings, go to Kyma dashboard.<br>
+If you have not deleted service instances and bindings connected to your expired free tier service, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
 
 ### Delete Resources Using Kyma Dashboard
 
