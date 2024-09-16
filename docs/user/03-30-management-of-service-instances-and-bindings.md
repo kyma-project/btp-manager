@@ -37,7 +37,7 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
 With a ServiceBinding CR, your application can get access credentials for communicating with an SAP BTP service. 
 These access credentials are available to applications through a Secret resource generated in your cluster.
 
-1. Create a ServiceBinding CR based on the following example:<!--externalName? secretName? should this the default BINDING_NAME or EXTERNAL_NAME/ SECRET_NAME?-->
+1. Create a ServiceBinding CR based on the following example:
 
       ```yaml
       kubectl create -f - <<EOF
@@ -47,8 +47,8 @@ These access credentials are available to applications through a Secret resource
         name: {BINDING_NAME}
       spec:
         serviceInstanceName: {SERVICE_INSTANCE_NAME}
-        externalName: {BINDING_NAME}
-        secretName: {BINDING_NAME}
+        externalName: {EXTERNAL_NAME}
+        secretName: {SECRET_NAME}
         parameters:
           key1: val1
           key2: val2   
@@ -68,9 +68,9 @@ These access credentials are available to applications through a Secret resource
 3.  Verify the Secret is created with the name specified in the  **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that the applications need to use the service:
 
     ```bash
-    kubectl get secrets {BINDING_NAME} -n {NAMESPACE}
+    kubectl get secrets {SECRET_NAME} -n {NAMESPACE}
     NAME              TYPE     DATA   AGE
-    {BINDING_NAME}    Opaque   5      32s
+    {SECRET_NAME}    Opaque   5      32s
     ```
 
     To learn about different options for using the credentials from your application running in the Kubernetes cluster, see [Uses for Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#uses-for-secrets).

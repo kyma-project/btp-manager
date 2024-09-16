@@ -8,7 +8,7 @@ BTP Manager is an operator for the [SAP BTP service operator](https://github.com
 
 ## Installation
 
-To enable the SAP BTP Operator module from the latest release, you must install BTP Manager and the SAP BTP service operator. For installation instructions, see [Install the SAP BTP Operator module](./docs/user/tutorials/04-30-install-module.md)
+To enable the SAP BTP Operator module from the latest release, you must install BTP Manager. For installation instructions, see [Install the SAP BTP Operator module](./docs/user/tutorials/04-30-install-module.md).
 
 ## Usage
 

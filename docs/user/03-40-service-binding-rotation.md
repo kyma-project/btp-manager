@@ -4,11 +4,11 @@ Enhance security by automatically rotating the credentials associated with your 
 
 ## Enable Automatic Rotation
 
-To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. You can configure the following parameters: <!-- In line 11, shouldn't this be `true` or `false`-->
+To enable automatic service binding rotation, use the **credentialsRotationPolicy** field within the `spec` section of the ServiceBinding resource. You can configure the following parameters:
 
 | Parameter         | Type     | Description                                                                                                                               | Valid Values |
 |-----------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------|--------------|
-| **enabled**           | bool    | Turns automatic rotation on or off.                                                                                                    | None                    |
+| **enabled**           | bool    | Turns automatic rotation on or off.                                                                                                    | `true` or `false`                    |
 | **rotationFrequency** | string  | Defines the desired interval between binding rotations.             | "m" (minute), "h" (hour)|
 | **rotatedBindingTTL** | string  | Determines how long to keep the old ServiceBinding resource after rotation and before deletion. The actual TTL may be slightly longer. | "m" (minute), "h" (hour) |   
 

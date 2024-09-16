@@ -57,7 +57,7 @@ To deploy service instances belonging to different subaccounts within the same n
       apiVersion: v1
       kind: Secret
       metadata:
-        name: {YOUR_SECRET_NAME}
+        name: {SECRET_NAME}
         namespace: kyma-system
       type: Opaque
       stringData:
@@ -72,7 +72,7 @@ To deploy service instances belonging to different subaccounts within the same n
       apiVersion: v1
       kind: Secret
       metadata:
-        name: {YOUR_SECRET_NAME}
+        name: {SECRET_NAME}
         namespace: kyma-system
       type: Opaque
       stringData:
@@ -93,7 +93,7 @@ To deploy service instances belonging to different subaccounts within the same n
     spec:
       serviceOfferingName: service-manager
       servicePlanName: subaccount-audit
-      btpAccessCredentialsSecret: {YOUR_SECRET_NAME}
+      btpAccessCredentialsSecret: {SECRET_NAME}
     ```
 ### Secrets Precedence
 

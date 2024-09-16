@@ -29,7 +29,7 @@ If you do not use any of the attributes, the generated Secret is by default in t
   spec:
     serviceInstanceName: {SERVICE_INSTANCE_NAME}
   ```
-* Secret <!--in line 40, should it be uri? in the created service binding secret, there was no uri, there was sburl; should I change it?-->
+* Secret
 
   ```yaml
   apiVersion: v1
@@ -37,7 +37,7 @@ If you do not use any of the attributes, the generated Secret is by default in t
     name: {BINDING_NAME}
   kind: Secret
   data:
-    uri: {URI}
+    url: {URL}
     client_id: {CLIENT_ID}
     client_secret: {CLIENT_SECRET}
     instance_guid: {SERVICE_INSTANCE_ID}
@@ -72,11 +72,11 @@ See the following examples:
     name: {BINDING_NAME}
   data:
       myCredentials:
-        uri: {URI}
+        url: {URL}
         client_id: {CLIENT_ID},
         client_secret: {CLIENT_SECRET}
       instance_guid: {SERVICE_INSTANCE_ID}
-      instance_name: {BINDING_NAME}
+      instance_name: {SERVICE_INSTANCE_NAME}
       plan: {SERVICE_PLAN_NAME}
       type: {SERVICE_OFFERING_NAME}
   ```
@@ -109,7 +109,7 @@ See the following examples:
     name: {BINDING_NAME}
   data:
       myCredentialsAndInstance:
-          uri: {URI}
+          url: {URL}
           client_id: {CLIENT_ID}
           client_secret: {CLIENT_SECRET}
           instance_guid: {SERVICE_INSTANCE_ID}
@@ -224,7 +224,7 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
           instance: {SERVICE_INSTANCE_NAME}
       data:
         myCredentials:
-          uri: {URI}
+          url: {URL}
           client_id: {CLIENT_ID}
           client_secret: {CLIENT_SECRET}
         instance_guid: {SERVICE_INSTANCE_ID}
