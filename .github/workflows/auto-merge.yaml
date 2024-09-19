@@ -1,7 +1,7 @@
 name: Auto-merge
 on: pull_request
 
-#asd
+#as
 jobs:
   dependabot:
     runs-on: ubuntu-latest
