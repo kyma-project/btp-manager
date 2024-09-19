@@ -7,7 +7,7 @@ on:
     - reopened
     - ready_for_review
     - synchronize
-
+#
 jobs:
   enable-auto-merge:
     runs-on: ubuntu-latest
