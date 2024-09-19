@@ -7,7 +7,7 @@ env:
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-gopher-bot
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
-
+#..
 on:
   workflow_dispatch:
     inputs:
