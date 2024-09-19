@@ -1,5 +1,8 @@
 name: Enable auto merge
 
+env:
+  GIT_NAME: kyma-gopher-bot
+
 on:
   pull_request:
     branches: [main, sm-integration]
@@ -17,4 +20,4 @@ jobs:
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.BOT_TOKEN}}
-        run: gh pr merge --auto --squash "$PR_URL"
+        run: gh pr merge -A ${{ env.GIT_NAME }} --auto --squash "$PR_URL"
