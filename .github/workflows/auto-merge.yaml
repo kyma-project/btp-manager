@@ -1,10 +1,5 @@
 name: Enable auto merge
 
-env:
-  GIT_EMAIL: team-gopher+1@sap.com
-  GIT_NAME: kyma-gopher-bot
-  GH_TOKEN: ${{ secrets.BOT_TOKEN }}
-
 on:
   pull_request:
     branches: [main, sm-integration]
@@ -19,10 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge for PRs
-        run: gh pr merge -A ${{ env.GIT_NAME }} --auto --squash "$PR_URL"
         env:
-            PR_URL: ${{github.event.pull_request.html_url}}
-            GH_TOKEN: ${{secrets.BOT_TOKEN}}
-            GIT_EMAIL: team-gopher+1@sap.com
-            GIT_NAME: kyma-gopher-bot
-        
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge -A ${{ env.GIT_NAME }} --auto --squash "$PR_URL"
