@@ -16,5 +16,5 @@ jobs:
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.BOT_TOKEN}}
-          GIT_NAME: kyma-gopher-bot
-        run: gh pr merge -A ${{ env.GIT_NAME }} --auto --squash "$PR_URL"
+          GIT_EMAIL: team-gopher+1@sap.com
+        run: gh pr merge -A ${{ env.GIT_EMAIL }} --auto --squash "$PR_URL"
