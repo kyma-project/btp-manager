@@ -21,6 +21,8 @@ jobs:
       - name: Enable auto-merge for PRs
         run: gh pr merge -A ${{ env.GIT_NAME }} --auto --squash "$PR_URL"
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.BOT_TOKEN}}
+            PR_URL: ${{github.event.pull_request.html_url}}
+            GH_TOKEN: ${{secrets.BOT_TOKEN}}
+            GIT_EMAIL: team-gopher+1@sap.com
+            GIT_NAME: kyma-gopher-bot
         
