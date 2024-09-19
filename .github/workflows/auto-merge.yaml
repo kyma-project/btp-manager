@@ -3,6 +3,7 @@ name: Enable auto merge
 env:
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-gopher-bot
+  GH_TOKEN: ${{ secrets.BOT_TOKEN }}
 
 on:
   pull_request:
