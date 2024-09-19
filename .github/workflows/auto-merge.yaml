@@ -1,5 +1,12 @@
 name: Auto-merge
-on: pull_request
+
+on:
+  pull_request:
+    branches: [main, sm-integration]
+    types:
+    - opened
+    - reopened
+    - ready_for_review
 
 #as
 jobs:
