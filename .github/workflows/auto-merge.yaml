@@ -1,7 +1,6 @@
 name: Auto-merge
 on: pull_request
 
-
 #asd
 jobs:
   dependabot:
