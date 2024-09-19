@@ -22,4 +22,6 @@ jobs:
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.BOT_TOKEN}}
-        run: gh pr merge -A ${{ env.GIT_NAME }} --auto --squash "$PR_URL"
+        run: |
+            gh auth login --with-token
+            gh pr merge -A ${{ env.GIT_NAME }} --auto --squash "$PR_URL"
