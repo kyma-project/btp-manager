@@ -11,9 +11,6 @@ on:
 jobs:
   enable-auto-merge:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Enable auto-merge for PRs
         env:
