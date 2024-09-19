@@ -1,6 +1,7 @@
 name: Enable auto merge
 
 env:
+  GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-gopher-bot
 
 on:
