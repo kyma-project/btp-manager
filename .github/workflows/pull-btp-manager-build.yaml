@@ -11,6 +11,7 @@ permissions:
 jobs:
    build-image:
       uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+      if: ${{ !github.event.pull_request.user.login == 'kyma-gopher-bot' }}
       with: 
          name: btp-manager
          dockerfile: Dockerfile

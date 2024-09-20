@@ -10,7 +10,7 @@ on:
 jobs:
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ !github.event.pull_request.draft && !github.event.pull_request.user.login == 'kyma-gopher-bot' }}
     secrets: inherit
     uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
     with:
