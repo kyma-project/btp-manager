@@ -22,6 +22,6 @@ jobs:
           delay: '0'
           retries: '30'
           polling_interval: '1'
-          checks_exclude: 'Markdown link check'
+          checks_exclude: 'markdown-link-check'
           verbose: true
           fail_fast: false
