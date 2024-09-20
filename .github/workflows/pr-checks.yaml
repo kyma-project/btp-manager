@@ -17,6 +17,11 @@ jobs:
       checks: read
       contents: read
     steps:
+      - name: Check if draft
+        if: ${{ github.event.pull_request.draft }}
+        run: | 
+          echo "Draft PRs are not checked"
+          exit 1
       - uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
         with:
           delay: '2'
