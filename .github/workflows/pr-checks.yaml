@@ -24,3 +24,4 @@ jobs:
           polling_interval: '1'
           checks_exclude: 'Markdown link check'
           verbose: true
+          fail_fast: false
