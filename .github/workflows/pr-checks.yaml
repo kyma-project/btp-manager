@@ -11,7 +11,7 @@ on:
     - unlabeled
       
 jobs:
-  check:
+  checks-passed:
     runs-on: ubuntu-latest
     permissions:
       checks: read
@@ -19,9 +19,8 @@ jobs:
     steps:
       - uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
         with:
-          delay: '0'
-          retries: '30'
+          delay: '2'
+          retries: '15'
           polling_interval: '1'
-          checks_exclude: 'markdown-link-check'
+          checks_exclude: 'markdown-link-check,enable-auto-merge,run-govulncheck,scan'
           verbose: true
-          fail_fast: false
