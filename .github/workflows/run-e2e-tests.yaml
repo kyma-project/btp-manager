@@ -24,5 +24,3 @@ jobs:
       image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
       credentials-mode: dummy
       last-k3s-versions: 3
-      release: "false"
-
