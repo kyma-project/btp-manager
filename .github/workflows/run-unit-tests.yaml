@@ -6,10 +6,12 @@ on:
   pull_request:
     # Trigger for Pull Request
     branches: [main, sm-integration]
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
 
 jobs:
   run-unit-tests:
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
-    if: ${{ !github.event.pull_request.user.login == 'kyma-gopher-bot' }}
     with:
       release: "false"

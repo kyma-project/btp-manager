@@ -7,10 +7,13 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
 jobs:
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
-    if: ${{ !github.event.pull_request.draft && !github.event.pull_request.user.login == 'kyma-gopher-bot' }}
+    if: ${{ !github.event.pull_request.draft }}
     secrets: inherit
     uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
     with:
