@@ -7,6 +7,9 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
 jobs:
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
