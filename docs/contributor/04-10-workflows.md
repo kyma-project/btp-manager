@@ -34,6 +34,14 @@ This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered daily 
 
 This [workflow](/.github/workflows/run-govulncheck.yaml) runs the Govulncheck.
 
+## Auto Merge Workflow
+
+This [workflow](/.github/workflows/auto-merge.yaml) enables the auto-merge functionality on a PR that is not a draft.
+
+## All Cheks Passed Workflow
+
+This [workflow](/.github/workflows/pr-checks.yaml) checks if all jobs, expect those that are excluded in the workflow configuration, have passed.
+
 ## Reusable Workflows
 
 There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
