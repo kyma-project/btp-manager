@@ -20,7 +20,7 @@ See [BTP Manager Release Pipeline](03-10-release.md) to learn more about the rel
 
 ## E2E Tests Workflow 
 
-This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](/.github/workflows/run-e2e-tests-reusable.yaml).
+This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the [reusable workflow](/.github/workflows/run-e2e-tests-reusable.yaml).
 
 ## Unit Tests Workflow
 
