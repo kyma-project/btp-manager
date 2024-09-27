@@ -24,7 +24,7 @@ This workflow uses the DEV artifact registry, tags the binary image and OCI modu
 
 ## Unit Tests Workflow
 
-This workflow calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml).
+This workflow calls the [reusable workflow](/.github/workflows/run-unit-tests-reusable.yaml).
 
 ## Markdown Links Check Workflow
 
