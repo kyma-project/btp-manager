@@ -27,6 +27,7 @@ const componentName = "btp-operator"
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:categories={kyma-modules,kyma-btp-operator}
 //+kubebuilder:printcolumn:name="State",type=string,JSONPath=".status.state"
 
 // BtpOperator is the Schema for the btpoperators API
