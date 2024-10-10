@@ -23,7 +23,7 @@ By default, the scope of the SAP BTP Operator module is your Kyma runtime, which
 
 ## Architecture
 
-The SAP BTP Operator module provides and retrieves the initial credentials necessary that your application needs to use an SAP BTP service.
+The SAP BTP Operator module provides and retrieves the initial credentials that your application needs to use an SAP BTP service.
 
 ![SAP BTP Operator architecture](../assets/module_architecture.drawio.svg)
 
