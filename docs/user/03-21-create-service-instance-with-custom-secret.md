@@ -23,22 +23,22 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator {YOUR_SECRET_NAME}
     ```
 
-The expected result is the file `btp-access-credentials-secret.yaml` created in your working directory:
+    The expected result is the file `btp-access-credentials-secret.yaml` created in your working directory:
 
-```yaml
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: {YOUR_SECRET_NAME}
-  namespace: kyma-system
-data:
-  clientid: {CLIENT_ID}
-  clientsecret: {CLIENT_SECRET}
-  sm_url: {SM_URL}
-  tokenurl: {AUTH_URL}
-  tokenurlsuffix: "/oauth/token"
-```
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    type: Opaque
+    metadata:
+      name: {YOUR_SECRET_NAME}
+      namespace: kyma-system
+    data:
+      clientid: {CLIENT_ID}
+      clientsecret: {CLIENT_SECRET}
+      sm_url: {SM_URL}
+      tokenurl: {AUTH_URL}
+      tokenurlsuffix: "/oauth/token"
+    ```
 
 When you add the access credentials of the SAP Service Manager instance in your service instance, check the subaccount ID to which the instance belongs in the status **subaccountID** field. 
 
@@ -66,7 +66,7 @@ EOF
 
 ## Result
 
-To verify that your service instance has been created successfully, run the following command:
+To verify that your service instance has been created successfully, run:
 
 ```bash
 kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -o yaml

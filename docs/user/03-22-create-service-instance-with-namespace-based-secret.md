@@ -16,22 +16,22 @@ To have service instances from one subaccount associated with one namespace, you
     curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator {NAMESPACE_NAME}-sap-btp-service-operator
     ```
 
-The expected result is the file `btp-access-credentials-secret.yaml` created in your working directory:
+    The expected result is the file `btp-access-credentials-secret.yaml` created in your working directory:
 
-```yaml
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: {NAMESPACE_NAME}-sap-btp-service-operator
-  namespace: kyma-system
-data:
-  clientid: {CLIENT_ID}
-  clientsecret: {CLIENT_SECRET}
-  sm_url: {SM_URL}
-  tokenurl: {AUTH_URL}
-  tokenurlsuffix: "/oauth/token"
-```
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    type: Opaque
+    metadata:
+      name: {NAMESPACE_NAME}-sap-btp-service-operator
+      namespace: kyma-system
+    data:
+      clientid: {CLIENT_ID}
+      clientsecret: {CLIENT_SECRET}
+      sm_url: {SM_URL}
+      tokenurl: {AUTH_URL}
+      tokenurlsuffix: "/oauth/token"
+    ```
 When you add the access credentials of the SAP Service Manager instance in your service instance, check the subaccount ID to which the instance belongs in the status **subaccountID** field.
 
 ### Create a Service Instance with a Managed Namespace Secret
@@ -56,7 +56,7 @@ EOF
 
 ## Result
 
-To verify that your service instance has been created successfully, run the following command:
+To verify that your service instance has been created successfully, run:
 
 ```bash
 kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -o yaml
@@ -65,3 +65,7 @@ kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -o y
 You see the status `Created` and the message `ServiceInstance provisioned successfully`.
 You also see the Secret name in the **btpAccessCredentialsSecret** field of the `spec`.
 In the status section, the **subaccountId** field must not be empty. <!-- move this sentence to line 36?? -->
+
+## Related Information
+
+[Working with Multiple Subaccounts](03-20-multitenancy.md)
