@@ -8,7 +8,7 @@ To install the SAP BTP Operator module from the latest release, you must install
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * Kubernetes cluster, or [k3d](https://k3d.io) for local installation
 * [jq](https://github.com/stedolan/jq)
-* `sap-btp-manager` Secret created. See [Create `sap-btp-manager` Secret](04-10-create-btp-manager-secret.md).
+* `sap-btp-manager` Secret created. See [Create `sap-btp-manager` Secret](03-00-create-btp-manager-secret.md).
   > [!NOTE]
   > If you don't create the `sap-btp-manager` Secret, the BtpOperator CR is in the `Warning` state and the message is `Secret resource not found reason: MissingSecret`.
 * `kyma-system` namespace. If you don't have it in your cluster, use the following command to create it:
@@ -40,4 +40,4 @@ To install the SAP BTP Operator module from the latest release, you must install
    kubectl get btpoperators btpoperator
    ```
 
-For more installation options, see [Install and Uninstall BTP Manager](../../contributor/01-10-installation.md)
+For more installation options, see [Install and Uninstall BTP Manager](../contributor/01-10-installation.md).
