@@ -89,3 +89,7 @@ kubectl apply -f btp-access-credentials-secret.yaml
 > ```bash
 > kubectl delete secret {YOUR_SECRET_NAME} -n kyma-system
 >  ```
+
+## Related Information
+
+[Working with Multiple Subaccounts](03-20-multitenancy.md)

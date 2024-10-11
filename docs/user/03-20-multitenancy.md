@@ -15,11 +15,10 @@ Regardless of the method, you must create Secrets managed in the `kyma-system` n
 
 SAP BTP Operator searches for the credentials in the following order:
 1. Explicit Secret defined in a service instance
-2. Given namespace Secret
-3. Managed namespace Secret assigned for a given namespace
-4. Managed namespace default Secret
+2. Managed namespace Secret assigned for a given namespace
+3. Managed namespace default Secret
 
-![Secrets precedence](../assets/secrets_precedence_2.drawio.svg)
+![Secrets precedence](../assets/secrets_precedence_4.drawio.svg) 
 
 ## Namespace-Based Mapping
 
