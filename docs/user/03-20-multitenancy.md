@@ -107,3 +107,8 @@ To deploy service instances belonging to different subaccounts within the same n
       servicePlanName: subaccount-audit
       btpAccessCredentialsSecret: {SECRET_NAME}
     ```
+
+## Related Information
+
+[Create a Service Instance with a Custom Secret](03-21-create-service-instance-with-custom-secret.md)
+[Create a Service Instance with a Namespace-Based Secret](03-22-create-service-instance-with-namespace-based-secret.md)

@@ -1,4 +1,4 @@
-# Create `sap-btp-manager` Secret
+# Create the `sap-btp-manager` Secret
 
 <!--this content is for OS users only-->
 To create the `sap-btp-manager` Secret, follow these steps:
