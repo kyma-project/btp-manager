@@ -40,7 +40,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
       tokenurlsuffix: "/oauth/token"
     ```
 
-When you add the access credentials of the SAP Service Manager instance in your service instance, check the subaccount ID to which the instance belongs in the status **subaccountID** field. 
+When you add the access credentials of the SAP Service Manager instance in your service instance, check the subaccount ID to which the instance belongs in the status **subaccountID** field. The **subaccountId** field must not be empty.
 
 ### Create a Service Instance with the Custom Secret
 
@@ -48,7 +48,7 @@ Create your service instance with:
 * the **btpAccessCredentialsSecret** field in the `spec` pointing to the custom Secret you have created
 *  other parameters as needed
 
-See an example of a ServiceInstance custom resource: <!-- why not placeholders??? REMOVE WHAT'S NOT NEEDED!!!!!-->
+See an example of a ServiceInstance custom resource:
 
 ```yaml
 kubectl create -f - <<EOF
@@ -56,10 +56,10 @@ apiVersion: services.cloud.sap.com/v1
 kind: ServiceInstance
 metadata:
   name: {SERVICE_INSTANCE_NAME}
-  namespace: default {NAMESPACE_NAME}
+  namespace: {NAMESPACE_NAME}
 spec:
-  serviceOfferingName: xsuaa {SERVICE_OFFERING_NAME}
-  servicePlanName: application {SERVICE_PLAN_NAME}
+  serviceOfferingName: {SERVICE_OFFERING_NAME}
+  servicePlanName: {SERVICE_PLAN_NAME}
   btpAccessCredentialsSecret: {YOUR_SECRET_NAME}
 EOF
 ```
@@ -74,21 +74,6 @@ kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -o y
 
 You see the status `Created` and the message `ServiceInstance provisioned successfully`.
 You also see your Secret name in the **btpAccessCredentialsSecret** field of the `spec`.
-In the status section, the **subaccountId** field must not be empty. <!-- move this sentence to line 44??-->
-
-## Next Steps <!--what about this section? move? delete? add instance deletion instructions?-->
-
-To apply the Secret in your cluster, run:
-
-```sh
-kubectl apply -f btp-access-credentials-secret.yaml
-```
-
-> [!TIP]
-> When you do not intend to use your custom Secret any more, delete it with this command:
-> ```bash
-> kubectl delete secret {YOUR_SECRET_NAME} -n kyma-system
->  ```
 
 ## Related Information
 

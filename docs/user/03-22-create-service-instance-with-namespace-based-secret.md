@@ -32,13 +32,13 @@ To have service instances from one subaccount associated with one namespace, you
       tokenurl: {AUTH_URL}
       tokenurlsuffix: "/oauth/token"
     ```
-When you add the access credentials of the SAP Service Manager instance in your service instance, check the subaccount ID to which the instance belongs in the status **subaccountID** field.
+When you add the access credentials of the SAP Service Manager instance in your service instance, check the subaccount ID to which the instance belongs in the status **subaccountID** field. The **subaccountId** field must not be empty.
 
 ### Create a Service Instance with a Managed Namespace Secret
 
 Provide the needed parameters and create your service instance.
 
-See an example of a ServiceInstance custom resource: <!-- why not placeholders??? REMOVE WHAT'S NOT NEEDED!!!!!-->
+See an example of a ServiceInstance custom resource:
 
 ```yaml
 kubectl create -f - <<EOF
@@ -48,8 +48,8 @@ metadata:
   name: {SERVICE_INSTANCE_NAME}
   namespace: kyma-system
 spec:
-  serviceOfferingName: xsuaa {SERVICE_OFFERING_NAME}
-  servicePlanName: application {SERVICE_PLAN_NAME}
+  serviceOfferingName: {SERVICE_OFFERING_NAME}
+  servicePlanName: {SERVICE_PLAN_NAME}
   btpAccessCredentialsSecret: {YOUR_SECRET_NAME}
 EOF
 ```
@@ -63,8 +63,7 @@ kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -o y
 ```
 
 You see the status `Created` and the message `ServiceInstance provisioned successfully`.
-You also see the Secret name in the **btpAccessCredentialsSecret** field of the `spec`.
-In the status section, the **subaccountId** field must not be empty. <!-- move this sentence to line 36?? -->
+You also see the Secret name in the **btpAccessCredentialsSecret** field of the `spec`.  
 
 ## Related Information
 
