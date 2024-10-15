@@ -14,8 +14,8 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
 
 ### Create Your Custom Secret
 
-1. Create an SAP Service Manager service instance with the `service-operator-access` plan. See [Create a Service Instance](03-30-management-of-service-instances-and-bindings.md#create-a-service-instance).
-2. Create service binding to the SAP Service Manager service instance you have created. See [Create a Service Binding](03-30-management-of-service-instances-and-bindings.md#create-a-service-binding).
+1. Create an SAP Service Manager service instance with the `service-operator-access` plan. 
+2. Create service binding to the SAP Service Manager service instance you have created.
 3. Get the access credentials of the SAP Service Manager instance from its service binding. Copy them from the BTP cockpit as a JSON.
 4. Create the `creds.json` file in your working directory and save the credentials there.
 5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name**  as the second parameter.
@@ -44,14 +44,14 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
       tokenurlsuffix: "/oauth/token"
     ```
 
-6. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, check the subaccount ID to which the instance belongs in the status **subaccountID** field. The field must not be empty.
+6. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
 
 ### Create a Service Instance with the Custom Secret
 
 1. Create your service instance with:
    * the **btpAccessCredentialsSecret** field in the `spec` pointing to the custom Secret you have created
-   * other parameters as needed
-    See [Create a Service Instance](03-30-management-of-service-instances-and-bindings.md#create-a-service-instance).
+   * other parameters as needed<br>
+
     See an example of a ServiceInstance custom resource:
 
     ```yaml
@@ -80,4 +80,6 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
 ## Related Information
 
 [Working with Multiple Subaccounts](03-20-multitenancy.md)<br>
+[Create a Service Instance](03-30-management-of-service-instances-and-bindings.md#create-a-service-instance)<br>
+[Create a Service Binding](03-30-management-of-service-instances-and-bindings.md#create-a-service-binding)<br>
 [Create a Service Instance with a Namespace-Based Secret](03-22-create-service-instance-with-namespace-based-secret.md)
