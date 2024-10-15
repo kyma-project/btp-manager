@@ -22,7 +22,8 @@ SAP BTP Operator searches for the credentials in the following order:
 
 ## Namespace-Based Mapping
 
-To connect a namespace to a specific subaccount, maintain access credentials to this subaccount in a Secret dedicated to the specific namespace. Define the `{NAMESPACE-NAME}-sap-btp-service-operator` Secret in the `kyma-system` namespace. 
+To connect a namespace to a specific subaccount, maintain access credentials to this subaccount in a Secret dedicated to the specific namespace. Define the `{NAMESPACE-NAME}-sap-btp-service-operator` Secret in the `kyma-system` namespace.
+
 See the following examples:
 * Default access credentials:
 
@@ -59,12 +60,17 @@ See the following examples:
     tokenurlsuffix: "/oauth/token"
   ```
 
+For more information, see [Create a Service Instance with a Namespace-Based Secret](03-22-create-service-instance-with-namespace-based-secret.md).
+
+
 ## Instance-Level Mapping
 
 To deploy service instances belonging to different subaccounts within the same namespace, follow these steps:
-1. Define a new Secret: Securely store access credentials for each subaccount in a separate Secret in the `kyma-system` namespace. 
+1. Define a new Secret: Securely store access credentials for each subaccount in a separate Secret in the `kyma-system` namespace.
+
    See the following examples:
    * Default access credentials
+
       ```yaml
       apiVersion: v1
       kind: Secret
@@ -80,6 +86,7 @@ To deploy service instances belonging to different subaccounts within the same n
         tokenurlsuffix: "/oauth/token"
       ```
     * mTLS access credentials
+  
       ```yaml
       apiVersion: v1
       kind: Secret
@@ -97,6 +104,7 @@ To deploy service instances belonging to different subaccounts within the same n
       ```
 
 2. Specify a subaccount per service: Configure the Secret name in the ServiceInstance resource within the **btpAccessCredentialsSecret** property. The Secret containing the relevant subaccount's credentials tells SAP BTP Operator explicitly which subaccount to use to provision the service instance. The Secret must be located in the `kyma-system` namespace.
+
     ```yaml
     apiVersion: services.cloud.sap.com/v1
     kind: ServiceInstance
@@ -108,7 +116,5 @@ To deploy service instances belonging to different subaccounts within the same n
       btpAccessCredentialsSecret: {SECRET_NAME}
     ```
 
-## Related Information
-
-[Create a Service Instance with a Custom Secret](03-21-create-service-instance-with-custom-secret.md)
-[Create a Service Instance with a Namespace-Based Secret](03-22-create-service-instance-with-namespace-based-secret.md)
+  For more information, see [Create a Service Instance with a Custom Secret](03-21-create-service-instance-with-custom-secret.md).
+  
