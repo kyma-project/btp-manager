@@ -4,7 +4,7 @@ With the SAP BTP Operator module, you can create configurations for several suba
 
 ## Context
 
-By default, a Kyma cluster is associatted with one subaccount. Consequently, any service instance created within any namespace is provisioned in the associated subaccount. See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md). However, SAP BTP Operator also supports configurations for several subaccounts in a single Kyma cluster.
+By default, a Kyma cluster is associated with one subaccount. Consequently, any service instance created within any namespace is provisioned in the associated subaccount. See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md). However, SAP BTP Operator also supports configurations for several subaccounts in a single Kyma cluster.
 To apply the multitenancy feature, choose the method that suits your needs and application architecture: 
 * Namespace-based mapping: Connect namespaces to separate subaccounts by configuring dedicated credentials for each namespace.
 * Instance-level mapping: Define a specific subaccount for each service instance, regardless of the namespace context.
