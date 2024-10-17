@@ -70,7 +70,7 @@ These access credentials are available to applications through a Secret resource
     ```bash
     kubectl get secrets {SECRET_NAME} -n {NAMESPACE}
     NAME              TYPE     DATA   AGE
-    {SECRET_NAME}    Opaque   5      32s
+    {SECRET_NAME}     Opaque   5      32s
     ```
 
     To learn about different options for using the credentials from your application running in the Kubernetes cluster, see [Uses for Secrets](https://kubernetes.io/docs/concepts/configuration/secret/#uses-for-secrets).
@@ -121,7 +121,7 @@ See the following example of the `spec` format in JSON:
 }
 ```
 
-See the exampple of a Secret with the key named **secret-parameter**:
+See the example of a Secret with the key named **secret-parameter**:
 
 ```yaml
 apiVersion: v1

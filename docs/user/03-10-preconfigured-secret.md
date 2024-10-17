@@ -15,7 +15,7 @@ When you create a Kyma instance in the SAP BTP cockpit, the following events hap
    * The `sap-btp-operator-config` ConfigMap.
 
 > [!TIP]
-> In this scenario, the `sap-btp-service-operator` Secret is automatically generated when you create Kyma runtime. To create this Secret manually for a specific namespace, see [Create `sap-btp-service-operator` Secret](./tutorials/04-20-create-btp-service-operator-secret.md).
+> In this scenario, the `sap-btp-service-operator` Secret is automatically generated when you create Kyma runtime. To create this Secret manually for a specific namespace, see [Create a Namespace-Based Secret](03-22-create-service-instance-with-namespace-based-secret.md#create-a-namespace-based-secret).
 
 The `sap-btp-manager` Secret provides the following credentials:
 * **clientid**
