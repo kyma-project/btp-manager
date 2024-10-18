@@ -14,7 +14,7 @@ To have service instances from one subaccount associated with one namespace, you
 2. [Create a service binding](03-30-management-of-service-instances-and-bindings.md#create-a-service-binding) to the SAP Service Manager service instance you have created.
 3. Get the access credentials of the SAP Service Manager instance with the `service-operator-access` plan from its service binding. Copy them from the SAP BTP cockpit as a JSON.
 4. Create the `creds.json` file in your working directory and save the credentials there.
-5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **managed namespace sap-btp-service-operator secret**  as the second parameter.
+5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **namespace-name-sap-btp-service-operator secret**  as the second parameter.
 
     ```sh
     curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator {NAMESPACE_NAME}-sap-btp-service-operator
@@ -38,7 +38,7 @@ To have service instances from one subaccount associated with one namespace, you
     ```
 6. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
 
-### Create a Service Instance with a Managed Namespace Secret
+### Create a Service Instance with a Namespace-Based Secret
 
 1. Provide the needed parameters and create your service instance.
 
