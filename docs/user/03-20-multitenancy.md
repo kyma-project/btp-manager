@@ -60,7 +60,7 @@ See the following examples:
     tokenurlsuffix: "/oauth/token"
   ```
 
-For more information, see [Create a Service Instance with a Namespace-Based Secret](03-22-create-service-instance-with-namespace-based-secret.md).
+For more information, see [Namespace-Based Mapping](03-22-namespace-based-mapping.md).
 
 
 ## Instance-Level Mapping
@@ -116,5 +116,5 @@ To deploy service instances belonging to different subaccounts within the same n
       btpAccessCredentialsSecret: {SECRET_NAME}
     ```
 
-  For more information, see [Create a Service Instance with a Custom Secret](03-21-create-service-instance-with-custom-secret.md).
+  For more information, see [Instance-Level Mapping](03-21-instance-level-mapping.md).
   

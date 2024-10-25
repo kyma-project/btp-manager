@@ -1,5 +1,5 @@
 # Instance-Level Mapping
-
+<!--Instance-Level Association???--->
 To have multiple service instances from different subaccounts associated with one namespace, you must use a custom Secret to create these service instances.
 
 ## Prerequisites
@@ -19,10 +19,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
 2. Create a service binding to the SAP Service Manager service instance you have created.
 3. Get the access credentials of the SAP Service Manager instance from its service binding. Copy them from the BTP cockpit as a JSON.
 4. Create the `creds.json` file in your working directory and save the credentials there.
-5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name**  as the second parameter.
-
-    > [!WARNING] 
-    > Once you set a Secret name in the service instance, you cannot change it in the future.
+5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name**  as the second parameter:
 
     ```sh
     curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator {YOUR_SECRET_NAME}
@@ -50,11 +47,6 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     ```
     kubectl create -f ./btp-access-credentials-secret.yaml
     ```
-7. To verify if your Secret has been successfully created, run:
-
-    ``` 
-    kubectl get secret -n kyma-system {YOUR_SECRET_NAME}
-    ```
 
    You can see the status `Created`.
 
@@ -63,6 +55,9 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
 1. Create your service instance with:
    * the **btpAccessCredentialsSecret** field in the `spec` pointing to the custom Secret you have created
    * other parameters as needed<br>
+    
+    > [!WARNING] 
+    > Once you set a Secret name in the service instance, you cannot change it in the future.
 
     See an example of a ServiceInstance custom resource:
 
