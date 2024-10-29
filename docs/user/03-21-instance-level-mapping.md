@@ -82,7 +82,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -n {NAMESPACE}
     ```
 
-    You see the staus `Created` and the message that your service instance has been created successfully.
+    You see the status `Created` and the message that your service instance has been created successfully.
     You also see your Secret name in the **btpAccessCredentialsSecret** field of the `spec`.
 
 3.  To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
