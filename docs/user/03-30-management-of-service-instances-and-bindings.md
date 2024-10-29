@@ -27,7 +27,7 @@ Use the SAP BTP Operator module to manage the lifecycle of service instances and
 2.  Check the service's status in your cluster. The expected result is `Created`.
    
     ```bash
-    kubectl get serviceinstances {SERVICE_INSTANCE_NAME} -n {NAMESPACE}
+    kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -n {NAMESPACE}
     NAME                      OFFERING                    PLAN                     STATUS    AGE
     {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}     {SERVICE_PLAN_NAME}      Created   44s
     ```

@@ -43,7 +43,7 @@ In the [`user`](./docs/user) folder, you will find the following documents:
 * [Preconfigured Credentials and Access](./docs/user/03-10-preconfigured-secret.md)
 * [Working with Multiple Subaccounts](./docs//user/03-20-multitenancy.md)
 * [Instance-Level Mapping](./docs/user/03-21-instance-level-mapping.md)
-* [Namespace-Based Mapping](./docs/user/03-22-namespace-based-mapping.md)
+* [Namespace-Level Mapping](./docs/user/03-22-namespace-level-mapping.md)
 * [Management of the Service Instances and Service Bindings Lifecycle](./docs//user/03-30-management-of-service-instances-and-bindings.md)
 * [Service Binding Rotation](./docs//user/03-40-service-binding-rotation.md)
 * [Formats of Service Binding Secrets](./docs//user/03-50-formatting-service-binding-secret.md)

@@ -6,8 +6,8 @@ With the SAP BTP Operator module, you can create configurations for several suba
 
 By default, a Kyma cluster is associated with one subaccount. Consequently, any service instance created within any namespace is provisioned in the associated subaccount. See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md). However, SAP BTP Operator also supports configurations for several subaccounts in a single Kyma cluster.
 To apply the multitenancy feature, choose the method that suits your needs and application architecture: 
-* Namespace-based mapping: Connect namespaces to separate subaccounts by configuring dedicated credentials for each namespace.
-* Instance-level mapping: Define a specific subaccount for each service instance, regardless of the namespace context.
+* [Namespace-level mapping](03-22-namespace-level-mapping.md): Connect namespaces to separate subaccounts by configuring dedicated credentials for each namespace.
+* [Instance-level mapping](03-21-instance-level-mapping.md): Define a specific subaccount for each service instance, regardless of the namespace context.
 
 Regardless of the method, you must create Secrets managed in the `kyma-system` namespace.
 
@@ -20,7 +20,7 @@ SAP BTP Operator searches for the credentials in the following order:
 
 ![Secrets precedence](../assets/secrets_precedence_4.drawio.svg) 
 
-## Namespace-Based Mapping
+## Namespace-Level Mapping
 
 To connect a namespace to a specific subaccount, maintain access credentials to this subaccount in a Secret dedicated to the specific namespace. Define the `{NAMESPACE-NAME}-sap-btp-service-operator` Secret in the `kyma-system` namespace.
 
@@ -60,9 +60,6 @@ See the following examples:
     tokenurlsuffix: "/oauth/token"
   ```
 
-For more information, see [Namespace-Based Mapping](03-22-namespace-based-mapping.md).
-
-
 ## Instance-Level Mapping
 
 To deploy service instances belonging to different subaccounts within the same namespace, follow these steps:
@@ -85,6 +82,7 @@ To deploy service instances belonging to different subaccounts within the same n
         tokenurl: {AUTH_URL}
         tokenurlsuffix: "/oauth/token"
       ```
+
     * mTLS access credentials
   
       ```yaml
@@ -115,6 +113,4 @@ To deploy service instances belonging to different subaccounts within the same n
       servicePlanName: subaccount-audit
       btpAccessCredentialsSecret: {SECRET_NAME}
     ```
-
-  For more information, see [Instance-Level Mapping](03-21-instance-level-mapping.md).
   

@@ -1,6 +1,6 @@
 # Instance-Level Mapping
-<!--Instance-Level Association???--->
-To have multiple service instances from different subaccounts associated with one namespace, you must use a custom Secret to create these service instances.
+
+You can map a Kubernetes service instance to an SAP Service Manager instance in a given subaccount. The Service Manager instance is then used to provision this service instance.
 
 ## Prerequisites
 
@@ -9,6 +9,7 @@ To have multiple service instances from different subaccounts associated with on
 
 ## Context
 
+To have multiple service instances from different subaccounts associated with a namespace, you must use a custom Secret to create these service instances.
 To create a service instance with a custom Secret, you must use the **btpAccessCredentialsSecret** field in the `spec` of the service instance. In it, you pass the Secret from the `kyma-system` namespace to create your service instance. You can use different Secrets for different service instances.
 
 ## Procedure
@@ -48,7 +49,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     kubectl create -f ./btp-access-credentials-secret.yaml
     ```
 
-   You can see the status `Created`.
+   You see the status `Created`.
 
 ### Create a Service Instance with the Custom Secret
 
@@ -78,10 +79,10 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
 2. To verify that your service instance has been created successfully, run:
 
     ```bash
-    kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -o yaml
+    kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -n {NAMESPACE}
     ```
 
-    You see the status `Created`.
+    You see the staus `Created` and the message that your service instance has been created successfully.
     You also see your Secret name in the **btpAccessCredentialsSecret** field of the `spec`.
 
 3.  To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
@@ -89,4 +90,4 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
 ## Related Information
 
 [Working with Multiple Subaccounts](03-20-multitenancy.md)<br>
-[Namespace-Based Mapping](03-22-namespace-based-mapping.md)
+[Namespace-Level Mapping](03-22-namespace-level-mapping.md)

@@ -1,11 +1,15 @@
-# Namespace-Based Mapping
-<!--Namespace-Based Association???-->
-To have service instances from one subaccount associated with one namespace, you must use a Secret dedicated to this namespace to create these service instances.
+# Namespace-Level Mapping
+
+You can map a Kubernetes namespace to an SAP Service Manager instance in a given subaccount. The Service Manager instance is then used to provision all service instances in this namespace.
 
 ## Prerequisites
 
 * A subaccount in the SAP BTP cockpit.
 * kubectl configured for communicating with your Kyma instance.
+
+## Context
+
+To have service instances from one subaccount associated with one namespace, you must use a Secret dedicated to this namespace to create these service instances.
 
 ## Procedure
 
@@ -48,34 +52,11 @@ To have service instances from one subaccount associated with one namespace, you
 
 ### Create a Service Instance with a Namespace-Based Secret
 
-1. Provide the needed parameters and create your service instance.
+1. To create a service instance with a namespace-based Secret, follow the instructions on [creating service instances](03-30-management-of-service-instances-and-bindings.md#create-a-service-instance).
 
-    See an example of a ServiceInstance custom resource:
-
-    ```yaml
-    kubectl create -f - <<EOF
-    apiVersion: services.cloud.sap.com/v1
-    kind: ServiceInstance
-    metadata:
-      name: {SERVICE_INSTANCE_NAME}
-      namespace: {NAMESPACE_NAME}
-    spec:
-      serviceOfferingName: {SERVICE_OFFERING_NAME}
-      servicePlanName: {SERVICE_PLAN_NAME}
-    EOF
-    ```
-
-2. To verify that your service instance has been created successfully, run:
-
-    ```bash
-    kubectl get serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} -o yaml
-    ```
-
-    You see the status `Created` and the message confirming that your servicde instance was created successfully.
-
-3. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
+2. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
 
 ## Related Information
 
 [Working with Multiple Subaccounts](03-20-multitenancy.md)<br>
-[Create a Service Instance with a Custom Secret](03-21-instance-level-mapping.md)
+[Instance-Level](03-21-instance-level-mapping.md)

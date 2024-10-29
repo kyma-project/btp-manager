@@ -7,7 +7,7 @@
 * [Management of the Service Instances and Service Bindings Lifecycle](/btp-manager/user/03-30-management-of-service-instances-and-bindings.md)
 * [Working with Multiple Subaccounts](/btp-manager/user/03-20-multitenancy.md)
    * [Instance-Level Mapping](/btp-manager/user/03-21-instance-level-mapping.md)
-   * [Namespace-Based Mapping](/btp-manager/user/03-22-namespace-based-mapping.md)
+   * [Namespace-Level Mapping](/btp-manager/user/03-22-namespace-level-mapping.md)
 * [Service Binding Rotation](/btp-manager/user/03-40-service-binding-rotation.md)
 * [Formats of Service Binding Secrets](/btp-manager/user/03-50-formatting-service-binding-secret.md)
 * [Resources](/btp-manager/user/resources/README.md)
