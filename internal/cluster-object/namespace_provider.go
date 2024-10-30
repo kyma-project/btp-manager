@@ -38,7 +38,6 @@ func (p *NamespaceProvider) GetAll(ctx context.Context) (*v1.NamespaceList, erro
 	if len(namespaces.Items) == 0 {
 		err := errors.New("no namespaces found")
 		p.logger.Error(err.Error())
-		return nil, err
 	}
 
 	return namespaces, nil

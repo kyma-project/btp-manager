@@ -18,6 +18,7 @@ spec:
         traffic.sidecar.istio.io/excludeInboundPorts: "8080"
       labels:
         app.kubernetes.io/component: btp-manager.kyma-project.io
+        sidecar.istio.io/inject: "false"
     spec:
       securityContext:
         runAsNonRoot: true

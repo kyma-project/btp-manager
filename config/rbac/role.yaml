@@ -8,6 +8,9 @@ rules:
   - ""
   resources:
   - configmaps
+  - secrets
+  - serviceaccounts
+  - services
   verbs:
   - '*'
 - apiGroups:
@@ -19,32 +22,9 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
-  - serviceaccounts
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - '*'
-- apiGroups:
   - admissionregistration.k8s.io
   resources:
   - mutatingwebhookconfigurations
-  verbs:
-  - '*'
-- apiGroups:
-  - admissionregistration.k8s.io
-  resources:
   - validatingwebhookconfigurations
   verbs:
   - '*'
@@ -64,11 +44,6 @@ rules:
   - operator.kyma-project.io
   resources:
   - btpoperators
-  verbs:
-  - '*'
-- apiGroups:
-  - operator.kyma-project.io
-  resources:
   - btpoperators/status
   verbs:
   - '*'
@@ -76,23 +51,8 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
-  verbs:
-  - '*'
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
   - clusterroles
-  verbs:
-  - '*'
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
   - rolebindings
-  verbs:
-  - '*'
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
   - roles
   verbs:
   - '*'

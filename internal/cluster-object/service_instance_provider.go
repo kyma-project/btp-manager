@@ -72,7 +72,6 @@ func (p *ServiceInstanceProvider) GetAll(ctx context.Context) (*unstructured.Uns
 	}
 	if len(list.Items) == 0 {
 		p.logger.Info("no service instances found")
-		return list, nil
 	}
 
 	return list, nil

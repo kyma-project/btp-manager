@@ -215,3 +215,20 @@ webapp: ## Run App and UI
 .PHONY: ui-build
 ui-build: ## Build the UI
 	cd ui && npm install && npm run build
+
+
+CONTROLLER_NAME = btp-controller
+
+
+.PHONY: build-image-function-controller
+build-image-function-controller:
+	docker build -t $(CONTROLLER_NAME) -f ./Dockerfile ./
+
+install-controller-k3d: build-image-function-controller ## Build and replace serverless manager from local sources on k3d
+	$(eval HASH_TAG=$(shell docker images $(CONTROLLER_NAME):latest --quiet))
+	docker tag $(CONTROLLER_NAME) $(CONTROLLER_NAME):$(HASH_TAG)
+
+	k3d image import $(CONTROLLER_NAME):$(HASH_TAG) -c kyma
+	kubectl set image deployment btp-manager-controller-manager -n kyma-system manager=$(CONTROLLER_NAME):$(HASH_TAG)
+	kubectl get pod -n kyma-system btp-manager-controller-manager-67c6d8f7d-lb2h8 -oyaml
+
