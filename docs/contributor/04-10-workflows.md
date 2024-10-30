@@ -20,51 +20,11 @@ See [BTP Manager Release Pipeline](03-10-release.md) to learn more about the rel
 
 ## E2E Tests Workflow 
 
-This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the reusable [workflow](/.github/workflows/run-e2e-tests-reusable.yaml). It is triggered by pull requests (PRs) on the `main` branch that change at least one of the following:
-- `/.github` directory content
-- `/api` directory content
-- `/cmd` directory content
-- `/config` directory content
-- `/controllers` directory content
-- `/deployments` directory content
-- `/examples` directory content
-- `/hack` directory content
-- `/internal` directory content
-- `/module-chart` directory content
-- `/module-resources` directory content
-- `/scripts` directory content
-- `config.yaml` file
-- `Dockerfile` file 
-- `go.mod` file
-- `go.sum` file
-- `main.go` file
-- `Makefile` file
-- any `*.go` file
-- any `*.sh` file
+This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the [reusable workflow](/.github/workflows/run-e2e-tests-reusable.yaml).
 
 ## Unit Tests Workflow
 
-This workflow calls the reusable [workflow](/.github/workflows/run-unit-tests-reusable.yaml). It is triggered by PRs on the `main` branch that change at least one of the following:
-- `/.github` directory content
-- `/api` directory content
-- `/cmd` directory content
-- `/config` directory content
-- `/controllers` directory content
-- `/deployments` directory content
-- `/examples` directory content
-- `/hack` directory content
-- `/internal` directory content
-- `/module-chart` directory content
-- `/module-resources` directory content
-- `/scripts` directory content
-- `config.yaml` file
-- `Dockerfile` file 
-- `go.mod` file
-- `go.sum` file
-- `main.go` file
-- `Makefile` file
-- any `*.go` file
-- any `*.sh` file
+This workflow calls the [reusable workflow](/.github/workflows/run-unit-tests-reusable.yaml).
 
 ## Markdown Links Check Workflow
 
@@ -72,27 +32,15 @@ This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered daily 
 
 ## Govulncheck Workflow
 
-This [workflow](/.github/workflows/run-govulncheck.yaml) runs the Govulncheck. It is triggered by PRs on the `main` branch that change at least one of the following:
-- `/.github` directory content
-- `/api` directory content
-- `/cmd` directory content
-- `/config` directory content
-- `/controllers` directory content
-- `/deployments` directory content
-- `/examples` directory content
-- `/hack` directory content
-- `/internal` directory content
-- `/module-chart` directory content
-- `/module-resources` directory content
-- `/scripts` directory content
-- `config.yaml` file
-- `Dockerfile` file
-- `go.mod` file
-- `go.sum` file
-- `main.go` file
-- `Makefile` file
-- any `*.go` file
-- any `*.sh` file
+This [workflow](/.github/workflows/run-govulncheck.yaml) runs the Govulncheck.
+
+## Auto Merge Workflow
+
+This [workflow](/.github/workflows/auto-merge.yaml) enables the auto-merge functionality on a PR that is not a draft.
+
+## All Cheks Passed Workflow
+
+This [workflow](/.github/workflows/pr-checks.yaml) checks if all jobs, except those excluded in the workflow configuration, have passed.
 
 ## Reusable Workflows
 

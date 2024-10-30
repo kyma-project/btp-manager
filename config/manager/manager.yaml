@@ -20,6 +20,7 @@ spec:
         app.kubernetes.io/component: btp-manager.kyma-project.io
         sidecar.istio.io/inject: "false"
     spec:
+      priorityClassName: "kyma-priority"
       securityContext:
         runAsNonRoot: true
       containers:

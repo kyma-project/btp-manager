@@ -8,6 +8,9 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
 
 jobs:
   run-go-linter:
@@ -16,40 +19,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get changed files
-        id: changed-files-specific
-        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959
-        with:
-          files: |
-            .github/**
-            api/**
-            cmd/**
-            config/**
-            controllers/**
-            deployments/**
-            examples/**
-            hack/**
-            internal/**
-            module-chart/**
-            module-resources/**
-            scripts/**
-            config.yaml
-            Dockerfile
-            go.mod
-            go.sum
-            main.go
-            Makefile
-            **/*.go
-            **/*.sh
-
       - name: Set up go environment
-        if: steps.changed-files-specific.outputs.any_modified == 'true'
         uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
 
       - name: Go linter
-        if: steps.changed-files-specific.outputs.any_modified == 'true'
         env:
           GOLINT_TIMEOUT: ${{ vars.GOLINT_TIMEOUT }}
         run: make go-lint

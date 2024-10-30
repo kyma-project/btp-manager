@@ -145,6 +145,12 @@ function runOnPr() {
                     jq -r 'if (.labels | length) > 0 then .labels[] | objects | .name else empty end')
 
   count_of_required_labels=$(grep -o -w -F -c "${supported_labels}" <<< "$present_labels" || true)
+
+  if [[ $present_labels == *"do-not-merge"* ]]; then
+    echo "error: PR contains 'do-not-merge' label"
+    exit 1
+  fi
+  
   if [[ $count_of_required_labels -eq 1 ]]; then 
     echo "label validation OK"
     exit 0

@@ -5,29 +5,33 @@ Learn more about the SAP BTP Operator module. Use it to enable Service Managemen
 ## What is SAP BTP Operator?
 
 The SAP BTP Operator module provides Service Management, which allows you to consume [SAP BTP services](https://discovery-center.cloud.sap/protected/index.html#/viewServices) from your Kyma cluster using Kubernetes-native tools.
-Within the SAP BTP Operator module, [BTP Manager](https://github.com/kyma-project/btp-manager) installs the [SAP BTP service operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md).
+Within the SAP BTP Operator module, [BTP Manager](https://github.com/kyma-project/btp-manager) installs an open source component: the [SAP BTP service operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md).
 The SAP BTP service operator enables provisioning and managing service instances and service bindings of SAP BTP services so that your Kubernetes-native applications can access and use the services from your cluster.
 
 ## Features
 
 The SAP BTP Operator module provides the following features:
-* Preconfigured and managed Secret for your cluster: Your Secret is readily available on Kyma runtime creation.
-* Managing access: You can configure the module's permissions for all or a limited number of namespaces in your cluster. 
-* Multitenancy: You can configure multiple subaccounts in a single cluster.
-* Lifecycle management of service instances and service bindings: You can create and delete service instances and service bindings. 
-* service binding rotation: You can enhance security by automatically rotating the credentials associated with your service bindings.
-* Formatting service binding Secret: You can use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
-* Subaccount for a ServiceInstance resource: You can deploy service instances belonging to different subaccounts within the same namespace.
+* [Credentials and access preconfiguration](03-10-preconfigured-secret.md): Your Secret is provided on Kyma runtime creation.
+* [Multitenancy](03-20-multitenancy.md): You can configure multiple subaccounts in a single cluster.
+* [Lifecycle management of service instances and service bindings](03-30-management-of-service-instances-and-bindings.md): You can create and delete service instances and service bindings.
+* [Service binding rotation](03-40-service-binding-rotation.md): You can enhance security by automatically rotating the credentials associated with your service bindings.
+* [Service binding Secret formatting](03-50-formatting-service-binding-secret.md): You can use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 
-## Scope  
+## Scope
 
 By default, the scope of the SAP BTP Operator module is your Kyma runtime, which consumes SAP BTP services from the subaccount in which you created it. You can extend the module's scope by adding more subaccounts and consuming services from them in one cluster. The scope can range from one to multiple subaccounts depending on the number of configured Secrets.
 
 ## Architecture
 
-The SAP BTP Operator module allows for the initial provisioning and retrieving of credentials necessary for the application to use an SAP BTP service.
+The SAP BTP Operator module provides and retrieves the initial credentials that your application needs to use an SAP BTP service.
 
-![SAP BTP Operator architecture](../assets/BtpOperator_architecture.drawio.svg)
+![SAP BTP Operator architecture](../assets/module_architecture.drawio.svg)
+
+SAP BTP Operator can have access to multiple subaccounts within your cluster depending on the number of configured Secrets.
+
+![Access configuration](../assets/access_configuration.drawio.svg)
+
+For more information on multitenancy, see [Working with Multiple Subaccounts](03-20-multitenancy.md).
 
 ### SAP BTP, Kyma Runtime
 
@@ -35,37 +39,37 @@ SAP BTP, Kyma runtime runs on a Kubernetes cluster and wraps the SAP BTP Operato
 
 ### BTP Manager
 
-BTP Manager is an operator based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends Kubernetes API by providing [BtpOperator CustomResourceDefinition (CRD)](https://github.com/kyma-project/btp-manager/blob/main/config/crd/bases/operator.kyma-project.io_btpoperators.yaml). 
+BTP Manager is an operator based on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It extends the Kubernetes API by providing the [BtpOperator Custom Resource Definition (CRD)](https://github.com/kyma-project/btp-manager/blob/main/config/crd/bases/operator.kyma-project.io_btpoperators.yaml). 
 BTP Manager performs the following operations:
-* manages the lifecycle of the SAP BTP service operator, including provisioning the latest version, updating, and deprovisioning
-* configures the SAP BTP service operator
+* Manages the lifecycle of the SAP BTP service operator, including provisioning of the latest version, updating, and deprovisioning
+* Configures the SAP BTP service operator
 
 ### SAP BTP Service Operator
 
-The SAP BTP service operator allows you to connect SAP BTP services to your cluster and then manage them using Kubernetes-native tools. It is responsible for communicating with SAP Service Manager. The operator's resources, service instances and service bindings, come from the `services.cloud.sap.com` API group.
+The SAP BTP service operator is an open-source component that connects SAP BTP services to your cluster and manages them using Kubernetes-native tools. It is responsible for communicating with SAP Service Manager. The operator's resources (service instances and service bindings) come from the `services.cloud.sap.com` API group.
 
 ### SAP Service Manager
 
-[SAP Service Manager](https://help.sap.com/docs/service-manager/sap-service-manager/sap-service-manager?locale=en-US) is the central registry for service brokers and platforms in SAP BTP, which allows you to:
-* consume platform services in any connected runtime environment
-* track the creation and management of service instances
-* share services and service instances between different runtimes
+[SAP Service Manager](https://help.sap.com/docs/service-manager/sap-service-manager/sap-service-manager?locale=en-US) is the central registry for service brokers and platforms in SAP BTP, which enables you to:
+* Consume platform services in any connected runtime environment
+* Track the creation and management of service instances
+* Share services and service instances between different runtimes
 
 SAP Service Manager uses [Open Service Broker API](https://www.openservicebrokerapi.org/) (OSB API) to communicate with service brokers.
 
 ### Service Brokers
 
-Service Brokers manage the lifecycle of services. SAP Service Manager interacts with service brokers using OSB API to provision and manage service instances and service bindings.
+Service brokers manage the lifecycle of services. SAP Service Manager interacts with service brokers using OSB API to provision and manage service instances and service bindings.
 
 ## API / Custom Resource Definitions
 
 The `btpoperators.operator.kyma-project.io` Custom Resource Definition (CRD) describes the kind and the data format that SAP BTP Operator uses to configure resources.
 
-<!--See the documentation related to the BtpOperator custom resource (CR):
-* SAP BTP Operator
-* service instance
-* service binding
-add links to the new doc(s)-->
+See the documentation related to the BtpOperator custom resource (CR):
+* [SAP BTP Operator](./resources/02-10-sap-btp-operator-cr.md)
+* [Service instance](./resources/02-20-service-instance-cr.md)
+* [Service binding](./resources/02-30-service-binding-cr.md)
+
 
 ## Resource Consumption
 
