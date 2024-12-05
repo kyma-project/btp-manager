@@ -27,7 +27,7 @@ GITHUB_URL=https://api.github.com/repos/${REPOSITORY}
 #   outputs:
 #             "v1.25.14+k3s1" "v1.26.9+k3s1" "v1.27.6+k3s1" "v1.28.1+k3s1"
 LATEST_RELEASES=($(curl -sS "${GITHUB_URL}/releases" \
-| jq '.[] | select(.name|test("v[0-9]{1,2}.[0-9]{1,3}.[0-9]{1,3}\\+")) | .name' \
+| jq '.[] | select(.prerelease == false) | select(.name|test("v[0-9]{1,2}.[0-9]{1,3}.[0-9]{1,3}\\+")) | .name' \
 | sort -rV\
 | awk -F. '/k3s1/ {if ($2 != p) {print $0; p=$2}}' \
 | head -n ${LIST_LEN}))
