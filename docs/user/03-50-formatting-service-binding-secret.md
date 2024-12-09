@@ -2,18 +2,19 @@
 
 Use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 
-## Overview
+## Context
 
 Secret resources share a common set of basic parameters that can be divided into two categories:
+
 * Credentials returned from the service broker that allow your application to access and consume an SAP BTP service.
 * Attributes of the associated service instance: The details of the service instance itself.
 
 However, the Secret resources can come in various formats:
+
 * Default key-value pairs
 * A JSON object
 * One JSON object with credentials and service information
 * Custom formats
-
 
 ## Key-Value Pairs
 
@@ -121,14 +122,15 @@ See the following examples:
 ## Custom Formats 
 
 For additional flexibility, you can model the Secret resources according to your needs. 
-To generate a custom-formatted Secret, use the **secretTemplate** attribute in the ServiceBinding spec.
-This attribute expects a Go template as its value. For more information, see [Go Templates](https://pkg.go.dev/text/template).<br>
+To generate a custom-formatted Secret, use the **secretTemplate** attribute in the ServiceBinding `spec`.
+This attribute expects a Go template as its value. For more information, see [Go Templates](https://pkg.go.dev/text/template).
+
 Ensure the template is in the YAML format and has the structure of a Kubernetes Secret. 
 
 In the provided Secret, you can customize the `metadata` and `data` sections with the following options:
 
-- `metadata`: labels and annotations
-- `data`: customize or utilize one of the available formatting options following the instructions in the [Overview](#overview) section.
+* `metadata`: labels and annotations
+* `data`: customize or utilize one of the available formatting options following the instructions in the [Overview](#overview) section
 
 
 > [!NOTE]  
@@ -147,9 +149,7 @@ The provided templates are executed on a map with the following available attrib
 
 The following examples demonstrate the ServiceBinding and generated Secret resources:
 
-* Service binding with customized `metadata` and `data` sections:
-
-    In this example, you specify both `metadata` and `data` in the `secretTemplate`:
+* In a service binding with customized `metadata` and `data` sections, you specify both `metadata` and `data` in the `secretTemplate`:
 
     * Service binding
 
@@ -188,9 +188,7 @@ The following examples demonstrate the ServiceBinding and generated Secret resou
         PASSWORD: {CLIENT_SECRET}
       ```
 
-* Example of a binding with a customized `metadata` section and applied pre-existing formatting option for `data` with credentials as a JSON object:
-
-    In this example, you omit `data` from the `secretTemplate` and use the `secretKey` to format your `data` instead.
+* In a binding with a customized `metadata` section and applied pre-existing formatting option for `data` with credentials as a JSON object, you omit `data` from the `secretTemplate` and use the `secretKey` to format your `data` instead.
 
     * Service binding
 
