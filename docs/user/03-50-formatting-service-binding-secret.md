@@ -130,7 +130,7 @@ Ensure the template is in the YAML format and has the structure of a Kubernetes 
 In the provided Secret, you can customize the `metadata` and `data` sections with the following options:
 
 * `metadata`: labels and annotations
-* `data`: customize or utilize one of the available formatting options following the instructions in the [Overview](#overview) section
+* `data`: customize or utilize one of the available formatting options following the instructions in the [Context](#context) section
 
 
 > [!NOTE]  
