@@ -48,7 +48,7 @@ BTP Manager performs the following operations:
 
 ### SAP BTP Service Operator
 
-The SAP BTP service operator is an open-source component that allows you to connect SAP BTP services to your cluster and manage them using Kubernetes-native tools. It is responsible for communicating with SAP Service Manager. The operator's resources (service instances and service bindings) come from the `services.cloud.sap.com` API group.<!--add the brackets in HP-->
+The SAP BTP service operator is an open-source component that allows you to connect SAP BTP services to your cluster and manage them using Kubernetes-native tools. It is responsible for communicating with SAP Service Manager. The operator's resources (service instances and service bindings) come from the `services.cloud.sap.com` API group.
 
 ### SAP Service Manager
 
