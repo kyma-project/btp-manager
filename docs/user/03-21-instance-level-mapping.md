@@ -56,7 +56,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
    You see the status `Created`.
 
    > [!NOTE]
-   > You can also view the Secret in Kyma dashboard. In the `kyma-system` namespace, go to **Configuration**->**Secrets**, and check the list of Secrets.
+   > You can also view the Secret in Kyma dashboard. In the `kyma-system` namespace, go to **Configuration** -> **Secrets**, and check the list of Secrets.
 
 ## Create a Service Instance with the Custom Secret
 
@@ -75,14 +75,14 @@ To create the service instance, use either Kyma dashboard or kubectl.
    > [!WARNING]
    > Once you set a Secret name in the service instance, you cannot change it in the future.
   
-  You see the status `PROVISIONED`.
+    You see the status `PROVISIONED`.
 
 #### Use kubectl
 
 1. Create your service instance with:
 
    * The **btpAccessCredentialsSecret** field in the `spec` pointing to the custom Secret you have created
-   * Other parameters as needed<br>
+   * Other parameters as needed
     
     > [!WARNING] 
     > Once you set a Secret name in the service instance, you cannot change it in the future.

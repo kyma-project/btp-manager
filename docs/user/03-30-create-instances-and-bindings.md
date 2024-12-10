@@ -1,6 +1,6 @@
 # Create  Service Instances and Service Bindings
 
-To use an SAP BTP service in your Kyma cluster, create its service instance and service binding using Kyma dashboard or kubectl. <!-- fix in HP-->
+To use an SAP BTP service in your Kyma cluster, create its service instance and service binding using Kyma dashboard or kubectl.
 
 ## Prerequisites
 
