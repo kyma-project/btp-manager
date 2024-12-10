@@ -1,4 +1,4 @@
-# Service Binding Rotation
+# Rotate Service Bindings
 
 Enhance security by automatically rotating the credentials associated with your service bindings. This process involves generating a new service binding while keeping the old credentials active for a specified period to ensure a smooth transition.
 
@@ -15,11 +15,9 @@ To enable automatic service binding rotation, use the **credentialsRotationPolic
 > [!NOTE] 
 > The `credentialsRotationPolicy` does not manage the validity or expiration of the credentials themselves. This is determined by the service you are using.
 
-## Rotation Process
-
 The `credentialsRotationPolicy` is evaluated periodically during a [control loop](https://kubernetes.io/docs/concepts/architecture/controller/) on every service binding update or during a complete reconciliation process. This means the actual rotation occurs in the closest upcoming reconciliation loop. 
 
-## Immediate Rotation
+## Enable Immediate Rotation
 
 To trigger an immediate rotation regardless of the configured **rotationFrequency**, add the `services.cloud.sap.com/forceRotate: "true"` annotation to the ServiceBinding resource.
 The immediate rotation only works if automatic rotation is already enabled. 
@@ -42,6 +40,7 @@ spec:
 ## Result
 
 Rotating the service binding has the following results:
+
 * The Secret is updated with the latest credentials. 
 * The old credentials are kept in a newly-created Secret named `original-secret-name(variable)-guid(variable)`.
 This temporary Secret is kept until the configured deletion time (TTL) expires.
