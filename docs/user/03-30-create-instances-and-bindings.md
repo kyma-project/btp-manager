@@ -19,14 +19,14 @@ To use an SAP BTP service in your Kyma cluster, create its service instance and 
 To create a service instance, use either Kyma dashboard or kubectl.
 
 <!-- tabs:start -->
-#### Use Kyma Dashboard
+#### **Kyma Dashboard**
 
 1. In the **Namespaces** view, go to the namespace you want to work in.
 2. Go to **Service Management** -> **Service Instances**.
 3. Provide the required service details and create a service instance.<br>
    You see the status `PROVISIONED`.
 
-#### Use kubectl
+#### **kubectl**
 
 1.  To create a ServiceInstance custom resource (CR), follow this example:
 
@@ -74,14 +74,14 @@ To create a service binding, use either Kyma dashboard or kubectl.
 ### Procedure
 
 <!-- tabs:start -->
-#### Use Kyma Dashboard
+#### **Kyma Dashboard**
 
 1. In the **Namespaces** view, go to the namespace you want to work in.
 2. Go to **Service Management** -> **Service Bindings**.
 3. Choose your service instance name from the dropdown list and create a service binding.<br>
    You see the status `PROVISIONED`.
 
-#### Use kubectl
+#### **kubectl**
 
 1. To create a ServiceBinding CR, follow this example:
 

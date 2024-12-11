@@ -65,7 +65,7 @@ To create the service instance, use either Kyma dashboard or kubectl.
 ### Procedure
 
 <!-- tabs:start -->
-#### Use Kyma Dashboard
+#### **Kyma Dashboard**
 
 1. In the **Namespaces** view, go to the namespace you want to work in.
 2. Go to **Service Management** -> **Service Instances**.
@@ -77,7 +77,7 @@ To create the service instance, use either Kyma dashboard or kubectl.
   
     You see the status `PROVISIONED`.
 
-#### Use kubectl
+#### **kubectl**
 
 1. Create your service instance with:
 
