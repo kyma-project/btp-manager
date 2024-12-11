@@ -1361,7 +1361,7 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldObj := e.ObjectOld.(*appsv1.Deployment)
 			newObj := e.ObjectNew.(*appsv1.Deployment)
-			return newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace && !reflect.DeepEqual(oldObj.Spec, newObj.Spec)
+			return newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace && oldObj.Status.ReadyReplicas != newObj.Status.ReadyReplicas
 		},
 	}
 }
