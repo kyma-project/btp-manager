@@ -4,7 +4,7 @@
 * [Create the `sap-btp-manager` Secret](/btp-manager/user/03-00-create-btp-manager-secret.md)
 * [Install the SAP BTP Operator Module](/btp-manager/user/03-05-install-module.md)
 * [Preconfigured Credentials and Access](/btp-manager/user/03-10-preconfigured-secret.md)
-* [Create  Service Instances and Service Bindings](/btp-manager/user/03-30-create-services-and-bindings.md)
+* [Create Service Instances and Service Bindings](/btp-manager/user/03-30-create-instances-and-bindings.md)
 * [Working with Multiple Subaccounts](/btp-manager/user/03-20-multitenancy.md)
    * [Instance-Level Mapping](/btp-manager/user/03-21-instance-level-mapping.md)
    * [Namespace-Level Mapping](/btp-manager/user/03-22-namespace-level-mapping.md)
