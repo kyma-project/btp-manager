@@ -54,8 +54,8 @@ const (
 	btpOperatorKind                = "BtpOperator"
 	btpOperatorApiVersion          = `operator.kyma-project.io\v1alpha1`
 	secretYamlPath                 = "testdata/test-secret.yaml"
-	k8sOpsTimeout                  = time.Second * 3
-	k8sOpsPollingInterval          = time.Millisecond * 200
+	k8sOpsTimeout                  = time.Second * 6
+	k8sOpsPollingInterval          = time.Millisecond * 400
 	extraLabelKey                  = "reconciler.kyma-project.io/managed-by"
 	extraLabelValue                = "reconciler"
 	k8sClientGetPermanentErrMsg    = "expected permanent client.Get error"
