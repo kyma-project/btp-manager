@@ -1359,9 +1359,19 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldObj := e.ObjectOld.(*appsv1.Deployment)
 			newObj := e.ObjectNew.(*appsv1.Deployment)
-			return newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace && oldObj.Status.ReadyReplicas != newObj.Status.ReadyReplicas
+			if newObj.Name != DeploymentName || newObj.Namespace != ChartNamespace {
+				return false
+			}
+			var newAvailableConditionStatus, newProgressingConditionStatus string
+			for _, condition := range newObj.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					newProgressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					newAvailableConditionStatus = string(condition.Status)
+				}
+			}
+			return newAvailableConditionStatus != "True" || newProgressingConditionStatus != "True"
 		},
 	}
 }
