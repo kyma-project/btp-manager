@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"k8s.io/client-go/kubernetes"
 	"os"
 	"reflect"
 	"strconv"
@@ -47,6 +46,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -66,7 +66,7 @@ var (
 	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Minute * 15
+	ReadyStateRequeueInterval      = time.Second * 15
 	ReadyTimeout                   = time.Minute * 5
 	ReadyCheckInterval             = time.Second * 30
 	HardDeleteTimeout              = time.Minute * 20
@@ -130,7 +130,8 @@ var (
 	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
 	clusterIdKey                   = "CLUSTER_ID"
 	initialClusterIdKey            = "INITIAL_CLUSTER_ID"
-	clusterIdSecret                = "sap-btp-operator-clusterid"
+	sapBtpManagerClusterIdKey      = "cluster_id"
+	clusterIdSecretName            = "sap-btp-operator-clusterid"
 )
 
 type InstanceBindingSerivce interface {
@@ -151,7 +152,8 @@ type BtpOperatorReconciler struct {
 	workqueueSize          int
 	metrics                *metrics.Metrics
 	instanceBindingService InstanceBindingSerivce
-	secretWatchedData      *SecretWatchedData
+	secretWatchedData      SecretWatchedData
+	cnt                    int
 }
 
 func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics) *BtpOperatorReconciler {
@@ -517,6 +519,12 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
+	}
+
+	logger.Info("waiting for applying sap-btp-manager change")
+	if err = r.handleSapBtpManagerChange(ctx, &logger); err != nil {
+		logger.Error(err, "while handling sap-btp-manager change")
+		return fmt.Errorf("failed to handle sap-btp-manager change: %w", err)
 	}
 
 	return nil
@@ -2036,48 +2044,52 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 }
 
-func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context) error {
+func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, logger *logr.Logger) error {
+	logger.Info("handling SAP BTP Manager change")
 	sapBtpSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      SecretName,
 			Namespace: ChartNamespace,
 		},
 	}
-	err := r.Get(ctx, client.ObjectKey{}, sapBtpSecret)
+	err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: SecretName}, sapBtpSecret)
 	if err != nil {
-		return fmt.Errorf("failed to get secret, %w", err)
+		return fmt.Errorf("failed to get secret %s %s, %w", SecretName, ChartNamespace, err)
+	}
+	logger.Info("got secret", "secret", sapBtpSecret)
+	toCompare := SecretWatchedData{
+		clusterId: string(sapBtpSecret.Data["cluster_id"]),
 	}
 
-	watchedData := SecretWatchedData{
-		clusterId: string(sapBtpSecret.Data["clusterId"]),
+	if reflect.DeepEqual(r.secretWatchedData, SecretWatchedData{}) {
+		r.secretWatchedData = toCompare
+		logger.Info("secret watched data set")
 	}
 
-	if reflect.DeepEqual(r.secretWatchedData, &SecretWatchedData{}) {
-		r.secretWatchedData = &watchedData
-	}
-
-	if reflect.DeepEqual(watchedData, r.secretWatchedData) {
+	if reflect.DeepEqual(toCompare, r.secretWatchedData) {
+		logger.Info("secret watched data not changed")
 		return nil
 	}
-
+	logger.Info("secret watched data changed")
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      btpServiceOperatorConfigMap,
 			Namespace: ChartNamespace,
 		},
 	}
-	err = r.Get(context.Background(), client.ObjectKey{}, configMap)
+	err = r.Get(context.Background(), client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
 	if err != nil {
 		return fmt.Errorf("failed to get config map, %w", err)
 	}
 
-	if !strings.EqualFold(configMap.Data[clusterIdKey], string(sapBtpSecret.Data["clusterId"])) {
+	if !strings.EqualFold(configMap.Data[clusterIdKey], string(sapBtpSecret.Data[sapBtpManagerClusterIdKey])) {
 		return fmt.Errorf("clusterId in secret and config map are the same")
 	}
+	logger.Info("clusterId in secret and config map are not the same")
 
 	clusterIdSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterIdKey,
+			Name:      clusterIdSecretName,
 			Namespace: ChartNamespace,
 		},
 	}
@@ -2085,22 +2097,24 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context) e
 	if err != nil {
 		return fmt.Errorf("failed to delete secret, %w", err)
 	}
+	logger.Info("secret deleted")
 
 	err = r.restartDeployment()
+	r.secretWatchedData = toCompare
 	if err != nil {
 		return fmt.Errorf("failed to restart deployment, %w", err)
 	}
-
+	logger.Info("deployment restarted")
+	time.Sleep(10 * time.Second)
 	err = r.Client.Get(ctx, client.ObjectKey{}, clusterIdSecret)
 	if err != nil {
-		return fmt.Errorf("failed to get secret, %w", err)
+		return fmt.Errorf("failed to get secret %s, %w", clusterIdSecretName, err)
 	}
-
+	logger.Info("got secret", "secret", clusterIdSecret)
 	if !strings.EqualFold(string(clusterIdSecret.Data["clusterId"]), string(sapBtpSecret.Data["clusterId"])) {
 		return fmt.Errorf("clusterId in secret and config map are the same")
 	}
-
-	r.secretWatchedData = &watchedData
+	logger.Info("clusterId in secret and config map are the same")
 	return nil
 }
 
@@ -2109,20 +2123,20 @@ func (r *BtpOperatorReconciler) restartDeployment() error {
 	if err != nil {
 		return fmt.Errorf("failed to create kubernetes client, %w", err)
 	}
-	scale, err := clients.AppsV1().Deployments(ChartNamespace).GetScale(context.TODO(), DeploymentName, metav1.GetOptions{})
+	deployment := appsv1.Deployment{}
+	err = r.Client.Get(context.Background(), client.ObjectKey{Namespace: ChartNamespace, Name: DeploymentName}, &deployment)
 	if err != nil {
-		return fmt.Errorf("failed to get deployment scale, %w", err)
+		return fmt.Errorf("failed to get deployment, %w", err)
 	}
-	oldReplicas := scale.Spec.Replicas
-	scale.Spec.Replicas = 0
-	updatedScale, err := clients.AppsV1().Deployments(ChartNamespace).UpdateScale(context.TODO(), DeploymentName, scale, metav1.UpdateOptions{})
+	now := time.Now().Format(time.RFC3339)
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = now
+	_, err = clients.AppsV1().Deployments(ChartNamespace).Update(context.TODO(), &deployment, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update deployment scale, %w", err)
 	}
-	updatedScale.Spec.Replicas = oldReplicas
-	_, err = clients.AppsV1().Deployments(ChartNamespace).UpdateScale(context.TODO(), DeploymentName, updatedScale, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to update deployment scale, %w", err)
-	}
+
 	return nil
 }
