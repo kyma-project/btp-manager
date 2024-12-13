@@ -1,8 +1,9 @@
 package controllers
 
 import (
-	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
+	"reflect"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -16,13 +17,9 @@ import (
 
 var _ = Describe("BTP Operator controller - sap btp manager secret changes", Label("secret"), func() {
 	When("sap btp secret is updated with new clust id", func() {
-
 		When("change cluster id in sap btp secret", func() {
 			It("should restart and update secret", func() {
 				cr := &v1alpha1.BtpOperator{}
-				sapBtpSecret := &corev1.Secret{}
-				clusterSecret := &corev1.Secret{}
-				configMap := &corev1.ConfigMap{}
 
 				sapBtpSecret, err := createCorrectSecretFromYaml()
 
@@ -40,11 +37,12 @@ var _ = Describe("BTP Operator controller - sap btp manager secret changes", Lab
 					return k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 
-				clusterSecret = generateClusterIDSecret("test_cluster_id")
+				clusterSecret := generateClusterIDSecret("test_cluster_id")
 				Eventually(func() error {
 					return k8sClient.Create(ctx, clusterSecret)
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 
+				configMap := &corev1.ConfigMap{}
 				Eventually(func() error {
 					return k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpServiceOperatorConfigMap}, configMap)
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
@@ -61,8 +59,10 @@ var _ = Describe("BTP Operator controller - sap btp manager secret changes", Lab
 				Eventually(func() error {
 					return k8sClient.Update(ctx, clusterSecret)
 				}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
-
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+
+				_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: cr.Name, Namespace: cr.Namespace}})
+				Expect(err).To(BeNil())
 
 				// check integrity after update
 				Eventually(func() error {
@@ -90,14 +90,9 @@ var _ = Describe("BTP Operator controller - sap btp manager secret changes", Lab
 })
 
 func isMatch(clusterId, secretName *corev1.Secret, configMap *corev1.ConfigMap) bool {
-	match1 := clusterId.StringData[sapBtpManagerSecretClusterIdKey] == secretName.StringData[clusterIdSecretKey]
-
-	match2 := strings.EqualFold(string(clusterId.Data[sapBtpManagerSecretClusterIdKey]), configMap.Data[clusterIdKeyConfigMap])
-	fmt.Printf("string(clusterId.Data[sapBtpManagerSecretClusterIdKey] %s \n", string(clusterId.Data[sapBtpManagerSecretClusterIdKey]))
-	fmt.Printf("configMap.Data[clusterIdKeyConfigMap] %s \n", configMap.Data[clusterIdKeyConfigMap])
-
-	match := match1 && match2 && strings.EqualFold(string(clusterId.Data[sapBtpManagerSecretClusterIdKey]), "new-cluster-id")
-	return match
+	match1 := reflect.DeepEqual(secretName.Data[sapBtpManagerSecretClusterIdKey], clusterId.Data[clusterIdSecretKey])
+	match2 := strings.EqualFold(string(secretName.Data[sapBtpManagerSecretClusterIdKey]), configMap.Data[clusterIdKeyConfigMap])
+	return match1 && match2 && strings.EqualFold(string(clusterId.Data[clusterIdSecretKey]), "new-cluster-id")
 }
 
 func generateClusterIDSecret(key string) *corev1.Secret {
