@@ -65,7 +65,7 @@ var (
 	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Second * 15
+	ReadyStateRequeueInterval      = time.Minute * 15
 	ReadyTimeout                   = time.Minute * 5
 	ReadyCheckInterval             = time.Second * 30
 	HardDeleteTimeout              = time.Minute * 20
@@ -116,21 +116,21 @@ var (
 )
 
 var (
-	CaSecret                       = "ca-server-cert"
-	WebhookSecret                  = "webhook-server-cert"
-	CaCertificateExpiration        = time.Hour * 87600 // 10 years
-	WebhookCertificateExpiration   = time.Hour * 8760  // 1 year
-	ExpirationBoundary             = time.Hour * -168  // 1 week
-	CaSecretDataPrefix             = "ca"
-	WebhookSecretDataPrefix        = "tls"
-	CertificatePostfix             = "crt"
-	RsaKeyPostfix                  = "key"
-	MutatingWebhookConfiguration   = "MutatingWebhookConfiguration"
-	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
-	clusterIdKey                   = "CLUSTER_ID"
-	initialClusterIdKey            = "INITIAL_CLUSTER_ID"
-	sapBtpManagerClusterIdKey      = "cluster_id"
-	clusterIdSecretName            = "sap-btp-operator-clusterid"
+	CaSecret                        = "ca-server-cert"
+	WebhookSecret                   = "webhook-server-cert"
+	CaCertificateExpiration         = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration    = time.Hour * 8760  // 1 year
+	ExpirationBoundary              = time.Hour * -168  // 1 week
+	CaSecretDataPrefix              = "ca"
+	WebhookSecretDataPrefix         = "tls"
+	CertificatePostfix              = "crt"
+	RsaKeyPostfix                   = "key"
+	MutatingWebhookConfiguration    = "MutatingWebhookConfiguration"
+	ValidatingWebhookConfiguration  = "ValidatingWebhookConfiguration"
+	clusterIdKeyConfigMap           = "CLUSTER_ID"
+	clusterIdSecretKey              = "INITIAL_CLUSTER_ID"
+	sapBtpManagerSecretClusterIdKey = "cluster_id"
+	clusterIdSecretName             = "sap-btp-operator-clusterid"
 )
 
 type InstanceBindingSerivce interface {
@@ -152,7 +152,6 @@ type BtpOperatorReconciler struct {
 	metrics                *metrics.Metrics
 	instanceBindingService InstanceBindingSerivce
 	secretWatchedData      SecretWatchedData
-	cnt                    int
 }
 
 func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics) *BtpOperatorReconciler {
@@ -523,7 +522,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	logger.Info("waiting for applying sap-btp-manager change")
 	if err = r.handleSapBtpManagerChange(ctx, &logger); err != nil {
 		logger.Error(err, "while handling sap-btp-manager change")
-		return fmt.Errorf("failed to handle sap-btp-manager change: %w", err)
+		return fmt.Errorf("failed to getDependedResourcesForSecretChange sap-btp-manager change: %w", err)
 	}
 
 	return nil
@@ -710,7 +709,6 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
-			time.Sleep(time.Second * 1)
 			c <- true
 			return
 		}
@@ -2017,7 +2015,7 @@ func (r *BtpOperatorReconciler) getValueByKey(key string, data map[string][]byte
 }
 
 func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data map[string][]byte, labels map[string]string) *corev1.Secret {
-	s := &corev1.Secret{
+	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -2029,14 +2027,14 @@ func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data m
 	}
 
 	if labels != nil {
-		s.Labels = labels
+		secret.Labels = labels
 	}
 
 	if data != nil {
-		s.Data = data
+		secret.Data = data
 	}
 
-	return s
+	return secret
 }
 
 func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, logger *logr.Logger) {
@@ -2076,7 +2074,7 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 		return fmt.Errorf("failed to get secret %s in %s : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
 	}
 
-	toCompare.clusterId = sapBtpSecret.Data[sapBtpManagerClusterIdKey]
+	toCompare.clusterId = sapBtpSecret.Data[sapBtpManagerSecretClusterIdKey]
 
 	// detect change in Secret
 	if reflect.DeepEqual(toCompare, r.secretWatchedData) {
@@ -2089,29 +2087,14 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 		logger.Info("watched data initialized")
 	}
 
-	result := make(chan bool)
-	go r.checkResourceExistence(ctx, clusterIdUnstructuredObj, result)
-	ok := <-result
-	if !ok {
-		return fmt.Errorf("failed to check resource of %s existence", clusterIdUnstructuredObj.GetName())
-	}
-
-	err = r.Get(context.Background(), client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
+	synced, err := r.getDependedResourcesForSecretChange(ctx, clusterIdUnstructuredObj, sapBtpSecret, configMap, logger)
 	if err != nil {
-		return fmt.Errorf("failed to get configmap %s in %s : %s \n", configMap.GetName(), configMap.GetNamespace(), err.Error())
+		return fmt.Errorf("while checking data integrity")
 	}
-
-	err = r.Get(ctx, client.ObjectKey{Namespace: clusterIdUnstructuredObj.GetNamespace(), Name: clusterIdUnstructuredObj.GetName()}, clusterIdUnstructuredObj)
-	if err != nil {
-		return fmt.Errorf("failed to get secret %s in %s : %s \n", clusterIdUnstructuredObj.GetName(), clusterIdUnstructuredObj.GetNamespace(), err.Error())
-	}
-
-	synced := inSync(clusterIdUnstructuredObj, sapBtpSecret, configMap, logger)
 	if synced {
 		logger.Info("clusterId in secret and in sap btp manager and in configmap are the same")
 		return nil
 	}
-	logger.Info("clusterId in secret and config map are not the same")
 
 	err = r.Delete(ctx, clusterIdSecret, &client.DeleteOptions{})
 	if err != nil {
@@ -2120,31 +2103,14 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 	logger.Info("secret deleted", "name", clusterIdUnstructuredObj.GetName())
 
 	err = r.restartDeployment(ctx)
-	logger.Info("deployment restarted", "deployment", DeploymentName)
-
-	result = make(chan bool)
-	go r.checkResourceExistence(ctx, &unstructured.Unstructured{Object: clusterIdUnstructured}, result)
-	ok = <-result
-	if !ok {
-		return fmt.Errorf("failed to check resource of %s existence", clusterIdUnstructuredObj.GetName())
-	}
-
-	err = r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: SecretName}, sapBtpSecret)
 	if err != nil {
-		return fmt.Errorf("failed to get secret %s in %s : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
+		return err
 	}
 
-	err = r.Get(ctx, client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
+	synced, err = r.getDependedResourcesForSecretChange(ctx, clusterIdUnstructuredObj, sapBtpSecret, configMap, logger)
 	if err != nil {
-		return fmt.Errorf("failed to get configmap %s in %s : %s \n", configMap.GetName(), configMap.GetNamespace(), err.Error())
+		return fmt.Errorf("while checking data integrity")
 	}
-
-	err = r.Get(ctx, client.ObjectKey{Namespace: clusterIdUnstructuredObj.GetNamespace(), Name: clusterIdUnstructuredObj.GetName()}, clusterIdUnstructuredObj)
-	if err != nil {
-		return fmt.Errorf("failed to get secret %s in %s : %s \n", clusterIdUnstructuredObj.GetName(), clusterIdUnstructuredObj.GetNamespace(), err.Error())
-	}
-
-	synced = inSync(clusterIdUnstructuredObj, sapBtpSecret, configMap, logger)
 	if !synced {
 		return fmt.Errorf("clusterId in secret and in sap btp manager and in configmap ARE OUT OF SYNC")
 	}
@@ -2153,14 +2119,40 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 	return nil
 }
 
+func (r *BtpOperatorReconciler) getDependedResourcesForSecretChange(ctx context.Context, clusterIdUnstructuredObj *unstructured.Unstructured, sapBtpSecret *corev1.Secret, configMap *corev1.ConfigMap, logger *logr.Logger) (bool, error) {
+	if clusterIdUnstructuredObj == nil || sapBtpSecret == nil || configMap == nil {
+		return false, fmt.Errorf("clusterIdUnstructuredObj, sapBtpSecret or configMap is nil")
+	}
+
+	clusterIdSecretExist := make(chan bool)
+	go r.checkResourceExistence(ctx, clusterIdUnstructuredObj, clusterIdSecretExist)
+	ok := <-clusterIdSecretExist
+	if !ok {
+		return false, fmt.Errorf("failed to check resource of %s existence", clusterIdUnstructuredObj.GetName())
+	}
+
+	err := r.Get(context.Background(), client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
+	if err != nil {
+		return false, fmt.Errorf("failed to get configmap %s in %s : %s \n", configMap.GetName(), configMap.GetNamespace(), err.Error())
+	}
+
+	err = r.Get(ctx, client.ObjectKey{Namespace: clusterIdUnstructuredObj.GetNamespace(), Name: clusterIdUnstructuredObj.GetName()}, clusterIdUnstructuredObj)
+	if err != nil {
+		return false, fmt.Errorf("failed to get secret %s in %s : %s \n", clusterIdUnstructuredObj.GetName(), clusterIdUnstructuredObj.GetNamespace(), err.Error())
+	}
+
+	return inSync(clusterIdUnstructuredObj, sapBtpSecret, configMap, logger), nil
+}
+
 func inSync(clusterId *unstructured.Unstructured, sapBtpManager *corev1.Secret, configMap *corev1.ConfigMap, logger *logr.Logger) bool {
 	if clusterId == nil || sapBtpManager == nil || configMap == nil {
 		logger.Info("clusterId, sapBtpManager or configMap is nil")
 		return false
 	}
-	clusterIdObj := dataValueFromObject(clusterId, initialClusterIdKey)
-	match := strings.EqualFold(clusterIdObj, string(sapBtpManager.Data[sapBtpManagerClusterIdKey]))
-	match = match && strings.EqualFold(clusterIdObj, configMap.Data[clusterIdKey])
+
+	clusterIdObj := dataValueFromObject(clusterId, clusterIdSecretKey)
+	match := strings.EqualFold(clusterIdObj, string(sapBtpManager.Data[sapBtpManagerSecretClusterIdKey]))
+	match = match && strings.EqualFold(clusterIdObj, configMap.Data[clusterIdKeyConfigMap])
 	logger.Info("are config map and secrets in sync?", "match", match)
 	return match
 }
