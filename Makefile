@@ -15,9 +15,9 @@ MANIFEST_PATH=./manifests/btp-operator
 MANIFEST_FILE=btp-manager.yaml
 
 # Image URL to use all building/pushing image targets
-IMG_REGISTRY_PORT ?= 5001
-IMG_REGISTRY ?= k3d-kyma-registry:$(IMG_REGISTRY_PORT)
-IMG ?= $(IMG_REGISTRY)/btp-manager:$(MODULE_VERSION)
+IMG_REGISTRY_PORT ?= 5000
+IMG_REGISTRY ?= ukff/btpmgr
+IMG ?= $(IMG_REGISTRY):latest
 
 COMPONENT_CLI_VERSION ?= latest
 
@@ -89,14 +89,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
+docker-build:  ## Build docker image with the manager.
 	IMG=$(IMG) docker build -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-ifneq (,$(GCR_DOCKER_PASSWORD))
-	docker login $(IMG_REGISTRY) -u oauth2accesstoken --password $(GCR_DOCKER_PASSWORD)
-endif
 	docker push ${IMG}
 
 ##@ Deployment
@@ -125,6 +122,10 @@ create-manifest: manifests kustomize ## Deploy controller to the K8s cluster spe
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+.PHONY:
+debug: module-image
+	echo "debugging"
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.

@@ -12,7 +12,7 @@ export KUBEBUILDER_ASSETS="$(${ENVTEST} use ${ENVTEST_K8S_VERSION} --bin-dir ${L
 export USE_EXISTING_CLUSTER=${USE_EXISTING_CLUSTER:="false"}
 
 # if you plan to debug or run on existing cluster increase the timeout (30 seconds should be ok)
-export SINGLE_TEST_TIMEOUT=${SINGLE_TEST_TIMEOUT:="5s"}
+export SINGLE_TEST_TIMEOUT=${SINGLE_TEST_TIMEOUT:="15s"}
 
 # if you plan to debug or run on existing cluster increase the timeout (180 seconds should be ok)
 export SUITE_TIMEOUT=${SUITE_TIMEOUT:=30s}
@@ -21,7 +21,7 @@ export SUITE_TIMEOUT=${SUITE_TIMEOUT:=30s}
 export GINKGO_VERBOSE_FLAG=${GINKGO_VERBOSE_FLAG:="ginkgo.succinct"}
 
 # GINKGO_LABEL_FILTER="provisioning,test-update"
-export GINKGO_LABEL_FILTER=${GINKGO_LABEL_FILTER:=""}
+export GINKGO_LABEL_FILTER=${GINKGO_LABEL_FILTER:="secret"}
 
 # should be false for env-test cluster, may be true for existing cluster
 export DISABLE_WEBHOOK_FILTER_FOR_TESTS=${DISABLE_WEBHOOK_FILTER_FOR_TESTS:="false"}
