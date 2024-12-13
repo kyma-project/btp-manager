@@ -2124,14 +2124,21 @@ func (r *BtpOperatorReconciler) getDependedResourcesForSecretChange(ctx context.
 		return false, fmt.Errorf("clusterIdUnstructuredObj, sapBtpSecret or configMap is nil")
 	}
 
+	logger.Info("checking if resources are in sync")
 	clusterIdSecretExist := make(chan bool)
 	go r.checkResourceExistence(ctx, clusterIdUnstructuredObj, clusterIdSecretExist)
 	ok := <-clusterIdSecretExist
 	if !ok {
 		return false, fmt.Errorf("failed to check resource of %s existence", clusterIdUnstructuredObj.GetName())
 	}
+	logger.Info("clusterId secret exists")
 
-	err := r.Get(context.Background(), client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
+	err := r.Get(ctx, client.ObjectKey{Namespace: sapBtpSecret.Namespace, Name: sapBtpSecret.Name}, sapBtpSecret)
+	if err != nil {
+		return false, fmt.Errorf("failed to get secret %s in %s : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
+	}
+
+	err = r.Get(context.Background(), client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
 	if err != nil {
 		return false, fmt.Errorf("failed to get configmap %s in %s : %s \n", configMap.GetName(), configMap.GetNamespace(), err.Error())
 	}
