@@ -93,6 +93,44 @@ until [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-s
   sleep 5
 done
 
+echo -e "\n--- Patching sap-btp-manager configmap with ReadyTimeout of 10 seconds"
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
+
+echo -e "\n--- Changing cluster_id in sap-btp-manager secret"
+cluster_id=$(kubectl get secret sap-btp-manager -n kyma-system -o jsonpath="{.data.cluster_id}")
+kubectl patch secret sap-btp-manager -n kyma-system -p '{"data":{"cluster_id":"dGVzdAo="}}'
+kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
+
+echo -e "\n--- Waiting for btpOperator to be in error"
+while true; do
+  operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+  state_status=$(echo $operator_status | jq -r '.status.state')
+
+  if [[ $state_status == "Error" ]]; then
+    break
+  else
+    echo -e "\n--- Waiting for btpOperator to be in error"; sleep 5;
+  fi
+done
+
+echo -e "\n--- Patching sap-btp-manager configmap to remove ReadyTimeout"
+kubectl patch configmap sap-btp-manager -n kyma-system --type json -p '[{"op": "remove", "path": "/data/ReadyTimeout"}]'
+
+echo -e "\n--- Changing cluster_id in sap-btp-manager secret back to original value"
+kubectl patch secret sap-btp-manager -n kyma-system -p "{\"data\":{\"cluster_id\":\"${cluster_id}\"}}"
+
+echo -e "\n--- Waiting for btpOperator to be ready"
+while true; do
+  operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+  state_status=$(echo $operator_status | jq -r '.status.state')
+
+  if [[ $state_status == "Error" ]]; then
+    break
+  else
+    echo -e "\n--- Waiting for btpOperator to be ready"; sleep 5;
+  fi
+done
+
 echo -e "\n---Uninstalling..."
 
 # remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
