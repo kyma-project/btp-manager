@@ -29,6 +29,7 @@ The `sap-btp-manager` Secret provides the following credentials:
 
 > [!NOTE]
 > If you modify or delete the `sap-btp-manager` Secret, it is modified back to its previous settings or regenerated within up to 24 hours.
+> However if the Secret is labeled with `kyma-project.io/skip-reconciliation: "true"`, the job skips the reconciliation for this Secret.
 
 When you add the SAP BTP Operator module to your cluster, the `sap-btp-manager` Secret generates the SAP BTP service operator's resources as shown in the following diagram:
 <!-- for the HP doc this sentence is different: The SAP BTP Operator module is added by default to your cluster and the `sap-btp-manager` (...) -->
