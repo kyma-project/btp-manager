@@ -63,6 +63,42 @@ fi
 
 ./scripts/testing/multiple_btpoperators_exist.sh 10
 
+echo -e "\n--- Patching ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment with non-existing image"
+kubectl patch deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system --patch '{"spec": {"template": {"spec": {"containers": [{"name": "manager", "image": "non-existing-image:0.0.00000"}]}}}}'
+
+echo -e "\n--- Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} pod"
+kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
+
+echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be in error"
+availableConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Available") | .status')
+progressingConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Progressing") | .status')
+SECONDS=0
+TIMEOUT=30
+while [[ "${availableConditionStatus}" != "False" ]] || [[ "${progressingConditionStatus}" != "True" ]]; do
+  echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be in error"
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "timed out after ${TIMEOUT}s" && exit 1
+  fi
+  sleep 5
+  availableConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Available") | .status')
+  progressingConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Progressing") | .status')
+done
+
+echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be reconciled and ready"
+availableConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Available") | .status')
+progressingConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Progressing") | .status')
+SECONDS=0
+TIMEOUT=30
+while [[ "${availableConditionStatus}" != "True" ]] || [[ "${progressingConditionStatus}" != "True" ]]; do
+  echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be reconciled and ready"
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "timed out after ${TIMEOUT}s" && exit 1
+  fi
+  sleep 5
+  availableConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Available") | .status')
+  progressingConditionStatus=$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Progressing") | .status')
+done
+
 echo -e "\n---Uninstalling..."
 
 # remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
