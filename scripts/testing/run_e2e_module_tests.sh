@@ -20,10 +20,10 @@ CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
 SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
 
-#[[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
+[[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
 
-SI_NAME=auditlog-management-si-2
-SB_NAME=auditlog-management-sb-3
+SI_NAME=auditlog-management-si-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
 
 export SI_NAME
 export SB_NAME
@@ -61,7 +61,7 @@ else
   echo -e "\n--- Service binding is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
 fi
 
-#./scripts/testing/multiple_btpoperators_exist.sh 5
+./scripts/testing/multiple_btpoperators_exist.sh 5
 
 echo -e "\n--- Patching ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment with non-existing image"
 kubectl patch deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system --patch '{"spec": {"template": {"spec": {"containers": [{"name": "manager", "image": "non-existing-image:0.0.00000"}]}}}}'
@@ -100,9 +100,6 @@ echo -e "\n--- Saving lastTransitionTime of btpOperator"
 last_transition_time=$(kubectl get btpoperators/e2e-test-btpoperator -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
 
 echo -e "\n--- Changing CLUSTER_ID in configmap sap-btp-operator-config"
-#cluster_id=$(kubectl get secret sap-btp-manager -n kyma-system -o jsonpath="{.data.cluster_id}")
-#toch CM not secret
-
 kubectl patch configmap sap-btp-operator-config -n kyma-system -p '{"data":{"CLUSTER_ID":"dGVzdAo="}}'
 sleep 5
 kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
@@ -131,7 +128,7 @@ while true; do
   operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
   state_status=$(echo $operator_status | jq -r '.status.state')
 
-  if [[ $state_status == "Error" ]]; then
+  if [[ $state_status == "Ready" ]]; then
     break
   else
     echo -e "\n--- Waiting for btpOperator to be ready"; sleep 5;
