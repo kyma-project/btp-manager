@@ -20,10 +20,10 @@ CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
 SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
 
-[[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
+#[[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
 
-SI_NAME=auditlog-management-si-${GITHUB_JOB}-${GITHUB_RUN_ID}
-SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
+SI_NAME=auditlog-management-si-2
+SB_NAME=auditlog-management-sb-3
 
 export SI_NAME
 export SB_NAME
@@ -61,7 +61,7 @@ else
   echo -e "\n--- Service binding is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
 fi
 
-./scripts/testing/multiple_btpoperators_exist.sh 5
+#./scripts/testing/multiple_btpoperators_exist.sh 5
 
 echo -e "\n--- Patching ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment with non-existing image"
 kubectl patch deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system --patch '{"spec": {"template": {"spec": {"containers": [{"name": "manager", "image": "non-existing-image:0.0.00000"}]}}}}'
@@ -96,29 +96,35 @@ done
 echo -e "\n--- Patching sap-btp-manager configmap with ReadyTimeout of 10 seconds"
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
-echo -e "\n--- Changing cluster_id in sap-btp-manager secret"
-cluster_id=$(kubectl get secret sap-btp-manager -n kyma-system -o jsonpath="{.data.cluster_id}")
-kubectl patch secret sap-btp-manager -n kyma-system -p '{"data":{"cluster_id":"dGVzdAo="}}'
+echo -e "\n--- Saving lastTransitionTime of btpOperator"
+last_transition_time=$(kubectl get btpoperators/e2e-test-btpoperator -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+
+echo -e "\n--- Changing CLUSTER_ID in configmap sap-btp-operator-config"
+#cluster_id=$(kubectl get secret sap-btp-manager -n kyma-system -o jsonpath="{.data.cluster_id}")
+#toch CM not secret
+
+kubectl patch configmap sap-btp-operator-config -n kyma-system -p '{"data":{"CLUSTER_ID":"dGVzdAo="}}'
 sleep 5
 kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
 
-echo -e "\n--- Waiting for btpOperator to be in error"
+echo -e "\n--- Waiting for btpOperator to be in error or LastTransitionTime to change"
 while true; do
   operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
   state_status=$(echo $operator_status | jq -r '.status.state')
-
+  current_last_transition_time=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
   if [[ $state_status == "Error" ]]; then
+    echo -e "\n--- btpOperator is in error state"
+    break
+  elif [[ $current_last_transition_time != $last_transition_time ]]; then
+    echo -e "\n--- LastTransitionTime has changed so error state was set on btpOperator"
     break
   else
-    echo -e "\n--- Waiting for btpOperator to be in error"; sleep 5;
+    echo -e "\n--- Waiting for btpOperator to be in error or LastTransitionTime to change"; sleep 1;
   fi
 done
 
 echo -e "\n--- Patching sap-btp-manager configmap to remove ReadyTimeout"
 kubectl patch configmap sap-btp-manager -n kyma-system --type json -p '[{"op": "remove", "path": "/data/ReadyTimeout"}]'
-
-echo -e "\n--- Changing cluster_id in sap-btp-manager secret back to original value"
-kubectl patch secret sap-btp-manager -n kyma-system -p "{\"data\":{\"cluster_id\":\"${cluster_id}\"}}"
 
 echo -e "\n--- Waiting for btpOperator to be ready"
 while true; do
