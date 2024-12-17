@@ -99,10 +99,7 @@ kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":
 echo -e "\n--- Changing cluster_id in sap-btp-manager secret"
 cluster_id=$(kubectl get secret sap-btp-manager -n kyma-system -o jsonpath="{.data.cluster_id}")
 kubectl patch secret sap-btp-manager -n kyma-system -p '{"data":{"cluster_id":"dGVzdAo="}}'
-until [[ $(kubectl get pods -l app.kubernetes.io/name=sap-btp-operator -n kyma-system --no-headers | wc -l) -eq 2 ]]; do
-  echo -e "\n--- Waiting for sap-btp-operator pods to be recreated"; sleep 5;
-done
-
+sleep 5
 kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
 
 echo -e "\n--- Waiting for btpOperator to be in error"
