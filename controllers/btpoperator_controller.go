@@ -1264,6 +1264,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
+		Watches(
+			&appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			builder.WithPredicates(r.watchDeploymentPredicates()),
+		).
 		Complete(r)
 }
 
@@ -1339,6 +1344,43 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate
 				return false
 			}
 			return predicateIfReconcile(oldSecret)
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			obj := e.Object.(*appsv1.Deployment)
+			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			obj := e.Object.(*appsv1.Deployment)
+			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newObj := e.ObjectNew.(*appsv1.Deployment)
+			oldObj := e.ObjectOld.(*appsv1.Deployment)
+			if !(newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace) {
+				return false
+			}
+			var newAvailableConditionStatus, newProgressingConditionStatus string
+			for _, condition := range newObj.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					newProgressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					newAvailableConditionStatus = string(condition.Status)
+				}
+			}
+			var oldAvailableConditionStatus, oldProgressingConditionStatus string
+			for _, condition := range oldObj.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					oldProgressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					oldAvailableConditionStatus = string(condition.Status)
+				}
+			}
+			return newAvailableConditionStatus != oldAvailableConditionStatus || newProgressingConditionStatus != oldProgressingConditionStatus
 		},
 	}
 }
