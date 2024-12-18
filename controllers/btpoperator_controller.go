@@ -2078,7 +2078,7 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 	clusterIdUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(clusterIdSecret)
 	clusterIdUnstructuredObj := &unstructured.Unstructured{Object: clusterIdUnstructured}
 	if err != nil {
-		return fmt.Errorf("failed to secret: %s in %s to unstructred : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
+		return fmt.Errorf("failed to secret: %s in %s to unstructred : %s \n", clusterIdSecret.GetName(), clusterIdSecret.GetNamespace(), err.Error())
 	}
 
 	synced, err := r.getDependedResourcesForSecretChange(ctx, clusterIdUnstructuredObj, sapBtpSecret, configMap, logger)
@@ -2100,6 +2100,7 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 	if err != nil {
 		return err
 	}
+	logger.Info("deployment restarted")
 
 	synced, err = r.getDependedResourcesForSecretChange(ctx, clusterIdUnstructuredObj, sapBtpSecret, configMap, logger)
 	if err != nil {
@@ -2132,7 +2133,7 @@ func (r *BtpOperatorReconciler) getDependedResourcesForSecretChange(ctx context.
 		return false, fmt.Errorf("failed to get secret %s in %s : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
 	}
 
-	err = r.Get(context.Background(), client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
+	err = r.Get(ctx, client.ObjectKey{Name: btpServiceOperatorConfigMap, Namespace: ChartNamespace}, configMap)
 	if err != nil {
 		return false, fmt.Errorf("failed to get configmap %s in %s : %s \n", configMap.GetName(), configMap.GetNamespace(), err.Error())
 	}
