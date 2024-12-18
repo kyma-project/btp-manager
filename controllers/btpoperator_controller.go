@@ -1361,7 +1361,7 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			newObj := e.ObjectNew.(*appsv1.Deployment)
 			oldObj := e.ObjectOld.(*appsv1.Deployment)
-			if newObj.Name != DeploymentName || newObj.Namespace != ChartNamespace {
+			if !(newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace) {
 				return false
 			}
 			var newAvailableConditionStatus, newProgressingConditionStatus string
