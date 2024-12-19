@@ -615,27 +615,42 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
-	resourcesReadinessInformer := make(chan bool, numOfResources)
+	resourcesReadinessInformer := make(chan bool, numOfResources-1)
+	deploymentReadinessInformer := make(chan bool, 1)
 	allReadyInformer := make(chan bool, 1)
+	deploymentOk := true
 	for _, u := range us {
+		if u.GetKind() == deploymentKind {
+			go r.checkResourceReadiness(ctx, u, deploymentReadinessInformer)
+			continue
+		}
 		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
 	}
-	go func(c chan bool) {
+	go func(c, c2 chan bool, c3 bool) {
 		timeout := time.After(ReadyTimeout)
 		for i := 0; i < numOfResources; i++ {
 			select {
 			case <-resourcesReadinessInformer:
+				continue
+			case ready := <-deploymentReadinessInformer:
+				if !ready {
+					deploymentOk = false
+					return
+				}
 				continue
 			case <-timeout:
 				return
 			}
 		}
 		allReadyInformer <- true
-	}(resourcesReadinessInformer)
+	}(resourcesReadinessInformer, deploymentReadinessInformer, deploymentOk)
 	select {
 	case <-allReadyInformer:
 		return nil
 	case <-time.After(ReadyTimeout):
+		if !deploymentOk {
+			return errors.New("deployment readiness timeout reached")
+		}
 		return errors.New("resources readiness timeout reached")
 	}
 }
@@ -661,6 +676,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
+			c <- false
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
