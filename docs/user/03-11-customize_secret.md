@@ -8,7 +8,8 @@ When you create SAP BTP, Kyma runtime, the `sap-btp-manager` Secret is automatic
 Any changes to the Secret are reverted, and the previous settings are restored within up to 24 hours.
 See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md).
 
-To stop the reconciliation of the `sap-btp-manager` Secret, you must customize it. With the customized Secret, you can perform the following actions:
+To customize the `sap-btp-manager` Secret and prevent your changes from being reverted, you must stop the Secret's reconciliation.
+With the customized Secret, you can perform the following actions:
 
 * Manage your Kyma runtime
 * Migrate the instances you created outside of the Kyma environment to your Kyma cluster
