@@ -623,7 +623,7 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 			go r.checkResourceReadiness(ctx, u, deploymentReadinessInformer)
 			continue
 		}
-		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
+		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
 	}
 	go func(resourcesReadinessInformer, deploymentReadinessInformer chan bool) {
 		timeout := time.After(ReadyTimeout)
