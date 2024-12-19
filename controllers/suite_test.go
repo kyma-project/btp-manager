@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,7 +72,6 @@ var (
 	cfg                        *rest.Config
 	k8sClient                  client.Client
 	k8sClientFromManager       client.Client
-	k8sClientSet               *clientset.Clientset
 	k8sManager                 manager.Manager
 	testEnv                    *envtest.Environment
 	ctx                        context.Context
@@ -157,10 +155,6 @@ var _ = SynchronizedBeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-
-	k8sClientSet, err = clientset.NewForConfig(cfg)
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClientSet).NotTo(BeNil())
 
 	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme.Scheme,

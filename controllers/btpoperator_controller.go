@@ -143,10 +143,6 @@ type InstanceBindingSerivce interface {
 	EnableSISBController()
 }
 
-type SecretWatchedData struct {
-	clusterId []byte
-}
-
 // BtpOperatorReconciler reconciles a BtpOperator object
 type BtpOperatorReconciler struct {
 	client.Client
@@ -156,7 +152,6 @@ type BtpOperatorReconciler struct {
 	workqueueSize          int
 	metrics                *metrics.Metrics
 	instanceBindingService InstanceBindingSerivce
-	secretWatchedData      SecretWatchedData
 }
 
 func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics) *BtpOperatorReconciler {
