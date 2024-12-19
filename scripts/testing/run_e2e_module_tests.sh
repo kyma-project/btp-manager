@@ -61,7 +61,79 @@ else
   echo -e "\n--- Service binding is not ready due to dummy/invalid credentials (Ready: NotProvisioned, Succeeded: CreateInProgress)"
 fi
 
-./scripts/testing/multiple_btpoperators_exist.sh 10
+./scripts/testing/multiple_btpoperators_exist.sh 5
+
+echo -e "\n--- Patching ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment with non-existing image"
+kubectl patch deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system --patch '{"spec": {"template": {"spec": {"containers": [{"name": "manager", "image": "non-existing-image:0.0.00000"}]}}}}'
+
+echo -e "\n--- Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} pod"
+kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
+
+echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be in error"
+SECONDS=0
+TIMEOUT=30
+until [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Available") | .status')" == "False" ]] && \
+  [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Progressing") | .status')" == "True" ]]; do
+  echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be in error"
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "timed out after ${TIMEOUT}s" && exit 1
+  fi
+  sleep 5
+done
+
+echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be reconciled and ready"
+SECONDS=0
+TIMEOUT=30
+until [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Available") | .status')" == "True" ]] && \
+  [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Progressing") | .status')" == "True" ]]; do
+  echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be reconciled and ready"
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "timed out after ${TIMEOUT}s" && exit 1
+  fi
+  sleep 5
+done
+
+echo -e "\n--- Patching sap-btp-manager configmap with ReadyTimeout of 10 seconds"
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
+
+echo -e "\n--- Saving lastTransitionTime of btpOperator"
+last_transition_time=$(kubectl get btpoperators/e2e-test-btpoperator -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+
+echo -e "\n--- Changing CLUSTER_ID in configmap sap-btp-operator-config"
+kubectl patch configmap sap-btp-operator-config -n kyma-system -p '{"data":{"CLUSTER_ID":"dGVzdAo="}}'
+sleep 5
+kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
+
+echo -e "\n--- Waiting for btpOperator to be in error or LastTransitionTime to change"
+while true; do
+  operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+  state_status=$(echo $operator_status | jq -r '.status.state')
+  current_last_transition_time=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+  if [[ $state_status == "Error" ]]; then
+    echo -e "\n--- btpOperator is in error state"
+    break
+  elif [[ $current_last_transition_time != $last_transition_time ]]; then
+    echo -e "\n--- LastTransitionTime has changed so error state was set on btpOperator"
+    break
+  else
+    echo -e "\n--- Waiting for btpOperator to be in error or LastTransitionTime to change"; sleep 1;
+  fi
+done
+
+echo -e "\n--- Patching sap-btp-manager configmap to remove ReadyTimeout"
+kubectl patch configmap sap-btp-manager -n kyma-system --type json -p '[{"op": "remove", "path": "/data/ReadyTimeout"}]'
+
+echo -e "\n--- Waiting for btpOperator to be ready"
+while true; do
+  operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+  state_status=$(echo $operator_status | jq -r '.status.state')
+
+  if [[ $state_status == "Ready" ]]; then
+    break
+  else
+    echo -e "\n--- Waiting for btpOperator to be ready"; sleep 5;
+  fi
+done
 
 echo -e "\n---Uninstalling..."
 
