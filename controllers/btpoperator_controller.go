@@ -2101,17 +2101,17 @@ func (r *BtpOperatorReconciler) verifyClusterIdSecret(ctx context.Context, names
 	if err != nil {
 		return err
 	}
-	operatorSecret := corev1.Secret{
+	clusterIdSecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterIdSecretName,
 			Namespace: namespace,
 		},
 	}
-	err = r.Client.Get(ctx, client.ObjectKey{Name: clusterIdSecretName, Namespace: namespace}, &operatorSecret)
+	err = r.Client.Get(ctx, client.ObjectKey{Name: clusterIdSecretName, Namespace: namespace}, &clusterIdSecret)
 	if k8serrors.IsNotFound(err) {
 		r.restartOperatorInReconcile = true
 	}
-	if !reflect.DeepEqual(baseSecret.Data["cluster_id"], operatorSecret.Data["INITIAL_CLUSTER_ID"]) {
+	if !reflect.DeepEqual(baseSecret.Data["cluster_id"], clusterIdSecret.Data["INITIAL_CLUSTER_ID"]) {
 		r.restartOperatorInReconcile = true
 	}
 	return nil
