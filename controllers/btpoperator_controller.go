@@ -586,11 +586,25 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 	}
 }
 
-func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	err := unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
-	namespace := r.resolveNamespace(secret)
+func (r *BtpOperatorReconciler) setConfigMapValues(baseSecret *corev1.Secret, u *unstructured.Unstructured) error {
+	oldManagementNamespace, found, err := unstructured.NestedString(u.Object, "data", "MANAGEMENT_NAMESPACE")
+	if !found || err != nil {
+		r.restartOperatorInReconcile = true
+	}
+	oldReleaseNamespace, found, err := unstructured.NestedString(u.Object, "data", "RELEASE_NAMESPACE")
+	if !found || err != nil {
+		r.restartOperatorInReconcile = true
+	}
+
+	userNamespace := baseSecret.Data["management_namespace"]
+	r.restartOperatorInReconcile = !reflect.DeepEqual(userNamespace, []byte(oldManagementNamespace)) || !reflect.DeepEqual(userNamespace, []byte(oldReleaseNamespace))
+
+	err = unstructured.SetNestedField(u.Object, string(baseSecret.Data["cluster_id"]), "data", "CLUSTER_ID")
+
+	namespace := r.resolveNamespace(baseSecret)
 	err = unstructured.SetNestedField(u.Object, namespace, "data", "MANAGEMENT_NAMESPACE")
 	err = unstructured.SetNestedField(u.Object, namespace, "data", "RELEASE_NAMESPACE")
+
 	return err
 }
 
