@@ -627,7 +627,7 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
 	}
 	go func(c, c2 chan bool, c3 bool) {
-		timeout := time.After(ReadyTimeout + time.Minute)
+		timeout := time.After(ReadyTimeout)
 		for i := 0; i < numOfResources; i++ {
 			select {
 			case <-resourcesReadinessInformer:
@@ -647,7 +647,7 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 	select {
 	case <-allReadyInformer:
 		return nil
-	case <-time.After(ReadyTimeout + time.Minute):
+	case <-time.After(ReadyTimeout):
 		if !deploymentOk {
 			return errors.New("deployment readiness timeout reached")
 		}
