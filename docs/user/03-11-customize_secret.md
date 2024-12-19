@@ -11,7 +11,7 @@ See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md#credent
 To customize the `sap-btp-manager` Secret and prevent your changes from being reverted, you must stop the Secret's reconciliation.
 With the customized Secret, you can perform the following actions:
 
-* Manage your your own SAP BTP Operator's default configuration
+* Manage your own SAP BTP Operator's default configuration
 * Migrate the instances you created outside of the Kyma environment to your Kyma cluster
 
 ## Procedure
@@ -24,7 +24,7 @@ To customize the `sap-btp-manager` Secret, perform the following steps:
 
 ## Result
 
-Your customized `sap-btp-manager` Secret is now the default SAP BTP Operator's Secret. It generates the SAP BTP service operator's resources as shown in the following diagram:
+Your customized `sap-btp-manager` Secret is now the default SAP BTP Operator's Secret. It generates the SAP BTP service operator's resources, as shown in the following diagram:
 
 ![Customized module credentials](../assets/module_credentials_customized.drawio.svg)
 
@@ -41,5 +41,5 @@ With the customized default `sap-btp-manager` Secret, you can perform the follow
 * Connect a namespace to a specific subaccount without creating a namespace-based Secret because the `sap-btp-service-operator` Secret already includes your custom credentials. See [Namespace-Level Mapping](03-22-namespace-level-mapping.md).
 
 > [!NOTE]
-> If you have created a new non-default SAP Service Manager service instance and used its credentials to create your customized `sap-btp-manager` Secret, you can delete your Kyma cluster associated with this Secret regardless of the existing service instances and bindings created in this cluster. 
-> The deletion of the cluster is not blocked by the undeleted service instances or bindings.
+> If you have created a new non-default SAP Service Manager service instance and used its credentials to create your customized `sap-btp-manager` Secret, you can delete your Kyma cluster associated with this Secret regardless of the existing service instances and bindings created in this cluster.
+> The undeleted service instances or bindings do not block the deletion of the cluster.
