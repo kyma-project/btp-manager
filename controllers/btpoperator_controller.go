@@ -633,12 +633,11 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 			case <-resourcesReadinessInformer:
 				continue
 			case ready := <-deploymentReadinessInformer:
-				if ready {
-					continue
-				} else {
+				if !ready {
 					deploymentOk = false
-					continue
+					return
 				}
+				continue
 			case <-timeout:
 				return
 			}
@@ -647,9 +646,6 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 	}(resourcesReadinessInformer, deploymentReadinessInformer, deploymentOk)
 	select {
 	case <-allReadyInformer:
-		if !deploymentOk {
-			return errors.New("deployment readiness timeout reached")
-		}
 		return nil
 	case <-time.After(ReadyTimeout + time.Minute):
 		if !deploymentOk {
