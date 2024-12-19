@@ -43,13 +43,14 @@ The cluster ID represents a Kyma service instance created in a particular subacc
 
 ## Cluster Access
 
-By default, SAP BTP Operator has cluster-wide permissions. With credentials preconfigured as described in the [Credentials](#credentials) section, you cannot reconfigure the predefined settings.
-To edit the **CLUSTER_ID** and **MANAGEMENT_NAMESPACE**, you must customize the `sap-btp-operator` Secret. For more information, see [Customize Default Credentials and Access](03-11-customize_secret.md).
+By default, SAP BTP Operator has cluster-wide permissions.
 
 The following parameters manage cluster access:
 
 | Parameter                     | Description                                                                                   |
 |-------------------------------|-----------------------------------------------------------------------------------------------|
 | **CLUSTER_ID**                | Generated when Kyma runtime is created.                                                       |
-| **MANAGEMENT_NAMESPACE**      | Always set to `kyma-system`.                                                |
+| **MANAGEMENT_NAMESPACE**      | By default, set to `kyma-system`.                                                |
 | **ALLOW_CLUSTER_ACCESS**      | You can use every namespace for your operations. The parameter is always set to `true`.<br>If you change it to `false`, the setting is automatically reverted. |
+
+To use your own cluster access settings, you must customize the `sap-btp-operator` Secret. For more information, see [Customize Default Credentials and Access](03-11-customize_secret.md).
