@@ -480,7 +480,7 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecret *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to apply")
@@ -491,8 +491,11 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
+	resolvedNamespace := r.resolveNamespace(baseSecret)
+	logger.Info(fmt.Sprintf("resolved namespace to: %s", resolvedNamespace))
+
 	logger.Info("preparing module resources to apply")
-	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
+	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, baseSecret, resolvedNamespace); err != nil {
 		logger.Error(err, "while preparing objects to apply")
 		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
@@ -503,21 +506,28 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 
 	r.deleteCreationTimestamp(resourcesToApply...)
 
+	logger.Info(fmt.Sprintf("check if %s in %s needs to be restarted?", DeploymentName, ChartNamespace))
+	operatorRestart := r.checkIfOperatorNeedRestart(ctx, resolvedNamespace, baseSecret, &logger)
+	logger.Info(fmt.Sprintf("%s required restard needed %t ?", DeploymentName, operatorRestart))
+
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
 	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
+	if operatorRestart {
+		logger.Info(fmt.Sprintf("out of sync state detected. restarting deployment.... %s in %s", DeploymentName, ChartNamespace))
+		if err := r.restartOperator(ctx, resolvedNamespace, &logger); err != nil {
+			return fmt.Errorf("while restarting %s in %s: %w", DeploymentName, ChartNamespace, err)
+		}
+		logger.Info(fmt.Sprintf("%s in %s restarted", DeploymentName, ChartNamespace))
+	}
+
 	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
-	}
-
-	if err = r.handleSapBtpManagerSecretChanges(ctx, "", logger); err != nil {
-		logger.Error(err, "while handling sap-btp-manager secret changes")
-		return fmt.Errorf("while handling sap-btp-manager secret changes %s", err)
 	}
 
 	return nil
@@ -527,7 +537,7 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
 }
 
-func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.Context, resourcesToApply []*unstructured.Unstructured, baseSecret *corev1.Secret, resolvedNamespace string) error {
 	logger := log.FromContext(ctx)
 
 	var configMapIndex, secretIndex int
@@ -549,11 +559,11 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	r.addLabels(chartVer, resourcesToApply...)
 	r.setNamespace(resourcesToApply...)
 
-	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+	if err := r.setConfigMapValues(baseSecret, (resourcesToApply)[configMapIndex], resolvedNamespace); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := r.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
+	if err := r.setSecretValues(baseSecret, (resourcesToApply)[secretIndex]); err != nil {
 		logger.Error(err, "while setting Secret values")
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
@@ -586,26 +596,54 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 	}
 }
 
-func (r *BtpOperatorReconciler) setConfigMapValues(baseSecret *corev1.Secret, u *unstructured.Unstructured) error {
-	oldManagementNamespace, found, err := unstructured.NestedString(u.Object, "data", "MANAGEMENT_NAMESPACE")
-	if !found || err != nil {
-		r.restartOperatorInReconcile = true
-	}
-	oldReleaseNamespace, found, err := unstructured.NestedString(u.Object, "data", "RELEASE_NAMESPACE")
-	if !found || err != nil {
-		r.restartOperatorInReconcile = true
-	}
+func (r *BtpOperatorReconciler) setConfigMapValues(baseSecret *corev1.Secret, configMap *unstructured.Unstructured, namespace string) error {
+	err := unstructured.SetNestedField(configMap.Object, namespace, "data", "MANAGEMENT_NAMESPACE")
+	err = unstructured.SetNestedField(configMap.Object, namespace, "data", "RELEASE_NAMESPACE")
 
-	userNamespace := baseSecret.Data["management_namespace"]
-	r.restartOperatorInReconcile = !reflect.DeepEqual(userNamespace, []byte(oldManagementNamespace)) || !reflect.DeepEqual(userNamespace, []byte(oldReleaseNamespace))
-
-	err = unstructured.SetNestedField(u.Object, string(baseSecret.Data["cluster_id"]), "data", "CLUSTER_ID")
-
-	namespace := r.resolveNamespace(baseSecret)
-	err = unstructured.SetNestedField(u.Object, namespace, "data", "MANAGEMENT_NAMESPACE")
-	err = unstructured.SetNestedField(u.Object, namespace, "data", "RELEASE_NAMESPACE")
+	err = unstructured.SetNestedField(configMap.Object, string(baseSecret.Data["cluster_id"]), "data", "CLUSTER_ID")
 
 	return err
+}
+
+func (r *BtpOperatorReconciler) checkIfOperatorNeedRestart(ctx context.Context, resolvedNamespace string, baseSecret *corev1.Secret, logger *logr.Logger) bool {
+	detectConfigMapChanges := func() bool {
+		currentConfigMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ConfigName,
+				Namespace: ChartNamespace,
+			},
+		}
+		err := r.Get(context.TODO(), client.ObjectKeyFromObject(currentConfigMap), currentConfigMap)
+		if k8serrors.IsNotFound(err) {
+			logger.Info("ConfigMap not found, so restart is needed")
+			return true
+		}
+
+		return !reflect.DeepEqual(baseSecret.Data["management_namespace"], []byte(currentConfigMap.Data["RELEASE_NAMESPACE"])) ||
+			!reflect.DeepEqual(baseSecret.Data["management_namespace"], []byte(currentConfigMap.Data["MANAGEMENT_NAMESPACE"]))
+	}
+
+	detectClusterIdChange := func() bool {
+		clusterIdSecret := corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterIdSecretName,
+				Namespace: resolvedNamespace,
+			},
+		}
+		err := r.Client.Get(ctx, client.ObjectKeyFromObject(&clusterIdSecret), &clusterIdSecret)
+		if k8serrors.IsNotFound(err) {
+			logger.Info(fmt.Sprintf("secret %s in %s not found, so restart is needed", clusterIdSecretName, resolvedNamespace))
+			return true
+		}
+		return !reflect.DeepEqual(baseSecret.Data["cluster_id"], clusterIdSecret.Data["INITIAL_CLUSTER_ID"])
+	}
+
+	configMapChanged := detectConfigMapChanges()
+	logger.Info(fmt.Sprintf("is %s in %s changed? %t", ConfigName, ChartNamespace, configMapChanged))
+	clusterIdSecretChanged := detectClusterIdChange()
+	logger.Info(fmt.Sprintf("is %s %s changed? %t", clusterIdSecretName, resolvedNamespace, clusterIdSecretChanged))
+
+	return configMapChanged || clusterIdSecretChanged
 }
 
 func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
@@ -2067,91 +2105,42 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 }
 
-func (r *BtpOperatorReconciler) handleSapBtpManagerSecretChanges(ctx context.Context, namespace string, logger logr.Logger) error {
-	if r.restartOperatorInReconcile {
-		if err := r.restartOperator(ctx, namespace, &logger); err != nil {
-			logger.Error(err, "while handling sap-btp-manager change")
-			return fmt.Errorf("failed to getDependedResourcesForSecretChange sap-btp-manager change: %w", err)
-		}
-	}
-	if !r.restartOperatorInReconcile {
-		if err := r.verifyClusterIdSecret(ctx, namespace); err != nil {
-			logger.Error(err, "")
-			return fmt.Errorf("timeout")
-		}
-		if r.restartOperatorInReconcile {
-			if err := r.restartOperator(ctx, namespace, &logger); err != nil {
-				logger.Error(err, "while handling sap-btp-manager change")
-				return fmt.Errorf("failed to getDependedResourcesForSecretChange sap-btp-manager change: %w", err)
-			}
-			r.restartOperatorInReconcile = true
-		}
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) verifyClusterIdSecret(ctx context.Context, namespace string) error {
-	baseSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      SecretName,
-			Namespace: ChartNamespace,
-		},
-	}
-	err := r.Client.Get(ctx, client.ObjectKey{Name: SecretName, Namespace: ChartNamespace}, &baseSecret)
-	if err != nil {
-		return err
-	}
-	clusterIdSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterIdSecretName,
-			Namespace: namespace,
-		},
-	}
-	err = r.Client.Get(ctx, client.ObjectKey{Name: clusterIdSecretName, Namespace: namespace}, &clusterIdSecret)
-	if k8serrors.IsNotFound(err) {
-		r.restartOperatorInReconcile = true
-	}
-	if !reflect.DeepEqual(baseSecret.Data["cluster_id"], clusterIdSecret.Data["INITIAL_CLUSTER_ID"]) {
-		r.restartOperatorInReconcile = true
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, namespace string, logger *logr.Logger) error {
-	logger.Info("handling SAP BTP Manager change")
+func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, resolvedNamespace string, logger *logr.Logger) error {
+	logger.Info(fmt.Sprintf("restarting of %s started", DeploymentName))
 	err := r.Delete(ctx, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterIdSecretName,
-			Namespace: namespace,
+			Namespace: resolvedNamespace,
 		},
 	}, &client.DeleteOptions{})
 	if !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("%s", err)
+		return fmt.Errorf("failed to delete secret %s in %s, %w", clusterIdSecretName, resolvedNamespace, err)
 	}
-	logger.Info("secret %s in %s deleted", "name", clusterIdSecretName, namespace)
+	logger.Info(fmt.Sprintf("secret %s in %s deleted", clusterIdSecretName, resolvedNamespace))
 
-	err = r.restartDeployment(ctx)
+	logger.Info(fmt.Sprintf("restarting %s deployment starting", DeploymentName))
+	err = r.restartOperatorDeployment(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf(fmt.Sprintf("failed to restart deployment %s", DeploymentName))
 	}
-	logger.Info("deployment restarted")
+	logger.Info(fmt.Sprintf("deployment %s restarted successfully", DeploymentName))
 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) restartDeployment(ctx context.Context) error {
-	deployment := appsv1.Deployment{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: DeploymentName}, &deployment)
+func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) error {
+	operatorDeployment := appsv1.Deployment{}
+	err := r.Client.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: DeploymentName}, &operatorDeployment)
 	if err != nil {
-		return fmt.Errorf("failed to get deployment, %w", err)
+		return fmt.Errorf("failed to get deployment %s in %s: %w", DeploymentName, ChartNamespace, err)
 	}
-	if deployment.Spec.Template.Annotations == nil {
-		deployment.Spec.Template.Annotations = make(map[string]string)
+	if operatorDeployment.Spec.Template.Annotations == nil {
+		operatorDeployment.Spec.Template.Annotations = make(map[string]string)
 	}
-	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
-	err = r.Client.Update(ctx, &deployment)
+	operatorDeployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+	err = r.Client.Update(ctx, &operatorDeployment)
 	if err != nil {
-		return fmt.Errorf("failed to update deployment scale, %w", err)
+		return fmt.Errorf("failed to update %s deployment scale, %w", DeploymentName, err)
 	}
 
 	return nil
