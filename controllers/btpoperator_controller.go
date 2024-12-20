@@ -616,7 +616,10 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
 	resourcesReadinessInformer := make(chan bool, numOfResources-1)
-	deploymentReadinessInformer := make(chan bool, 1)
+	deploymentReadinessInformer := make(chan struct {
+		Name  string
+		Ready bool
+	}, 1)
 	for _, u := range us {
 		if u.GetKind() == deploymentKind {
 			go r.checkDeploymentReadiness(ctx, u, deploymentReadinessInformer)
@@ -633,8 +636,8 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 			}
 			continue
 		case deploymentReady := <-deploymentReadinessInformer:
-			if !deploymentReady {
-				return errors.New("deployment readiness timeout reached")
+			if !deploymentReady.Ready {
+				return fmt.Errorf("deployment readiness timeout reached for %s", deploymentReady.Name)
 			}
 			continue
 		}
@@ -642,7 +645,10 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- struct {
+	Name  string
+	Ready bool
+}) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -654,7 +660,10 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
-			c <- false
+			c <- struct {
+				Name  string
+				Ready bool
+			}{Name: u.GetName(), Ready: false}
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
@@ -666,7 +675,10 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				}
 			}
 			if progressingConditionStatus == "True" && availableConditionStatus == "True" {
-				c <- true
+				c <- struct {
+					Name  string
+					Ready bool
+				}{Name: u.GetName(), Ready: true}
 				return
 			}
 		}
