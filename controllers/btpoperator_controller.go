@@ -616,28 +616,19 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
 	resourcesReadinessInformer := make(chan bool, numOfResources)
-	allReadyInformer := make(chan bool, 1)
 	for _, u := range us {
 		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
 	}
-	go func(c chan bool) {
-		timeout := time.After(ReadyTimeout)
-		for i := 0; i < numOfResources; i++ {
-			select {
-			case <-resourcesReadinessInformer:
-				continue
-			case <-timeout:
-				return
-			}
+	timeout := time.After(ReadyTimeout)
+	for i := 0; i < numOfResources; i++ {
+		select {
+		case <-resourcesReadinessInformer:
+			continue
+		case <-timeout:
+			return errors.New("resources readiness timeout reached")
 		}
-		allReadyInformer <- true
-	}(resourcesReadinessInformer)
-	select {
-	case <-allReadyInformer:
-		return nil
-	case <-time.After(ReadyTimeout):
-		return errors.New("resources readiness timeout reached")
 	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
