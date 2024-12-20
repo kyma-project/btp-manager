@@ -19,7 +19,8 @@ With the customized Secret, you can perform the following actions:
 To customize the `sap-btp-manager` Secret, perform the following steps:
 
 * Label the Secret with `kyma-project.io/skip-reconciliation: 'true'`.
-* Provide the credentials of the Kyma instance you want to migrate or recreate.
+* Provide the following credentials from your SAP Service Manager instance: **clientid**, **clientsecret**, **sm_url**, and **tokenurl**.
+* Optionally, provide your **cluster_id**. Otherwise, it is generated automatically.
 * Optionally, add the `management_namespace` parameter and provide the name of your custom management namespace.
 
 ## Result
@@ -33,13 +34,6 @@ The reconciliation of the Secret stops and your changes are not reverted.
 > [!WARNING]
 > If you delete the customized `sap-btp-manager` Secret, the reconciliation starts again, and the preconfigured default `sap-btp-manager` Secret is recreated for your Kyma instance within 24 hours. See [Preconfigured Credentials and Access](./03-10-preconfigured-secret.md#credentials).
 
-## Next Steps
-
-With the customized default `sap-btp-manager` Secret, you can perform the following actions:
-
-* Migrate your service instances created, for example, in Gardener, to the Kyma environment.
-* Connect a namespace to a specific subaccount without creating a namespace-based Secret because the `sap-btp-service-operator` Secret already includes your custom credentials. See [Namespace-Level Mapping](03-22-namespace-level-mapping.md).
-
 > [!NOTE]
-> If you have created a new non-default SAP Service Manager service instance and used its credentials to create your customized `sap-btp-manager` Secret, you can delete your Kyma cluster associated with this Secret regardless of the existing service instances and bindings created in this cluster.
-> The undeleted service instances or bindings do not block the deletion of the cluster.
+> If you created all service instances in your Kyma cluster from the customized `sap-btp-manager` Secret, you can delete the cluster even if those instances still exist.
+> The undeleted service instances do not block the deletion of the cluster.
