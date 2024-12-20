@@ -491,7 +491,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	resolvedNamespace, oldNamespace, namespaceChanged, err := r.resolveNamespace(ctx, baseSecret, &logger)
+	resolvedNamespace, _, namespaceChanged, err := r.resolveNamespace(ctx, baseSecret, &logger)
 	if err != nil {
 		logger.Error(err, "while resolving namespace")
 		return fmt.Errorf("failed to resolve namespace: %w", err)
@@ -2119,9 +2119,10 @@ func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, inNamespace
 			Namespace: inNamespace,
 		},
 	}
-	err := r.Get(ctx, client.ObjectKeyFromObject(clusterIdSecret), clusterIdSecret)
+	err := r.Client.Get(ctx, client.ObjectKeyFromObject(clusterIdSecret), clusterIdSecret)
 	switch {
 	case k8serrors.IsNotFound(err):
+		logger.Info(fmt.Sprintf("secret %s in %s fails because: %s", clusterIdSecretName, inNamespace, err.Error()))
 		logger.Info(fmt.Sprintf("secret %s in %s not exists", clusterIdSecretName, inNamespace))
 	case err != nil:
 		return fmt.Errorf("failed to get secret %s in %s, %w", clusterIdSecretName, inNamespace, err)
