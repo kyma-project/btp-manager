@@ -491,7 +491,11 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	resolvedNamespace := r.resolveNamespace(baseSecret)
+	resolvedNamespace, oldNamespace, err := r.resolveNamespace(baseSecret, &logger)
+	if err != nil {
+		logger.Error(err, "while resolving namespace")
+		return fmt.Errorf("failed to resolve namespace: %w", err)
+	}
 	logger.Info(fmt.Sprintf("resolved namespace to: %s", resolvedNamespace))
 
 	logger.Info("preparing module resources to apply")
@@ -518,7 +522,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 
 	if operatorRestart {
 		logger.Info(fmt.Sprintf("out of sync state detected. restarting deployment.... %s in %s", DeploymentName, ChartNamespace))
-		if err := r.restartOperator(ctx, resolvedNamespace, &logger); err != nil {
+		if err := r.restartOperator(ctx, oldNamespace, &logger); err != nil {
 			return fmt.Errorf("while restarting %s in %s: %w", DeploymentName, ChartNamespace, err)
 		}
 		logger.Info(fmt.Sprintf("%s in %s restarted", DeploymentName, ChartNamespace))
@@ -615,7 +619,7 @@ func (r *BtpOperatorReconciler) checkIfOperatorNeedRestart(ctx context.Context, 
 		}
 		err := r.Get(context.TODO(), client.ObjectKeyFromObject(currentConfigMap), currentConfigMap)
 		if k8serrors.IsNotFound(err) {
-			logger.Info("ConfigMap not found, so restart is needed")
+			logger.Info(fmt.Sprintf("ConfigMap %s in %s not found, so restart is needed", ConfigName, ChartNamespace))
 			return true
 		}
 
@@ -2146,10 +2150,22 @@ func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) e
 	return nil
 }
 
-func (r *BtpOperatorReconciler) resolveNamespace(secret *corev1.Secret) string {
-	namespace := string(secret.Data["management_namespace"])
-	if namespace == "" {
-		namespace = ChartNamespace
+func (r *BtpOperatorReconciler) resolveNamespace(secret *corev1.Secret, logger *logr.Logger) (string, string, error) {
+	currentConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConfigName,
+			Namespace: ChartNamespace,
+		},
 	}
-	return namespace
+	err := r.Get(context.TODO(), client.ObjectKeyFromObject(currentConfigMap), currentConfigMap)
+	if !k8serrors.IsNotFound(err) {
+		return "", "", fmt.Errorf("failed to get configmap %s in %s, %w", ConfigName, ChartNamespace, err)
+	}
+	currentNamespace := currentConfigMap.Data["management_namespace"]
+	resolvedNamespace := string(secret.Data["management_namespace"])
+	if resolvedNamespace == "" {
+		resolvedNamespace = ChartNamespace
+	}
+	logger.Info(fmt.Sprintf("resolved namespace to: %s, previous was: %s", resolvedNamespace, currentNamespace))
+	return resolvedNamespace, currentNamespace, nil
 }
