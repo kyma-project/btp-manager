@@ -491,7 +491,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	resolvedNamespace, oldNamespace, namespaceChanged, err := r.resolveNamespace(baseSecret, &logger)
+	resolvedNamespace, oldNamespace, namespaceChanged, err := r.resolveNamespace(ctx, baseSecret, &logger)
 	if err != nil {
 		logger.Error(err, "while resolving namespace")
 		return fmt.Errorf("failed to resolve namespace: %w", err)
@@ -522,7 +522,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 
 	if clusterIdSecretChanged || namespaceChanged {
 		logger.Info(fmt.Sprintf("out of sync state detected. restarting deployment.... %s in %s", DeploymentName, ChartNamespace))
-		if err := r.restartOperator(ctx, oldNamespace, &logger); err != nil {
+		if err := r.restartOperator(ctx, resolvedNamespace, &logger); err != nil {
 			return fmt.Errorf("while restarting %s in %s: %w", DeploymentName, ChartNamespace, err)
 		}
 		logger.Info(fmt.Sprintf("%s in %s restarted", DeploymentName, ChartNamespace))
@@ -2109,23 +2109,28 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 }
 
-func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, resolvedNamespace string, logger *logr.Logger) error {
+func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, inNamespace string, logger *logr.Logger) error {
 	logger.Info(fmt.Sprintf("restarting of %s started", DeploymentName))
-	logger.Info(fmt.Sprintf("deleting: %s secret in %s", clusterIdSecretName, resolvedNamespace))
-	gracePeriod := int64(0)
-	err := r.Delete(ctx, &corev1.Secret{
+	logger.Info(fmt.Sprintf("deleting: %s secret in %s", clusterIdSecretName, inNamespace))
+
+	clusterIdSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterIdSecretName,
-			Namespace: resolvedNamespace,
+			Namespace: inNamespace,
 		},
-	}, &client.DeleteOptions{GracePeriodSeconds: &gracePeriod})
-	if err != nil {
-		fmt.Errorf("failed to delete secret %s in %s, %w", clusterIdSecretName, resolvedNamespace, err)
 	}
-	if !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("failed to delete secret %s in %s, %w", clusterIdSecretName, resolvedNamespace, err)
+	err := r.Get(ctx, client.ObjectKeyFromObject(clusterIdSecret), clusterIdSecret)
+	switch {
+	case k8serrors.IsNotFound(err):
+		logger.Info(fmt.Sprintf("secret %s in %s not exists", clusterIdSecretName, inNamespace))
+	case err != nil:
+		return fmt.Errorf("failed to get secret %s in %s, %w", clusterIdSecretName, inNamespace, err)
+	default:
+		if err = r.Delete(ctx, clusterIdSecret); err != nil {
+			return fmt.Errorf("failed to delete secret %s in %s, %w", clusterIdSecretName, inNamespace, err)
+		}
+		logger.Info(fmt.Sprintf("secret %s in %s deleted", clusterIdSecretName, inNamespace))
 	}
-	logger.Info(fmt.Sprintf("secret %s in %s deleted", clusterIdSecretName, resolvedNamespace))
 
 	logger.Info(fmt.Sprintf("restarting %s deployment starting", DeploymentName))
 	err = r.restartOperatorDeployment(ctx)
@@ -2155,18 +2160,21 @@ func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) e
 	return nil
 }
 
-func (r *BtpOperatorReconciler) resolveNamespace(secret *corev1.Secret, logger *logr.Logger) (string, string, bool, error) {
+func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context, secret *corev1.Secret, logger *logr.Logger) (string, string, bool, error) {
 	currentConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConfigName,
 			Namespace: ChartNamespace,
 		},
 	}
-	err := r.Get(context.TODO(), client.ObjectKeyFromObject(currentConfigMap), currentConfigMap)
+	err := r.Get(ctx, client.ObjectKeyFromObject(currentConfigMap), currentConfigMap)
 	if !k8serrors.IsNotFound(err) {
 		return "", "", false, fmt.Errorf("failed to get configmap %s in %s, %w", ConfigName, ChartNamespace, err)
 	}
 	currentNamespace := currentConfigMap.Data["management_namespace"]
+	if currentNamespace == "" {
+		currentNamespace = ChartNamespace
+	}
 	resolvedNamespace := string(secret.Data["management_namespace"])
 	if resolvedNamespace == "" {
 		resolvedNamespace = ChartNamespace
