@@ -625,18 +625,18 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
 	}
 
-	timeout := time.After(ReadyTimeout)
 	for i := 0; i < numOfResources; i++ {
 		select {
-		case <-resourcesReadinessInformer:
+		case resourceReady := <-resourcesReadinessInformer:
+			if !resourceReady {
+				return errors.New("resource readiness timeout reached")
+			}
 			continue
 		case deploymentReady := <-deploymentReadinessInformer:
 			if !deploymentReady {
 				return errors.New("deployment readiness timeout reached")
 			}
 			continue
-		case <-timeout:
-			return errors.New("resources readiness timeout reached")
 		}
 	}
 	return nil
@@ -685,6 +685,7 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
+			c <- false
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
