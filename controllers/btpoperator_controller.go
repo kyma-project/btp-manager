@@ -617,8 +617,6 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 	numOfResources := len(us)
 	resourcesReadinessInformer := make(chan bool, numOfResources-1)
 	deploymentReadinessInformer := make(chan bool, 1)
-	allReadyInformer := make(chan bool, 1)
-	deploymentReady := true
 	for _, u := range us {
 		if u.GetKind() == deploymentKind {
 			go r.checkDeploymentReadiness(ctx, u, deploymentReadinessInformer)
@@ -626,33 +624,22 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 		}
 		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
 	}
-	go func(c, c2 chan bool, c3 bool) {
-		timeout := time.After(ReadyTimeout)
-		for i := 0; i < numOfResources; i++ {
-			select {
-			case <-resourcesReadinessInformer:
-				continue
-			case deploymentReady = <-deploymentReadinessInformer:
-				if !deploymentReady {
 
-					return
-				}
-				continue
-			case <-timeout:
-				return
+	timeout := time.After(ReadyTimeout)
+	for i := 0; i < numOfResources; i++ {
+		select {
+		case <-resourcesReadinessInformer:
+			continue
+		case deploymentReady := <-deploymentReadinessInformer:
+			if !deploymentReady {
+				return errors.New("deployment readiness timeout reached")
 			}
+			continue
+		case <-timeout:
+			return errors.New("resources readiness timeout reached")
 		}
-		allReadyInformer <- true
-	}(resourcesReadinessInformer, deploymentReadinessInformer, deploymentReady)
-	select {
-	case <-allReadyInformer:
-		return nil
-	case <-time.After(ReadyTimeout):
-		if !deploymentReady {
-			return errors.New("deployment readiness timeout reached")
-		}
-		return errors.New("resources readiness timeout reached")
 	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
