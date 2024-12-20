@@ -2111,6 +2111,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 
 func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, resolvedNamespace string, logger *logr.Logger) error {
 	logger.Info(fmt.Sprintf("restarting of %s started", DeploymentName))
+	logger.Info(fmt.Sprintf("deleting: %s secret in %s", clusterIdSecretName, resolvedNamespace))
 	gracePeriod := int64(0)
 	err := r.Delete(ctx, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
