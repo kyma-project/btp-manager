@@ -143,4 +143,21 @@ echo -e "\n--- SAP BTP service operator secrets and configmap reconciliation suc
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
-echo -e "\n--- SAP BTP Manager customization succeeded!"
+echo -e "\n--- SAP BTP Manager secret customization succeeded!"
+
+echo -e "\n--- Uninstalling..."
+
+kubectl delete btpoperators/e2e-test-btpoperator &
+while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
+
+echo -e "\n--- BTP Operator deprovisioning succeeded"
+
+echo -e "\n--- Uninstalling BTP Manager"
+
+# Uninstall BTP Manager
+make undeploy
+
+# Clean up and ignore errors
+kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
+kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
