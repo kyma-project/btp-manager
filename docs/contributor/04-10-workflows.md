@@ -38,9 +38,13 @@ This [workflow](/.github/workflows/run-govulncheck.yaml) runs the Govulncheck.
 
 This [workflow](/.github/workflows/auto-merge.yaml) enables the auto-merge functionality on a PR that is not a draft.
 
-## All Cheks Passed Workflow
+## All Checks Passed Workflow
 
 This [workflow](/.github/workflows/pr-checks.yaml) checks if all jobs, except those excluded in the workflow configuration, have passed.
+
+## E2E SAP BTP Manager Secret Customization Test Workflow
+
+The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) runs the E2E SAP BTP Manager secret customization tests by calling the [reusable workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml).
 
 ## Reusable Workflows
 
@@ -75,3 +79,19 @@ The workflow:
 - Checks out code and sets up the cache
 - Sets up the Go environment
 - Invokes `make test`
+
+### E2E SAP BTP Manager Secret Customization Test
+
+The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) runs the E2E SAP BTP Manager secret customization test on the k3s cluster.
+The following parameters are required from the calling workflow:
+
+| Parameter name     | Required | Description                     |
+|--------------------|----------|---------------------------------|
+| **image-registry** | yes      | binary image registry reference |
+| **image-tag**      | yes      | binary image tag                |
+
+The workflow:
+- Prepares the k3s cluster with the Docker registry
+- Waits for the binary image to be ready in the registry
+- Installs the module
+- Runs the E2E SAP BTP Manager secret customization test on the cluster
