@@ -520,18 +520,18 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
-	if clusterIdSecretChanged || namespaceChanged {
-		logger.Info(fmt.Sprintf("data from %s secret are out of sync with other resources. restarting deployment.... %s in %s", SecretName, DeploymentName, resolvedNamespace))
-		if err := r.restartOperator(ctx, resolvedNamespace, &logger); err != nil {
-			return fmt.Errorf("while restarting deployment: %s in %s : %w", DeploymentName, resolvedNamespace, err)
-		}
-		logger.Info(fmt.Sprintf("deployment: %s in %s restarted", DeploymentName, resolvedNamespace))
-	}
-
 	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
+	}
+
+	if clusterIdSecretChanged || namespaceChanged {
+		logger.Info(fmt.Sprintf("data from %s secret are out of sync with other resources. restarting deployment %s in %s", SecretName, DeploymentName, resolvedNamespace))
+		if err := r.restartOperator(ctx, resolvedNamespace, &logger); err != nil {
+			return fmt.Errorf("while restarting deployment: %s in %s : %w", DeploymentName, resolvedNamespace, err)
+		}
+		logger.Info(fmt.Sprintf("deployment: %s in %s restarted", DeploymentName, resolvedNamespace))
 	}
 
 	return nil
@@ -719,7 +719,7 @@ func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *u
 	case deploymentKind:
 		r.checkDeploymentReadiness(ctx, u, c)
 	default:
-		r.checkResourceExistence(ctx, u, c)
+		r.checkResourceExistence(ctx, u, c, ReadyTimeout)
 	}
 }
 
@@ -753,7 +753,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	}
 }
 
-func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- bool, timeout time.Duration) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -2138,8 +2138,25 @@ func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, inNamespace
 		return fmt.Errorf(fmt.Sprintf("failed to restart deployment: %s in %s", DeploymentName, inNamespace))
 	}
 	logger.Info(fmt.Sprintf("deployment: %s in %s restarted successfully", DeploymentName, inNamespace))
-
+	exists := make(chan bool)
+	obj, err := ToUnstructured(*clusterIdSecret)
+	if err != nil {
+		return err
+	}
+	go r.checkResourceExistence(ctx, obj, exists, time.Second*10)
+	ok := <-exists
+	if !ok {
+		return fmt.Errorf("secret: %s in %s didnt appear in given time", clusterIdSecretName, inNamespace)
+	}
 	return nil
+}
+
+func ToUnstructured(secret corev1.Secret) (*unstructured.Unstructured, error) {
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&secret)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: unstructuredObj}, nil
 }
 
 func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) error {
