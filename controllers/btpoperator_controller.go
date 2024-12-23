@@ -2110,35 +2110,34 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 }
 
 func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, inNamespace string, logger *logr.Logger) error {
-	logger.Info(fmt.Sprintf("restarting of %s started", DeploymentName))
-	logger.Info(fmt.Sprintf("deleting: %s secret in %s", clusterIdSecretName, inNamespace))
+	logger.Info(fmt.Sprintf("restarting of deployment: %s in %s started", DeploymentName, inNamespace))
 
 	clusterIdSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterIdSecretName,
 			Namespace: inNamespace,
 		},
-	},
+	}
 	err := r.Client.Get(ctx, client.ObjectKey{Namespace: inNamespace, Name: clusterIdSecretName}, clusterIdSecret)
 	switch {
 	case k8serrors.IsNotFound(err):
-		logger.Info(fmt.Sprintf("secret %s in %s fails because: %s", clusterIdSecretName, inNamespace, err.Error()))
-		logger.Info(fmt.Sprintf("secret %s in %s not exists", clusterIdSecretName, inNamespace))
+		logger.Info(fmt.Sprintf("secret: %s in %s not exists", clusterIdSecretName, inNamespace))
 	case err != nil:
-		return fmt.Errorf("failed to get secret %s in %s, %w", clusterIdSecretName, inNamespace, err)
+		return fmt.Errorf("failed to get secret: %s in %s, %w", clusterIdSecretName, inNamespace, err)
 	default:
+		logger.Info(fmt.Sprintf("deleting: %s secret in %s", clusterIdSecretName, inNamespace))
 		if err = r.Delete(ctx, clusterIdSecret); err != nil {
-			return fmt.Errorf("failed to delete secret %s in %s, %w", clusterIdSecretName, inNamespace, err)
+			return fmt.Errorf("failed to delete secret: %s in %s, %w", clusterIdSecretName, inNamespace, err)
 		}
-		logger.Info(fmt.Sprintf("secret %s in %s deleted", clusterIdSecretName, inNamespace))
+		logger.Info(fmt.Sprintf("secret: %s in %s deleted", clusterIdSecretName, inNamespace))
 	}
 
-	logger.Info(fmt.Sprintf("restarting %s deployment starting", DeploymentName))
+	logger.Info(fmt.Sprintf("restarting deployment: %s in %s starting", DeploymentName, inNamespace))
 	err = r.restartOperatorDeployment(ctx)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("failed to restart deployment %s", DeploymentName))
+		return fmt.Errorf(fmt.Sprintf("failed to restart deployment: %s in %s", DeploymentName, inNamespace))
 	}
-	logger.Info(fmt.Sprintf("deployment %s restarted successfully", DeploymentName))
+	logger.Info(fmt.Sprintf("deployment: %s in %s restarted successfully", DeploymentName, inNamespace))
 
 	return nil
 }
