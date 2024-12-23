@@ -428,14 +428,14 @@ func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) err
 	resourcesToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
-		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+		return fmt.Errorf("failed to create deletable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d outdated module resources to delete", len(resourcesToDelete)))
 
 	err = r.deleteResources(ctx, resourcesToDelete)
 	if err != nil {
 		logger.Error(err, "while deleting outdated resources")
-		return fmt.Errorf("Failed to delete outdated resources: %w", err)
+		return fmt.Errorf("failed to delete outdated resources: %w", err)
 	}
 
 	return nil
@@ -510,9 +510,9 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 
 	r.deleteCreationTimestamp(resourcesToApply...)
 
-	logger.Info(fmt.Sprintf("check if %s in %s needs to be restarted?", DeploymentName, ChartNamespace))
+	logger.Info(fmt.Sprintf("check if deployment: %s in %s needs to be restarted.", DeploymentName, resolvedNamespace))
 	clusterIdSecretChanged := r.checkIfOperatorNeedRestart(ctx, resolvedNamespace, baseSecret, &logger)
-	logger.Info(fmt.Sprintf("is for %s restard needed %t ?", DeploymentName, clusterIdSecretChanged))
+	logger.Info(fmt.Sprintf("is restart of deployment %s in %s needed %t?", DeploymentName, resolvedNamespace, clusterIdSecretChanged))
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
 	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
@@ -521,11 +521,11 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 	}
 
 	if clusterIdSecretChanged || namespaceChanged {
-		logger.Info(fmt.Sprintf("out of sync state detected. restarting deployment.... %s in %s", DeploymentName, ChartNamespace))
+		logger.Info(fmt.Sprintf("data from %s secret are out of sync with other resources. restarting deployment.... %s in %s", SecretName, DeploymentName, resolvedNamespace))
 		if err := r.restartOperator(ctx, resolvedNamespace, &logger); err != nil {
-			return fmt.Errorf("while restarting %s in %s: %w", DeploymentName, ChartNamespace, err)
+			return fmt.Errorf("while restarting deployment: %s in %s : %w", DeploymentName, resolvedNamespace, err)
 		}
-		logger.Info(fmt.Sprintf("%s in %s restarted", DeploymentName, ChartNamespace))
+		logger.Info(fmt.Sprintf("deployment: %s in %s restarted", DeploymentName, resolvedNamespace))
 	}
 
 	logger.Info("waiting for module resources readiness")
@@ -2118,8 +2118,8 @@ func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, inNamespace
 			Name:      clusterIdSecretName,
 			Namespace: inNamespace,
 		},
-	}
-	err := r.Client.Get(ctx, client.ObjectKeyFromObject(clusterIdSecret), clusterIdSecret)
+	},
+	err := r.Client.Get(ctx, client.ObjectKey{Namespace: inNamespace, Name: clusterIdSecretName}, clusterIdSecret)
 	switch {
 	case k8serrors.IsNotFound(err):
 		logger.Info(fmt.Sprintf("secret %s in %s fails because: %s", clusterIdSecretName, inNamespace, err.Error()))
@@ -2155,7 +2155,7 @@ func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) e
 	operatorDeployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
 	err = r.Client.Update(ctx, &operatorDeployment)
 	if err != nil {
-		return fmt.Errorf("failed to update %s deployment scale, %w", DeploymentName, err)
+		return fmt.Errorf("failed to restart deployment: %s, %w", DeploymentName, err)
 	}
 
 	return nil
@@ -2176,10 +2176,10 @@ func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context, secret *co
 	if currentNamespace == "" {
 		currentNamespace = ChartNamespace
 	}
-	resolvedNamespace := string(secret.Data["management_namespace"])
-	if resolvedNamespace == "" {
-		resolvedNamespace = ChartNamespace
+	newNamespace := string(secret.Data["management_namespace"])
+	if newNamespace == "" {
+		newNamespace = ChartNamespace
 	}
-	logger.Info(fmt.Sprintf("resolved namespace to: %s, previous was: %s", resolvedNamespace, currentNamespace))
-	return resolvedNamespace, currentNamespace, strings.EqualFold(resolvedNamespace, currentNamespace), nil
+	logger.Info(fmt.Sprintf("resolved namespace to: %s, previous was: %s", newNamespace, currentNamespace))
+	return newNamespace, currentNamespace, !strings.EqualFold(newNamespace, currentNamespace), nil
 }
