@@ -520,20 +520,51 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, baseSecr
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
-	logger.Info("waiting for module resources readiness")
-	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
-		logger.Error(err, "while waiting for module resources readiness")
-		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
-	}
-
+	var operatorRestarted bool
 	if clusterIdSecretChanged || namespaceChanged {
 		logger.Info(fmt.Sprintf("data from %s secret are out of sync with other resources. restarting deployment %s in %s", SecretName, DeploymentName, resolvedNamespace))
 		if err := r.restartOperator(ctx, resolvedNamespace, &logger); err != nil {
 			return fmt.Errorf("while restarting deployment: %s in %s : %w", DeploymentName, resolvedNamespace, err)
 		}
 		logger.Info(fmt.Sprintf("deployment: %s in %s restarted", DeploymentName, resolvedNamespace))
+		operatorRestarted = true
 	}
 
+	logger.Info("waiting for module resources readiness")
+	// wait for operator deployment to be ready
+	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
+		logger.Error(err, "while waiting for module resources readiness")
+		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
+	}
+
+	if operatorRestarted {
+		// wait unit operator deployment will create own resource
+		if err := r.waitForClusterIdSecret(ctx, resolvedNamespace); err != nil {
+			logger.Error(err, "while waiting for secret: %s in %s", clusterIdSecretName, resolvedNamespace)
+			return fmt.Errorf("timed out while waiting for secret: %s in %s , %w", clusterIdSecretName, resolvedNamespace, err)
+		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) waitForClusterIdSecret(ctx context.Context, inNamespace string) error {
+	clusterIdSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      clusterIdSecretName,
+			Namespace: inNamespace,
+		},
+	}
+	exists := make(chan bool)
+	obj, err := ToUnstructured(*clusterIdSecret)
+	if err != nil {
+		return err
+	}
+	go r.checkResourceExistence(ctx, obj, exists, time.Second*10)
+	ok := <-exists
+	if !ok {
+		return fmt.Errorf("secret: %s in %s didnt appear in given time", clusterIdSecretName, inNamespace)
+	}
 	return nil
 }
 
@@ -2138,16 +2169,6 @@ func (r *BtpOperatorReconciler) restartOperator(ctx context.Context, inNamespace
 		return fmt.Errorf(fmt.Sprintf("failed to restart deployment: %s in %s", DeploymentName, inNamespace))
 	}
 	logger.Info(fmt.Sprintf("deployment: %s in %s restarted successfully", DeploymentName, inNamespace))
-	exists := make(chan bool)
-	obj, err := ToUnstructured(*clusterIdSecret)
-	if err != nil {
-		return err
-	}
-	go r.checkResourceExistence(ctx, obj, exists, time.Second*10)
-	ok := <-exists
-	if !ok {
-		return fmt.Errorf("secret: %s in %s didnt appear in given time", clusterIdSecretName, inNamespace)
-	}
 	return nil
 }
 
