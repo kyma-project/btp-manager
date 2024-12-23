@@ -632,11 +632,8 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 	}
 
 	for i := 0; i < numOfResources; i++ {
-		select {
-		case resourceReady := <-resourcesReadinessInformer:
-			if !resourceReady.Ready {
-				return fmt.Errorf("%s %s in namespace %s readiness timeout reached", resourceReady.Kind, resourceReady.Name, resourceReady.Namespace)
-			}
+		if resourceReady := <-resourcesReadinessInformer; !resourceReady.Ready {
+			return fmt.Errorf("%s %s in namespace %s readiness timeout reached", resourceReady.Kind, resourceReady.Name, resourceReady.Namespace)
 		}
 	}
 	return nil
