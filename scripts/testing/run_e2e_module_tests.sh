@@ -93,7 +93,8 @@ until [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-s
   sleep 5
 done
 
-echo -e "\n--- Patching sap-btp-manager configmap with ReadyTimeout of 10 seconds"
+echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
 echo -e "\n--- Saving lastTransitionTime of btpOperator"
@@ -120,8 +121,8 @@ while true; do
   fi
 done
 
-echo -e "\n--- Patching sap-btp-manager configmap to remove ReadyTimeout"
-kubectl patch configmap sap-btp-manager -n kyma-system --type json -p '[{"op": "remove", "path": "/data/ReadyTimeout"}]'
+echo -e "\n--- Removing sap-btp-manager configmap"
+kubectl delete -f ${YAML_DIR}/e2e-test-configmap.yaml
 
 echo -e "\n--- Waiting for btpOperator to be ready"
 while true; do
@@ -216,6 +217,12 @@ do
 done
 
 echo -e "\n--- ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment has been reconciled"
+
+if [[ "${CREDENTIALS}" != "real" ]]
+then
+  echo -e "\n--- Creating sap-btp-manager configmap with HardDeleteTimeout 10s"
+  kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+fi
 
 echo -e "\n--- Adding force delete label"
 kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
