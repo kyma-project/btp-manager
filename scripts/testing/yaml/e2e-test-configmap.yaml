@@ -5,5 +5,3 @@ metadata:
   namespace: kyma-system
   labels:
     app.kubernetes.io/managed-by: btp-manager
-data:
-  HardDeleteTimeout: "10s"
