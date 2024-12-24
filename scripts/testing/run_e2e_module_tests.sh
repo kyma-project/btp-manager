@@ -222,7 +222,6 @@ if [[ "${CREDENTIALS}" != "real" ]]
 then
   echo -e "\n--- Creating sap-btp-manager configmap with HardDeleteTimeout 10s"
   kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
-  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"HardDeleteTimeout":"10s"}}'
 fi
 
 echo -e "\n--- Adding force delete label"
