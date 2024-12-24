@@ -215,6 +215,15 @@ jobs:
       image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       image-tag: ${{ github.event.inputs.name }}
 
+  run-e2e-sap-btp-manager-secret-customization-test:
+    name: E2E SAP BTP Manager secret customization test
+    needs: build-image
+    secrets: inherit
+    uses: "./.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml"
+    with:
+      image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      image-tag: ${{ github.event.inputs.name }}
+
   create-draft:
     name: Create draft release
     needs: bump-sec-scanners-config
