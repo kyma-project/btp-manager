@@ -2117,7 +2117,7 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 
 	synced, err := r.getDependedResourcesForSecretChange(ctx, clusterIdUnstructuredObj, sapBtpSecret, configMap, logger)
 	if err != nil {
-		return fmt.Errorf("while checking data integrity")
+		return fmt.Errorf("while checking data integrity %s", err.Error())
 	}
 	if synced {
 		logger.Info("clusterId in secret and in sap btp manager and in configmap are the same")
