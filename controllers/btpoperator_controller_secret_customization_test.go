@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const management_namespace = "mgmt_namespace"
+const managementNamespace = "management"
 
 var _ = Describe("BTP Operator controller - secret customization", Label("customization"), func() {
 	var cr *v1alpha1.BtpOperator
@@ -76,29 +76,29 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			})
 		})
 
-		When("the required secret has management_namespace changed", func() {
+		When("the required secret has managementNamespace changed", func() {
 			It("should reconcile and change value in config and change location of operator secret", func() {
 				btpManagerSecret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
 
-				btpManagerSecret.Data["MANAGEMENT_NAMESPACE"] = []byte(management_namespace)
+				btpManagerSecret.Data["MANAGEMENT_NAMESPACE"] = []byte(managementNamespace)
 				Expect(k8sClient.Patch(ctx, btpManagerSecret, client.Apply, client.ForceOwnership, client.FieldOwner("user"))).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				btpServiceOperatorDeployment := &appsv1.Deployment{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
-				expectSecretToHaveCredentials(getSecretFromNamespace("sap-btp-service-operator", management_namespace), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
-				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", management_namespace)
+				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespace), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespace)
 
 				reconciler.reconcileResources(ctx, btpManagerSecret)
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, management_namespace), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
-				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", management_namespace)
+				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespace), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespace)
 			})
 		})
 
 		When("the required secret has credentials changed", func() {
-			It("should reconcile and change value operator secret in the management namespace", func() {
+			It("should reconcile and change the values in the operator secret", func() {
 				btpManagerSecret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
 
@@ -108,13 +108,13 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				btpServiceOperatorDeployment := &appsv1.Deployment{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
-				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, management_namespace), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
-				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", management_namespace)
+				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespace), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespace)
 
 				reconciler.reconcileResources(ctx, btpManagerSecret)
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, management_namespace), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
-				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", management_namespace)
+				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespace), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespace)
 			})
 		})
 	})
