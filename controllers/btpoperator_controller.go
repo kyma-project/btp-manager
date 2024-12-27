@@ -627,23 +627,31 @@ func (r *BtpOperatorReconciler) setConfigMapValues(ctx context.Context, secret *
 	return err
 }
 
-func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	for k := range secret.Data {
-		for _, s := range requiredSecretKeys {
-			if k == s {
-				value, found, err := unstructured.NestedFieldCopy(u.Object, "data", k)
+func (r *BtpOperatorReconciler) setSecretValues(managerSecret *corev1.Secret, target *unstructured.Unstructured) error {
+	var operatorRestar bool
+	for mgrDataVal := range managerSecret.Data {
+		for _, acceptKey := range requiredSecretKeys {
+			if strings.EqualFold(mgrDataVal, acceptKey) {
+				value, found, err := unstructured.NestedFieldNoCopy(target.Object, "data", mgrDataVal)
 				if err != nil {
 					return err
 				}
-				if value != string(secret.Data[k]) || !found {
-					if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
+				valueStr, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("value %s is not a string", valueStr)
+				}
+				if strings.EqualFold(valueStr, string(managerSecret.Data["cluster_id"])) || !found {
+					if err := unstructured.SetNestedField(target.Object, base64.StdEncoding.EncodeToString(managerSecret.Data[mgrDataVal]), "data", mgrDataVal); err != nil {
 						return err
 					}
-					r.operatorRestar = true
+					if !operatorRestar {
+						operatorRestar = true
+					}
 				}
 			}
 		}
 	}
+	r.operatorRestar = operatorRestar
 	return nil
 }
 
