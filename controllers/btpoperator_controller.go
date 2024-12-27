@@ -571,7 +571,7 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	r.addLabels(chartVer, resourcesToApply...)
 	r.setNamespace(resourcesToApply...)
 
-	if err := r.setConfigMapValues(ctx, s, (resourcesToApply)[configMapIndex]); err != nil {
+	if err := r.setConfigMapValues(ctx, s, (resourcesToApply)[configMapIndex], logger); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
@@ -608,9 +608,9 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 	}
 }
 
-func (r *BtpOperatorReconciler) setConfigMapValues(ctx context.Context, secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) setConfigMapValues(ctx context.Context, secret *corev1.Secret, u *unstructured.Unstructured, logger logr.Logger) error {
 	err := unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
-	namespace, err := r.resolveNamespace(ctx)
+	namespace, err := r.resolveNamespace(ctx, &logger)
 	if err != nil {
 		return err
 	}
@@ -2104,7 +2104,7 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 	if err != nil {
 		return fmt.Errorf("failed to get secret %s in %s : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
 	}
-	clusterIdSecretNamespace, err := r.resolveNamespace(ctx)
+	clusterIdSecretNamespace, err := r.resolveNamespace(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to resolve namespace: %w", err)
 	}
@@ -2141,7 +2141,7 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 func (r *BtpOperatorReconciler) waitForOperatoManagedResources(ctx context.Context, logger *logr.Logger) error {
 	logger.Info("checking if resources are in sync")
 
-	clusterIdNamespace, err := r.resolveNamespace(ctx)
+	clusterIdNamespace, err := r.resolveNamespace(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to resolve namespace: %w", err)
 	}
@@ -2204,8 +2204,7 @@ func (r *BtpOperatorReconciler) restartDeployment(ctx context.Context) error {
 	return nil
 }
 
-func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context) (string, error) {
-
+func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context, log *logr.Logger) (string, error) {
 	sapBtpSecret := r.buildSecretWithDataAndLabels(SecretName, ChartNamespace, nil, nil)
 	err := r.Get(ctx, client.ObjectKeyFromObject(sapBtpSecret), sapBtpSecret)
 	if err != nil {
@@ -2216,21 +2215,6 @@ func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context) (string, e
 	if namespace == "" {
 		namespace = ChartNamespace
 	}
+	log.Info("namespace resolved to: ", "namespace", namespace)
 	return namespace, err
-}
-
-func dataValueFromObject(us *unstructured.Unstructured, key string) string {
-	data, ok := us.Object["data"].(map[string]interface{})
-	if !ok {
-		return ""
-	}
-	value, ok := data[key].(string)
-	if !ok {
-		return ""
-	}
-	decoded, err := base64.StdEncoding.DecodeString(value)
-	if err != nil {
-		return string(decoded)
-	}
-	return string(decoded)
 }
