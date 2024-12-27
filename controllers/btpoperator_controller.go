@@ -101,6 +101,11 @@ const (
 	btpOperatorServiceBinding  = "ServiceBinding"
 )
 
+const (
+	managerSecretClusterIdKey  = "cluster_id"
+	operatorSecretClusterIdKey = "INITIAL_CLUSTER_ID"
+)
+
 var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
@@ -519,7 +524,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	}
 
 	logger.Info("waiting for applying sap-btp-manager change")
-	if err = r.handleSapBtpManagerChange(ctx, &logger); err != nil {
+	if err = r.recconcileMgrSecret(ctx, &logger); err != nil {
 		logger.Error(err, "while handling sap-btp-manager change")
 		return fmt.Errorf("failed to getDependedResourcesForSecretChange sap-btp-manager change: %w", err)
 	}
@@ -637,7 +642,7 @@ func (r *BtpOperatorReconciler) setSecretValues(managerSecret *corev1.Secret, ta
 					return err
 				}
 				valueStr, ok := value.(string)
-				if !ok {
+				if !ok && valueStr != "" {
 					return fmt.Errorf("value %s is not a string", valueStr)
 				}
 				if strings.EqualFold(valueStr, string(managerSecret.Data["cluster_id"])) || !found {
@@ -2101,7 +2106,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 }
 
-func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, logger *logr.Logger) error {
+func (r *BtpOperatorReconciler) recconcileMgrSecret(ctx context.Context, logger *logr.Logger) error {
 	logger.Info("handling SAP BTP Manager change")
 	var err error
 
@@ -2121,7 +2126,15 @@ func (r *BtpOperatorReconciler) handleSapBtpManagerChange(ctx context.Context, l
 		return fmt.Errorf("failed to secret: %s in %s to unstructred : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
 	}
 
-	if string(sapBtpSecret.Data["clusterId"]) == string(clusterIdSecret.Data["clusterId"]) {
+	expectedClusterId, err := r.managerSecretClusterId(clusterIdSecret)
+	if err != nil {
+		return err
+	}
+	actualClusterId, err := r.operatorSecretClusterId(sapBtpSecret)
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(expectedClusterId, actualClusterId) {
 		logger.Info("clusterId not changed")
 		return nil
 	}
@@ -2193,4 +2206,26 @@ func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context, log *logr.
 	}
 	log.Info("namespace resolved to: ", "namespace", namespace)
 	return namespace, err
+}
+
+func (r *BtpOperatorReconciler) managerSecretClusterId(mgrSecret *corev1.Secret) (string, error) {
+	if mgrSecret == nil {
+		err := r.Get(context.Background(), client.ObjectKeyFromObject(mgrSecret), mgrSecret)
+		if err != nil {
+			return "", fmt.Errorf("failed to get secret %s in %s : %s \n", mgrSecret.GetName(), mgrSecret.GetNamespace(), err.Error())
+		}
+	}
+	bytes := mgrSecret.Data[managerSecretClusterIdKey]
+	return string(bytes), nil
+}
+
+func (r *BtpOperatorReconciler) operatorSecretClusterId(opSecret *corev1.Secret) (string, error) {
+	if opSecret == nil {
+		err := r.Get(context.Background(), client.ObjectKeyFromObject(opSecret), opSecret)
+		if err != nil {
+			return "", fmt.Errorf("failed to get secret %s in %s : %s \n", opSecret.GetName(), opSecret.GetNamespace(), err.Error())
+		}
+	}
+	bytes := opSecret.Data[operatorSecretClusterIdKey]
+	return string(bytes), nil
 }
