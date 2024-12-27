@@ -31,4 +31,3 @@ export GINKGO_TRACE=${GINKGO_TRACE:="trace"}
 
 # if you want use to process in parallel use "-p" as option
 export GINKGO_PARALLEL_FLAG=${GINKGO_PARALLEL_FLAG:=""}
-

@@ -103,6 +103,10 @@ const (
 )
 
 var (
+	requiredKeys = []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
+)
+
+var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
 		Version: btpOperatorApiVer,
@@ -142,10 +146,6 @@ var (
 type InstanceBindingSerivce interface {
 	DisableSISBController()
 	EnableSISBController()
-}
-
-type SecretWatchedData struct {
-	clusterId []byte
 }
 
 // BtpOperatorReconciler reconciles a BtpOperator object
@@ -520,17 +520,6 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
-	logger.Info(fmt.Sprintf("waiting for reconcile %s data changes", SecretName))
-	if err = r.reconcileManagerSecretChanges(ctx, &logger); err != nil {
-		logger.Error(err, fmt.Sprintf("while reconciling %s data changes", SecretName))
-		return fmt.Errorf("failed reconcie %s data changes: %w", SecretName, err)
-	}
-
-	if err = r.handleOperatorRestart(ctx, resourcesToApply); err != nil {
-		logger.Error(err, "while handling operator restart")
-		return fmt.Errorf("failed to handle operator restart: %w", err)
-	}
-
 	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
@@ -566,7 +555,7 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	r.addLabels(chartVer, resourcesToApply...)
 	r.setNamespace(resourcesToApply...)
 
-	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex], &logger); err != nil {
+	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
@@ -603,12 +592,11 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 	}
 }
 
-func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured, log *logr.Logger) error {
-	err := unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
-	/*namespace := r.resolveNamespace(secret, log)
-	err = unstructured.SetNestedField(u.Object, namespace, "data", "MANAGEMENT_NAMESPACE")
-	err = unstructured.SetNestedField(u.Object, namespace, "data", "RELEASE_NAMESPACE")*/
-	return err
+func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+	namespace := r.resolveNamespace(secret)
+	unstructured.SetNestedField(u.Object, namespace, "data", "MANAGED_NAMESPACE")
+	unstructured.SetNestedField(u.Object, namespace, "data", "REALASE_NAMESPACE")
+	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
 }
 
 func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
@@ -650,41 +638,24 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
-	resourcesReadinessInformer := make(chan bool, numOfResources)
-	allReadyInformer := make(chan bool, 1)
+	resourcesReadinessInformer := make(chan ResourceReadiness, numOfResources)
 	for _, u := range us {
-		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
-	}
-	go func(c chan bool) {
-		timeout := time.After(ReadyTimeout)
-		for i := 0; i < numOfResources; i++ {
-			select {
-			case <-resourcesReadinessInformer:
-				continue
-			case <-timeout:
-				return
-			}
+		if u.GetKind() == deploymentKind {
+			go r.checkDeploymentReadiness(ctx, u, resourcesReadinessInformer)
+			continue
 		}
-		allReadyInformer <- true
-	}(resourcesReadinessInformer)
-	select {
-	case <-allReadyInformer:
-		return nil
-	case <-time.After(ReadyTimeout):
-		return errors.New("resources readiness timeout reached")
+		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
 	}
+
+	for i := 0; i < numOfResources; i++ {
+		if resourceReady := <-resourcesReadinessInformer; !resourceReady.Ready {
+			return fmt.Errorf("%s %s in namespace %s readiness timeout reached", resourceReady.Kind, resourceReady.Name, resourceReady.Namespace)
+		}
+	}
+	return nil
 }
 
-func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
-	switch u.GetKind() {
-	case deploymentKind:
-		r.checkDeploymentReadiness(ctx, u, c)
-	default:
-		r.checkResourceExistence(ctx, u, c, ReadyTimeout)
-	}
-}
-
-func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -696,6 +667,12 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
+			c <- ResourceReadiness{
+				Name:      u.GetName(),
+				Namespace: u.GetNamespace(),
+				Kind:      u.GetKind(),
+				Ready:     false,
+			}
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
@@ -707,14 +684,14 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				}
 			}
 			if progressingConditionStatus == "True" && availableConditionStatus == "True" {
-				c <- true
+				c <- ResourceReadiness{Ready: true}
 				return
 			}
 		}
 	}
 }
 
-func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- bool, timeout time.Duration) {
+func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -724,12 +701,18 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	got := &unstructured.Unstructured{}
 	got.SetGroupVersionKind(u.GroupVersionKind())
 	for {
-		if time.Since(now) >= timeout {
+		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
+			c <- ResourceReadiness{
+				Name:      u.GetName(),
+				Namespace: u.GetNamespace(),
+				Kind:      u.GetKind(),
+				Ready:     false,
+			}
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
-			c <- true
+			c <- ResourceReadiness{Ready: true}
 			return
 		}
 	}
@@ -1299,6 +1282,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
+		Watches(
+			&appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			builder.WithPredicates(r.watchDeploymentPredicates()),
+		).
 		Complete(r)
 }
 
@@ -1374,6 +1362,43 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate
 				return false
 			}
 			return predicateIfReconcile(oldSecret)
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			obj := e.Object.(*appsv1.Deployment)
+			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			obj := e.Object.(*appsv1.Deployment)
+			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newObj := e.ObjectNew.(*appsv1.Deployment)
+			oldObj := e.ObjectOld.(*appsv1.Deployment)
+			if !(newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace) {
+				return false
+			}
+			var newAvailableConditionStatus, newProgressingConditionStatus string
+			for _, condition := range newObj.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					newProgressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					newAvailableConditionStatus = string(condition.Status)
+				}
+			}
+			var oldAvailableConditionStatus, oldProgressingConditionStatus string
+			for _, condition := range oldObj.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					oldProgressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					oldAvailableConditionStatus = string(condition.Status)
+				}
+			}
+			return newAvailableConditionStatus != oldAvailableConditionStatus || newProgressingConditionStatus != oldProgressingConditionStatus
 		},
 	}
 }
@@ -1853,7 +1878,7 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName string, certificate, privateKey []byte, prefix string, resourcesToApply *[]*unstructured.Unstructured) error {
 	data := r.mapCertToSecretData(certificate, privateKey, r.buildKeyNameWithExtension(prefix, CertificatePostfix), r.buildKeyNameWithExtension(prefix, RsaKeyPostfix))
 
-	secret := r.buildSecretWithDataAndLabels(certName, ChartNamespace, data, map[string]string{managedByLabelKey: operatorName})
+	secret := r.buildSecretWithDataAndLabels(certName, data, map[string]string{managedByLabelKey: operatorName})
 
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
 	if err != nil {
@@ -2044,6 +2069,7 @@ func (r *BtpOperatorReconciler) buildSecret(name, namespace string) *corev1.Secr
 			Name:      name,
 			Namespace: namespace,
 		},
+		Data: data,
 	}
 }
 
@@ -2067,110 +2093,10 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileManagerSecretChanges(ctx context.Context, logger *logr.Logger) error {
-	logger.Info("handling reconcileManagerSecretChanges")
-	var err error
-
-	managerSecret := r.buildSecret(SecretName, ChartNamespace)
-	if err := r.Get(ctx, client.ObjectKeyFromObject(managerSecret), managerSecret); err != nil {
-		return fmt.Errorf("failed to get secret: %s in %s : %s", managerSecret.GetName(), managerSecret.GetNamespace(), err.Error())
+func (r *BtpOperatorReconciler) resolveNamespace(base *corev1.Secret) string {
+	givenNamespace := base.Data["managment_namespace"]
+	if givenNamespace == nil { // user didnt specify custom namespace. default will be used.
+		return ChartNamespace
 	}
-
-	skipDelete := false
-	operatorClusterSecret := r.buildSecret(clusterIdSecretName, ChartNamespace)
-	if err := r.Get(ctx, client.ObjectKeyFromObject(operatorClusterSecret), operatorClusterSecret); err != nil {
-		if k8serrors.IsNotFound(err) {
-			logger.Info("operator clusterID secret not found, skipping deletion", "secret name:", operatorClusterSecret.GetName(), "secret namespace:", operatorClusterSecret.GetNamespace())
-			skipDelete = true
-		} else {
-			return fmt.Errorf("failed to get secret: %s in %s : %s", operatorClusterSecret.GetName(), operatorClusterSecret.GetNamespace(), err.Error())
-		}
-	}
-
-	if clusterIDmatch(managerSecret, operatorClusterSecret) {
-		logger.Info("secrets are in sync", "operator secret name:", operatorClusterSecret.GetName(), "operator secret namespace:", operatorClusterSecret.GetNamespace(), "manager secret name:", managerSecret.GetName(), "manager secret namespace:", managerSecret.GetNamespace())
-		return nil
-	}
-	logger.Info("secrets are not in sync", "operator secret name:", operatorClusterSecret.GetName(), "operator secret namespace:", operatorClusterSecret.GetNamespace(), "manager secret name:", managerSecret.GetName(), "manager secret namespace:", managerSecret.GetNamespace())
-
-	if skipDelete == false {
-		if err = r.Delete(ctx, operatorClusterSecret); err != nil {
-			return fmt.Errorf("failed to delete secret: %s in %s : %s", operatorClusterSecret.GetName(), operatorClusterSecret.GetNamespace(), err.Error())
-		}
-		logger.Info("operator clusterID secret deleted", "secret name:", operatorClusterSecret.GetName(), "secret namespace:", operatorClusterSecret.GetNamespace())
-	}
-	r.operatorRestart = true
-	return nil
-}
-
-func (r *BtpOperatorReconciler) handleOperatorRestart(ctx context.Context, logger *logr.Logger) error {
-	var err error
-	if err = r.restartOperator(ctx); err != nil {
-		return fmt.Errorf("failed to restart operator %s : %s", DeploymentName, err.Error())
-	}
-	logger.Info("operator restarted", "deployment name:", DeploymentName, "deployment namespace:", ChartNamespace)
-
-	operatorClusterSecret := r.buildSecret(clusterIdSecretName, ChartNamespace)
-	var operatorClusterObj map[string]any
-	if operatorClusterObj, err = runtime.DefaultUnstructuredConverter.ToUnstructured(operatorClusterSecret); err != nil {
-		return fmt.Errorf("failed to create unstructured secret: %s in %s : %s \n", operatorClusterSecret.GetName(), operatorClusterSecret.GetNamespace(), err.Error())
-	}
-	if err = r.checkOperatorResourcesExistence(ctx, &unstructured.Unstructured{Object: operatorClusterObj}, logger); err != nil {
-		return fmt.Errorf("failed to check operator resources existence: %s in %s : %s \n", operatorClusterSecret.GetName(), operatorClusterSecret.GetNamespace(), err.Error())
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) restartOperator(ctx context.Context) error {
-	operatorDeployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      DeploymentName,
-			Namespace: ChartNamespace,
-		},
-	}
-	if err := r.Get(ctx, client.ObjectKeyFromObject(operatorDeployment), operatorDeployment); err != nil {
-		return fmt.Errorf("failed to get deployment, %w", err)
-	}
-
-	if operatorDeployment.Spec.Template.Annotations == nil {
-		operatorDeployment.Spec.Template.Annotations = make(map[string]string)
-	}
-	operatorDeployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
-
-	if err := r.Update(ctx, operatorDeployment); err != nil {
-		return fmt.Errorf("failed to update deployment scale, %w", err)
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) checkOperatorResourcesExistence(ctx context.Context, operatorClusterIDSecret *unstructured.Unstructured, logger *logr.Logger) error {
-	logger.Info("checking if resource exists", "secret name:", operatorClusterIDSecret.GetName(), "secret namespace:", operatorClusterIDSecret.GetNamespace())
-	result := make(chan bool)
-	go r.checkResourceExistence(ctx, operatorClusterIDSecret, result, clusterIdCheckTimeout)
-	select {
-	case exists := <-result:
-		if !exists {
-			return fmt.Errorf("resource %s in %s dosent exists", operatorClusterIDSecret.GetName(), operatorClusterIDSecret.GetNamespace())
-		}
-	case <-ctx.Done():
-		return fmt.Errorf("ctx done. resource %s in %s dosent exists", operatorClusterIDSecret.GetName(), operatorClusterIDSecret.GetNamespace())
-	default:
-		logger.Info("waiting for resources to be in sync....", "secret name:", operatorClusterIDSecret.GetName(), "secret namespace:", operatorClusterIDSecret.GetNamespace())
-	}
-	logger.Info("resource exists.", "secret name:", operatorClusterIDSecret.GetName(), "secret namespace:", operatorClusterIDSecret.GetNamespace())
-	return nil
-}
-
-func (r *BtpOperatorReconciler) resolveNamespace(secret *corev1.Secret, logger *logr.Logger) string {
-	namespace := string(secret.Data["management_namespace"])
-	if namespace == "" {
-		namespace = ChartNamespace
-	}
-	logger.Info("resolved namespace to: ", "namespace", namespace)
-	return namespace
-}
-
-func clusterIDmatch(managerSecret, operatorClusterIDSecret *corev1.Secret) bool {
-	return bytes.Equal(managerSecret.Data["cluster_id"], operatorClusterIDSecret.Data["INITIAL_CLUSTER_ID"])
+	return string(givenNamespace)
 }
