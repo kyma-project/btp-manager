@@ -36,7 +36,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 	Describe("The sap-btp-manager secret exists with default values", func() {
 
 		When("the secret has original unchanged values", func() {
-			It("should install chart successfully and survive resource reconciliation", func() {
+			It("should install chart successfully and survive resource reconciliation with no changes", func() {
 				btpManagerSecret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
 
@@ -48,14 +48,15 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
 
-				reconciler.reconcileResources(ctx, btpManagerSecret)
-				//Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+				reconciler.reconcileResources(ctx, btpManagerSecret) // nothing to reconcile
+				Eventually(updateCh).ShouldNot(Receive())
+
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
 			})
 		})
 
-		When("the required secret has cluster_id changed", func() {
+		When("the required secret has CLUSTER_ID changed", func() {
 			It("should reconcile and change value in config", func() {
 				btpManagerSecret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
@@ -76,7 +77,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			})
 		})
 
-		When("the required secret has managementNamespace changed", func() {
+		When("the required secret has MANAGEMENT_NAMESPACE changed", func() {
 			It("should reconcile and change value in config and change location of operator secret", func() {
 				btpManagerSecret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
@@ -97,12 +98,13 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			})
 		})
 
-		When("the required secret has credentials changed", func() {
-			It("should reconcile and change the values in the operator secret", func() {
+		When("the required secret has client_id changed", func() {
+			It("should reconcile and change the client_id value in the operator secret", func() {
 				btpManagerSecret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
 
 				btpManagerSecret.Data["CLIENT_ID"] = []byte("new_clientid")
+
 				Expect(k8sClient.Patch(ctx, btpManagerSecret, client.Apply, client.ForceOwnership, client.FieldOwner("user"))).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				btpServiceOperatorDeployment := &appsv1.Deployment{}
@@ -115,6 +117,31 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespace), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespace)
+			})
+		})
+
+		When("the required secret has client_id, CLUSTER_ID, MANAGEMENT_NAMESPACE changed", func() {
+			It("should reconcile and change the client_id value in the operator secret placed in new location and change CLUSTER_ID in the config", func() {
+				btpManagerSecret, err := createCorrectSecretFromYaml()
+				Expect(err).To(BeNil())
+
+				btpManagerSecret.Data["CLIENT_ID"] = []byte("brand_new_clientid")
+				btpManagerSecret.Data["CLUSTER_ID"] = []byte("brand_new_cluster_id")
+				btpManagerSecret.Data["MANAGEMENT_NAMESPACE"] = []byte(managementNamespace)
+
+				Expect(k8sClient.Patch(ctx, btpManagerSecret, client.Apply, client.ForceOwnership, client.FieldOwner("user"))).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+				btpServiceOperatorDeployment := &appsv1.Deployment{}
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+
+				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespace), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+				expectConfigMapToHave(getOperatorConfigMap(), "brand_new_cluster_id", managementNamespace)
+
+				reconciler.reconcileResources(ctx, btpManagerSecret)
+
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespace), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+				expectConfigMapToHave(getOperatorConfigMap(), "brand_new_cluster_id", managementNamespace)
 			})
 		})
 	})
