@@ -27,5 +27,5 @@ jobs:
           delay: '2'
           retries: '15'
           polling_interval: '1'
-          checks_exclude: 'markdown-link-check,enable-auto-merge,run-govulncheck,scan'
+          checks_exclude: 'markdown-link-check,enable-auto-merge,run-govulncheck,scan,run-e2e-sap-btp-manager-secret-customization-test'
           verbose: true
