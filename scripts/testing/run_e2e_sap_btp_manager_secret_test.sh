@@ -63,7 +63,7 @@ do
     echo "timed out after ${TIMEOUT}s" && exit 1
   fi
   if ! ${SAP_BTP_OPERATOR_SECRET_CHANGED}; then
-    if ! kubectl get secret -n ${MANAGEMENT_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME}; then
+    if [[ $(kubectl get secret -n ${MANAGEMENT_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME}) -eq 0 ]]; then
       echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret exists in ${MANAGEMENT_NAMESPACE} namespace"
       SAP_BTP_OPERATOR_SECRET_CHANGED=true
     fi
