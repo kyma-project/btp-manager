@@ -9,7 +9,7 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-echo -e "\n--- SAP BTP Manager secret customization test ---"
+echo -e "\n--- BTP Manager secret customization test ---"
 
 # Set environment variables
 ## Resources names
@@ -148,7 +148,7 @@ echo -e "\n--- SAP BTP service operator secrets and configmap reconciliation suc
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
-echo -e "\n--- SAP BTP Manager secret customization succeeded!"
+echo -e "\n--- BTP Manager secret customization succeeded!"
 
 echo -e "\n--- Uninstalling..."
 

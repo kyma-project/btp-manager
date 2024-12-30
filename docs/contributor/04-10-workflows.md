@@ -42,9 +42,9 @@ This [workflow](/.github/workflows/auto-merge.yaml) enables the auto-merge funct
 
 This [workflow](/.github/workflows/pr-checks.yaml) checks if all jobs, except those excluded in the workflow configuration, have passed.
 
-## E2E SAP BTP Manager Secret Customization Test Workflow
+## E2E BTP Manager Secret Customization Test Workflow
 
-The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) runs the E2E SAP BTP Manager secret customization tests by calling the [reusable workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml).
+The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) runs the E2E BTP Manager secret customization tests by calling the [reusable workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml).
 
 ## Reusable Workflows
 
@@ -55,11 +55,11 @@ There are reusable workflows created. Anyone with access to a reusable workflow 
 This [workflow](/.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3s cluster. 
 You pass the following parameters from the calling workflow:
 
-| Parameter name  | Required | Description                                                          |
-| ------------- | ------------- |----------------------------------------------------------------------|
-| **image-repo**  | yes  | binary image registry reference                                      |
-| **image-tag**  | yes  | binary image tag                                                     |
-| **last-k3s-versions**  | no  | number of most recent k3s versions to be used for tests, default = `1` |
+| Parameter name        | Required | Description                                                            |
+|-----------------------|----------|------------------------------------------------------------------------|
+| **image-repo**        | yes      | Binary image registry reference                                        |
+| **image-tag**         | yes      | Binary image tag                                                       |
+| **last-k3s-versions** | no       | Number of most recent k3s versions to be used for tests, default = `1` |
 
 
 The workflow:
@@ -80,18 +80,18 @@ The workflow:
 - Sets up the Go environment
 - Invokes `make test`
 
-### E2E SAP BTP Manager Secret Customization Test
+### E2E BTP Manager Secret Customization Test
 
-The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) runs the E2E SAP BTP Manager secret customization test on the k3s cluster.
+The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) runs the E2E BTP Manager secret customization test on the k3s cluster.
 The following parameters are required from the calling workflow:
 
 | Parameter name     | Required | Description                     |
 |--------------------|----------|---------------------------------|
-| **image-registry** | yes      | binary image registry reference |
-| **image-tag**      | yes      | binary image tag                |
+| **image-registry** | yes      | Binary image registry reference |
+| **image-tag**      | yes      | Binary image tag                |
 
-The workflow:
+The workflow performs the following actions:
 - Prepares the k3s cluster with the Docker registry
 - Waits for the binary image to be ready in the registry
 - Installs the module
-- Runs the E2E SAP BTP Manager secret customization test on the cluster
+- Runs the E2E BTP Manager secret customization test on the cluster
