@@ -21,8 +21,6 @@ IMG ?= $(IMG_REGISTRY)/btp-manager:$(MODULE_VERSION)
 
 COMPONENT_CLI_VERSION ?= latest
 
-
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -74,8 +72,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run tests.
 	@. ./scripts/testing/set-env-vars.sh; \
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
-	# remove GINKGO_LABEL_FILTER setting just after test are ready to be run
-	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then GINKGO_LABEL_FILTER='!customization' $(GINKGO) controllers; else GINKGO_LABEL_FILTER='!customization' $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
+	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
 
 .PHONY: test-docs
 test-docs:
