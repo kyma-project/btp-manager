@@ -145,6 +145,13 @@ type BtpOperatorReconciler struct {
 	instanceBindingService InstanceBindingSerivce
 }
 
+type ResourceReadiness struct {
+	Name      string
+	Namespace string
+	Kind      string
+	Ready     bool
+}
+
 func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
@@ -180,9 +187,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	defer func() { r.workqueueSize -= 1 }()
 
 	logger := log.FromContext(ctx)
-
-	//TODO remove
-	logger.Info(fmt.Sprintf("Reconcile called for %v", req))
 
 	reconcileCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
@@ -618,41 +622,24 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
-	resourcesReadinessInformer := make(chan bool, numOfResources)
-	allReadyInformer := make(chan bool, 1)
+	resourcesReadinessInformer := make(chan ResourceReadiness, numOfResources)
 	for _, u := range us {
-		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
-	}
-	go func(c chan bool) {
-		timeout := time.After(ReadyTimeout)
-		for i := 0; i < numOfResources; i++ {
-			select {
-			case <-resourcesReadinessInformer:
-				continue
-			case <-timeout:
-				return
-			}
+		if u.GetKind() == deploymentKind {
+			go r.checkDeploymentReadiness(ctx, u, resourcesReadinessInformer)
+			continue
 		}
-		allReadyInformer <- true
-	}(resourcesReadinessInformer)
-	select {
-	case <-allReadyInformer:
-		return nil
-	case <-time.After(ReadyTimeout):
-		return errors.New("resources readiness timeout reached")
+		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
 	}
+
+	for i := 0; i < numOfResources; i++ {
+		if resourceReady := <-resourcesReadinessInformer; !resourceReady.Ready {
+			return fmt.Errorf("%s %s in namespace %s readiness timeout reached", resourceReady.Kind, resourceReady.Name, resourceReady.Namespace)
+		}
+	}
+	return nil
 }
 
-func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
-	switch u.GetKind() {
-	case deploymentKind:
-		r.checkDeploymentReadiness(ctx, u, c)
-	default:
-		r.checkResourceExistence(ctx, u, c)
-	}
-}
-
-func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -664,6 +651,12 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
+			c <- ResourceReadiness{
+				Name:      u.GetName(),
+				Namespace: u.GetNamespace(),
+				Kind:      u.GetKind(),
+				Ready:     false,
+			}
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
@@ -675,14 +668,14 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				}
 			}
 			if progressingConditionStatus == "True" && availableConditionStatus == "True" {
-				c <- true
+				c <- ResourceReadiness{Ready: true}
 				return
 			}
 		}
 	}
 }
 
-func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -694,10 +687,16 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
+			c <- ResourceReadiness{
+				Name:      u.GetName(),
+				Namespace: u.GetNamespace(),
+				Kind:      u.GetKind(),
+				Ready:     false,
+			}
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
-			c <- true
+			c <- ResourceReadiness{Ready: true}
 			return
 		}
 	}
@@ -1267,6 +1266,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
+		Watches(
+			&appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			builder.WithPredicates(r.watchDeploymentPredicates()),
+		).
 		Complete(r)
 }
 
@@ -1342,6 +1346,43 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate
 				return false
 			}
 			return predicateIfReconcile(oldSecret)
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			obj := e.Object.(*appsv1.Deployment)
+			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			obj := e.Object.(*appsv1.Deployment)
+			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newObj := e.ObjectNew.(*appsv1.Deployment)
+			oldObj := e.ObjectOld.(*appsv1.Deployment)
+			if !(newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace) {
+				return false
+			}
+			var newAvailableConditionStatus, newProgressingConditionStatus string
+			for _, condition := range newObj.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					newProgressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					newAvailableConditionStatus = string(condition.Status)
+				}
+			}
+			var oldAvailableConditionStatus, oldProgressingConditionStatus string
+			for _, condition := range oldObj.Status.Conditions {
+				if string(condition.Type) == deploymentProgressingConditionType {
+					oldProgressingConditionStatus = string(condition.Status)
+				} else if string(condition.Type) == deploymentAvailableConditionType {
+					oldAvailableConditionStatus = string(condition.Status)
+				}
+			}
+			return newAvailableConditionStatus != oldAvailableConditionStatus || newProgressingConditionStatus != oldProgressingConditionStatus
 		},
 	}
 }
