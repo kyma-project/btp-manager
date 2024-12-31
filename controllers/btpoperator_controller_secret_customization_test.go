@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	. "github.com/onsi/ginkgo/v2"
