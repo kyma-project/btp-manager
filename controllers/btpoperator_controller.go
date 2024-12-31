@@ -101,6 +101,11 @@ const (
 	btpOperatorServiceBinding  = "ServiceBinding"
 )
 
+const (
+	managerSecretClusterIdKey  = "cluster_id"
+	operatorSecretClusterIdKey = "INITIAL_CLUSTER_ID"
+)
+
 var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
@@ -116,22 +121,35 @@ var (
 )
 
 var (
-	CaSecret                       = "ca-server-cert"
-	WebhookSecret                  = "webhook-server-cert"
-	CaCertificateExpiration        = time.Hour * 87600 // 10 years
-	WebhookCertificateExpiration   = time.Hour * 8760  // 1 year
-	ExpirationBoundary             = time.Hour * -168  // 1 week
-	CaSecretDataPrefix             = "ca"
-	WebhookSecretDataPrefix        = "tls"
-	CertificatePostfix             = "crt"
-	RsaKeyPostfix                  = "key"
-	MutatingWebhookConfiguration   = "MutatingWebhookConfiguration"
-	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
+	CaSecret                        = "ca-server-cert"
+	WebhookSecret                   = "webhook-server-cert"
+	CaCertificateExpiration         = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration    = time.Hour * 8760  // 1 year
+	ExpirationBoundary              = time.Hour * -168  // 1 week
+	CaSecretDataPrefix              = "ca"
+	WebhookSecretDataPrefix         = "tls"
+	CertificatePostfix              = "crt"
+	RsaKeyPostfix                   = "key"
+	MutatingWebhookConfiguration    = "MutatingWebhookConfiguration"
+	ValidatingWebhookConfiguration  = "ValidatingWebhookConfiguration"
+	clusterIdKeyConfigMap           = "CLUSTER_ID"
+	clusterIdSecretKey              = "INITIAL_CLUSTER_ID"
+	sapBtpManagerSecretClusterIdKey = "cluster_id"
+	clusterIdSecretName             = "sap-btp-operator-clusterid"
+	clusterIdCheckTimeout           = time.Second * 30
+)
+
+var (
+	requiredSecretKeys = []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
 )
 
 type InstanceBindingSerivce interface {
 	DisableSISBController()
 	EnableSISBController()
+}
+
+type SecretWatchedData struct {
+	clusterId []byte
 }
 
 // BtpOperatorReconciler reconciles a BtpOperator object
@@ -143,6 +161,8 @@ type BtpOperatorReconciler struct {
 	workqueueSize          int
 	metrics                *metrics.Metrics
 	instanceBindingService InstanceBindingSerivce
+	secretWatchedData      SecretWatchedData
+	operatorRestar         bool
 }
 
 type ResourceReadiness struct {
@@ -397,8 +417,7 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 	missingKeys := make([]string, 0)
 	missingValues := make([]string, 0)
 	errs := make([]string, 0)
-	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
-	for _, key := range requiredKeys {
+	for _, key := range requiredSecretKeys {
 		value, exists := secret.Data[key]
 		if !exists {
 			missingKeys = append(missingKeys, key)
@@ -511,6 +530,24 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
+	logger.Info("waiting for applying sap-btp-manager change")
+	if err = r.recconcileMgrSecret(ctx, &logger); err != nil {
+		logger.Error(err, "while handling sap-btp-manager change")
+		return fmt.Errorf("failed to getDependedResourcesForSecretChange sap-btp-manager change: %w", err)
+	}
+
+	if r.operatorRestar {
+		err := r.restartDeployment(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = r.waitForOperatoManagedResources(ctx, &logger)
+		if err != nil {
+			return err
+		}
+	}
+
 	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
@@ -546,7 +583,7 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	r.addLabels(chartVer, resourcesToApply...)
 	r.setNamespace(resourcesToApply...)
 
-	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+	if err := r.setConfigMapValues(ctx, s, (resourcesToApply)[configMapIndex], logger); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
@@ -583,16 +620,50 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 	}
 }
 
-func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
+func (r *BtpOperatorReconciler) setConfigMapValues(ctx context.Context, secret *corev1.Secret, u *unstructured.Unstructured, logger logr.Logger) error {
+	err := unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
+	namespace, err := r.resolveNamespace(ctx, &logger)
+	if err != nil {
+		return err
+	}
+	value, found, err := unstructured.NestedFieldCopy(u.Object, "data", "MANAGEMENT_NAMESPACE")
+	if err != nil {
+		return err
+	}
+	if namespace != value || !found {
+		err = unstructured.SetNestedField(u.Object, namespace, "data", "MANAGEMENT_NAMESPACE")
+		err = unstructured.SetNestedField(u.Object, namespace, "data", "RELEASE_NAMESPACE")
+		r.operatorRestar = true
+	}
+
+	return err
 }
 
-func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	for k := range secret.Data {
-		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
-			return err
+func (r *BtpOperatorReconciler) setSecretValues(managerSecret *corev1.Secret, target *unstructured.Unstructured) error {
+	var operatorRestar bool
+	for mgrDataVal := range managerSecret.Data {
+		for _, acceptKey := range requiredSecretKeys {
+			if strings.EqualFold(mgrDataVal, acceptKey) {
+				value, found, err := unstructured.NestedFieldNoCopy(target.Object, "data", mgrDataVal)
+				if err != nil {
+					return err
+				}
+				valueStr, ok := value.(string)
+				if !ok && valueStr != "" {
+					return fmt.Errorf("value %s is not a string", valueStr)
+				}
+				if strings.EqualFold(valueStr, string(managerSecret.Data["cluster_id"])) || !found {
+					if err := unstructured.SetNestedField(target.Object, base64.StdEncoding.EncodeToString(managerSecret.Data[mgrDataVal]), "data", mgrDataVal); err != nil {
+						return err
+					}
+					if !operatorRestar {
+						operatorRestar = true
+					}
+				}
+			}
 		}
 	}
+	r.operatorRestar = operatorRestar
 	return nil
 }
 
@@ -675,7 +746,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	}
 }
 
-func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
+func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness, timeout time.Duration) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -685,7 +756,7 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	got := &unstructured.Unstructured{}
 	got.SetGroupVersionKind(u.GroupVersionKind())
 	for {
-		if time.Since(now) >= ReadyTimeout {
+		if time.Since(now) >= timeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
 			c <- ResourceReadiness{
 				Name:      u.GetName(),
@@ -1862,7 +1933,7 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName string, certificate, privateKey []byte, prefix string, resourcesToApply *[]*unstructured.Unstructured) error {
 	data := r.mapCertToSecretData(certificate, privateKey, r.buildKeyNameWithExtension(prefix, CertificatePostfix), r.buildKeyNameWithExtension(prefix, RsaKeyPostfix))
 
-	secret := r.buildSecretWithDataAndLabels(certName, data, map[string]string{managedByLabelKey: operatorName})
+	secret := r.buildSecretWithDataAndLabels(certName, ChartNamespace, data, map[string]string{managedByLabelKey: operatorName})
 
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
 	if err != nil {
@@ -2043,19 +2114,27 @@ func (r *BtpOperatorReconciler) getValueByKey(key string, data map[string][]byte
 	return value, nil
 }
 
-func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data map[string][]byte, labels map[string]string) *corev1.Secret {
-	return &corev1.Secret{
+func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name, namespace string, data map[string][]byte, labels map[string]string) *corev1.Secret {
+	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: ChartNamespace,
-			Labels:    labels,
+			Namespace: namespace,
 		},
-		Data: data,
 	}
+
+	if labels != nil {
+		secret.Labels = labels
+	}
+
+	if data != nil {
+		secret.Data = data
+	}
+
+	return secret
 }
 
 func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, logger *logr.Logger) {
@@ -2069,4 +2148,132 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	if err := r.reconcileResources(ctx, secret); err != nil {
 		logger.Error(err, "resources reconciliation failed")
 	}
+}
+
+func (r *BtpOperatorReconciler) recconcileMgrSecret(ctx context.Context, logger *logr.Logger) error {
+	logger.Info("handling SAP BTP Manager change")
+	var err error
+
+	sapBtpSecret := r.buildSecretWithDataAndLabels(SecretName, ChartNamespace, nil, nil)
+	err = r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: SecretName}, sapBtpSecret)
+	if err != nil {
+		return fmt.Errorf("failed to get secret %s in %s : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
+	}
+	clusterIdSecretNamespace, err := r.resolveNamespace(ctx, logger)
+	if err != nil {
+		return fmt.Errorf("failed to resolve namespace: %w", err)
+	}
+	clusterIdSecret := r.buildSecretWithDataAndLabels(clusterIdSecretName, clusterIdSecretNamespace, nil, nil)
+	clusterIdUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(clusterIdSecret)
+	clusterIdUnstructuredObj := &unstructured.Unstructured{Object: clusterIdUnstructured}
+	if err != nil {
+		return fmt.Errorf("failed to secret: %s in %s to unstructred : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
+	}
+
+	expectedClusterId, err := r.managerSecretClusterId(clusterIdSecret)
+	if err != nil {
+		return err
+	}
+	actualClusterId, err := r.operatorSecretClusterId(sapBtpSecret)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("expectedClusterId", "expectedClusterId", expectedClusterId)
+	logger.Info("actualClusterId", "actualClusterId", actualClusterId)
+
+	if strings.EqualFold(expectedClusterId, actualClusterId) {
+		logger.Info("clusterId not changed")
+		return nil
+	}
+
+	err = r.Delete(ctx, clusterIdSecret, &client.DeleteOptions{})
+	defer func() {
+		r.operatorRestar = true
+	}()
+	if err != nil {
+		return fmt.Errorf("failed to get secret %s in %s : %s \n", clusterIdUnstructuredObj.GetName(), clusterIdUnstructuredObj.GetNamespace(), err.Error())
+	}
+	logger.Info("secret deleted", "name", clusterIdUnstructuredObj.GetName())
+	return nil
+}
+
+func (r *BtpOperatorReconciler) waitForOperatoManagedResources(ctx context.Context, logger *logr.Logger) error {
+	logger.Info("checking if resources are in sync")
+
+	clusterIdNamespace, err := r.resolveNamespace(ctx, logger)
+	if err != nil {
+		return fmt.Errorf("failed to resolve namespace: %w", err)
+	}
+
+	clusterIdSecret := r.buildSecretWithDataAndLabels(clusterIdSecretName, clusterIdNamespace, nil, nil)
+	clusterIdUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(clusterIdSecret)
+	clusterIdUnstructuredObj := &unstructured.Unstructured{Object: clusterIdUnstructured}
+	if err != nil {
+		return fmt.Errorf("failed to secret: %s in %s to unstructred : %s \n", clusterIdSecret.GetName(), clusterIdSecret.GetNamespace(), err.Error())
+	}
+
+	clusterIdSecretExist := make(chan bool)
+	go r.checkResourceExistence(ctx, clusterIdUnstructuredObj, ResourceReadiness{}, clusterIdCheckTimeout)
+	ok := <-clusterIdSecretExist
+	if !ok {
+		return fmt.Errorf("failed to check resource of %s existence", clusterIdUnstructuredObj.GetName())
+	}
+	logger.Info("clusterId secret exists")
+	return nil
+}
+
+func (r *BtpOperatorReconciler) restartDeployment(ctx context.Context) error {
+	deployment := appsv1.Deployment{}
+	err := r.Client.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: DeploymentName}, &deployment)
+	if err != nil {
+		return fmt.Errorf("failed to get deployment, %w", err)
+	}
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+	err = r.Client.Update(ctx, &deployment)
+	if err != nil {
+		return fmt.Errorf("failed to update deployment scale, %w", err)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context, log *logr.Logger) (string, error) {
+	sapBtpSecret := r.buildSecretWithDataAndLabels(SecretName, ChartNamespace, nil, nil)
+	err := r.Get(ctx, client.ObjectKeyFromObject(sapBtpSecret), sapBtpSecret)
+	if err != nil {
+		return "", fmt.Errorf("failed to get secret %s in %s : %s \n", sapBtpSecret.GetName(), sapBtpSecret.GetNamespace(), err.Error())
+	}
+
+	namespace := string(sapBtpSecret.Data["management_namespace"])
+	if namespace == "" {
+		namespace = ChartNamespace
+	}
+	log.Info("namespace resolved to: ", "namespace", namespace)
+	return namespace, err
+}
+
+func (r *BtpOperatorReconciler) managerSecretClusterId(mgrSecret *corev1.Secret) (string, error) {
+	if mgrSecret == nil {
+		err := r.Get(context.Background(), client.ObjectKeyFromObject(mgrSecret), mgrSecret)
+		if err != nil {
+			return "", fmt.Errorf("failed to get secret %s in %s : %s \n", mgrSecret.GetName(), mgrSecret.GetNamespace(), err.Error())
+		}
+	}
+	bytes := mgrSecret.Data[managerSecretClusterIdKey]
+	return string(bytes), nil
+}
+
+func (r *BtpOperatorReconciler) operatorSecretClusterId(opSecret *corev1.Secret) (string, error) {
+	if opSecret == nil {
+		err := r.Get(context.Background(), client.ObjectKeyFromObject(opSecret), opSecret)
+		if err != nil {
+			return "", fmt.Errorf("failed to get secret %s in %s : %s \n", opSecret.GetName(), opSecret.GetNamespace(), err.Error())
+		}
+	}
+	bytes := opSecret.Data[operatorSecretClusterIdKey]
+	return string(bytes), nil
 }
