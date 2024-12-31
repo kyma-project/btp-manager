@@ -2134,6 +2134,10 @@ func (r *BtpOperatorReconciler) recconcileMgrSecret(ctx context.Context, logger 
 	if err != nil {
 		return err
 	}
+
+	logger.Info("expectedClusterId", "expectedClusterId", expectedClusterId)
+	logger.Info("actualClusterId", "actualClusterId", actualClusterId)
+
 	if strings.EqualFold(expectedClusterId, actualClusterId) {
 		logger.Info("clusterId not changed")
 		return nil
