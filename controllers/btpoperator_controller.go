@@ -531,7 +531,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 	}
 
 	logger.Info("waiting for applying sap-btp-manager change")
-	if err = r.recconcileMgrSecret(ctx, &logger); err != nil {
+	if err = r.reconcileManagerSecret(ctx, &logger); err != nil {
 		logger.Error(err, "while handling sap-btp-manager change")
 		return fmt.Errorf("failed to getDependedResourcesForSecretChange sap-btp-manager change: %w", err)
 	}
@@ -542,7 +542,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 			return err
 		}
 
-		err = r.waitForOperatoManagedResources(ctx, &logger)
+		err = r.waitForOperatorManagedResources(ctx, &logger)
 		if err != nil {
 			return err
 		}
@@ -699,7 +699,7 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 			go r.checkDeploymentReadiness(ctx, u, resourcesReadinessInformer)
 			continue
 		}
-		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
+		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer, ReadyTimeout)
 	}
 
 	for i := 0; i < numOfResources; i++ {
@@ -2150,7 +2150,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 }
 
-func (r *BtpOperatorReconciler) recconcileMgrSecret(ctx context.Context, logger *logr.Logger) error {
+func (r *BtpOperatorReconciler) reconcileManagerSecret(ctx context.Context, logger *logr.Logger) error {
 	logger.Info("handling SAP BTP Manager change")
 	var err error
 
@@ -2198,7 +2198,7 @@ func (r *BtpOperatorReconciler) recconcileMgrSecret(ctx context.Context, logger 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) waitForOperatoManagedResources(ctx context.Context, logger *logr.Logger) error {
+func (r *BtpOperatorReconciler) waitForOperatorManagedResources(ctx context.Context, logger *logr.Logger) error {
 	logger.Info("checking if resources are in sync")
 
 	clusterIdNamespace, err := r.resolveNamespace(ctx, logger)
@@ -2213,10 +2213,10 @@ func (r *BtpOperatorReconciler) waitForOperatoManagedResources(ctx context.Conte
 		return fmt.Errorf("failed to secret: %s in %s to unstructred : %s \n", clusterIdSecret.GetName(), clusterIdSecret.GetNamespace(), err.Error())
 	}
 
-	clusterIdSecretExist := make(chan bool)
-	go r.checkResourceExistence(ctx, clusterIdUnstructuredObj, ResourceReadiness{}, clusterIdCheckTimeout)
+	clusterIdSecretExist := make(chan ResourceReadiness)
+	go r.checkResourceExistence(ctx, clusterIdUnstructuredObj, clusterIdSecretExist, clusterIdCheckTimeout)
 	ok := <-clusterIdSecretExist
-	if !ok {
+	if !ok.Ready {
 		return fmt.Errorf("failed to check resource of %s existence", clusterIdUnstructuredObj.GetName())
 	}
 	logger.Info("clusterId secret exists")
