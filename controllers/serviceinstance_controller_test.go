@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
+var _ = Describe("Service Instance and Bindings controller", Label("service-instance-bindings"), Ordered, func() {
 
 	Describe("Deletion", func() {
 

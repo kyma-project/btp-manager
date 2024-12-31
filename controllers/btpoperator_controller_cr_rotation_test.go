@@ -19,7 +19,7 @@ const (
 	thirdBtpOperator  = "third"
 )
 
-var _ = Describe("BTP Operator CR leader replacement", func() {
+var _ = Describe("BTP Operator CR leader replacement", Label("certificates"), func() {
 
 	BeforeEach(func() {
 		GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
