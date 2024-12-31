@@ -118,8 +118,6 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 
 	suiteCfg.LabelFilter = os.Getenv("GINKGO_LABEL_FILTER")
 
-	//TODO remove it just after we can run customization tests
-	suiteCfg.LabelFilter = "!customization"
 	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
 }
 
