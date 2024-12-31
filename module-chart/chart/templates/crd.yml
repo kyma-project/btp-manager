@@ -732,6 +732,10 @@ spec:
                       all active users.
                     type: string
                 type: object
+              watchParametersFromChanges:
+                description: indicate instance will update on secrets from parametersFrom
+                  change
+                type: boolean
             required:
             - serviceOfferingName
             - servicePlanName
@@ -809,6 +813,9 @@ spec:
                   - type
                   type: object
                 type: array
+              forceReconcile:
+                description: if true need to update instance
+                type: boolean
               hashedSpec:
                 description: HashedSpec is the hashed spec without the shared property
                 type: string
