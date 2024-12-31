@@ -56,7 +56,9 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
 
-				reconciler.reconcileResources(ctx, btpManagerSecret) // nothing to reconcile
+				err = reconciler.reconcileResources(ctx, btpManagerSecret) // nothing to reconcile
+				Expect(err).To(BeNil())
+
 				Eventually(updateCh).ShouldNot(Receive())
 
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
@@ -78,7 +80,9 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "new_cluster_id", "kyma-system")
 
-				reconciler.reconcileResources(ctx, btpManagerSecret)
+				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				Expect(err).To(BeNil())
+
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "new_cluster_id", "kyma-system")
@@ -99,7 +103,9 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
-				reconciler.reconcileResources(ctx, btpManagerSecret)
+				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				Expect(err).To(BeNil())
+
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
@@ -121,7 +127,9 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
-				reconciler.reconcileResources(ctx, btpManagerSecret)
+				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				Expect(err).To(BeNil())
+
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
@@ -145,7 +153,8 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "brand_new_cluster_id", managementNamespaceValue)
 
-				reconciler.reconcileResources(ctx, btpManagerSecret)
+				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				Expect(err).To(BeNil())
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
