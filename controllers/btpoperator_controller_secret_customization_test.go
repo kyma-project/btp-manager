@@ -66,6 +66,17 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
 			})
 		})
+			//nothing to reconcile
+			_ = reconciler.enqueueOldestBtpOperator()
+			Expect(err).To(BeNil())
+
+			Eventually(updateCh).ShouldNot(Receive())
+
+			expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
+
+		})
+	})
 
 		When("the required secret has CLUSTER_ID changed", func() {
 			It("should reconcile and change value in config", func() {
