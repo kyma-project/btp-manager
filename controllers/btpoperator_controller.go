@@ -560,7 +560,8 @@ func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourc
 	operatorNeedRestart, err := r.verifySecretChanges(ctx, configMap, secret, managerSecret, logger)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile manager secret changes: %w", err)
-	} else if operatorNeedRestart {
+	}
+	if operatorNeedRestart {
 		logger.Info("need to restart operator")
 		logger.Info("deleting secret " + clusterIdSecretName + " to restart operator deployment")
 		err := r.deleteClusterIDSecret(ctx, logger)
