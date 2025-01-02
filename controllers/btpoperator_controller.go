@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"reflect"
 	"strconv"
@@ -101,12 +102,6 @@ const (
 	btpOperatorServiceBinding  = "ServiceBinding"
 )
 
-const (
-	managerSecretClusterIdKey  = "cluster_id"
-	operatorSecretClusterIdKey = "INITIAL_CLUSTER_ID"
-	managementNamespaceKey     = "management_namespace"
-)
-
 var (
 	bindingGvk = schema.GroupVersionKind{
 		Group:   btpOperatorGroup,
@@ -135,9 +130,15 @@ var (
 	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
 )
 
+const (
+	managerSecretClusterIdKey  = "cluster_id"
+	operatorSecretClusterIdKey = "INITIAL_CLUSTER_ID"
+	managementNamespaceKey     = "management_namespace"
+	clusterIdSecretName        = "sap-btp-operator-clusterid"
+)
+
 var (
-	clusterIdSecretName = "sap-btp-operator-clusterid"
-	requiredSecretKeys  = []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
+	requiredSecretKeys = []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
 )
 
 type InstanceBindingSerivce interface {
@@ -741,11 +742,9 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 	}
 }
 
+// consider to move into verifyConfigMap
 func (r *BtpOperatorReconciler) setConfigMapValues(managerSecret *corev1.Secret, u *unstructured.Unstructured) error {
-	if err := unstructured.SetNestedField(u.Object, string(managerSecret.Data["cluster_id"]), "data", "CLUSTER_ID"); err != nil {
-		return err
-	}
-	return nil
+	return unstructured.SetNestedField(u.Object, string(managerSecret.Data["cluster_id"]), "data", "CLUSTER_ID")
 }
 
 func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
@@ -789,7 +788,7 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 			go r.checkDeploymentReadiness(ctx, u, resourcesReadinessInformer)
 			continue
 		}
-		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer, ReadyTimeout)
+		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
 	}
 
 	for i := 0; i < numOfResources; i++ {
@@ -836,7 +835,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	}
 }
 
-func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness, timeout time.Duration) {
+func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -846,7 +845,7 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	got := &unstructured.Unstructured{}
 	got.SetGroupVersionKind(u.GroupVersionKind())
 	for {
-		if time.Since(now) >= timeout {
+		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
 			c <- ResourceReadiness{
 				Name:      u.GetName(),
@@ -922,7 +921,7 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 		}
 	}
 
-	//r.instanceBindingService.DisableSISBController()
+	r.instanceBindingService.DisableSISBController()
 
 	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
@@ -2237,17 +2236,15 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 }
 
-/*func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) error {
+func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) error {
 	clientSet, err := kubernetes.NewForConfig(r.Config)
 	if err != nil {
 		return fmt.Errorf("failed to create kubernetes clientset: %w", err)
 	}
-
 	scale, err := clientSet.AppsV1().Deployments(ChartNamespace).GetScale(ctx, DeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get deployment scale: %w", err)
 	}
-
 	originalReplicas := scale.Spec.Replicas
 	scale.Spec.Replicas = 0
 	scale, err = clientSet.AppsV1().Deployments(ChartNamespace).UpdateScale(ctx, DeploymentName, scale, metav1.UpdateOptions{})
@@ -2259,10 +2256,11 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	if err != nil {
 		return fmt.Errorf("failed to scale up deployment: %w", err)
 	}
-	GinkgoWriter.Println("--- PROCESS:", "restartOperatorDeployment()", "---")
 	return nil
-}*/
+}
 
+// v2
+/*
 func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) error {
 	operatorDeployment := appsv1.Deployment{}
 	err := r.Client.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: DeploymentName}, &operatorDeployment)
@@ -2279,7 +2277,7 @@ func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context) e
 	}
 
 	return nil
-}
+}*/
 
 func (r *BtpOperatorReconciler) resolveManagementNamespace(managerSecret *corev1.Secret, log *logr.Logger) (string, error) {
 	namespaceByte, found := managerSecret.Data["management_namespace"]
