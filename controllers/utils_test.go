@@ -690,11 +690,29 @@ func replaceSecretData(secret *corev1.Secret, key string, value []byte, key2 str
 	Expect(err).To(BeNil())
 }
 
-func getSecret(name string) *corev1.Secret {
+func getSecretFromNamespace(name, namespace string) *corev1.Secret {
 	secret := &corev1.Secret{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret)
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret)
 	Expect(err).To(BeNil())
 	return secret
+}
+
+func getSecret(name string) *corev1.Secret {
+	return getSecretFromNamespace(name, ChartNamespace)
+}
+
+func getOperatorSecret() *corev1.Secret {
+	return getSecret(btpServiceOperatorSecret)
+}
+
+func getOperatorConfigMap() *corev1.ConfigMap {
+	return getConfigMap(btpServiceOperatorConfigMap)
+}
+func getConfigMap(name string) *corev1.ConfigMap {
+	configMap := &corev1.ConfigMap{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, configMap)
+	Expect(err).To(BeNil())
+	return configMap
 }
 
 func checkHowManySecondsToExpiration(name string) float64 {
