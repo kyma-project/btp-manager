@@ -35,7 +35,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
-	. "github.com/onsi/ginkgo/v2"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -123,26 +122,22 @@ var (
 )
 
 var (
-	CaSecret                        = "ca-server-cert"
-	WebhookSecret                   = "webhook-server-cert"
-	CaCertificateExpiration         = time.Hour * 87600 // 10 years
-	WebhookCertificateExpiration    = time.Hour * 8760  // 1 year
-	ExpirationBoundary              = time.Hour * -168  // 1 week
-	CaSecretDataPrefix              = "ca"
-	WebhookSecretDataPrefix         = "tls"
-	CertificatePostfix              = "crt"
-	RsaKeyPostfix                   = "key"
-	MutatingWebhookConfiguration    = "MutatingWebhookConfiguration"
-	ValidatingWebhookConfiguration  = "ValidatingWebhookConfiguration"
-	clusterIdKeyConfigMap           = "CLUSTER_ID"
-	clusterIdSecretKey              = "INITIAL_CLUSTER_ID"
-	sapBtpManagerSecretClusterIdKey = "cluster_id"
-	clusterIdSecretName             = "sap-btp-operator-clusterid"
-	clusterIdCheckTimeout           = time.Second * 30
+	CaSecret                       = "ca-server-cert"
+	WebhookSecret                  = "webhook-server-cert"
+	CaCertificateExpiration        = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration   = time.Hour * 8760  // 1 year
+	ExpirationBoundary             = time.Hour * -168  // 1 week
+	CaSecretDataPrefix             = "ca"
+	WebhookSecretDataPrefix        = "tls"
+	CertificatePostfix             = "crt"
+	RsaKeyPostfix                  = "key"
+	MutatingWebhookConfiguration   = "MutatingWebhookConfiguration"
+	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
 )
 
 var (
-	requiredSecretKeys = []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
+	clusterIdSecretName = "sap-btp-operator-clusterid"
+	requiredSecretKeys  = []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
 )
 
 type InstanceBindingSerivce interface {
@@ -541,15 +536,12 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 }
 
 func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourcesToApply []*unstructured.Unstructured, managerSecret *corev1.Secret, logger *logr.Logger) error {
-	// on first run of btp-operator(provisioning), there will be no cluster-id secret
-	// since we will not create yet operator, thus no need to handle it
 	operator := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DeploymentName,
 			Namespace: ChartNamespace,
 		},
 	}
-	GinkgoWriter.Println("----- asdas")
 
 	if err := r.Get(ctx, client.ObjectKeyFromObject(operator), operator); err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -559,7 +551,7 @@ func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourc
 		logger.Error(err, "while getting operator deployment")
 		return fmt.Errorf("while operator deployment: %w", err)
 	}
-	GinkgoWriter.Println("----- dsad")
+
 	configMapIndex, secretIndex := r.GetConfigMapAndSecretIndexes(resourcesToApply)
 	configMap := resourcesToApply[configMapIndex]
 	secret := resourcesToApply[secretIndex]
@@ -568,13 +560,15 @@ func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourc
 	if err != nil {
 		return fmt.Errorf("failed to reconcile manager secret changes: %w", err)
 	} else if operatorNeedRestart {
-		logger.Info("restarting operator deployment")
+		logger.Info("need to restart operator")
+		logger.Info("deleting secret " + clusterIdSecretName + " to restart operator deployment")
 		err := r.deleteClusterIDSecret(ctx, logger)
 		if err != nil {
 			return fmt.Errorf("failed to delete secret %s : %w", clusterIdSecretName, err)
 		}
-		logger.Info("operator deployment restarted")
+		logger.Info("secret " + clusterIdSecretName + " deleted")
 
+		logger.Info("restarting operator deployment")
 		if err := r.restartOperatorDeployment(ctx); err != nil {
 			return fmt.Errorf("failed to restart operator deployment: %w", err)
 		}
@@ -584,69 +578,74 @@ func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourc
 }
 
 func (r *BtpOperatorReconciler) verifySecretChanges(ctx context.Context, futureConfigMap, secret *unstructured.Unstructured, managerSecret *corev1.Secret, logger *logr.Logger) (bool, error) {
-	secretManagementNamespace, err := r.resolveManagementNamespace(managerSecret, logger)
-
-	secret.SetNamespace(secretManagementNamespace)
-
+	managementNamespace, err := r.resolveManagementNamespace(managerSecret, logger)
 	if err != nil {
 		return false, fmt.Errorf("failed to resolve management namespace: %w", err)
 	}
 
 	selectedNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: secretManagementNamespace,
+			Name: managementNamespace,
 		},
 	}
 	err = r.Get(ctx, client.ObjectKeyFromObject(selectedNamespace), selectedNamespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("management namespace not found", "namespace", secretManagementNamespace)
+			logger.Info("namespace not found. creating.", "namespace", managementNamespace)
 			if err := r.Create(ctx, selectedNamespace); err != nil {
-				return false, err
+				return false, fmt.Errorf("failed to create namespace %s: %w", managementNamespace, err)
 			}
+			logger.Info("namespace created", "namespace", managementNamespace)
 		}
 		return false, err
 	}
 
-	configMap := corev1.ConfigMap{
+	logger.Info(fmt.Sprintf("setting namespace of %s secret to %s", clusterIdSecretName, managementNamespace))
+	secret.SetNamespace(managementNamespace)
+
+	currentConfigMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      btpServiceOperatorConfigMap,
 			Namespace: ChartNamespace,
 		},
 	}
-
-	// replace the management namespace of sap-btp-service-operator config map with the namespace of sap-btp-manager secret
-	/*var namespaceChanged bool
-	configMapManagementNamespace, ok := configMap.Data[managementNamespaceKey]
-	if ok {
-		namespaceChanged = secretManagementNamespace != configMapManagementNamespace
-		if namespaceChanged {
-			if err := unstructured.SetNestedField(futureConfigMap.Object, secretManagementNamespace, "data", "MANAGEMENT_NAMESPACE"); err != nil {
-				return false, err
-			}
-		}
+	err = r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap)
+	if err != nil {
+		return false, fmt.Errorf("failed to get config map %s: %w", btpServiceOperatorConfigMap, err)
 	}
-	if !ok {
-		if err := unstructured.SetNestedField(futureConfigMap.Object, secretManagementNamespace, "data", "MANAGEMENT_NAMESPACE"); err != nil {
-			return false, err
-		}
-	}
-	logger.Info("is namespace changed?", "changed", namespaceChanged)*/
 
-	GinkgoWriter.Println("----- futureConfigMap.Object ------", secretManagementNamespace)
-	if err := unstructured.SetNestedField(futureConfigMap.Object, secretManagementNamespace, "data", "MANAGEMENT_NAMESPACE"); err != nil {
+	configMapUpdated, err := r.verifyConfigMap(&currentConfigMap, managementNamespace, futureConfigMap)
+	if err != nil {
 		return false, err
 	}
 
-	// change namespace of sap-btp-service-operator secret before apply
-	secretMismatch, err := r.verifySecretsIntegrity(managerSecret, &configMap, logger)
+	secretsValuesMismatch, err := r.verifySecretsIntegrity(managerSecret, &currentConfigMap, logger)
 	if err != nil {
 		logger.Error(err, "while checking cluster id secret integrity")
 		return false, fmt.Errorf("while checking cluster id secret integrity: %w", err)
 	}
-	logger.Info("is clusterId changed", "changed", secretMismatch)
+	logger.Info("is clusterId changed", "changed", secretsValuesMismatch)
 
-	return secretMismatch, nil
+	return secretsValuesMismatch || configMapUpdated, nil
+}
+
+func (r *BtpOperatorReconciler) verifyConfigMap(currentConfigMap *corev1.ConfigMap, managementNamespace string, futureConfigMap *unstructured.Unstructured) (bool, error) {
+	configMapManagementNamespace, ok := currentConfigMap.Data[managementNamespaceKey]
+	if ok {
+		if managementNamespace != configMapManagementNamespace {
+			if err := unstructured.SetNestedField(futureConfigMap.Object, managementNamespace, "data", "MANAGEMENT_NAMESPACE"); err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+	}
+	if !ok {
+		if err := unstructured.SetNestedField(futureConfigMap.Object, managementNamespace, "data", "MANAGEMENT_NAMESPACE"); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 func (r *BtpOperatorReconciler) deleteClusterIDSecret(ctx context.Context, logger *logr.Logger) error {
