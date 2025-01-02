@@ -90,7 +90,6 @@ func main() {
 		LeaderElectionID:       "ec023d38.kyma-project.io",
 		Metrics:                server.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
-		NewCache:               controllers.CacheCreator,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

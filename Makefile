@@ -19,7 +19,7 @@ IMG_REGISTRY_PORT ?= 5000
 IMG_REGISTRY ?= ukff/btpmgr
 IMG ?= $(IMG_REGISTRY):latest
 
-GINKGO_LABEL_FILTER ?= '!customization'
+GINKGO_LABEL_FILTER ?= 'customization'
 
 COMPONENT_CLI_VERSION ?= latest
 
