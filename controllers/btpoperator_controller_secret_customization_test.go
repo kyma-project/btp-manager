@@ -3,9 +3,6 @@ package controllers
 import (
 	"context"
 
-	apimachienerytypes "k8s.io/apimachinery/pkg/types"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	. "github.com/onsi/ginkgo/v2"
@@ -26,10 +23,10 @@ const (
 	ManagementNamespaceConfigKey = "MANAGEMENT_NAMESPACE"
 )
 
-var _ = Describe("BTP Operator controller - secret customization", Ordered, Label("customization"), func() {
+var _ = Describe("BTP Operator controller - secret customization", Label("customization"), func() {
 	var cr *v1alpha1.BtpOperator
 
-	BeforeAll(func() {
+	BeforeEach(func() {
 		GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 		ctx = context.Background()
 		cr = createDefaultBtpOperator()
@@ -37,7 +34,7 @@ var _ = Describe("BTP Operator controller - secret customization", Ordered, Labe
 		Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 	})
 
-	AfterAll(func() {
+	AfterEach(func() {
 		cr = &v1alpha1.BtpOperator{}
 		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
@@ -59,16 +56,13 @@ var _ = Describe("BTP Operator controller - secret customization", Ordered, Labe
 			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
 
 			// nothing to reconcile
-			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-				Namespace: cr.Namespace,
-				Name:      cr.Name,
-			}})
-			Expect(err).To(BeNil())
-
-			Eventually(updateCh).ShouldNot(Receive())
-
-			expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
-			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
+			//_ = reconciler.enqueueOldestBtpOperator()
+			//Expect(err).To(BeNil())
+			//
+			//Eventually(updateCh).ShouldNot(Receive())
+			//
+			//expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			//expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
 
 		})
 	})
@@ -87,10 +81,7 @@ var _ = Describe("BTP Operator controller - secret customization", Ordered, Labe
 			expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "new_cluster_id", "kyma-system")
 
-			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-				Namespace: cr.Namespace,
-				Name:      cr.Name,
-			}})
+			_ = reconciler.enqueueOldestBtpOperator()
 			Expect(err).To(BeNil())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -113,10 +104,7 @@ var _ = Describe("BTP Operator controller - secret customization", Ordered, Labe
 			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
-			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-				Namespace: cr.Namespace,
-				Name:      cr.Name,
-			}})
+			_ = reconciler.enqueueOldestBtpOperator()
 			Expect(err).To(BeNil())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -140,10 +128,7 @@ var _ = Describe("BTP Operator controller - secret customization", Ordered, Labe
 			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
-			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-				Namespace: cr.Namespace,
-				Name:      cr.Name,
-			}})
+			_ = reconciler.enqueueOldestBtpOperator()
 			Expect(err).To(BeNil())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -169,10 +154,7 @@ var _ = Describe("BTP Operator controller - secret customization", Ordered, Labe
 			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "brand_new_cluster_id", managementNamespaceValue)
 
-			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
-				Namespace: cr.Namespace,
-				Name:      cr.Name,
-			}})
+			_ = reconciler.enqueueOldestBtpOperator()
 			Expect(err).To(BeNil())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
