@@ -688,7 +688,7 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	}
 
 	r.addLabels(chartVer, resourcesToApply...)
-	r.setCommonNamespace(resourcesToApply...)
+	r.setNamespace(resourcesToApply...)
 
 	configMapIndex, secretIndex := r.GetConfigMapAndSecretIndexes(resourcesToApply)
 	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
@@ -730,7 +730,7 @@ func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.U
 	}
 }
 
-func (r *BtpOperatorReconciler) setCommonNamespace(us ...*unstructured.Unstructured) {
+func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
 	for _, u := range us {
 		u.SetNamespace(ChartNamespace)
 	}
