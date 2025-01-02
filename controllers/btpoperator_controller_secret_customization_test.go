@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	apimachienerytypes "k8s.io/apimachinery/pkg/types"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/conditions"
@@ -57,7 +59,11 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", "kyma-system")
 
-				err = reconciler.reconcileResources(ctx, btpManagerSecret) // nothing to reconcile
+				// nothing to reconcile
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
 				Expect(err).To(BeNil())
 
 				Eventually(updateCh).ShouldNot(Receive())
@@ -81,7 +87,10 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getOperatorSecret(), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "new_cluster_id", "kyma-system")
 
-				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
 				Expect(err).To(BeNil())
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -104,7 +113,10 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
-				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
 				Expect(err).To(BeNil())
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -128,7 +140,10 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
-				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
 				Expect(err).To(BeNil())
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -154,7 +169,10 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 				expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 				expectConfigMapToHave(getOperatorConfigMap(), "brand_new_cluster_id", managementNamespaceValue)
 
-				err = reconciler.reconcileResources(ctx, btpManagerSecret)
+				_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
+					Namespace: cr.Namespace,
+					Name:      cr.Name,
+				}})
 				Expect(err).To(BeNil())
 
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
