@@ -702,7 +702,7 @@ func getSecret(name string) *corev1.Secret {
 }
 
 func getOperatorSecret() *corev1.Secret {
-	return getSecretFromNamespace(btpServiceOperatorSecret, ChartNamespace)
+	return getSecret(btpServiceOperatorSecret)
 }
 
 func getOperatorConfigMap() *corev1.ConfigMap {
