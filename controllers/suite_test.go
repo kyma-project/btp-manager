@@ -117,6 +117,7 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 	}
 
 	suiteCfg.LabelFilter = os.Getenv("GINKGO_LABEL_FILTER")
+
 	fmt.Printf("Labels [%s]\n", suiteCfg.LabelFilter)
 }
 
