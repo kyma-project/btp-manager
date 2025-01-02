@@ -19,8 +19,6 @@ IMG_REGISTRY_PORT ?= 5001
 IMG_REGISTRY ?= k3d-kyma-registry:$(IMG_REGISTRY_PORT)
 IMG ?= $(IMG_REGISTRY)/btp-manager:$(MODULE_VERSION)
 
-GINKGO_LABEL_FILTER ?= '!customization'
-
 COMPONENT_CLI_VERSION ?= latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -74,7 +72,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run tests.
 	@. ./scripts/testing/set-env-vars.sh; \
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
-	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then GINKGO_LABEL_FILTER=$(GINKGO_LABEL_FILTER) $(GINKGO) controllers; else GINKGO_LABEL_FILTER=$(GINKGO_LABEL_FILTER) $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
+	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
 
 .PHONY: test-docs
 test-docs:
