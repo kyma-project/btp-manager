@@ -537,13 +537,13 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 }
 
 func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourcesToApply []*unstructured.Unstructured, managerSecret *corev1.Secret, logger *logr.Logger) error {
+	// this is first scenario when provisoning. We cannot restart operator deployment here since resources are not yet applied
 	operator := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DeploymentName,
 			Namespace: ChartNamespace,
 		},
 	}
-
 	if err := r.Get(ctx, client.ObjectKeyFromObject(operator), operator); err != nil {
 		if k8serrors.IsNotFound(err) {
 			logger.Info("operator deployment not found")
@@ -555,9 +555,9 @@ func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourc
 
 	configMapIndex, secretIndex := r.GetConfigMapAndSecretIndexes(resourcesToApply)
 	configMap := resourcesToApply[configMapIndex]
-	secret := resourcesToApply[secretIndex]
+	operatorSecret := resourcesToApply[secretIndex]
 
-	operatorNeedRestart, err := r.verifySecretChanges(ctx, configMap, secret, managerSecret, logger)
+	operatorNeedRestart, err := r.verifySecretChanges(ctx, configMap, operatorSecret, managerSecret, logger)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile manager secret changes: %w", err)
 	}
@@ -569,7 +569,6 @@ func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourc
 			return fmt.Errorf("failed to delete secret %s : %w", clusterIdSecretName, err)
 		}
 		logger.Info("secret " + clusterIdSecretName + " deleted")
-
 		logger.Info("restarting operator deployment")
 		if err := r.restartOperatorDeployment(ctx); err != nil {
 			return fmt.Errorf("failed to restart operator deployment: %w", err)
@@ -579,7 +578,7 @@ func (r *BtpOperatorReconciler) handleSecretChanges(ctx context.Context, resourc
 	return nil
 }
 
-func (r *BtpOperatorReconciler) verifySecretChanges(ctx context.Context, futureConfigMap, secret *unstructured.Unstructured, managerSecret *corev1.Secret, logger *logr.Logger) (bool, error) {
+func (r *BtpOperatorReconciler) verifySecretChanges(ctx context.Context, futureConfigMap, operatorSecret *unstructured.Unstructured, managerSecret *corev1.Secret, logger *logr.Logger) (bool, error) {
 	managementNamespace, err := r.resolveManagementNamespace(managerSecret, logger)
 	if err != nil {
 		return false, fmt.Errorf("failed to resolve management namespace: %w", err)
@@ -590,8 +589,7 @@ func (r *BtpOperatorReconciler) verifySecretChanges(ctx context.Context, futureC
 			Name: managementNamespace,
 		},
 	}
-	err = r.Get(ctx, client.ObjectKeyFromObject(selectedNamespace), selectedNamespace)
-	if err != nil {
+	if err = r.Get(ctx, client.ObjectKeyFromObject(selectedNamespace), selectedNamespace); err != nil {
 		if k8serrors.IsNotFound(err) {
 			logger.Info("namespace not found. creating.", "namespace", managementNamespace)
 			if err := r.Create(ctx, selectedNamespace); err != nil {
@@ -603,7 +601,6 @@ func (r *BtpOperatorReconciler) verifySecretChanges(ctx context.Context, futureC
 	}
 
 	logger.Info(fmt.Sprintf("setting namespace of %s secret to %s", clusterIdSecretName, managementNamespace))
-	secret.SetNamespace(managementNamespace)
 
 	currentConfigMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -611,14 +608,16 @@ func (r *BtpOperatorReconciler) verifySecretChanges(ctx context.Context, futureC
 			Namespace: ChartNamespace,
 		},
 	}
-	err = r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap)
-	if err != nil {
+	if r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap); err != nil {
 		return false, fmt.Errorf("failed to get config map %s: %w", btpServiceOperatorConfigMap, err)
 	}
 
 	configMapUpdated, err := r.verifyConfigMap(&currentConfigMap, managementNamespace, futureConfigMap)
 	if err != nil {
 		return false, err
+	}
+	if configMapUpdated {
+		operatorSecret.SetNamespace(managementNamespace)
 	}
 
 	secretsValuesMismatch, err := r.verifySecretsIntegrity(managerSecret, &currentConfigMap, logger)
