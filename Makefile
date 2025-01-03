@@ -15,9 +15,11 @@ MANIFEST_PATH=./manifests/btp-operator
 MANIFEST_FILE=btp-manager.yaml
 
 # Image URL to use all building/pushing image targets
-IMG_REGISTRY_PORT ?= 5001
-IMG_REGISTRY ?= k3d-kyma-registry:$(IMG_REGISTRY_PORT)
-IMG ?= $(IMG_REGISTRY)/btp-manager:$(MODULE_VERSION)
+IMG_REGISTRY_PORT ?= 5000
+IMG_REGISTRY ?= ukff/btpmgr
+IMG ?= $(IMG_REGISTRY):latest
+
+GINKGO_LABEL_FILTER ?= 'customization'
 
 COMPONENT_CLI_VERSION ?= latest
 
@@ -72,7 +74,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 test: manifests kustomize generate fmt vet envtest ginkgo  test-docs ## Run tests.
 	@. ./scripts/testing/set-env-vars.sh; \
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
-	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
+	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then GINKGO_LABEL_FILTER=$(GINKGO_LABEL_FILTER) $(GINKGO) controllers; else GINKGO_LABEL_FILTER=$(GINKGO_LABEL_FILTER) $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
 
 .PHONY: test-docs
 test-docs:
@@ -89,14 +91,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
+docker-build:  ## Build docker image with the manager.
 	IMG=$(IMG) docker build -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-ifneq (,$(GCR_DOCKER_PASSWORD))
-	docker login $(IMG_REGISTRY) -u oauth2accesstoken --password $(GCR_DOCKER_PASSWORD)
-endif
 	docker push ${IMG}
 
 ##@ Deployment
@@ -125,6 +124,10 @@ create-manifest: manifests kustomize ## Deploy controller to the K8s cluster spe
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+.PHONY:
+debug: module-image
+	echo "debugging"
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
