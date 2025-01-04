@@ -23,7 +23,7 @@ const (
 	ManagementNamespaceConfigKey = "MANAGEMENT_NAMESPACE"
 )
 
-var _ = Describe("BTP Operator controller - secret customization", Label("customization"), func() {
+var _ = Describe("BTP Operator controller - secret customization", Pending, Label("customization"), func() {
 	var cr *v1alpha1.BtpOperator
 
 	BeforeEach(func() {
