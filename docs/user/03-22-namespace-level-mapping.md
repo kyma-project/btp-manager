@@ -5,19 +5,17 @@ You can map a Kubernetes namespace to an SAP Service Manager instance in a given
 ## Prerequisites
 
 * A subaccount in the SAP BTP cockpit.
-* kubectl configured for communicating with your Kyma instance.
+* kubectl configured for communicating with your Kyma instance. See [Access a Kyma Instance Using kubectl](https://help.sap.com/docs/btp/sap-business-technology-platform/access-kyma-instance-using-kubectl).
 
 ## Context
 
-To have service instances from one subaccount associated with one namespace, you must use a Secret dedicated to this namespace to create these service instances.
+To connect a namespace to a specific subaccount, maintain the access credentials to the subaccount in a Secret dedicated to a specific namespace. Create the `{NAMESPACE-NAME}-sap-btp-service-operator` Secret in the `kyma-system` namespace.
 
-## Procedure
+## Create a Namespace-Based Secret
 
-### Create a Namespace-Based Secret
-
-1. In the SAP BTP cockpit, create an SAP Service Manager service instance with the `service-operator-access` plan. See [Creating Instances in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-instances-in-other-environments?locale=en-US&version=Cloud).
+1. In the SAP BTP cockpit, create a new SAP Service Manager service instance with the `service-operator-access` plan. See [Creating Instances in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-instances-in-other-environments?locale=en-US&version=Cloud).
 2. Create a service binding to the SAP Service Manager service instance you have created. See [Creating Service Bindings in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-bindings-in-other-environments?locale=en-US&version=Cloud).
-3. Get the access credentials of the SAP Service Manager instance with the `service-operator-access` plan from its service binding. Copy them from the SAP BTP cockpit as a JSON.
+3. Get the access credentials of the SAP Service Manager instance from its service binding. Copy them from the SAP BTP cockpit as a JSON file.
 4. Create the `creds.json` file in your working directory and save the credentials there.
 5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **namespace-name-sap-btp-service-operator** Secret as the second parameter.
 
@@ -50,11 +48,11 @@ To have service instances from one subaccount associated with one namespace, you
    You can see the status `Created`.
 
 
-### Create a Service Instance with a Namespace-Based Secret
+## Create a Service Instance with a Namespace-Based Secret
 
-1. To create a service instance with a namespace-based Secret, follow the instructions on [creating service instances](03-30-management-of-service-instances-and-bindings.md#create-a-service-instance).
+1. To create a service instance with a namespace-based Secret, follow the instructions in [Create Service Instances and Service Bindings](03-30-create-instances-and-bindings.md).
 
-2. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
+2. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the custom resource (CR) `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
 
 ## Related Information
 

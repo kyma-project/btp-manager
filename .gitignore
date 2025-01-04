@@ -41,6 +41,8 @@ vendor/**
 /temp/
 /charts/
 
+/bin/f
+
 /vendor
 
 debug.sh

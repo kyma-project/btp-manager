@@ -5,22 +5,20 @@ You can map a Kubernetes service instance to an SAP Service Manager instance in 
 ## Prerequisites
 
 * A subaccount in the SAP BTP cockpit.
-* kubectl configured for communicating with your Kyma instance.
+* kubectl configured for communicating with your Kyma instance. See [Access a Kyma Instance Using kubectl](https://help.sap.com/docs/btp/sap-business-technology-platform/access-kyma-instance-using-kubectl).
 
 ## Context
 
-To have multiple service instances from different subaccounts associated with a namespace, you must use a custom Secret to create these service instances.
+To have multiple service instances from different subaccounts associated with a namespace, you must store access credentials for each subaccount in a custom Secret in the `kyma-system` namespace.
 To create a service instance with a custom Secret, you must use the **btpAccessCredentialsSecret** field in the `spec` of the service instance. In it, you pass the Secret from the `kyma-system` namespace to create your service instance. You can use different Secrets for different service instances.
 
-## Procedure
-
-### Create Your Custom Secret
+## Create Your Custom Secret
 
 1. In the SAP BTP cockpit, create an SAP Service Manager service instance with the `service-operator-access` plan. See [Creating Instances in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-instances-in-other-environments?locale=en-US&version=Cloud).
 2. Create a service binding to the SAP Service Manager service instance you have created. See [Creating Service Bindings in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-bindings-in-other-environments?locale=en-US&version=Cloud).
-3. Get the access credentials of the SAP Service Manager instance from its service binding. Copy them from the BTP cockpit as a JSON.
+3. Get the access credentials of the SAP Service Manager instance from its service binding. Copy them from the BTP cockpit as a JSON file.
 4. Create the `creds.json` file in your working directory and save the credentials there.
-5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name**  as the second parameter:
+5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **your-secret-name** as the second parameter:
 
     ```sh
     curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator {YOUR_SECRET_NAME}
@@ -49,13 +47,42 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     kubectl create -f ./btp-access-credentials-secret.yaml
     ```
 
+7. To verify if the Secret has been successfully created, run:
+   
+   ```
+   kubectl get secret -n kyma-system {YOUR_SECRET_NAME}
+   ```
+
    You see the status `Created`.
 
-### Create a Service Instance with the Custom Secret
+   > [!NOTE]
+   > You can also view the Secret in Kyma dashboard. In the `kyma-system` namespace, go to **Configuration** -> **Secrets**, and check the list of Secrets.
+
+## Create a Service Instance with the Custom Secret
+
+To create the service instance, use either Kyma dashboard or kubectl.
+
+### Procedure
+
+<!-- tabs:start -->
+#### **Kyma Dashboard**
+
+1. In the **Namespaces** view, go to the namespace you want to work in.
+2. Go to **Service Management** -> **Service Instances**.
+3. In the **BTP Access Credentials Secret** field, add the name of the custom Secret you have created.
+4. Provide other required service details and create a service instance.
+
+   > [!WARNING]
+   > Once you set a Secret name in the service instance, you cannot change it in the future.
+  
+    You see the status `PROVISIONED`.
+
+#### **kubectl**
 
 1. Create your service instance with:
-   * the **btpAccessCredentialsSecret** field in the `spec` pointing to the custom Secret you have created
-   * other parameters as needed<br>
+
+   * The **btpAccessCredentialsSecret** field in the `spec` pointing to the custom Secret you have created
+   * Other parameters as needed
     
     > [!WARNING] 
     > Once you set a Secret name in the service instance, you cannot change it in the future.
@@ -86,6 +113,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     You also see your Secret name in the **btpAccessCredentialsSecret** field of the `spec`.
 
 3.  To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
+<!-- tabs:end -->
 
 ## Related Information
 
