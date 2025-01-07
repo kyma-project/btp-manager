@@ -561,12 +561,6 @@ func (r *BtpOperatorReconciler) conditionallyRestartOperator(ctx context.Context
 		logger.Info("no need to restart operator. skipping")
 		return nil
 	}
-	logger.Info(fmt.Sprintf("need to restart operator. restarting. args: propagationChangedValues: %t clustersIdMismatch: %t.", propagationChangedValues, clustersIdMismatch))
-	if err := r.restartOperatorDeployment(ctx, logger); err != nil {
-		logger.Error(err, "while restarting operator deployment")
-		return fmt.Errorf("failed to restart operator deployment: %w", err)
-	}
-	logger.Info("operator deployment restarted successfully.")
 	err := r.deleteClusterIDSecret(ctx, &logger)
 	if err != nil {
 		logger.Error(err, "while deleting cluster id secret")
