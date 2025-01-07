@@ -524,22 +524,10 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 
 	logger.Info(fmt.Sprintf("propagating %s changes to secret: %s and config map : %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap))
 	propagationChangedValues, err := r.propagateManagerSecretChanges(ctx, managerSecret, operatorSecret, operatorConfigMap, &logger)
+	logger.Info(fmt.Sprintf("propagationChangedValues %t", propagationChangedValues))
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("propagating %s changes to secret: %s and config map : %s : %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap, err.Error()))
 		return fmt.Errorf(fmt.Sprintf("propagating %s changes to secret: %s and config map : %s: %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap, err.Error()))
-	}
-
-	logger.Info("checking if clustersID matches.")
-	clustersIdMismatch, err := r.isClusterIdOk(ctx, managerSecret, &logger)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("checking if clustersID matches. %s", err))
-		return fmt.Errorf("failed to check if clustersID matches. %w", err)
-	}
-
-	logger.Info(fmt.Sprintf("checking if %s deployment needs to be restarted.", DeploymentName))
-	if err := r.conditionallyRestartOperator(ctx, propagationChangedValues, clustersIdMismatch, logger); err != nil {
-		logger.Error(err, "while handling 2")
-		return fmt.Errorf("failed to handle 2: %w", err)
 	}
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
@@ -553,14 +541,30 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
 	}
+
+	logger.Info("checking if clustersID matches.")
+	clustersIdOk, err := r.isClusterIdOk(ctx, managerSecret, &logger)
+	logger.Info(fmt.Sprintf("clustersID are ok: %t", clustersIdOk))
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("checking if clustersID matches. %s", err))
+		return fmt.Errorf("failed to check if clustersID matches. %w", err)
+	}
+
+	logger.Info(fmt.Sprintf("checking if %s deployment needs to be restarted.", DeploymentName))
+	if err := r.conditionallyRestartOperator(ctx, propagationChangedValues, clustersIdOk, logger); err != nil {
+		logger.Error(err, "while handling 2")
+		return fmt.Errorf("failed to handle 2: %w", err)
+	}
+
 	return nil
 }
 
 func (r *BtpOperatorReconciler) conditionallyRestartOperator(ctx context.Context, propagationChangedValues, clustersIdMismatch bool, logger logr.Logger) error {
-	if !propagationChangedValues && !clustersIdMismatch {
+	if !propagationChangedValues && clustersIdMismatch {
 		logger.Info("no need to restart operator. skipping")
 		return nil
 	}
+	Debug(fmt.Sprintf("######################## propagationChangedValues: %t, clustersIdMismatch: %t", propagationChangedValues, clustersIdMismatch), nil, &logger)
 	err := r.deleteClusterIDSecret(ctx, &logger)
 	if err != nil {
 		logger.Error(err, "while deleting cluster id secret")
@@ -590,7 +594,8 @@ func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Contex
 		}
 	}
 
-	if err := r.reconcileSecrets(managerSecret, operatorSecret); err != nil {
+	Debug(fmt.Sprintf("???????????????????????????????"), nil, logger)
+	if err := r.reconcileSecrets(managerSecret, operatorSecret, logger); err != nil {
 		logger.Error(err, fmt.Sprintf("while setting Secret %s values", btpServiceOperatorSecret))
 		return false, fmt.Errorf("failed to set Secret %s values: %w", btpServiceOperatorSecret, err)
 	}
@@ -636,7 +641,7 @@ func (r *BtpOperatorReconciler) isClusterIdOk(ctx context.Context, managerSecret
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(operator), operator); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info(fmt.Sprintf("%s deployment not found"))
+			logger.Info(fmt.Sprintf("deployment not found"))
 			return false, nil
 		}
 		logger.Error(err, "while getting operator deployment")
@@ -689,31 +694,35 @@ func (r *BtpOperatorReconciler) getConfigMapAndSecretIndexes(resourcesToApply []
 }
 
 func (r *BtpOperatorReconciler) reconcileConfigMap(currentConfigMap *corev1.ConfigMap, managerSecret *corev1.Secret, managementNamespace string, futureConfigMap *unstructured.Unstructured, logger *logr.Logger) (bool, bool, error) {
+	clusterId := string(managerSecret.Data[managerSecretClusterIdKey])
+	Debug(fmt.Sprintf("clusterID NEW: %s", clusterId), nil, logger)
+	clusterIdChanged := currentConfigMap.Data[ConfigMapClusterIDKey] != clusterId
+	fmt.Println(fmt.Sprintf("************************** currentConfigMap id: %s", currentConfigMap.Data[ConfigMapClusterIDKey]))
+	if err := unstructured.SetNestedField(futureConfigMap.Object, clusterId, "data", ConfigMapClusterIDKey); err != nil {
+		return false, false, fmt.Errorf("failed to sync cluster id: %w", err)
+	}
+
 	namespaceChanged := false
 	if managementNamespace != currentConfigMap.Data[ConfigMapManagementNamespace] {
+		Debug(fmt.Sprintf("managementNamespace NEW: %s", managementNamespace), nil, logger)
 		if err := unstructured.SetNestedField(futureConfigMap.Object, managementNamespace, "data", ConfigMapManagementNamespace); err != nil {
 			return false, false, fmt.Errorf("failed to sync namespace: %w", err)
 		}
-		fmt.Println(fmt.Sprintf("************************** set to: %s", managementNamespace))
+		fmt.Println(fmt.Sprintf("************************** managementNamespace set to: %s", managementNamespace))
 		namespaceChanged = true
-	}
-
-	clusterId := string(managerSecret.Data[managerSecretClusterIdKey])
-	fmt.Println(fmt.Sprintf("************************** cluster id: %s", clusterId))
-	clusterIdChanged := currentConfigMap.Data[ConfigMapClusterIDKey] != clusterId
-	if err := unstructured.SetNestedField(futureConfigMap.Object, clusterId, "data", ConfigMapClusterIDKey); err != nil {
-		return false, false, fmt.Errorf("failed to sync cluster id: %w", err)
 	}
 
 	return namespaceChanged, clusterIdChanged, nil
 }
 
-func (r *BtpOperatorReconciler) reconcileSecrets(secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) reconcileSecrets(secret *corev1.Secret, u *unstructured.Unstructured, logger *logr.Logger) error {
+	Debug(fmt.Sprintf("?????????? setting"), nil, logger)
 	for k := range secret.Data {
 		for _, r := range requiredSecretKeys {
 			if k != r {
 				continue
 			}
+			Debug(fmt.Sprintf("?????????? setting %s secret key %s", u.GetName(), k), nil, logger)
 			if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
 				return err
 			}
@@ -1459,10 +1468,6 @@ func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gv
 func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
-	err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.Processing, "Processing")
-	if err != nil {
-		return err
-	}
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
@@ -1478,7 +1483,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	}
 
 	logger.Info("reconciliation succeeded")
-	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateReady, conditions.ReconcileSucceeded, "Reconciliation succeeded")
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -2314,5 +2319,13 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	}
 	if err := r.reconcileResources(ctx, secret); err != nil {
 		logger.Error(err, "resources reconciliation failed")
+	}
+}
+
+func Debug(m string, err error, logger *logr.Logger) {
+	if err != nil {
+		logger.Info(fmt.Sprintf("################### %s ################### with %s ***************", m, err.Error()))
+	} else {
+		logger.Info(fmt.Sprintf("################### %s ###################", m))
 	}
 }

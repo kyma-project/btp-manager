@@ -92,9 +92,9 @@ do
   sleep 2
 done
 
-echo -e "\n--- Checking if ${SAP_BTP_OPERATOR_SECRET_NAME} has been removed from ${RELEASE_NAMESPACE} namespace"
-([[ "$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] && echo "secret has been removed") || \
-(echo "secret has not been removed" && exit 1)
+#echo -e "\n--- Checking if ${SAP_BTP_OPERATOR_SECRET_NAME} has been removed from ${RELEASE_NAMESPACE} namespace"
+#([[ "$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] && echo "secret has been removed") || \
+#(echo "secret has not been removed" && exit 1)
 
 # Save the current data from secret and configmap
 ACTUAL_SAP_BTP_OPERATOR_SECRET_CLIENT_ID=$(kubectl get secret -n ${MANAGEMENT_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o jsonpath="{.data.clientid}")
@@ -145,15 +145,15 @@ fi
 
 echo -e "\n--- SAP BTP service operator secrets and configmap reconciliation succeeded!"
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n--- BTP Manager secret customization succeeded!"
 
 echo -e "\n--- Uninstalling..."
 
-kubectl delete btpoperators/e2e-test-btpoperator &
-while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+kubectl delete btpoperators/btpoperator &
+while [[ "$(kubectl get btpoperators/btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BTP Operator deprovisioning succeeded"

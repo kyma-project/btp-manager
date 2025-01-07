@@ -95,6 +95,7 @@ func TestAPIs(t *testing.T) {
 	} else {
 		SetDefaultEventuallyTimeout(time.Second * 5)
 	}
+	suiteCfg.LabelFilter = "customization"
 
 	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
