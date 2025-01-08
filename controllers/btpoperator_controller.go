@@ -537,10 +537,13 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 
 	if configMapChanged {
 		logger.Info(fmt.Sprintf("setting %s secret namespace to %s", clusterIdSecretName, managementNamespace))
+		oldNamespace := operatorSecret.GetNamespace()
+		operatorSecret.SetNamespace(managementNamespace)
+
 		toDelete := corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      btpServiceOperatorSecret,
-				Namespace: operatorSecret.GetNamespace(),
+				Namespace: oldNamespace,
 			},
 		}
 		if err := r.Delete(ctx, &toDelete); err != nil {
@@ -548,7 +551,6 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 				return fmt.Errorf("failed to delete secret %s: %w", clusterIdSecretName, err)
 			}
 		}
-		operatorSecret.SetNamespace(managementNamespace)
 	}
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
@@ -611,8 +613,7 @@ func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Contex
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap); err != nil {
 		if k8serrors.IsNotFound(err) {
-			var cm corev1.ConfigMap
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(operatorConfigMap.Object, &cm)
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(operatorConfigMap.Object, &currentConfigMap)
 			if err != nil {
 				return false, false, err
 			}
