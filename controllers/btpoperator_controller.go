@@ -361,7 +361,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, cr, secret); err != nil {
+	if err := r.reconcileResources(ctx, secret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
@@ -495,7 +495,7 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, managerSecret *corev1.Secret) error {
+func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerSecret *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to apply")
@@ -1464,7 +1464,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, cr, secret); err != nil {
+	if err := r.reconcileResources(ctx, secret); err != nil {
 		logger.Error(err, "Failed to reconcile resources")
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
@@ -2304,7 +2304,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	if err := r.deleteOutdatedResources(ctx); err != nil {
 		logger.Error(err, "outdated resources deletion failed")
 	}
-	if err := r.reconcileResources(ctx, nil, secret); err != nil {
+	if err := r.reconcileResources(ctx, secret); err != nil {
 		logger.Error(err, "resources reconciliation failed")
 	}
 }
