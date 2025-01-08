@@ -361,7 +361,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, secret); err != nil {
+	if err := r.reconcileResources(ctx, cr, secret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
@@ -1464,7 +1464,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, secret); err != nil {
+	if err := r.reconcileResources(ctx, cr, secret); err != nil {
 		logger.Error(err, "Failed to reconcile resources")
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
