@@ -37,7 +37,7 @@ ENCODED_MANAGEMENT_NAMESPACE=$(echo -n ${MANAGEMENT_NAMESPACE} | base64)
 SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(kubectl get configmap -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.metadata.resourceVersion}")
 
 while [[ $(kubectl get secret/{$SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -n ${RELEASE_NAMESPACE} 2>&1) = *"Error from server (NotFound)"* ]];
-do echo -e "\n---Waiting for {$SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} to be ready."; sleep 5; done
+do echo -e "\n---Waiting for $SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME to be ready in $RELEASE_NAMESPACE."; sleep 5; done
 
 ## Save current ID of the resource to be recreated
 SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o jsonpath="{.metadata.uid}")
