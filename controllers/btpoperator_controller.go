@@ -615,40 +615,6 @@ func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Contex
 	return configMapChanged, clusterIdChanged, nil
 }
 
-func (r *BtpOperatorReconciler) isClusterIdOk(ctx context.Context, managerSecret *corev1.Secret, logger *logr.Logger) (bool, error) {
-	currentConfigMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      btpServiceOperatorConfigMap,
-			Namespace: ChartNamespace,
-		},
-	}
-	if err := r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap); err != nil {
-		if k8serrors.IsNotFound(err) {
-			currentConfigMap = corev1.ConfigMap{}
-		} else {
-			return false, fmt.Errorf("failed to get config map %s: %w", btpServiceOperatorConfigMap, err)
-		}
-	}
-	// this is first scenario when provisoning. We cannot restart operator deployment here since resources are not yet applied
-	operator := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      DeploymentName,
-			Namespace: ChartNamespace,
-		},
-	}
-	if err := r.Get(ctx, client.ObjectKeyFromObject(operator), operator); err != nil {
-		if k8serrors.IsNotFound(err) {
-			logger.Info(fmt.Sprintf("deployment not found"))
-			return false, nil
-		}
-		logger.Error(err, "while getting operator deployment")
-		return false, fmt.Errorf("while operator deployment: %w", err)
-	}
-	match := strings.EqualFold(string(managerSecret.Data[managerSecretClusterIdKey]), currentConfigMap.Data[ConfigMapClusterIDKey])
-	logger.Info(fmt.Sprintf("checking if %s and %s are in sync. result: %t", managerSecret.GetName(), currentConfigMap.GetName(), match))
-	return match, nil
-}
-
 func (r *BtpOperatorReconciler) resolveManagementNamespace(ctx context.Context, managerSecret *corev1.Secret, logger *logr.Logger) (string, error) {
 	managementNamespace := string(managerSecret.Data[managementNamespaceKey])
 	if managementNamespace == "" || managementNamespace == ChartNamespace {
