@@ -61,3 +61,5 @@ then
   echo "Missing CR definitions - failing tests"
   exit 1
 fi
+
+echo "\n---Module installed successfully"
