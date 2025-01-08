@@ -36,12 +36,6 @@ ENCODED_MANAGEMENT_NAMESPACE=$(echo -n ${MANAGEMENT_NAMESPACE} | base64)
 ## Save current resourceVersion of the resources to be updated
 SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(kubectl get configmap -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.metadata.resourceVersion}")
 
-## Check secret-btp-operator-clusterid existence in the release namespace
-##while [[ "$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} 2>&1)" != *"Error from server (NotFound)"*  ]];
-##do echo -e "\n---Waiting for $SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME in $RELEASE_NAMESPACE to be ready"; sleep 5; done
-
-echo -e "\n--- Secret sap-btp-operator-clusterid is ready"
-
 ## Save current ID of the resource to be recreated
 SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o jsonpath="{.metadata.uid}")
 
@@ -97,10 +91,6 @@ do
   fi
   sleep 2
 done
-
-#echo -e "\n--- Checking if ${SAP_BTP_OPERATOR_SECRET_NAME} has been removed from ${RELEASE_NAMESPACE} namespace"
-#([[ "$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] && echo "secret has been removed") || \
-#(echo "secret has not been removed" && exit 1)
 
 # Save the current data from secret and configmap
 ACTUAL_SAP_BTP_OPERATOR_SECRET_CLIENT_ID=$(kubectl get secret -n ${MANAGEMENT_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o jsonpath="{.data.clientid}")
