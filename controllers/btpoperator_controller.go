@@ -611,7 +611,11 @@ func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Contex
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap); err != nil {
 		if k8serrors.IsNotFound(err) {
-			currentConfigMap = corev1.ConfigMap{}
+			var cm corev1.ConfigMap
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(operatorConfigMap.Object, &cm)
+			if err != nil {
+				return false, false, err
+			}
 		} else {
 			logger.Error(err, fmt.Sprintf("while getting config map: %s", btpServiceOperatorConfigMap))
 			return false, false, fmt.Errorf("failed to get config map %s: %w", btpServiceOperatorConfigMap, err)
@@ -735,7 +739,7 @@ func (r *BtpOperatorReconciler) reconcileSecrets(secret *corev1.Secret, u *unstr
 			if k != r {
 				continue
 			}
-			Debug(fmt.Sprintf("?????????? setting %s secret key %s", u.GetName(), k), nil, logger)
+			Debug(fmt.Sprintf("?????????? setting %s secret key to: %s", u.GetName(), secret.Data[k]), nil, logger)
 			if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
 				return err
 			}
