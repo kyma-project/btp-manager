@@ -621,6 +621,24 @@ func (r *BtpOperatorReconciler) resolveManagementNamespace(ctx context.Context, 
 		logger.Info(fmt.Sprintf("management namespace not set. using %s", ChartNamespace))
 		return ChartNamespace, nil
 	}
+
+	newNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: managementNamespace,
+		},
+	}
+	if err := r.Get(ctx, client.ObjectKeyFromObject(newNamespace), newNamespace); err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("namespace not found. creating.", "namespace", managementNamespace)
+			if err := r.Create(ctx, newNamespace); err != nil {
+				return "", fmt.Errorf("failed to create namespace %s: %w", managementNamespace, err)
+			}
+			logger.Info("namespace created", "namespace", managementNamespace)
+		} else {
+			return "", fmt.Errorf("failed to get namespace %s: %w", managementNamespace, err)
+		}
+	}
+
 	logger.Info(fmt.Sprintf("setting namespace of %s secret to %s", clusterIdSecretName, managementNamespace))
 	return managementNamespace, nil
 }
