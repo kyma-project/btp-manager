@@ -37,8 +37,8 @@ ENCODED_MANAGEMENT_NAMESPACE=$(echo -n ${MANAGEMENT_NAMESPACE} | base64)
 SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(kubectl get configmap -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.metadata.resourceVersion}")
 
 
-kubectl logs -n kyma-system sap-btp-operator-controller-manager -c manager
-kubectl logs -n kyma-system btp-operator-controller-manager
+kubectl logs -n kyma-system deployment/sap-btp-operator-controller-manager -c manager
+kubectl logs -n kyma-system deployment/btp-operator-controller-manager
 
 ## Save current ID of the resource to be recreated
 SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o jsonpath="{.metadata.uid}")
