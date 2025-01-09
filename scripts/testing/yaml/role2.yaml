@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+name: btp-manager-pod-reader
+namespace: kyma-system
+subjects:
+- kind: ServiceAccount
+  name: btp-manager-controller-manager
+  namespace: kyma-system
+  roleRef:
+    kind: Role
+    name: pod-reader
+apiGroup: rbac.authorization.k8s.io
