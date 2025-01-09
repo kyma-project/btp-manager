@@ -37,6 +37,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
+	. "github.com/onsi/ginkgo/v2"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -118,17 +119,22 @@ var (
 )
 
 var (
-	CaSecret                       = "ca-server-cert"
-	WebhookSecret                  = "webhook-server-cert"
-	CaCertificateExpiration        = time.Hour * 87600 // 10 years
-	WebhookCertificateExpiration   = time.Hour * 8760  // 1 year
-	ExpirationBoundary             = time.Hour * -168  // 1 week
-	CaSecretDataPrefix             = "ca"
-	WebhookSecretDataPrefix        = "tls"
-	CertificatePostfix             = "crt"
-	RsaKeyPostfix                  = "key"
-	MutatingWebhookConfiguration   = "MutatingWebhookConfiguration"
-	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
+	CaSecret                        = "ca-server-cert"
+	WebhookSecret                   = "webhook-server-cert"
+	CaCertificateExpiration         = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration    = time.Hour * 8760  // 1 year
+	ExpirationBoundary              = time.Hour * -168  // 1 week
+	CaSecretDataPrefix              = "ca"
+	WebhookSecretDataPrefix         = "tls"
+	CertificatePostfix              = "crt"
+	RsaKeyPostfix                   = "key"
+	MutatingWebhookConfiguration    = "MutatingWebhookConfiguration"
+	ValidatingWebhookConfiguration  = "ValidatingWebhookConfiguration"
+	clusterIdKeyConfigMap           = "CLUSTER_ID"
+	clusterIdSecretKey              = "INITIAL_CLUSTER_ID"
+	sapBtpManagerSecretClusterIdKey = "cluster_id"
+	clusterIdSecretName             = "sap-btp-operator-clusterid"
+	clusterIdCheckTimeout           = time.Second * 30
 )
 
 const (
@@ -630,7 +636,7 @@ func (r *BtpOperatorReconciler) resolveManagementNamespace(ctx context.Context, 
 
 	newNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: managementNamespace,
+			Name: secretManagementNamespace,
 		},
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(newNamespace), newNamespace); err != nil {
