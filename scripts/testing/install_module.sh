@@ -62,7 +62,7 @@ then
   exit 1
 fi
 
-kubectl apply -f role.yaml
-kubectl apply -f role2.yaml
+kubectl apply -f ${YAML_DIR}/role.yaml
+kubectl apply -f ${YAML_DIR}/role2.yaml
 
 echo "\n---Module installed successfully"
