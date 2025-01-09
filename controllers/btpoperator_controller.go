@@ -691,7 +691,7 @@ func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context, l
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(deployment), deployment); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("operator deployment not found")
+			logger.Info("operator deployment not found. skipping.")
 			return nil
 		}
 		logger.Error(err, "while getting operator deployment")
