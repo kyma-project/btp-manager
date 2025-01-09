@@ -29,15 +29,16 @@ MANAGEMENT_NAMESPACE="management-namespace"
 ENCODED_CLUSTER_ID=$(echo -n ${CLUSTER_ID} | base64)
 ENCODED_MANAGEMENT_NAMESPACE=$(echo -n ${MANAGEMENT_NAMESPACE} | base64)
 
-kubectl logs -n kyma-system sap-btp-operator-controller-manager -c manager
-kubectl logs -n kyma-system btp-operator-controller-manager -c manager
-
 ## Check secret existence in the release namespace
 (kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret exists in ${RELEASE_NAMESPACE} namespace") || \
 (echo "could not get ${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${RELEASE_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 ## Save current resourceVersion of the resources to be updated
 SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(kubectl get configmap -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.metadata.resourceVersion}")
+
+
+kubectl logs -n kyma-system sap-btp-operator-controller-manager -c manager
+kubectl logs -n kyma-system btp-operator-controller-manager
 
 ## Save current ID of the resource to be recreated
 SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o jsonpath="{.metadata.uid}")
