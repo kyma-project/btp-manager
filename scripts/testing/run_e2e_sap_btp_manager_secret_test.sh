@@ -29,6 +29,9 @@ MANAGEMENT_NAMESPACE="management-namespace"
 ENCODED_CLUSTER_ID=$(echo -n ${CLUSTER_ID} | base64)
 ENCODED_MANAGEMENT_NAMESPACE=$(echo -n ${MANAGEMENT_NAMESPACE} | base64)
 
+kubectl logs -n kyma-system sap-btp-operator-controller-manager -c manager
+kubectl logs -n kyma-system btp-operator-controller-manager -c manager
+
 ## Check secret existence in the release namespace
 (kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret exists in ${RELEASE_NAMESPACE} namespace") || \
 (echo "could not get ${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${RELEASE_NAMESPACE} namespace, command return code: $?" && exit 1)
