@@ -527,8 +527,13 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 		return fmt.Errorf("failed to resolve namespace %s : %w", managementNamespace, err)
 	}
 
+	if err := r.reconcileSecrets(managerSecret, operatorSecret); err != nil {
+		logger.Error(err, fmt.Sprintf("while setting Secret %s values", btpServiceOperatorSecret))
+		return fmt.Errorf("failed to set Secret %s values: %w", btpServiceOperatorSecret, err)
+	}
+
 	logger.Info(fmt.Sprintf("propagating %s changes to secret: %s and config map : %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap))
-	configMapChanged, clusterIdChanged, err := r.propagateManagerSecretChanges(ctx, managementNamespace, managerSecret, operatorSecret, operatorConfigMap, &logger)
+	configMapChanged, clusterIdChanged, err := r.propagateManagerSecretChanges(ctx, managementNamespace, managerSecret, operatorConfigMap, &logger)
 	logger.Info(fmt.Sprintf("configMapChanged %t", configMapChanged))
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("propagating %s changes to secret: %s and config map : %s : %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap, err.Error()))
@@ -582,7 +587,7 @@ func (r *BtpOperatorReconciler) conditionallyRestartOperator(ctx context.Context
 	return nil
 }
 
-func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Context, managementNamespace string, managerSecret *corev1.Secret, operatorSecret, operatorConfigMap *unstructured.Unstructured, logger *logr.Logger) (bool, bool, error) {
+func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Context, managementNamespace string, managerSecret *corev1.Secret, futureConfigMap *unstructured.Unstructured, logger *logr.Logger) (bool, bool, error) {
 	currentConfigMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      btpServiceOperatorConfigMap,
@@ -591,7 +596,8 @@ func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Contex
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap); err != nil {
 		if k8serrors.IsNotFound(err) {
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(operatorConfigMap.Object, &currentConfigMap)
+			// provisioning case
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(futureConfigMap.Object, &currentConfigMap)
 			if err != nil {
 				return false, false, err
 			}
@@ -601,18 +607,18 @@ func (r *BtpOperatorReconciler) propagateManagerSecretChanges(ctx context.Contex
 		}
 	}
 
-	if err := r.reconcileSecrets(managerSecret, operatorSecret, logger); err != nil {
-		logger.Error(err, fmt.Sprintf("while setting Secret %s values", btpServiceOperatorSecret))
-		return false, false, fmt.Errorf("failed to set Secret %s values: %w", btpServiceOperatorSecret, err)
+	clusterId := string(managerSecret.Data[managerSecretClusterIdKey])
+	clusterIdChanged := clusterId != currentConfigMap.Data[ConfigMapClusterIDKey]
+	if err := unstructured.SetNestedField(futureConfigMap.Object, clusterId, "data", ConfigMapClusterIDKey); err != nil {
+		return false, false, fmt.Errorf("failed to sync cluster id: %w", err)
 	}
 
-	configMapChanged, clusterIdChanged, err := r.reconcileConfigMap(&currentConfigMap, managerSecret, managementNamespace, operatorConfigMap, logger)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("while reconciling config map: %s : %s", btpServiceOperatorConfigMap, err.Error()))
-		return false, false, fmt.Errorf("failed to reconcile config map: %w", err)
+	namespaceChanged := managementNamespace != currentConfigMap.Data[ConfigMapManagementNamespace]
+	if err := unstructured.SetNestedField(futureConfigMap.Object, managementNamespace, "data", ConfigMapManagementNamespace); err != nil {
+		return false, false, fmt.Errorf("failed to sync namespace: %w", err)
 	}
 
-	return configMapChanged, clusterIdChanged, nil
+	return namespaceChanged, clusterIdChanged, nil
 }
 
 func (r *BtpOperatorReconciler) resolveManagementNamespace(ctx context.Context, managerSecret *corev1.Secret, logger *logr.Logger) (string, error) {
@@ -656,22 +662,7 @@ func (r *BtpOperatorReconciler) getConfigMapAndSecretIndexes(resourcesToApply []
 	return configMapIndex, secretIndex
 }
 
-func (r *BtpOperatorReconciler) reconcileConfigMap(currentConfigMap *corev1.ConfigMap, managerSecret *corev1.Secret, managementNamespace string, futureConfigMap *unstructured.Unstructured, logger *logr.Logger) (bool, bool, error) {
-	clusterId := string(managerSecret.Data[managerSecretClusterIdKey])
-	clusterIdChanged := clusterId != currentConfigMap.Data[ConfigMapClusterIDKey]
-	if err := unstructured.SetNestedField(futureConfigMap.Object, clusterId, "data", ConfigMapClusterIDKey); err != nil {
-		return false, false, fmt.Errorf("failed to sync cluster id: %w", err)
-	}
-
-	namespaceChanged := managementNamespace != currentConfigMap.Data[ConfigMapManagementNamespace]
-	if err := unstructured.SetNestedField(futureConfigMap.Object, managementNamespace, "data", ConfigMapManagementNamespace); err != nil {
-		return false, false, fmt.Errorf("failed to sync namespace: %w", err)
-	}
-
-	return namespaceChanged, clusterIdChanged, nil
-}
-
-func (r *BtpOperatorReconciler) reconcileSecrets(secret *corev1.Secret, u *unstructured.Unstructured, logger *logr.Logger) error {
+func (r *BtpOperatorReconciler) reconcileSecrets(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	for k := range secret.Data {
 		for _, r := range requiredSecretKeys {
 			if k != r {
