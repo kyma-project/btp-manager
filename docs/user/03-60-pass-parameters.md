@@ -5,15 +5,20 @@ You can set input parameters for your resources.
 ## Procedure
 
 To set input parameters, go to the `spec` of the ServiceInstance or ServiceBinding resource, and use both or one of the following fields:
+
 * **parameters**: Specifies a set of properties sent to the service broker.
   The specified data is passed to the service broker without any modifications - aside from converting it to the JSON format for transmission to the broker if the `spec` field is specified as a YAML file.
   All valid YAML or JSON constructs are supported.
 
   > [!NOTE] 
-  > Only one parameter field per `spec` can be specified.
+  > Only one **parameter** field per `spec` can be specified.
 
 * **parametersFrom**: Specifies which Secret, together with the key in it, to include in the set of parameters sent to the service broker.
   The key contains a `string` that represents a JSON file. The **parametersFrom** field is a list that supports multiple sources referenced per `spec`.
+
+  > [!NOTE]
+  > If you set the **watchParametersFromChanges** field in a ServiceInstance resource to `true`, any changes to the Secret values in **parametersFrom** trigger an automatic update of this ServiceInstance resource.
+  > By default, **watchParametersFromChanges** is set to `false`.
 
 If you specified multiple sources in the **parameters** and **parametersFrom** fields, the final payload results from merging all of them at the top level.
 
