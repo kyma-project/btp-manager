@@ -15,12 +15,12 @@ To set input parameters, go to the `spec` of the ServiceInstance or ServiceBindi
 
 * **parametersFrom**: Specifies which Secret, together with the key in it, to include in the set of parameters sent to the service broker.
   The key contains a `string` that represents a JSON file. The **parametersFrom** field is a list that supports multiple sources referenced per `spec`.
+  The ServiceInstance resource can specify multiple related Secrets.
 
-  > [!NOTE]
-  > If you set the **watchParametersFromChanges** field in a ServiceInstance resource to `true`, any changes to the Secret values in **parametersFrom** trigger an automatic update of this ServiceInstance resource.
-  > By default, **watchParametersFromChanges** is set to `false`.
+* **watchParametersFromChanges**: If set to `true`, any changes to the Secret values listed in **parametersFrom** trigger an automatic update of the ServiceInstance resource.
+  By default, the field is set to `false`  and must not be used if **parametersFrom** is empty.
 
-If you specified multiple sources in the **parameters** and **parametersFrom** fields, the final payload results from merging all of them at the top level.
+If you specified multiple sources in the **parameters** and **parametersFrom** fields, the final payload merges all of them at the top level.
 
 If there are any duplicate properties defined at the top level, the specification is considered to be invalid. 
 The further processing of the ServiceInstance or ServiceBinding resource stops with the status `Error`.
