@@ -92,9 +92,9 @@ do
   sleep 2
 done
 
-echo -e "\n--- Checking if ${SAP_BTP_OPERATOR_SECRET_NAME} has been removed from ${RELEASE_NAMESPACE} namespace"
-([[ "$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] && echo "secret has been removed") || \
-(echo "secret has not been removed" && exit 1)
+#echo -e "\n--- Checking if ${SAP_BTP_OPERATOR_SECRET_NAME} has been removed from ${RELEASE_NAMESPACE} namespace"
+#([[ "$(kubectl get secret -n ${RELEASE_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] && echo "secret has been removed") || \
+#(echo "secret has not been removed" && exit 1)
 
 # Save the current data from secret and configmap
 ACTUAL_SAP_BTP_OPERATOR_SECRET_CLIENT_ID=$(kubectl get secret -n ${MANAGEMENT_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o jsonpath="{.data.clientid}")

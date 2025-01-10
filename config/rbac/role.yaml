@@ -5,30 +5,16 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-    - ""
-  resources:
-    - pods
-  verbs:
-    - list
-    - delete
-- apiGroups:
   - ""
   resources:
   - configmaps
   - secrets
   - serviceaccounts
   - services
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
+  - pods
   - namespaces
   verbs:
-  - get
-  - list
-  - watch
-  - create
+  - '*'
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
