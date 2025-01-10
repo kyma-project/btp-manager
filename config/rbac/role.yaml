@@ -7,6 +7,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+    - pods
+  verbs:
+    - list
+- apiGroups:
+  - ""
+  resources:
   - configmaps
   - secrets
   - serviceaccounts
@@ -21,6 +27,7 @@ rules:
   - get
   - list
   - watch
+  - create
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
