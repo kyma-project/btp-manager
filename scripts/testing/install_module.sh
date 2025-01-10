@@ -61,8 +61,3 @@ then
   echo "Missing CR definitions - failing tests"
   exit 1
 fi
-
-kubectl apply -f ${YAML_DIR}/role.yaml
-kubectl apply -f ${YAML_DIR}/role2.yaml
-
-echo "\n---Module installed successfully"
