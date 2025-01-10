@@ -5,11 +5,12 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - ""
+    - ""
   resources:
     - pods
   verbs:
     - list
+    - delete
 - apiGroups:
   - ""
   resources:
