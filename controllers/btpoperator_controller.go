@@ -28,8 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -523,31 +521,27 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 
 	r.deleteCreationTimestamp(resourcesToApply...)
 
-	configMapIndex, secretIndex := r.getConfigMapAndSecretIndexes(resourcesToApply)
-	operatorSecret := resourcesToApply[secretIndex]
-	operatorConfigMap := resourcesToApply[configMapIndex]
-
 	namespace, err := r.resolveNamespace(ctx, managerSecret, &logger)
 	if err != nil {
 		return fmt.Errorf("failed to resolve namespace %s : %w", namespace, err)
 	}
+
+	configMapIndex, secretIndex := r.getConfigMapAndSecretIndexes(resourcesToApply)
+	operatorSecret := resourcesToApply[secretIndex]
+	operatorSecret.SetNamespace(namespace)
+	operatorConfigMap := resourcesToApply[configMapIndex]
+
+	logger.Info(fmt.Sprintf("propagating %s changes to secret: %s and config map : %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap))
 
 	if err := r.reconcileSecrets(managerSecret, operatorSecret); err != nil {
 		logger.Error(err, fmt.Sprintf("while setting Secret %s values", btpServiceOperatorSecret))
 		return fmt.Errorf("failed to set Secret %s values: %w", btpServiceOperatorSecret, err)
 	}
 
-	logger.Info(fmt.Sprintf("propagating %s changes to secret: %s and config map : %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap))
 	namespaceChanged, clusterIdChanged, err := r.reconcileConfigMap(ctx, namespace, managerSecret, operatorConfigMap, &logger)
-	logger.Info(fmt.Sprintf("configMapChanged %t", namespaceChanged))
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("propagating %s changes to secret: %s and config map : %s : %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap, err.Error()))
 		return fmt.Errorf(fmt.Sprintf("propagating %s changes to secret: %s and config map : %s: %s", SecretName, btpServiceOperatorSecret, btpServiceOperatorConfigMap, err.Error()))
-	}
-
-	if namespaceChanged {
-		logger.Info(fmt.Sprintf("setting %s secret namespace to %s", btpServiceOperatorSecret, namespace))
-		operatorSecret.SetNamespace(namespace)
 	}
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
@@ -556,39 +550,34 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
-	logger.Info("waiting for module resources readiness")
-	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
-		logger.Error(err, "while waiting for module resources readiness")
-		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
-	}
+	if namespaceChanged || clusterIdChanged {
+		logger.Info("waiting for module resources readiness")
+		if err = r.waitForResourcesReadiness(ctx, resourcesToApply, true); err != nil {
+			logger.Error(err, "while waiting for module resources readiness")
+			return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
+		}
 
-	logger.Info(fmt.Sprintf("checking if %s deployment needs to be restarted.", DeploymentName))
-	if err := r.conditionallyRestartOperator(ctx, namespaceChanged, clusterIdChanged, logger); err != nil {
-		logger.Error(err, "while conditionally restarting operator deployment")
-		return fmt.Errorf("while conditionally restarting operator deployment %w", err)
-	}
+		if clusterIdChanged {
+			if err := r.deleteClusterIDSecret(ctx, &logger); err != nil {
+				logger.Error(err, "while deleting cluster id secret")
+				return fmt.Errorf("failed to delete cluster id secret: %w", err)
+			}
+		}
 
-	return nil
-}
-
-func (r *BtpOperatorReconciler) conditionallyRestartOperator(ctx context.Context, namespaceChanged, clusterIdChanged bool, logger logr.Logger) error {
-	if !namespaceChanged && !clusterIdChanged {
-		logger.Info("no need to restart operator. skipping")
-		return nil
-	}
-	if clusterIdChanged {
-		err := r.deleteClusterIDSecret(ctx, &logger)
-		if err != nil {
-			logger.Error(err, "while deleting cluster id secret")
-			return fmt.Errorf("failed to delete cluster id secret: %w", err)
+		logger.Info("restarting operator....")
+		if err := r.restartOperatorDeployment(ctx, logger); err != nil {
+			logger.Error(err, "while restarting operator deployment")
+			return fmt.Errorf("failed to restart operator deployment: %w", err)
+		}
+		logger.Info("operator restarted and resources are ready.")
+	} else {
+		logger.Info("waiting for ALL module resources readiness")
+		if err = r.waitForResourcesReadiness(ctx, resourcesToApply, false); err != nil {
+			logger.Error(err, "while waiting for ALL module resources readiness")
+			return fmt.Errorf("timed out while waiting  for ALL resources readiness: %w", err)
 		}
 	}
 
-	if err := r.restartOperatorDeployment(ctx, logger); err != nil {
-		logger.Error(err, "while restarting operator deployment")
-		return fmt.Errorf("failed to restart operator deployment: %w", err)
-	}
-	logger.Info("operator deployment restarted successfully.")
 	return nil
 }
 
@@ -601,7 +590,6 @@ func (r *BtpOperatorReconciler) reconcileConfigMap(ctx context.Context, manageme
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(&currentConfigMap), &currentConfigMap); err != nil {
 		if k8serrors.IsNotFound(err) {
-			// provisioning case
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(futureConfigMap.Object, &currentConfigMap)
 			if err != nil {
 				return false, false, err
@@ -611,7 +599,6 @@ func (r *BtpOperatorReconciler) reconcileConfigMap(ctx context.Context, manageme
 			return false, false, fmt.Errorf("failed to get config map %s: %w", btpServiceOperatorConfigMap, err)
 		}
 	}
-
 	clusterId := string(managerSecret.Data[managerSecretClusterIdKey])
 	clusterIdChanged := clusterId != currentConfigMap.Data[ConfigMapClusterIDKey]
 	if err := unstructured.SetNestedField(futureConfigMap.Object, clusterId, "data", ConfigMapClusterIDKey); err != nil {
@@ -682,11 +669,6 @@ func (r *BtpOperatorReconciler) reconcileSecrets(secret *corev1.Secret, u *unstr
 }
 
 func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context, logger logr.Logger) error {
-	clientSet, err := kubernetes.NewForConfig(r.Config)
-	if err != nil {
-		return fmt.Errorf("failed to create kubernetes clientset: %w", err)
-	}
-	podClient := clientSet.CoreV1().Pods(ChartNamespace)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -703,27 +685,34 @@ func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context, l
 		return fmt.Errorf("while operator deployment: %w", err)
 	}
 
-	labelSelector := metav1.FormatLabelSelector(deployment.Spec.Selector)
-	pods, err := podClient.List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+	err := r.isDeploymentAvailable(ctx, *deployment)
+	if err != nil {
+		return err
+	}
+	logger.Info("operator deployment available. Restarting...")
+
+	labelSelector, err := metav1.LabelSelectorAsSelector(deployment.Spec.Selector)
+	if err != nil {
+		return fmt.Errorf("while converting operator deployment label selector: %w", err)
+	}
+	pods := &corev1.PodList{}
+	err = r.List(ctx, pods, client.MatchingLabelsSelector{Selector: labelSelector})
 	if err != nil {
 		return fmt.Errorf("error listing pods: %v", err)
 	}
 
 	for _, pod := range pods.Items {
-		err = podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
+		err = r.Delete(ctx, &pod)
 		if err != nil {
 			return fmt.Errorf("error deleting pod: %v", err)
 		}
 	}
 
-	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(deployment)
-	if err != nil {
-		return fmt.Errorf("failed to convert deployment to unstructured: %w", err)
-	}
-	err = r.waitForResourcesReadiness(ctx, []*unstructured.Unstructured{{Object: unstructuredObj}})
+	err = r.isDeploymentAvailable(ctx, *deployment)
 	if err != nil {
 		return err
 	}
+	logger.Info("operator deployment is available.")
 
 	return nil
 }
@@ -815,11 +804,14 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 	return nil
 }
 
-func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured, skipDeployment bool) error {
 	numOfResources := len(us)
+	if skipDeployment {
+		numOfResources--
+	}
 	resourcesReadinessInformer := make(chan ResourceReadiness, numOfResources)
 	for _, u := range us {
-		if u.GetKind() == deploymentKind {
+		if u.GetKind() == deploymentKind && !skipDeployment {
 			go r.checkDeploymentReadiness(ctx, u, resourcesReadinessInformer)
 			continue
 		}
@@ -867,6 +859,22 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				return
 			}
 		}
+	}
+}
+
+func (r *BtpOperatorReconciler) isDeploymentAvailable(ctx context.Context, deployment appsv1.Deployment) error {
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&deployment)
+	if err != nil {
+		return err
+	}
+	un := unstructured.Unstructured{Object: unstructuredObj}
+	rr := make(chan ResourceReadiness, 1)
+	go r.checkDeploymentReadiness(ctx, &un, rr)
+	ready := <-rr
+	if ready.Ready {
+		return nil
+	} else {
+		return fmt.Errorf("deployment %s in namespace %s is not ready", un.GetName(), un.GetNamespace())
 	}
 }
 
