@@ -8,17 +8,15 @@ To set input parameters, go to the `spec` of the ServiceInstance or ServiceBindi
 
 * **parameters**: Specifies a set of properties sent to the service broker.
   The specified data is passed to the service broker without any modifications - aside from converting it to the JSON format for transmission to the broker if the `spec` field is specified as a YAML file.
-  All valid YAML or JSON constructs are supported.
-
-  > [!NOTE] 
-  > Only one **parameter** field per `spec` can be specified.
+  All valid YAML or JSON constructs are supported. You can specify only one **parameter** field per `spec`.
 
 * **parametersFrom**: Specifies which Secret, together with the key in it, to include in the set of parameters sent to the service broker.
   The key contains a `string` that represents a JSON file. The **parametersFrom** field is a list that supports multiple sources referenced per `spec`.
   The ServiceInstance resource can specify multiple related Secrets.
 
-* **watchParametersFromChanges**: If set to `true`, any changes to the Secret values listed in **parametersFrom** trigger an automatic update of the ServiceInstance resource.
-  By default, the field is set to `false`  and must not be used if **parametersFrom** is empty.
+* **watchParametersFromChanges**: Use this field together with **parametersFrom**.
+  If set to `true`, any changes to the Secret values listed in **parametersFrom** trigger an automatic update of the ServiceInstance resource.
+  By default, the field is set to `false`.
 
 If you specified multiple sources in the **parameters** and **parametersFrom** fields, the final payload merges all of them at the top level.
 
