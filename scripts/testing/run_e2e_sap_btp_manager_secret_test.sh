@@ -58,7 +58,7 @@ echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap change
 SECONDS=0
 TIMEOUT=60
 
-kubectl logs -f deployment/btp-manager-controller-manager -n ${RELEASE_NAMESPACE}
+kubectl logs deployment/btp-manager-controller-manager -n ${RELEASE_NAMESPACE}
 
 until $RESOURCES_CHANGED
 do
