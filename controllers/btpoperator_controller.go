@@ -777,7 +777,7 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 }
 
 func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
+	//logger := log.FromContext(ctx)
 	for _, u := range us {
 		preExistingResource := &unstructured.Unstructured{}
 		preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
@@ -785,12 +785,12 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			if !k8serrors.IsNotFound(err) {
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
+			//logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
 			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
-			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
+			//logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
 			u.SetResourceVersion(preExistingResource.GetResourceVersion())
 			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
