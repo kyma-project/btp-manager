@@ -57,6 +57,9 @@ kubectl patch secret -n ${RELEASE_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"d
 echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
 SECONDS=0
 TIMEOUT=60
+
+kubectl logs btp-manager-controller-manager -n ${RELEASE_NAMESPACE}
+
 until $RESOURCES_CHANGED
 do
   if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
