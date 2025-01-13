@@ -525,6 +525,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 	if err != nil {
 		return fmt.Errorf("failed to resolve namespace %s : %w", namespace, err)
 	}
+	logger.Info(fmt.Sprintf("resolved namespace to: %s", namespace))
 
 	configMapIndex, secretIndex := r.getConfigMapAndSecretIndexes(resourcesToApply)
 	operatorSecret := resourcesToApply[secretIndex]
@@ -550,6 +551,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
+	logger.Info("### namespaceChanged: ", namespaceChanged, " clusterIdChanged: ", clusterIdChanged)
 	if namespaceChanged || clusterIdChanged {
 		logger.Info("waiting for module resources readiness")
 		if err = r.waitForResourcesReadiness(ctx, resourcesToApply, false); err != nil {
@@ -637,7 +639,7 @@ func (r *BtpOperatorReconciler) resolveNamespace(ctx context.Context, managerSec
 		}
 	}
 
-	logger.Info(fmt.Sprintf("setting namespace of %s secret to %s", clusterIdSecretName, namespace))
+	logger.Info(fmt.Sprintf("setting namespace to %s", namespace))
 	return namespace, nil
 }
 
