@@ -551,7 +551,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
-	logger.Info(fmt.Sprintf("##### namespaceChanged: %t clusterIdChanged: %t", namespaceChanged, clusterIdChanged))
+	fmt.Println(fmt.Sprintf("##### namespaceChanged: %t clusterIdChanged: %t", namespaceChanged, clusterIdChanged))
 	if namespaceChanged || clusterIdChanged {
 		logger.Info("waiting for module resources readiness")
 		if err = r.waitForResourcesReadiness(ctx, resourcesToApply, false); err != nil {
