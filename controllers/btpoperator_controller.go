@@ -868,7 +868,7 @@ func (r *BtpOperatorReconciler) isDeploymentAvailable(ctx context.Context, deplo
 		return err
 	}
 	un := unstructured.Unstructured{Object: unstructuredObj}
-	rr := make(chan ResourceReadiness, 1)
+	rr := make(chan ResourceReadiness)
 	go r.checkDeploymentReadiness(ctx, &un, rr)
 	ready := <-rr
 	if ready.Ready {
