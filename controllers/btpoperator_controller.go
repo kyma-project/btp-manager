@@ -868,6 +868,7 @@ func (r *BtpOperatorReconciler) isDeploymentAvailable(ctx context.Context, deplo
 	go r.checkDeploymentReadiness(ctx, &un, rr)
 	ready := <-rr
 	if ready.Ready {
+		fmt.Printf("deployment %s in namespace %s is ready\n", un.GetName(), un.GetNamespace())
 		return nil
 	} else {
 		return fmt.Errorf("deployment %s in namespace %s is not ready", un.GetName(), un.GetNamespace())
