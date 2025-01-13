@@ -552,7 +552,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, managerS
 
 	if namespaceChanged || clusterIdChanged {
 		logger.Info("waiting for module resources readiness")
-		if err = r.waitForResourcesReadiness(ctx, resourcesToApply, true); err != nil {
+		if err = r.waitForResourcesReadiness(ctx, resourcesToApply, false); err != nil {
 			logger.Error(err, "while waiting for module resources readiness")
 			return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
 		}
@@ -677,10 +677,6 @@ func (r *BtpOperatorReconciler) restartOperatorDeployment(ctx context.Context, l
 		},
 	}
 	if err := r.Get(ctx, client.ObjectKeyFromObject(deployment), deployment); err != nil {
-		if k8serrors.IsNotFound(err) {
-			logger.Info("operator deployment not found. skipping.")
-			return nil
-		}
 		logger.Error(err, "while getting operator deployment")
 		return fmt.Errorf("while operator deployment: %w", err)
 	}
