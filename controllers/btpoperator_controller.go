@@ -65,8 +65,8 @@ var (
 	ConfigName                     = "sap-btp-manager"
 	DeploymentName                 = "sap-btp-operator-controller-manager"
 	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Minute * 15
-	ReadyTimeout                   = time.Minute * 5
+	ReadyStateRequeueInterval      = time.Minute * 1
+	ReadyTimeout                   = time.Minute * 1
 	ReadyCheckInterval             = time.Second * 30
 	HardDeleteTimeout              = time.Minute * 20
 	HardDeleteCheckInterval        = time.Second * 10
