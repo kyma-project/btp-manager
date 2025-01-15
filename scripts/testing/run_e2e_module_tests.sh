@@ -28,6 +28,7 @@ SI_PARAMS_SECRET_NAME=auditlog-management-params-secret-${GITHUB_JOB}-${GITHUB_R
 
 export SI_NAME
 export SB_NAME
+export SI_PARAMS_SECRET_NAME
 
 echo -e "\n---Creating service instance: ${SI_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
