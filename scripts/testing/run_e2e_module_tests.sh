@@ -291,4 +291,4 @@ make undeploy
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
 kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
-kubectl delete secret SI_PARAMS_SECRET_NAME || echo "ignoring failure during params secret removal"
+kubectl delete secret ${SI_PARAMS_SECRET_NAME} || echo "ignoring failure during params secret removal"
