@@ -22,9 +22,11 @@ SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
 
 [[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
 
-SI_NAME=auditlog-management-si-${GITHUB_JOB}-${GITHUB_RUN_ID}
-SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
-SI_PARAMS_SECRET_NAME=auditlog-management-params-secret-${GITHUB_JOB}-${GITHUB_RUN_ID}
+K8S_VER=$(kubectl version -o json | jq .serverVersion.gitVersion -r | cut -d + -f 1)
+
+SI_NAME=${GITHUB_JOB}-${K8S_VER}-${GITHUB_RUN_ID}
+SB_NAME=${GITHUB_JOB}-${K8S_VER}-${GITHUB_RUN_ID}
+SI_PARAMS_SECRET_NAME=params-secret
 
 export SI_NAME
 export SB_NAME
