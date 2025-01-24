@@ -46,6 +46,8 @@ data:
   credentials_namespace: {CREDENTIALS_NAMESPACE}
 ```
 
+Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` secrets. BTP Manager deletes the secrets from the default namespace and creates them in the custom namespace.
+
 ## Result
 
 Your customized `sap-btp-manager` Secret is now the default Secret of the SAP BTP Operator module. It generates the SAP BTP service operator's resources, as shown in the following diagram:
