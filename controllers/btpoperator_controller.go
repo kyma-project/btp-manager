@@ -145,6 +145,13 @@ type BtpOperatorReconciler struct {
 	instanceBindingService InstanceBindingSerivce
 }
 
+type ResourceReadiness struct {
+	Name      string
+	Namespace string
+	Kind      string
+	Ready     bool
+}
+
 func NewBtpOperatorReconciler(client client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
@@ -615,41 +622,24 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 
 func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	numOfResources := len(us)
-	resourcesReadinessInformer := make(chan bool, numOfResources)
-	allReadyInformer := make(chan bool, 1)
+	resourcesReadinessInformer := make(chan ResourceReadiness, numOfResources)
 	for _, u := range us {
-		go r.checkResourceReadiness(ctx, u, resourcesReadinessInformer)
-	}
-	go func(c chan bool) {
-		timeout := time.After(ReadyTimeout)
-		for i := 0; i < numOfResources; i++ {
-			select {
-			case <-resourcesReadinessInformer:
-				continue
-			case <-timeout:
-				return
-			}
+		if u.GetKind() == deploymentKind {
+			go r.checkDeploymentReadiness(ctx, u, resourcesReadinessInformer)
+			continue
 		}
-		allReadyInformer <- true
-	}(resourcesReadinessInformer)
-	select {
-	case <-allReadyInformer:
-		return nil
-	case <-time.After(ReadyTimeout):
-		return errors.New("resources readiness timeout reached")
+		go r.checkResourceExistence(ctx, u, resourcesReadinessInformer)
 	}
+
+	for i := 0; i < numOfResources; i++ {
+		if resourceReady := <-resourcesReadinessInformer; !resourceReady.Ready {
+			return fmt.Errorf("%s %s in namespace %s readiness timeout reached", resourceReady.Kind, resourceReady.Name, resourceReady.Namespace)
+		}
+	}
+	return nil
 }
 
-func (r *BtpOperatorReconciler) checkResourceReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
-	switch u.GetKind() {
-	case deploymentKind:
-		r.checkDeploymentReadiness(ctx, u, c)
-	default:
-		r.checkResourceExistence(ctx, u, c)
-	}
-}
-
-func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -661,6 +651,12 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
+			c <- ResourceReadiness{
+				Name:      u.GetName(),
+				Namespace: u.GetNamespace(),
+				Kind:      u.GetKind(),
+				Ready:     false,
+			}
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
@@ -672,14 +668,14 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				}
 			}
 			if progressingConditionStatus == "True" && availableConditionStatus == "True" {
-				c <- true
+				c <- ResourceReadiness{Ready: true}
 				return
 			}
 		}
 	}
 }
 
-func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- bool) {
+func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
@@ -691,10 +687,16 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	for {
 		if time.Since(now) >= ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
+			c <- ResourceReadiness{
+				Name:      u.GetName(),
+				Namespace: u.GetNamespace(),
+				Kind:      u.GetKind(),
+				Ready:     false,
+			}
 			return
 		}
 		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
-			c <- true
+			c <- ResourceReadiness{Ready: true}
 			return
 		}
 	}

@@ -55,11 +55,13 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 	}
 	r.mgr = mgr
 
-	r.sisbReconciler = NewServiceInstanceReconciler(r.Client, r.Scheme)
-	err = r.sisbReconciler.SetupWithManager(r.mgr)
-	if err != nil {
-		logger.Error(err, "unable to create SI SB controller")
-		return
+	if r.sisbReconciler != nil {
+		r.sisbReconciler = NewServiceInstanceReconciler(r.Client, r.Scheme)
+		err = r.sisbReconciler.SetupWithManager(r.mgr)
+		if err != nil {
+			logger.Error(err, "unable to create SI SB controller")
+			return
+		}
 	}
 	r.enabled = true
 
