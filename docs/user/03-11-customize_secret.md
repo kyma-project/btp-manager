@@ -19,7 +19,7 @@ With the customized Secret, you can perform the following actions:
 
 ## Procedure
 
-To customize the `sap-btp-manager` Secret, perform the following steps:
+To customize the `sap-btp-manager` Secret, modify the credentials in the following way:
 
 * Label the Secret with `kyma-project.io/skip-reconciliation: 'true'`.
 * Provide the following credentials from your SAP Service Manager instance: **clientid**, **clientsecret**, **sm_url**, and **tokenurl**.
@@ -59,4 +59,4 @@ The reconciliation of the Secret stops and your changes are not reverted.
 
 > [!NOTE]
 > If you created all service instances in your Kyma cluster from the customized `sap-btp-manager` Secret, you can delete the cluster even if those instances still exist.
-> The undeleted service instances do not block the deletion of the cluster.
+> The non-deleted service instances do not block the deletion of the cluster.

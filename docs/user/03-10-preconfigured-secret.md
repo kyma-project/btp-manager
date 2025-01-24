@@ -50,7 +50,8 @@ The following parameters manage cluster access:
 | Parameter                     | Description                                                                                   |
 |-------------------------------|-----------------------------------------------------------------------------------------------|
 | **CLUSTER_ID**                | Generated when Kyma runtime is created.                                                       |
-| **MANAGEMENT_NAMESPACE**      | By default, set to `kyma-system`.                                                |
 | **ALLOW_CLUSTER_ACCESS**      | You can use every namespace for your operations. The parameter is always set to `true`.<br>If you change it to `false`, the setting is automatically reverted. |
+| **MANAGEMENT_NAMESPACE**      | By default, set to `kyma-system`.                                               |
+| **RELEASE_NAMESPACE**         | By default, set to `kyma-system`.                                               |
 
 To use your own cluster access settings, you must customize the `sap-btp-operator` Secret. For more information, see [Customize Default Credentials and Access](03-11-customize_secret.md).
