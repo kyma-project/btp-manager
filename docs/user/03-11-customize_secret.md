@@ -1,5 +1,8 @@
 # Customize the Default Credentials and Access
 
+> [!NOTE]
+> This feature is still being developed and will be available soon.
+
 You can customize the `sap-btp-manager` Secret and manage your own default configuration of the SAP BTP Operator module.
 
 ## Context
@@ -21,7 +24,27 @@ To customize the `sap-btp-manager` Secret, perform the following steps:
 * Label the Secret with `kyma-project.io/skip-reconciliation: 'true'`.
 * Provide the following credentials from your SAP Service Manager instance: **clientid**, **clientsecret**, **sm_url**, and **tokenurl**.
 * Optionally, provide your **cluster_id**. Otherwise, it is generated automatically.
-* Optionally, add the `management_namespace` parameter and provide the name of your custom management namespace.
+* Optionally, add the **credentials_namespace** parameter and provide the name of your custom namespace for Secrets with credentials to communicate with the SAP Service Manager.  
+
+Example:
+```yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: sap-btp-manager
+  namespace: kyma-system
+  labels:
+    app.kubernetes.io/managed-by: kcp-kyma-environment-broker
+    kyma-project.io/skip-reconciliation: "true"
+data:
+  clientid: {CLIENT_ID}
+  clientsecret: {CLIENT_SECRET}
+  sm_url: {SM_URL}
+  tokenurl: {AUTH_URL}
+  cluster_id: {CLUSTER_ID}
+  credentials_namespace: {CREDENTIALS_NAMESPACE}
+```
 
 ## Result
 
