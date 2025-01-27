@@ -50,7 +50,7 @@ The following parameters manage cluster access:
 | Parameter                | Description                                                                                                                                                                              |
 |--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **CLUSTER_ID**           | Generated when Kyma runtime is created.                                                                                                                                                  |
-| **MANAGEMENT_NAMESPACE** | Indicates the namespace for Secrets referenced in service instances and Secrets with the name containing a prefix of the service instance's namespace. By default, set to `kyma-system`. |
+| **MANAGEMENT_NAMESPACE** | Indicates the namespace for Secrets referenced in service instances and Secrets, with the name containing a prefix of the service instance's namespace. By default, set to `kyma-system`. |
 | **RELEASE_NAMESPACE**    | Stores the chart's release namespace and indicates the namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. By default, set to `kyma-system`.              |
 | **ALLOW_CLUSTER_ACCESS** | You can use every namespace for your operations. The parameter is always set to `true`. If you change it to `false`, the setting is automatically reverted.                              |
 
