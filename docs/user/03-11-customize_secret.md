@@ -24,7 +24,9 @@ To customize the `sap-btp-manager` Secret, modify the credentials in the followi
 * Label the Secret with `kyma-project.io/skip-reconciliation: 'true'`.
 * Provide the following credentials from your SAP Service Manager instance: **clientid**, **clientsecret**, **sm_url**, and **tokenurl**.
 * Optionally, provide your **cluster_id**. Otherwise, it is generated automatically.
-* Optionally, add the **credentials_namespace** parameter and provide the name of your custom namespace for Secrets with credentials to communicate with the SAP Service Manager.  
+* Optionally, add the **credentials_namespace** parameter and provide the name of your custom namespace for Secrets with credentials to communicate with the SAP Service Manager.
+   >[!NOTE]
+   > Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. BTP Manager deletes the Secrets from the default namespace and creates them in the custom namespace.
 
 Example:
 ```yaml
@@ -46,8 +48,6 @@ data:
   credentials_namespace: {CREDENTIALS_NAMESPACE}
 ```
 
-Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` secrets. BTP Manager deletes the secrets from the default namespace and creates them in the custom namespace.
-
 ## Result
 
 Your customized `sap-btp-manager` Secret is now the default Secret of the SAP BTP Operator module. It generates the SAP BTP service operator's resources, as shown in the following diagram:
@@ -58,7 +58,3 @@ The reconciliation of the Secret stops and your changes are not reverted.
 
 > [!WARNING]
 > If you delete the customized `sap-btp-manager` Secret, the reconciliation starts again, and the preconfigured default `sap-btp-manager` Secret is recreated for your Kyma instance within 24 hours. See [Preconfigured Credentials and Access](./03-10-preconfigured-secret.md#credentials).
-
-> [!NOTE]
-> If you created all service instances in your Kyma cluster from the customized `sap-btp-manager` Secret, you can delete the cluster even if those instances still exist.
-> The non-deleted service instances do not block the deletion of the cluster.

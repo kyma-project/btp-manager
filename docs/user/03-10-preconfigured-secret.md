@@ -50,9 +50,10 @@ The following parameters manage cluster access:
 | Parameter                | Description                                                                                                                                                                              |
 |--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **CLUSTER_ID**           | Generated when Kyma runtime is created.                                                                                                                                                  |
-| **MANAGEMENT_NAMESPACE** | Indicates the namespace for Secrets referenced in Service Instances and Secrets with the name containing a prefix of the Service Instance's namespace. By default, set to `kyma-system`. |
-| **RELEASE_NAMESPACE**    | Stores the chart's release namespace and indicates the namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` secrets. By default, set to `kyma-system`.              |
+| **MANAGEMENT_NAMESPACE** | Indicates the namespace for Secrets referenced in service instances and Secrets with the name containing a prefix of the service instance's namespace. By default, set to `kyma-system`. |
+| **RELEASE_NAMESPACE**    | Stores the chart's release namespace and indicates the namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. By default, set to `kyma-system`.              |
 | **ALLOW_CLUSTER_ACCESS** | You can use every namespace for your operations. The parameter is always set to `true`. If you change it to `false`, the setting is automatically reverted.                              |
 
-See [Managing Access](https://github.com/SAP/sap-btp-service-operator#managing-access) for more information about parameters.
-To use your own cluster access settings, you must customize the `sap-btp-operator` Secret. For more information, see [Customize Default Credentials and Access](03-11-customize_secret.md).
+## Related Information
+
+[Customize Default Credentials and Access](03-11-customize_secret.md)
