@@ -25,10 +25,12 @@ To customize the `sap-btp-manager` Secret, modify the credentials in the followi
 * Provide the following credentials from your SAP Service Manager instance: **clientid**, **clientsecret**, **sm_url**, and **tokenurl**.
 * Optionally, provide your **cluster_id**. Otherwise, it is generated automatically.
 * Optionally, add the **credentials_namespace** parameter and provide the name of your custom namespace for Secrets with credentials to communicate with the SAP Service Manager.
+
    >[!NOTE]
    > Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. BTP Manager deletes the Secrets from the default namespace and creates them in the custom namespace.
 
-Example:
+See the following example:
+
 ```yaml
 apiVersion: v1
 kind: Secret
