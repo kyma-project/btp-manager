@@ -78,20 +78,21 @@ var (
 )
 
 const (
-	chartVersionKey                    = "chart-version"
-	secretKind                         = "Secret"
-	configMapKind                      = "ConfigMap"
-	deploymentKind                     = "Deployment"
-	deploymentAvailableConditionType   = "Available"
-	deploymentProgressingConditionType = "Progressing"
-	operatorName                       = "btp-manager"
-	deletionFinalizer                  = "operator.kyma-project.io/btp-manager"
-	managedByLabelKey                  = "app.kubernetes.io/managed-by"
-	btpServiceOperatorConfigMap        = "sap-btp-operator-config"
-	btpServiceOperatorSecret           = "sap-btp-service-operator"
-	mutatingWebhookName                = "sap-btp-operator-mutating-webhook-configuration"
-	validatingWebhookName              = "sap-btp-operator-validating-webhook-configuration"
-	forceDeleteLabelKey                = "force-delete"
+	chartVersionKey                           = "chart-version"
+	secretKind                                = "Secret"
+	configMapKind                             = "ConfigMap"
+	deploymentKind                            = "Deployment"
+	deploymentAvailableConditionType          = "Available"
+	deploymentProgressingConditionType        = "Progressing"
+	operatorName                              = "btp-manager"
+	btpServiceOperatorConfigMap               = "sap-btp-operator-config"
+	btpServiceOperatorSecret                  = "sap-btp-service-operator"
+	mutatingWebhookName                       = "sap-btp-operator-mutating-webhook-configuration"
+	validatingWebhookName                     = "sap-btp-operator-validating-webhook-configuration"
+	forceDeleteLabelKey                       = "force-delete"
+	managedByLabelKey                         = "app.kubernetes.io/managed-by"
+	deletionFinalizer                         = "operator.kyma-project.io/btp-manager"
+	previousCredentialsNamespaceAnnotationKey = "operator.kyma-project.io/previous-credentials-namespace"
 )
 
 const (
@@ -138,11 +139,13 @@ type InstanceBindingSerivce interface {
 type BtpOperatorReconciler struct {
 	client.Client
 	*rest.Config
-	Scheme                 *runtime.Scheme
-	manifestHandler        *manifest.Handler
-	workqueueSize          int
-	metrics                *metrics.Metrics
-	instanceBindingService InstanceBindingSerivce
+	Scheme                       *runtime.Scheme
+	manifestHandler              *manifest.Handler
+	metrics                      *metrics.Metrics
+	instanceBindingService       InstanceBindingSerivce
+	workqueueSize                int
+	previousCredentialsNamespace string
+	currentCredentialsNamespace  string
 }
 
 type ResourceReadiness struct {
@@ -1321,31 +1324,27 @@ func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
 }
 
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate[client.Object] {
-	predicateIfReconcile := func(secret *corev1.Secret) bool {
-		return secret.Namespace == ChartNamespace && (secret.Name == SecretName || secret.Name == CaSecret || secret.Name == WebhookSecret)
-	}
-
 	return predicate.TypedFuncs[client.Object]{
 		CreateFunc: func(e event.CreateEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			return predicateIfReconcile(secret)
+			return r.isManagedSecret(secret)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			secret, ok := e.Object.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			return predicateIfReconcile(secret)
+			return r.isManagedSecret(secret)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldSecret, ok := e.ObjectOld.(*corev1.Secret)
 			if !ok {
 				return false
 			}
-			return predicateIfReconcile(oldSecret)
+			return r.isManagedSecret(oldSecret)
 		},
 	}
 }
@@ -2069,4 +2068,13 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	if err := r.reconcileResources(ctx, secret); err != nil {
 		logger.Error(err, "resources reconciliation failed")
 	}
+}
+
+func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
+	if v, ok := s.Labels[managedByLabelKey]; !ok || v != operatorName {
+		return false
+	}
+	isCredentialSecret := s.Namespace == r.currentCredentialsNamespace && s.Name == SecretName
+	isCertSecret := s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
+	return isCredentialSecret || isCertSecret
 }
