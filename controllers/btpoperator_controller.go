@@ -2072,10 +2072,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 }
 
 func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
-	if v, ok := s.Labels[managedByLabelKey]; !ok || v != operatorName {
-		return false
-	}
-	isCredentialSecret := s.Namespace == r.currentCredentialsNamespace && s.Name == SecretName
+	isCredentialSecret := s.Namespace == ChartNamespace && s.Name == SecretName
 	isCertSecret := s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
 	return isCredentialSecret || isCertSecret
 }
