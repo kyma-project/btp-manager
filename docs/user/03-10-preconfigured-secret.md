@@ -10,7 +10,7 @@ When you create a Kyma instance in the SAP BTP cockpit, the following events hap
 2. An SAP Service Manager service binding with access credentials for the SAP BTP Operator is created.
 3. The credentials from the service binding are passed on to the Kyma service instance in the creation process.
 4. The `sap-btp-manager` Secret is created and managed in the `kyma-system` namespace.
-5. The SAP BTP Operator module is installed by default together with:
+5. By default, the SAP BTP Operator module is installed together with:
 
    * The `sap-btp-manager` Secret.
    * The `sap-btp-service-operator` Secret with the access credentials for the SAP BTP service operator. You can view the credentials in the `kyma-system` namespace.
@@ -36,7 +36,8 @@ When you add the SAP BTP Operator module to your cluster, the `sap-btp-manager` 
 
 ![module_credentials](../assets/module_credentials.drawio.svg)
 
-The cluster ID represents a Kyma service instance created in a particular subaccount and allows for its identification. You can view the cluster ID in the SAP BTP cockpit:
+The cluster ID represents and identifies a Kyma service instance created in a particular subaccount. You can view the cluster ID in the SAP BTP cockpit:
+
 * In the `sap-btp-manager` Secret
 * In the `sap-btp-service-operator` Secret
 * In the `sap-btp-operator-config` ConfigMap
@@ -53,6 +54,17 @@ The following parameters manage cluster access:
 | **MANAGEMENT_NAMESPACE** | Indicates the namespace for Secrets referenced in service instances and Secrets, with the name containing a prefix of the service instance's namespace. By default, set to `kyma-system`. |
 | **RELEASE_NAMESPACE**    | Stores the chart's release namespace and indicates the namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. By default, set to `kyma-system`.              |
 | **ALLOW_CLUSTER_ACCESS** | You can use every namespace for your operations. The parameter is always set to `true`. If you change it to `false`, the setting is automatically reverted.                              |
+
+## Default Credentials and Kyma Runtime Deletion
+
+The preconfigured credentials described in the [Credentials](#credentials) section may affect the deletion of your Kyma cluster.
+
+If any non-deleted service instances in your Kyma cluster use the credentials from the SAP Service Manager resources created automatically, you can't delete the cluster. In this case, the existing service instances block the cluster's deletion. Before you attempt to delete the cluster from the SAP BTP cockpit, delete your service instances and bindings in Kyma dashboard. See [Delete Service Bindigs and Service Instances](03-70-delete-bindings-and-instances.md#kyma-dashboard).
+
+However, if all existing service instances in your Kyma cluster use your custom SAP Service Manager credentials, the non-deleted service instances do not block the cluster's deletion. See [Customize the Default Credentials and Access](03-11-customize_secret.md#procedure).
+
+If you have not deleted service instances and bindings connected to your expired free tier service, you can still find the service binding credentials in the SAP Service Manager instance details in the SAP BTP cockpit. Use them to delete the leftover service instances and bindings.
+
 
 ## Related Information
 
