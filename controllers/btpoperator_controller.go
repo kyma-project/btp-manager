@@ -91,8 +91,9 @@ const (
 	validatingWebhookName                     = "sap-btp-operator-validating-webhook-configuration"
 	forceDeleteLabelKey                       = "force-delete"
 	managedByLabelKey                         = "app.kubernetes.io/managed-by"
-	deletionFinalizer                         = "operator.kyma-project.io/btp-manager"
-	previousCredentialsNamespaceAnnotationKey = "operator.kyma-project.io/previous-credentials-namespace"
+	operatorLabelPrefix                       = "operator.kyma-project.io"
+	deletionFinalizer                         = operatorLabelPrefix + "/btp-manager"
+	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "/previous-credentials-namespace"
 )
 
 const (
