@@ -94,6 +94,7 @@ const (
 	operatorLabelPrefix                       = "operator.kyma-project.io"
 	deletionFinalizer                         = operatorLabelPrefix + "/btp-manager"
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "/previous-credentials-namespace"
+	customCredentialsNamespaceSecretKey       = "credentials_namespace"
 )
 
 const (
