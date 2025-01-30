@@ -1253,7 +1253,7 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.handleSecretEvents),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Watches(
@@ -2076,4 +2076,21 @@ func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
 	isCredentialSecret := s.Namespace == ChartNamespace && s.Name == SecretName
 	isCertSecret := s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
 	return isCredentialSecret || isCertSecret
+}
+
+func (r *BtpOperatorReconciler) handleSecretEvents(ctx context.Context, obj client.Object) []reconcile.Request {
+	s, ok := obj.(*corev1.Secret)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	if v, ok := s.Data["credentials_namespace"]; ok && len(v) > 0 {
+		newCredentialsNamespace := string(v)
+		if r.currentCredentialsNamespace != newCredentialsNamespace {
+			r.previousCredentialsNamespace = r.currentCredentialsNamespace
+			r.currentCredentialsNamespace = newCredentialsNamespace
+		}
+	}
+
+	return r.enqueueOldestBtpOperator()
 }
