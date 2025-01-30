@@ -148,6 +148,7 @@ type BtpOperatorReconciler struct {
 	workqueueSize                int
 	previousCredentialsNamespace string
 	currentCredentialsNamespace  string
+	newCredentialsNamespace      string
 }
 
 type ResourceReadiness struct {
@@ -348,6 +349,8 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
+	r.saveCredentialsNamespacesWhenMissing(secret)
+
 	if err := r.annotateSecret(ctx, secret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
@@ -428,21 +431,6 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
-
-	if len(r.currentCredentialsNamespace) == 0 {
-		credentialsNamespace := ChartNamespace
-		if v, ok := secret.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
-			credentialsNamespace = string(v)
-		}
-		r.currentCredentialsNamespace = credentialsNamespace
-	}
-
-	if len(r.previousCredentialsNamespace) == 0 {
-		if v, ok := secret.Annotations[previousCredentialsNamespaceAnnotationKey]; ok && len(v) > 0 {
-			r.previousCredentialsNamespace = v
-		}
-	}
-
 	return nil
 }
 
@@ -1249,6 +1237,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
+	}
+
+	r.saveCredentialsNamespacesWhenMissing(secret)
+
+	if err := r.checkCredentialsSecretNamespace(ctx); err != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.CredentialsNamespaceChanged, err.Error())
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
@@ -2120,7 +2114,7 @@ func (r *BtpOperatorReconciler) saveCredentialsNamespacesNames(s *corev1.Secret)
 		newCredentialsNamespace := string(v)
 		if r.currentCredentialsNamespace != newCredentialsNamespace {
 			r.previousCredentialsNamespace = r.currentCredentialsNamespace
-			r.currentCredentialsNamespace = newCredentialsNamespace
+			r.newCredentialsNamespace = newCredentialsNamespace
 		}
 	}
 }
@@ -2139,4 +2133,33 @@ func (r *BtpOperatorReconciler) annotateSecretWithPreviousCredentialsNamespace(c
 	}
 	s.Annotations[previousCredentialsNamespaceAnnotationKey] = r.previousCredentialsNamespace
 	return r.Update(ctx, s)
+}
+
+func (r *BtpOperatorReconciler) saveCredentialsNamespacesWhenMissing(s *corev1.Secret) {
+	if len(r.currentCredentialsNamespace) == 0 {
+		credentialsNamespace := ChartNamespace
+		if v, ok := s.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
+			credentialsNamespace = string(v)
+		}
+		r.currentCredentialsNamespace = credentialsNamespace
+	}
+
+	if len(r.previousCredentialsNamespace) == 0 {
+		if v, ok := s.Annotations[previousCredentialsNamespaceAnnotationKey]; ok && len(v) > 0 {
+			r.previousCredentialsNamespace = v
+		}
+	}
+}
+
+func (r *BtpOperatorReconciler) checkCredentialsSecretNamespace(ctx context.Context) error {
+	secret := &corev1.Secret{}
+	objKey := client.ObjectKey{Namespace: r.currentCredentialsNamespace, Name: btpServiceOperatorSecret}
+	if err := r.Get(ctx, objKey, secret); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return fmt.Errorf("%s secret in %s namespace not found", objKey.Name, objKey.Namespace)
+		}
+		return fmt.Errorf("unable to get secret: %w", err)
+	}
+
+	return nil
 }
