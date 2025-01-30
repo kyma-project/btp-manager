@@ -2081,9 +2081,15 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 }
 
 func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
-	isCredentialSecret := s.Namespace == ChartNamespace && s.Name == SecretName
-	isCertSecret := s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
-	return isCredentialSecret || isCertSecret
+	return r.isCredentialSecret(s) || r.isCertSecret(s)
+}
+
+func (r *BtpOperatorReconciler) isCredentialSecret(s *corev1.Secret) bool {
+	return s.Namespace == ChartNamespace && s.Name == SecretName
+}
+
+func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
+	return s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
 }
 
 func (r *BtpOperatorReconciler) handleSecretEvents(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -2092,6 +2098,14 @@ func (r *BtpOperatorReconciler) handleSecretEvents(ctx context.Context, obj clie
 		return []reconcile.Request{}
 	}
 
+	if r.isCredentialSecret(s) {
+		r.saveCredentialsNamespacesNames(s)
+	}
+
+	return r.enqueueOldestBtpOperator()
+}
+
+func (r *BtpOperatorReconciler) saveCredentialsNamespacesNames(s *corev1.Secret) {
 	if v, ok := s.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
 		newCredentialsNamespace := string(v)
 		if r.currentCredentialsNamespace != newCredentialsNamespace {
@@ -2099,6 +2113,4 @@ func (r *BtpOperatorReconciler) handleSecretEvents(ctx context.Context, obj clie
 			r.currentCredentialsNamespace = newCredentialsNamespace
 		}
 	}
-
-	return r.enqueueOldestBtpOperator()
 }
