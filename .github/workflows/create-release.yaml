@@ -22,6 +22,10 @@ on:
         options:
           - dummy
           - real
+      skip-sec-file-and-chart-bump:
+        type: boolean
+        description: 'Do not bump sec-scanners-config file and chart'
+        default: false
       sec-scanners-config:
         type: boolean
         description: 'Create PR with sec-scanners-config bump'
@@ -236,6 +240,18 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
 
+      - name: Check if any PR was merged after bumps
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
+          echo "Latest commit sha: $COMMIT_SHA"
+          echo "Bump sha: ${{ needs.bumps.outputs.latest_commit}}"
+          if [ "$COMMIT_SHA" != "${{ needs.bumps.outputs.latest_commit}}" ]; then
+            echo "::error ::a PR was merged after the bumps. Don't rerun this workflow, create a new release with the same version"
+            exit 1 
+          fi
+
       - name: Set up go environment
         uses: actions/setup-go@v4
         with:
@@ -262,12 +278,24 @@ jobs:
           git tag ${{ github.event.inputs.name }}
           git push origin ${{ github.event.inputs.name }}
 
+      - name: Check if any PR may have been merged before creating the tag and draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
+          echo "Latest commit sha: $COMMIT_SHA"
+          echo "Bump sha: ${{ needs.bumps.outputs.latest_commit}}"
+          if [ "$COMMIT_SHA" != "${{ needs.bumps.outputs.latest_commit}}" ]; then
+            echo "::error ::a PR may have been merged before the tag and draft release were created. Delete the tag and the draft release. Don't rerun this workflow. Create a new release with the same version"
+            exit 1 
+          fi
+
     outputs:
       release_id: ${{ steps.create-draft.outputs.release_id }}
 
   publish-release:
     name: Publish release
-    needs: [create-draft, run-unit-tests, run-e2e-tests, run-e2e-upgrade-tests, run-stress-tests, run-e2e-upgrade-while-deleting-tests]
+    needs: [create-draft, bump-sec-scanners-config]
     if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
 
