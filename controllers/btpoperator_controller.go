@@ -425,6 +425,14 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
 
+	if len(r.currentCredentialsNamespace) == 0 {
+		r.currentCredentialsNamespace = string(secret.Data["credentials_namespace"])
+	}
+
+	if len(r.previousCredentialsNamespace) == 0 {
+		r.previousCredentialsNamespace = secret.Annotations[previousCredentialsNamespaceAnnotationKey]
+	}
+
 	return nil
 }
 
