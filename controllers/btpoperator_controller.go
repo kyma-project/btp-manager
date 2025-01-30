@@ -430,11 +430,17 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 	}
 
 	if len(r.currentCredentialsNamespace) == 0 {
-		r.currentCredentialsNamespace = string(secret.Data[customCredentialsNamespaceSecretKey])
+		credentialsNamespace := ChartNamespace
+		if v, ok := secret.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
+			credentialsNamespace = string(v)
+		}
+		r.currentCredentialsNamespace = credentialsNamespace
 	}
 
 	if len(r.previousCredentialsNamespace) == 0 {
-		r.previousCredentialsNamespace = secret.Annotations[previousCredentialsNamespaceAnnotationKey]
+		if v, ok := secret.Annotations[previousCredentialsNamespaceAnnotationKey]; ok && len(v) > 0 {
+			r.previousCredentialsNamespace = v
+		}
 	}
 
 	return nil
