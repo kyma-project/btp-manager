@@ -426,7 +426,7 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 	}
 
 	if len(r.currentCredentialsNamespace) == 0 {
-		r.currentCredentialsNamespace = string(secret.Data["credentials_namespace"])
+		r.currentCredentialsNamespace = string(secret.Data[customCredentialsNamespaceSecretKey])
 	}
 
 	if len(r.previousCredentialsNamespace) == 0 {
@@ -2092,7 +2092,7 @@ func (r *BtpOperatorReconciler) handleSecretEvents(ctx context.Context, obj clie
 		return []reconcile.Request{}
 	}
 
-	if v, ok := s.Data["credentials_namespace"]; ok && len(v) > 0 {
+	if v, ok := s.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
 		newCredentialsNamespace := string(v)
 		if r.currentCredentialsNamespace != newCredentialsNamespace {
 			r.previousCredentialsNamespace = r.currentCredentialsNamespace
