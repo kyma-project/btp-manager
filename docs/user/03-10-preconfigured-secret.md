@@ -28,7 +28,7 @@ The `sap-btp-manager` Secret provides the following credentials:
 * **tokenurl**
 
 > [!NOTE]
-> If you modify or delete the `sap-btp-manager` Secret, it is modified back to its previous settings or regenerated within up to 24 hours.
+> If you modify or delete the `sap-btp-manager` Secret, it is modified back to its previous settings or regenerated within 24 hours.
 > To prevent your changes from being reverted, label the Secret with `kyma-project.io/skip-reconciliation: "true"`. For more information, see [Customize Credentials and Access](03-11-customize_secret.md).
 
 When you add the SAP BTP Operator module to your cluster, the `sap-btp-manager` Secret generates the SAP BTP service operator's resources as shown in the following diagram:
@@ -59,7 +59,7 @@ The following parameters manage cluster access:
 
 The preconfigured credentials described in the [Credentials](#credentials) section may affect the deletion of your Kyma cluster.
 
-If any non-deleted service instances in your Kyma cluster use the credentials from the SAP Service Manager resources created automatically, you can't delete the cluster. In this case, the existing service instances block the cluster's deletion. Before you attempt to delete the cluster from the SAP BTP cockpit, delete your service instances and bindings in Kyma dashboard. See [Delete Service Bindigs and Service Instances](03-70-delete-bindings-and-instances.md#kyma-dashboard).
+If any non-deleted service instances in your Kyma cluster use the credentials from the SAP Service Manager resources created automatically, you can't delete the cluster. In this case, the existing service instances block the cluster's deletion. Before you attempt to delete the cluster from the SAP BTP cockpit, delete your service instances and bindings in Kyma dashboard. See [Delete Service Bindings and Service Instances](03-70-delete-bindings-and-instances.md#kyma-dashboard).
 
 However, if all existing service instances in your Kyma cluster use your custom SAP Service Manager credentials, the non-deleted service instances do not block the cluster's deletion. See [Customize the Default Credentials and Access](03-11-customize_secret.md#procedure).
 
