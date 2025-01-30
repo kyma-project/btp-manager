@@ -348,6 +348,10 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
+	if err := r.annotateSecret(ctx, secret); err != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
+	}
+
 	if err := r.deleteOutdatedResources(ctx); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
@@ -2113,4 +2117,20 @@ func (r *BtpOperatorReconciler) saveCredentialsNamespacesNames(s *corev1.Secret)
 			r.currentCredentialsNamespace = newCredentialsNamespace
 		}
 	}
+}
+
+func (r *BtpOperatorReconciler) annotateSecret(ctx context.Context, s *corev1.Secret) error {
+	previousCredentialsNamespaceInSecret := s.Annotations[previousCredentialsNamespaceAnnotationKey]
+	if r.previousCredentialsNamespace != previousCredentialsNamespaceInSecret {
+		return r.annotateSecretWithPreviousCredentialsNamespace(ctx, s)
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) annotateSecretWithPreviousCredentialsNamespace(ctx context.Context, s *corev1.Secret) error {
+	if s.Annotations == nil {
+		s.Annotations = make(map[string]string)
+	}
+	s.Annotations[previousCredentialsNamespaceAnnotationKey] = r.previousCredentialsNamespace
+	return r.Update(ctx, s)
 }
