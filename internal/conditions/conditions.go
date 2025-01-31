@@ -35,6 +35,8 @@ const (
 	GettingConfigMapFailed                Reason = "GettingConfigMapFailed"
 	ProvisioningFailed                    Reason = "ProvisioningFailed"
 	CredentialsNamespaceChanged           Reason = "CredentialsNamespaceChanged"
+	GettingDefaultCredentialsSecretFailed Reason = "GettingDefaultCredentialsSecretFailed"
+	AnnotatingSecretFailed                Reason = "AnnotatingSecretFailed"
 )
 
 // gophers_reasons_section_end
@@ -64,17 +66,19 @@ var Reasons = map[Reason]Metadata{
 	InvalidSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;sap-btp-manager secret does not contain required data - create proper secret
 	HardDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to hard delete
 	ResourceRemovalFailed:                 {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Some resources can still be present due to errors while deprovisioning
-	SoftDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to soft delete after hard delete failed
+	SoftDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to soft-delete after hard-delete failed
 	UpdateCheck:                           {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Checking for updates
 	InconsistentChart:                     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Chart is inconsistent. Reconciliation initialized
 	PreparingInstallInfoFailed:            {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Error while preparing installation information
 	ChartPathEmpty:                        {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;No chart path available for processing
 	DeletionOfOrphanedResourcesFailed:     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Deletion of orphaned resources failed
 	StoringChartDetailsFailed:             {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure of storing chart details
-	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting Config Map failed
+	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting ConfigMap failed
 	ProvisioningFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Provisioning failed
 	ServiceInstancesAndBindingsNotCleaned: {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
 	CredentialsNamespaceChanged:           {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Credentials namespace changed
+	GettingDefaultCredentialsSecretFailed: {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting default credentials secret failed
+	AnnotatingSecretFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Annotating the required secret failed
 }
 
 // gophers_metadata_section_end

@@ -342,18 +342,31 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Processing state")
 
-	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
+	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
-	r.saveCurrentCredentialsNamespace(secret)
+	r.saveCurrentCredentialsNamespace(requiredSecret)
+
+	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
+	if err != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingDefaultCredentialsSecretFailed, err.Error())
+	}
+
+	if defaultCredentialsSecret != nil {
+		if !r.credentialsNamespacesMatch(defaultCredentialsSecret.Namespace) {
+			if err := r.annotateSecretWithPreviousCredentialsNamespace(ctx, requiredSecret, defaultCredentialsSecret.Namespace); err != nil {
+				return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.AnnotatingSecretFailed, err.Error())
+			}
+		}
+	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, secret); err != nil {
+	if err := r.reconcileResources(ctx, requiredSecret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
@@ -1235,8 +1248,16 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	r.saveCurrentCredentialsNamespace(secret)
 
-	if err := r.checkCredentialsSecretNamespace(ctx); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.CredentialsNamespaceChanged, err.Error())
+	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
+	if err != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingDefaultCredentialsSecretFailed, err.Error())
+	}
+
+	if defaultCredentialsSecret != nil {
+		if !r.credentialsNamespacesMatch(defaultCredentialsSecret.Namespace) {
+			logger.Info("credentials namespace changed", "previous", defaultCredentialsSecret.Namespace, "current", r.currentCredentialsNamespace)
+			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.CredentialsNamespaceChanged, "Credentials namespace changed")
+		}
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
@@ -1259,7 +1280,7 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.handleSecretEvents),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Watches(
@@ -2090,19 +2111,6 @@ func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 	return s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
 }
 
-func (r *BtpOperatorReconciler) handleSecretEvents(ctx context.Context, obj client.Object) []reconcile.Request {
-	s, ok := obj.(*corev1.Secret)
-	if !ok {
-		return []reconcile.Request{}
-	}
-
-	if r.isCredentialSecret(s) {
-		r.saveCurrentCredentialsNamespace(s)
-	}
-
-	return r.enqueueOldestBtpOperator()
-}
-
 func (r *BtpOperatorReconciler) saveCurrentCredentialsNamespace(s *corev1.Secret) {
 	credentialsNamespace := ChartNamespace
 	if v, ok := s.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
@@ -2111,27 +2119,36 @@ func (r *BtpOperatorReconciler) saveCurrentCredentialsNamespace(s *corev1.Secret
 	r.currentCredentialsNamespace = credentialsNamespace
 }
 
-func (r *BtpOperatorReconciler) annotateSecretWithPreviousCredentialsNamespace(ctx context.Context, s *corev1.Secret) error {
-	secretCopy := s.DeepCopy()
-	if secretCopy.Annotations == nil {
-		secretCopy.Annotations = make(map[string]string)
+func (r *BtpOperatorReconciler) getDefaultCredentialsSecret(ctx context.Context) (*corev1.Secret, error) {
+	var defaultCredentialsSecret *corev1.Secret
+	secrets := &corev1.SecretList{}
+	if err := r.List(ctx, secrets, client.MatchingLabels{managedByLabelKey: operatorName}); err != nil {
+		return nil, fmt.Errorf("unable to list managed secrets: %w", err)
 	}
-	secretCopy.Annotations[previousCredentialsNamespaceAnnotationKey] = r.currentCredentialsNamespace
-	return r.Update(ctx, secretCopy, client.FieldOwner(operatorName))
+	if len(secrets.Items) == 0 {
+		return nil, nil
+	}
+	for i, s := range secrets.Items {
+		if s.Name == btpServiceOperatorSecret {
+			defaultCredentialsSecret = &secrets.Items[i]
+		}
+	}
+	return defaultCredentialsSecret, nil
 }
 
-func (r *BtpOperatorReconciler) checkCredentialsSecretNamespace(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: r.currentCredentialsNamespace, Name: btpServiceOperatorSecret}
-	if err := r.Get(ctx, objKey, secret); err != nil {
-		if k8serrors.IsNotFound(err) {
-			msg := fmt.Sprintf("%s secret in %s namespace not found. Credentials namespace changed.", objKey.Name, objKey.Namespace)
-			logger.Info(msg)
-			return errors.New(msg)
-		}
-		return fmt.Errorf("unable to get secret: %w", err)
-	}
+func (r *BtpOperatorReconciler) credentialsNamespacesMatch(defaultCredentialsSecretNamespace string) bool {
+	return r.currentCredentialsNamespace == defaultCredentialsSecretNamespace
+}
 
-	return nil
+func (r *BtpOperatorReconciler) annotateSecretWithPreviousCredentialsNamespace(ctx context.Context, s *corev1.Secret, namespace string) error {
+	annotations := s.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	if annotations[previousCredentialsNamespaceAnnotationKey] == namespace {
+		return nil
+	}
+	annotations[previousCredentialsNamespaceAnnotationKey] = namespace
+	s.SetAnnotations(annotations)
+	return r.Update(ctx, s, client.FieldOwner(operatorName))
 }
