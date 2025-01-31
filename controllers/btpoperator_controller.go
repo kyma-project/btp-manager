@@ -1255,8 +1255,9 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	if defaultCredentialsSecret != nil {
 		if !r.credentialsNamespacesMatch(defaultCredentialsSecret.Namespace) {
-			logger.Info("credentials namespace changed", "previous", defaultCredentialsSecret.Namespace, "current", r.currentCredentialsNamespace)
-			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.CredentialsNamespaceChanged, "Credentials namespace changed")
+			msg := fmt.Sprintf("credentials namespace changed from %s to %s", defaultCredentialsSecret.Namespace, r.currentCredentialsNamespace)
+			logger.Info(msg)
+			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.CredentialsNamespaceChanged, msg)
 		}
 	}
 
