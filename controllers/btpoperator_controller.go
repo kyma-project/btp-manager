@@ -2091,33 +2091,24 @@ func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 }
 
 func (r *BtpOperatorReconciler) handleSecretEvents(ctx context.Context, obj client.Object) []reconcile.Request {
-	logger := log.FromContext(ctx)
 	s, ok := obj.(*corev1.Secret)
 	if !ok {
 		return []reconcile.Request{}
 	}
 
 	if r.isCredentialSecret(s) {
-		if err := r.saveCredentialsNamespacesNames(ctx, s); err != nil {
-			logger.Error(err, "failed to save previous and current credentials namespaces")
-			return nil
-		}
+		r.saveCurrentCredentialsNamespace(s)
 	}
 
 	return r.enqueueOldestBtpOperator()
 }
 
-func (r *BtpOperatorReconciler) saveCredentialsNamespacesNames(ctx context.Context, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) saveCurrentCredentialsNamespace(s *corev1.Secret) {
+	credentialsNamespace := ChartNamespace
 	if v, ok := s.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
-		newCredentialsNamespace := string(v)
-		if r.currentCredentialsNamespace != newCredentialsNamespace {
-			if err := r.annotateSecretWithPreviousCredentialsNamespace(ctx, s); err != nil {
-				return err
-			}
-			r.currentCredentialsNamespace = newCredentialsNamespace
-		}
+		credentialsNamespace = string(v)
 	}
-	return nil
+	r.currentCredentialsNamespace = credentialsNamespace
 }
 
 func (r *BtpOperatorReconciler) annotateSecretWithPreviousCredentialsNamespace(ctx context.Context, s *corev1.Secret) error {
@@ -2127,16 +2118,6 @@ func (r *BtpOperatorReconciler) annotateSecretWithPreviousCredentialsNamespace(c
 	}
 	secretCopy.Annotations[previousCredentialsNamespaceAnnotationKey] = r.currentCredentialsNamespace
 	return r.Update(ctx, secretCopy, client.FieldOwner(operatorName))
-}
-
-func (r *BtpOperatorReconciler) saveCurrentCredentialsNamespace(s *corev1.Secret) {
-	if len(r.currentCredentialsNamespace) == 0 {
-		credentialsNamespace := ChartNamespace
-		if v, ok := s.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
-			credentialsNamespace = string(v)
-		}
-		r.currentCredentialsNamespace = credentialsNamespace
-	}
 }
 
 func (r *BtpOperatorReconciler) checkCredentialsSecretNamespace(ctx context.Context) error {
