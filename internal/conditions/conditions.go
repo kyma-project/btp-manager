@@ -34,6 +34,7 @@ const (
 	StoringChartDetailsFailed             Reason = "StoringChartDetailsFailed"
 	GettingConfigMapFailed                Reason = "GettingConfigMapFailed"
 	ProvisioningFailed                    Reason = "ProvisioningFailed"
+	CredentialsNamespaceChanged           Reason = "CredentialsNamespaceChanged"
 )
 
 // gophers_reasons_section_end
@@ -73,6 +74,7 @@ var Reasons = map[Reason]Metadata{
 	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting Config Map failed
 	ProvisioningFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Provisioning failed
 	ServiceInstancesAndBindingsNotCleaned: {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
+	CredentialsNamespaceChanged:           {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Credentials namespace changed
 }
 
 // gophers_metadata_section_end
