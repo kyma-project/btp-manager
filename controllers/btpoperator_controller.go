@@ -652,7 +652,7 @@ func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *uns
 func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	u.SetNamespace(r.credentialsNamespaceFromSapBtpManagerSecret)
 	for k := range secret.Data {
-		if k == clusterIDKey {
+		if k == clusterIDKey || k == customCredentialsNamespaceKey {
 			continue
 		}
 		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
