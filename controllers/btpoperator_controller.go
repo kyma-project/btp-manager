@@ -85,16 +85,20 @@ const (
 	deploymentAvailableConditionType          = "Available"
 	deploymentProgressingConditionType        = "Progressing"
 	operatorName                              = "btp-manager"
+	operandName                               = "sap-btp-operator"
 	sapBtpServiceOperatorConfigMapName        = "sap-btp-operator-config"
 	sapBtpServiceOperatorSecretName           = "sap-btp-service-operator"
+	sapBtpServiceOperatorClusterIDSecretName  = "sap-btp-operator-clusterid"
 	mutatingWebhookName                       = "sap-btp-operator-mutating-webhook-configuration"
 	validatingWebhookName                     = "sap-btp-operator-validating-webhook-configuration"
 	forceDeleteLabelKey                       = "force-delete"
-	managedByLabelKey                         = "app.kubernetes.io/managed-by"
-	operatorLabelPrefix                       = "operator.kyma-project.io"
-	deletionFinalizer                         = operatorLabelPrefix + "/btp-manager"
-	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "/previous-credentials-namespace"
-	previousClusterIDAnnotationKey            = operatorLabelPrefix + "/previous-cluster-id"
+	kubernetesAppLabelPrefix                  = "app.kubernetes.io/"
+	operatorLabelPrefix                       = "operator.kyma-project.io/"
+	managedByLabelKey                         = kubernetesAppLabelPrefix + "managed-by"
+	instanceLabelKey                          = kubernetesAppLabelPrefix + "instance"
+	deletionFinalizer                         = operatorLabelPrefix + operatorName
+	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
+	previousClusterIDAnnotationKey            = operatorLabelPrefix + "previous-cluster-id"
 	clusterIDKey                              = "cluster_id"
 	customCredentialsNamespaceKey             = "credentials_namespace"
 )
@@ -388,6 +392,10 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	if err := r.reconcileResources(ctx, requiredSecret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
+	}
+
+	if err := r.deleteResourcesIfBtpManagerSecretChanged(ctx); err != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ResourceRemovalFailed, err.Error())
 	}
 
 	r.instanceBindingService.EnableSISBController()
@@ -2208,4 +2216,57 @@ func (r *BtpOperatorReconciler) getSapBtpServiceOperatorConfigMap(ctx context.Co
 		return nil, err
 	}
 	return cm, nil
+}
+
+func (r *BtpOperatorReconciler) deleteResourcesIfBtpManagerSecretChanged(ctx context.Context) error {
+	isCredentialsNamespaceChanged := r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret
+	isClusterIDChanged := r.clusterIDFromSapBtpManagerSecret != r.clusterIDFromSapBtpServiceOperatorConfigMap
+	if isCredentialsNamespaceChanged {
+		if err := r.deleteResourceByNameAndNamespace(ctx, sapBtpServiceOperatorSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret); err != nil {
+			return err
+		}
+	}
+	if isCredentialsNamespaceChanged || isClusterIDChanged {
+		if err := r.deleteResourceByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIDSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret); err != nil {
+			return err
+		}
+		pod, err := r.getSapBtpServiceOperatorPod(ctx)
+		if err != nil {
+			return err
+		}
+		if pod != nil {
+			if err := r.deleteResourceByNameAndNamespace(ctx, pod.Name, pod.Namespace); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) deleteResourceByNameAndNamespace(ctx context.Context, name, namespace string) error {
+	var obj client.Object
+	if err := r.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, obj); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	if err := r.Delete(ctx, obj); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) getSapBtpServiceOperatorPod(ctx context.Context) (*corev1.Pod, error) {
+	var pod *corev1.Pod
+	pods := &corev1.PodList{}
+	if err := r.List(ctx, pods, client.MatchingLabels{instanceLabelKey: operandName}); err != nil {
+		return nil, fmt.Errorf("unable to list SAP BTP service operator pods: %w", err)
+	}
+	if len(pods.Items) == 0 {
+		return nil, nil
+	}
+	for i, s := range pods.Items {
+		if strings.HasPrefix(s.Name, operandName) {
+			pod = &pods.Items[i]
+		}
+	}
+	return pod, nil
 }
