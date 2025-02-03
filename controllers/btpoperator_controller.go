@@ -94,7 +94,8 @@ const (
 	operatorLabelPrefix                       = "operator.kyma-project.io"
 	deletionFinalizer                         = operatorLabelPrefix + "/btp-manager"
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "/previous-credentials-namespace"
-	customCredentialsNamespaceSecretKey       = "credentials_namespace"
+	clusterIDKey                              = "cluster_id"
+	customCredentialsNamespaceKey             = "credentials_namespace"
 )
 
 const (
@@ -602,11 +603,24 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 }
 
 func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	return unstructured.SetNestedField(u.Object, string(secret.Data["cluster_id"]), "data", "CLUSTER_ID")
+	if err := unstructured.SetNestedField(u.Object, string(secret.Data[clusterIDKey]), "data", "CLUSTER_ID"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(u.Object, r.currentCredentialsNamespace, "data", "RELEASE_NAMESPACE"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(u.Object, r.currentCredentialsNamespace, "data", "MANAGEMENT_NAMESPACE"); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+	u.SetNamespace(r.currentCredentialsNamespace)
 	for k := range secret.Data {
+		if k == clusterIDKey {
+			continue
+		}
 		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
 			return err
 		}
@@ -2114,7 +2128,7 @@ func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 
 func (r *BtpOperatorReconciler) saveCurrentCredentialsNamespace(s *corev1.Secret) {
 	credentialsNamespace := ChartNamespace
-	if v, ok := s.Data[customCredentialsNamespaceSecretKey]; ok && len(v) > 0 {
+	if v, ok := s.Data[customCredentialsNamespaceKey]; ok && len(v) > 0 {
 		credentialsNamespace = string(v)
 	}
 	r.currentCredentialsNamespace = credentialsNamespace
