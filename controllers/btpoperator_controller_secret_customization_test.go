@@ -101,14 +101,14 @@ var _ = Describe("BTP Operator controller - secret customization", Pending, Labe
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
-			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
 			_ = reconciler.enqueueOldestBtpOperator()
 			Expect(err).To(BeNil())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, managementNamespaceValue), "test_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 		})
 	})
@@ -125,14 +125,14 @@ var _ = Describe("BTP Operator controller - secret customization", Pending, Labe
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
-			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 
 			_ = reconciler.enqueueOldestBtpOperator()
 			Expect(err).To(BeNil())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, managementNamespaceValue), "new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "test_cluster_id", managementNamespaceValue)
 		})
 	})
@@ -151,14 +151,14 @@ var _ = Describe("BTP Operator controller - secret customization", Pending, Labe
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
-			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "brand_new_cluster_id", managementNamespaceValue)
 
 			_ = reconciler.enqueueOldestBtpOperator()
 			Expect(err).To(BeNil())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-			expectSecretToHaveCredentials(getSecretFromNamespace(btpServiceOperatorSecret, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
+			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, managementNamespaceValue), "brand_new_clientid", "test_clientsecret", "test_sm_url", "test_tokenurl")
 			expectConfigMapToHave(getOperatorConfigMap(), "brand_new_cluster_id", managementNamespaceValue)
 		})
 	})
