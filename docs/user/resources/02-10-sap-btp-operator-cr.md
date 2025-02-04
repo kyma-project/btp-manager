@@ -46,29 +46,34 @@ You can't configure any entry parameters in the BtpOperator CR.
 
 **Status:**
 
-| No.        | CR state             | Condition type       | Condition status     | Condition reason                                | Description                                                                                |
-| ---------- | -------------------- | -------------------- | -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 1          | Ready                | Ready                | true                 | ReconcileSucceeded                              | Reconciled successfully                                                                    |
-| 2          | Ready                | Ready                | true                 | UpdateCheckSucceeded                            | Update not required                                                                        |
-| 3          | Ready                | Ready                | true                 | UpdateDone                                      | Update done                                                                                |
-| 4          | Processing           | Ready                | false                | Initialized                                     | Initial processing or chart is inconsistent                                                |
-| 5          | Processing           | Ready                | false                | Processing                                      | Final State after deprovisioning                                                           |
-| 6          | Processing           | Ready                | false                | UpdateCheck                                     | Checking for updates                                                                       |
-| 7          | Processing           | Ready                | false                | Updated                                         | Resource has been updated                                                                  |
-| 8          | Deleting             | Ready                | false                | HardDeleting                                    | Trying to hard delete                                                                      |
-| 9          | Deleting             | Ready                | false                | SoftDeleting                                    | Trying to soft delete after hard delete failed                                             |
-| 10         | Warning              | Ready                | false                | ServiceInstancesAndBindingsNotCleaned           | Deprovisioning blocked because of service instances and/or service bindings existence      |
-| 11         | Warning              | Ready                | false                | OlderCRExists                                   | This CR is not the oldest one, so does not represent the module State                       |
-| 12         | Warning              | Ready                | false                | MissingSecret                                   | `sap-btp-manager` Secret was not found - create proper Secret                              |
-| 13         | Error                | Ready                | false                | ChartInstallFailed                              | Failure during chart installation                                                          |
-| 14         | Error                | Ready                | false                | ChartPathEmpty                                  | No chart path available for processing                                                     |
-| 15         | Error                | Ready                | false                | ConsistencyCheckFailed                          | Failure during consistency check                                                           |
-| 16         | Error                | Ready                | false                | DeletionOfOrphanedResourcesFailed               | Deletion of orphaned resources failed                                                      |
-| 17         | Error                | Ready                | false                | GettingConfigMapFailed                          | Getting Config Map failed                                                                  |
-| 18         | Error                | Ready                | false                | InconsistentChart                               | Chart is inconsistent. Reconciliation initialized                                          |
-| 19         | Error                | Ready                | false                | InvalidSecret                                   | `sap-btp-manager` Secret does not contain required data - create proper Secret             |
-| 20         | Error                | Ready                | false                | PreparingInstallInfoFailed                      | Error while preparing installation information                                             |
-| 21         | Error                | Ready                | false                | ProvisioningFailed                              | Provisioning failed                                                                        |
-| 22         | Error                | Ready                | false                | ReconcileFailed                                 | Reconciliation failed                                                                      |
-| 23         | Error                | Ready                | false                | ResourceRemovalFailed                           | Some resources can still be present due to errors while deprovisioning                     |
-| 24         | Error                | Ready                | false                | StoringChartDetailsFailed                       | Failure of storing chart details                                                           |
+| No. | CR state   | Condition type | Condition status | Condition reason                            | Description                                                                         |
+|-----|------------|----------------|------------------|---------------------------------------------|-------------------------------------------------------------------------------------|
+| 1   | Ready      | Ready          | true             | ReconcileSucceeded                          | Reconciled successfully                                                             |
+| 2   | Ready      | Ready          | true             | UpdateCheckSucceeded                        | Update not required                                                                 |
+| 3   | Ready      | Ready          | true             | UpdateDone                                  | Update done                                                                         |
+| 4   | Processing | Ready          | false            | Initialized                                 | Initial processing or chart is inconsistent                                         |
+| 5   | Processing | Ready          | false            | Processing                                  | Final State after deprovisioning                                                    |
+| 6   | Processing | Ready          | false            | UpdateCheck                                 | Checking for updates                                                                |
+| 7   | Processing | Ready          | false            | Updated                                     | Resource has been updated                                                           |
+| 8   | Processing | Ready          | false            | CredentialsNamespaceChanged                 | Credentials namespace changed                                                       |
+| 9   | Processing | Ready          | false            | ClusterIDChanged                            | Cluster ID changed                                                                  |
+| 10  | Deleting   | Ready          | false            | HardDeleting                                | Trying to hard delete                                                               |
+| 11  | Deleting   | Ready          | false            | SoftDeleting                                | Trying to soft-delete after hard-delete failed                                      |
+| 12  | Warning    | Ready          | false            | ServiceInstancesAndBindingsNotCleaned       | Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence |
+| 13  | Warning    | Ready          | false            | OlderCRExists                               | This CR is not the oldest one so does not represent the module State                |
+| 14  | Warning    | Ready          | false            | MissingSecret                               | `sap-btp-manager` secret was not found - create proper secret                       |
+| 15  | Error      | Ready          | false            | ChartInstallFailed                          | Failure during chart installation                                                   |
+| 16  | Error      | Ready          | false            | ChartPathEmpty                              | No chart path available for processing                                              |
+| 17  | Error      | Ready          | false            | ConsistencyCheckFailed                      | Failure during consistency check                                                    |
+| 18  | Error      | Ready          | false            | DeletionOfOrphanedResourcesFailed           | Deletion of orphaned resources failed                                               |
+| 19  | Error      | Ready          | false            | GettingConfigMapFailed                      | Getting ConfigMap failed                                                            |
+| 20  | Error      | Ready          | false            | InconsistentChart                           | Chart is inconsistent. Reconciliation initialized                                   |
+| 21  | Error      | Ready          | false            | InvalidSecret                               | `sap-btp-manager` secret does not contain required data - create proper secret      |
+| 22  | Error      | Ready          | false            | PreparingInstallInfoFailed                  | Error while preparing installation information                                      |
+| 23  | Error      | Ready          | false            | ProvisioningFailed                          | Provisioning failed                                                                 |
+| 24  | Error      | Ready          | false            | ReconcileFailed                             | Reconciliation failed                                                               |
+| 25  | Error      | Ready          | false            | ResourceRemovalFailed                       | Some resources can still be present due to errors while deprovisioning              |
+| 26  | Error      | Ready          | false            | StoringChartDetailsFailed                   | Failure of storing chart details                                                    |
+| 27  | Error      | Ready          | false            | GettingDefaultCredentialsSecretFailed       | Getting default credentials secret failed                                           |
+| 28  | Error      | Ready          | false            | AnnotatingSecretFailed                      | Annotating the required secret failed                                               |
+| 29  | Error      | Ready          | false            | GettingSapBtpServiceOperatorConfigMapFailed | Getting SAP BTP service operator ConfigMap failed                                   |
