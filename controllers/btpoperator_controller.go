@@ -78,7 +78,6 @@ var (
 )
 
 const (
-	chartVersionKey                           = "chart-version"
 	secretKind                                = "Secret"
 	configMapKind                             = "ConfigMap"
 	deploymentKind                            = "Deployment"
@@ -86,19 +85,20 @@ const (
 	deploymentProgressingConditionType        = "Progressing"
 	operatorName                              = "btp-manager"
 	operandName                               = "sap-btp-operator"
-	sapBtpServiceOperatorConfigMapName        = "sap-btp-operator-config"
+	sapBtpServiceOperatorConfigMapName        = operandName + "-config"
+	sapBtpServiceOperatorClusterIDSecretName  = operandName + "-clusterid"
+	mutatingWebhookName                       = operandName + "-mutating-webhook-configuration"
+	validatingWebhookName                     = operandName + "-validating-webhook-configuration"
 	sapBtpServiceOperatorSecretName           = "sap-btp-service-operator"
-	sapBtpServiceOperatorClusterIDSecretName  = "sap-btp-operator-clusterid"
-	mutatingWebhookName                       = "sap-btp-operator-mutating-webhook-configuration"
-	validatingWebhookName                     = "sap-btp-operator-validating-webhook-configuration"
-	forceDeleteLabelKey                       = "force-delete"
-	kubernetesAppLabelPrefix                  = "app.kubernetes.io/"
 	operatorLabelPrefix                       = "operator.kyma-project.io/"
-	managedByLabelKey                         = kubernetesAppLabelPrefix + "managed-by"
-	instanceLabelKey                          = kubernetesAppLabelPrefix + "instance"
 	deletionFinalizer                         = operatorLabelPrefix + operatorName
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 	previousClusterIDAnnotationKey            = operatorLabelPrefix + "previous-cluster-id"
+	kubernetesAppLabelPrefix                  = "app.kubernetes.io/"
+	managedByLabelKey                         = kubernetesAppLabelPrefix + "managed-by"
+	instanceLabelKey                          = kubernetesAppLabelPrefix + "instance"
+	chartVersionKey                           = "chart-version"
+	forceDeleteLabelKey                       = "force-delete"
 	clusterIDKey                              = "cluster_id"
 	customCredentialsNamespaceKey             = "credentials_namespace"
 )
