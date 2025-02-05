@@ -83,6 +83,7 @@ const (
 	ClusterIdConfigMapKey           = "CLUSTER_ID"
 	ReleaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
 	ManagementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
+	InitialClusterIdSecretKey       = "INITIAL_CLUSTER_ID"
 )
 
 const (
@@ -2240,41 +2241,66 @@ func (r *BtpOperatorReconciler) getSapBtpServiceOperatorConfigMap(ctx context.Co
 }
 
 func (r *BtpOperatorReconciler) deleteResourcesIfBtpManagerSecretChanged(ctx context.Context) error {
+	clusterIDSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIDSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret)
+	if err != nil {
+		return err
+	}
+	pod, err := r.getSapBtpServiceOperatorPod(ctx)
+	if err != nil {
+		return err
+	}
+	credentialsSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret)
+	if err != nil {
+		return err
+	}
+
 	isCredentialsNamespaceChanged := r.credentialsNamespaceFromSapBtpServiceOperatorSecret != "" &&
 		r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret
 	isClusterIDChanged := r.clusterIDFromSapBtpServiceOperatorConfigMap != "" &&
 		r.clusterIDFromSapBtpManagerSecret != r.clusterIDFromSapBtpServiceOperatorConfigMap
-	if isCredentialsNamespaceChanged || isClusterIDChanged {
-		clusterIDSecret := &corev1.Secret{}
-		if err := r.apiServerClient.Get(ctx, client.ObjectKey{Name: sapBtpServiceOperatorClusterIDSecretName, Namespace: r.credentialsNamespaceFromSapBtpServiceOperatorSecret}, clusterIDSecret); err == nil {
-			if err := r.apiServerClient.Delete(ctx, clusterIDSecret); err != nil {
-				return fmt.Errorf("while deleting %s %T from %s namespace: %w", sapBtpServiceOperatorClusterIDSecretName, clusterIDSecret, r.credentialsNamespaceFromSapBtpServiceOperatorSecret, err)
-			}
-		} else {
-			return fmt.Errorf("while getting %s %T from %s namespace: %w", sapBtpServiceOperatorClusterIDSecretName, clusterIDSecret, r.credentialsNamespaceFromSapBtpServiceOperatorSecret, err)
-		}
+	if clusterIDSecret != nil {
+		isClusterIDChanged = r.clusterIDFromSapBtpManagerSecret != string(clusterIDSecret.Data[InitialClusterIdSecretKey])
+	}
 
-		pod, err := r.getSapBtpServiceOperatorPod(ctx)
-		if err != nil {
-			return err
+	if isCredentialsNamespaceChanged || isClusterIDChanged {
+		if clusterIDSecret != nil {
+			if err := r.deleteObject(ctx, clusterIDSecret); err != nil {
+				return err
+			}
 		}
 		if pod != nil {
-			if err := r.apiServerClient.Delete(ctx, pod); client.IgnoreNotFound(err) != nil {
-				return fmt.Errorf("while deleting %s %T from %s namespace: %w", pod.Name, pod, pod.Namespace, err)
+			if err := r.deleteObject(ctx, pod); err != nil {
+				return err
 			}
 		}
 	}
 	if isCredentialsNamespaceChanged {
-		credentialsSecret := &corev1.Secret{}
-		if err := r.Get(ctx, client.ObjectKey{Name: sapBtpServiceOperatorSecretName, Namespace: r.credentialsNamespaceFromSapBtpServiceOperatorSecret}, credentialsSecret); err == nil {
-			if err := r.Delete(ctx, credentialsSecret); client.IgnoreNotFound(err) != nil {
-				return fmt.Errorf("while deleting %s %T from %s namespace: %w", sapBtpServiceOperatorSecretName, credentialsSecret, r.credentialsNamespaceFromSapBtpServiceOperatorSecret, err)
+		if credentialsSecret != nil {
+			if err := r.deleteObject(ctx, credentialsSecret); err != nil {
+				return err
 			}
-		} else {
-			return fmt.Errorf("while getting %s %T from %s namespace: %d", sapBtpServiceOperatorSecretName, credentialsSecret, r.credentialsNamespaceFromSapBtpServiceOperatorSecret, err)
 		}
 	}
+
 	return nil
+}
+
+func (r *BtpOperatorReconciler) deleteObject(ctx context.Context, obj client.Object) error {
+	if err := r.apiServerClient.Delete(ctx, obj); err != nil {
+		return fmt.Errorf("while deleting %s %s from %s namespace: %w", obj.GetName(), obj.GetObjectKind().GroupVersionKind().Kind, obj.GetNamespace(), err)
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) getSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	if err := r.apiServerClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, secret); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("while getting secret %s from %s namespace: %w", sapBtpServiceOperatorClusterIDSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret, err)
+	}
+	return secret, nil
 }
 
 func (r *BtpOperatorReconciler) getSapBtpServiceOperatorPod(ctx context.Context) (*corev1.Pod, error) {
