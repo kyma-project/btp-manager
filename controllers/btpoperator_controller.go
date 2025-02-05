@@ -163,6 +163,7 @@ type BtpOperatorReconciler struct {
 	previousCredentialsNamespace                        string
 	clusterIdFromSapBtpManagerSecret                    string
 	clusterIdFromSapBtpServiceOperatorConfigMap         string
+	clusterIdFromSapBtpServiceOperatorClusterIdSecret   string
 	credentialsNamespaceFromSapBtpManagerSecret         string
 	credentialsNamespaceFromSapBtpServiceOperatorSecret string
 }
@@ -369,34 +370,16 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 	r.getCredentialsNamespacesAndClusterId(requiredSecret)
 
-	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s Secret", sapBtpServiceOperatorSecretName))
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingDefaultCredentialsSecretFailed, err.Error())
+	if errWithReason := r.checkDefaultCredentialsSecretNamespace(ctx, logger, requiredSecret); errWithReason != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
 	}
 
-	if defaultCredentialsSecret != nil {
-		r.credentialsNamespaceFromSapBtpServiceOperatorSecret = defaultCredentialsSecret.Namespace
-		if r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret {
-			if err := r.annotateSecret(ctx, requiredSecret, previousCredentialsNamespaceAnnotationKey, r.credentialsNamespaceFromSapBtpServiceOperatorSecret); err != nil {
-				return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.AnnotatingSecretFailed, err.Error())
-			}
-		}
+	if errWithReason := r.checkSapBtpServiceOperatorClusterIdConfigMap(ctx, logger, requiredSecret); errWithReason != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
 	}
 
-	sapBtpOperatorConfigMap, err := r.getSapBtpServiceOperatorConfigMap(ctx)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s ConfigMap", sapBtpServiceOperatorConfigMapName))
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingSapBtpServiceOperatorConfigMapFailed, err.Error())
-	}
-
-	if sapBtpOperatorConfigMap != nil {
-		r.clusterIdFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
-		if r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap {
-			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorConfigMap); err != nil {
-				return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.AnnotatingSecretFailed, err.Error())
-			}
-		}
+	if errWithReason := r.checkSapBtpServiceOperatorClusterIdSecret(ctx, logger, requiredSecret); errWithReason != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
@@ -571,10 +554,34 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
+	if err := r.restartSapBtpServiceOperatorPodIfNotReady(ctx, logger); err != nil {
+		return fmt.Errorf("failed to handle SAP BTP service operator pod: %w", err)
+	}
+
 	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) restartSapBtpServiceOperatorPodIfNotReady(ctx context.Context, logger logr.Logger) error {
+	pod, err := r.getSapBtpServiceOperatorPod(ctx)
+	if err != nil {
+		logger.Error(err, "while getting SAP BTP service operator pod")
+		return err
+	}
+	if pod != nil {
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionFalse {
+				if err := r.deleteObject(ctx, pod); err != nil {
+					logger.Error(err, fmt.Sprintf("while deleting not ready %s pod", pod.Name))
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
@@ -1298,12 +1305,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
+	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
-	r.getCredentialsNamespacesAndClusterId(secret)
+	r.getCredentialsNamespacesAndClusterId(requiredSecret)
 
 	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
 	if err != nil {
@@ -1331,7 +1338,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		if r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap {
 			msg := fmt.Sprintf("cluster ID changed from %s to %s", r.clusterIdFromSapBtpServiceOperatorConfigMap, r.credentialsNamespaceFromSapBtpManagerSecret)
 			logger.Info(msg)
-			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.ClusterIDChanged, msg)
+			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.ClusterIdChanged, msg)
 		}
 	}
 
@@ -1339,7 +1346,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, secret); err != nil {
+	if err := r.reconcileResources(ctx, requiredSecret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
@@ -2196,6 +2203,75 @@ func (r *BtpOperatorReconciler) getCredentialsNamespacesAndClusterId(s *corev1.S
 	r.clusterIdFromSapBtpManagerSecret = string(s.Data[ClusterIdSecretKey])
 }
 
+func (r *BtpOperatorReconciler) checkDefaultCredentialsSecretNamespace(ctx context.Context, logger logr.Logger, requiredSecret *corev1.Secret) *ErrorWithReason {
+	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("while getting %s secret", sapBtpServiceOperatorSecretName))
+		return NewErrorWithReason(conditions.GettingDefaultCredentialsSecretFailed, err.Error())
+	}
+
+	if defaultCredentialsSecret != nil {
+		r.credentialsNamespaceFromSapBtpServiceOperatorSecret = defaultCredentialsSecret.Namespace
+		if r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret {
+			logger.Info(fmt.Sprintf("credentials namespaces between %s secret and %s secret don't match", SecretName, sapBtpServiceOperatorSecretName))
+			if err := r.annotateSecret(ctx, requiredSecret, previousCredentialsNamespaceAnnotationKey, r.credentialsNamespaceFromSapBtpServiceOperatorSecret); err != nil {
+				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdConfigMap(ctx context.Context, logger logr.Logger, requiredSecret *corev1.Secret) *ErrorWithReason {
+	sapBtpOperatorConfigMap, err := r.getSapBtpServiceOperatorConfigMap(ctx)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("while getting %s ConfigMap", sapBtpServiceOperatorConfigMapName))
+		return NewErrorWithReason(conditions.GettingSapBtpServiceOperatorConfigMapFailed, err.Error())
+	}
+
+	if sapBtpOperatorConfigMap != nil {
+		r.clusterIdFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
+		r.clusterIdFromSapBtpServiceOperatorClusterIdSecret = r.clusterIdFromSapBtpServiceOperatorConfigMap //default value in case of missing cluster ID secret
+		if r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap {
+			logger.Info(fmt.Sprintf("cluster IDs between %s secret and %s configmap don't match", SecretName, sapBtpServiceOperatorConfigMapName))
+			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorConfigMap); err != nil {
+				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdSecret(ctx context.Context, logger logr.Logger, requiredSecret *corev1.Secret) *ErrorWithReason {
+	clusterIdSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("while getting %s secret", sapBtpServiceOperatorClusterIdSecretName))
+		return NewErrorWithReason(conditions.GettingSapBtpServiceOperatorClusterIdSecretFailed, err.Error())
+	}
+
+	if clusterIdSecret != nil {
+		if clusterIdFromSecret, ok := clusterIdSecret.Data[InitialClusterIdSecretKey]; ok && len(clusterIdFromSecret) > 0 {
+			r.clusterIdFromSapBtpServiceOperatorClusterIdSecret = string(clusterIdFromSecret)
+		}
+		if r.clusterIdFromSapBtpServiceOperatorConfigMap != r.clusterIdFromSapBtpServiceOperatorClusterIdSecret {
+			logger.Info(fmt.Sprintf("cluster IDs between %s configmap and %s secret don't match", sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorClusterIdSecretName))
+			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorClusterIdSecret); err != nil {
+				logger.Error(err, fmt.Sprintf("while annotating %s secret", requiredSecret.Name))
+				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
+			}
+			logger.Info(fmt.Sprintf("deleting %s secret from %s namespace due to invalid cluster ID", clusterIdSecret.Name, clusterIdSecret.Namespace))
+			if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
+				logger.Error(err, fmt.Sprintf("while deleting %s secret", clusterIdSecret.Name))
+				return NewErrorWithReason(conditions.DeletionOfOrphanedResourcesFailed, err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
 func (r *BtpOperatorReconciler) getDefaultCredentialsSecret(ctx context.Context) (*corev1.Secret, error) {
 	var defaultCredentialsSecret *corev1.Secret
 	secrets := &corev1.SecretList{}
@@ -2256,11 +2332,10 @@ func (r *BtpOperatorReconciler) deleteResourcesIfBtpManagerSecretChanged(ctx con
 
 	isCredentialsNamespaceChanged := r.credentialsNamespaceFromSapBtpServiceOperatorSecret != "" &&
 		r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret
+
 	isClusterIdChanged := r.clusterIdFromSapBtpServiceOperatorConfigMap != "" &&
-		r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap
-	if clusterIdSecret != nil {
-		isClusterIdChanged = r.clusterIdFromSapBtpManagerSecret != string(clusterIdSecret.Data[InitialClusterIdSecretKey])
-	}
+		(r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap ||
+			r.clusterIdFromSapBtpServiceOperatorConfigMap != r.clusterIdFromSapBtpServiceOperatorClusterIdSecret)
 
 	if isCredentialsNamespaceChanged || isClusterIdChanged {
 		if clusterIdSecret != nil {
@@ -2274,6 +2349,7 @@ func (r *BtpOperatorReconciler) deleteResourcesIfBtpManagerSecretChanged(ctx con
 			}
 		}
 	}
+
 	if isCredentialsNamespaceChanged {
 		if credentialsSecret != nil {
 			if err := r.deleteObject(ctx, credentialsSecret); err != nil {
