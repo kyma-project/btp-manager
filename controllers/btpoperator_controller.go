@@ -78,6 +78,14 @@ var (
 )
 
 const (
+	ClusterIdSecretKey              = "cluster_id"
+	CredentialsNamespaceSecretKey   = "credentials_namespace"
+	ClusterIdConfigMapKey           = "CLUSTER_ID"
+	ReleaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
+	ManagementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
+)
+
+const (
 	secretKind                                = "Secret"
 	configMapKind                             = "ConfigMap"
 	deploymentKind                            = "Deployment"
@@ -99,8 +107,6 @@ const (
 	instanceLabelKey                          = kubernetesAppLabelPrefix + "instance"
 	chartVersionKey                           = "chart-version"
 	forceDeleteLabelKey                       = "force-delete"
-	clusterIDKey                              = "cluster_id"
-	customCredentialsNamespaceKey             = "credentials_namespace"
 )
 
 const (
@@ -384,7 +390,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	}
 
 	if sapBtpOperatorConfigMap != nil {
-		r.clusterIDFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(clusterIDKey)]
+		r.clusterIDFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
 		if r.clusterIDFromSapBtpManagerSecret != r.clusterIDFromSapBtpServiceOperatorConfigMap {
 			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIDAnnotationKey, r.clusterIDFromSapBtpServiceOperatorConfigMap); err != nil {
 				return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.AnnotatingSecretFailed, err.Error())
@@ -637,13 +643,15 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 }
 
 func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	if err := unstructured.SetNestedField(u.Object, string(secret.Data[clusterIDKey]), "data", "CLUSTER_ID"); err != nil {
+	if err := unstructured.SetNestedField(u.Object, string(secret.Data[ClusterIdSecretKey]), "data", ClusterIdConfigMapKey); err != nil {
 		return err
 	}
-	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", "RELEASE_NAMESPACE"); err != nil {
+
+	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", ReleaseNamespaceConfigMapKey); err != nil {
 		return err
 	}
-	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", "MANAGEMENT_NAMESPACE"); err != nil {
+
+	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", ManagementNamespaceConfigMapKey); err != nil {
 		return err
 	}
 	return nil
@@ -652,7 +660,7 @@ func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *uns
 func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	u.SetNamespace(r.credentialsNamespaceFromSapBtpManagerSecret)
 	for k := range secret.Data {
-		if k == clusterIDKey || k == customCredentialsNamespaceKey {
+		if k == ClusterIdSecretKey || k == CredentialsNamespaceSecretKey {
 			continue
 		}
 		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {
@@ -1318,7 +1326,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	}
 
 	if sapBtpOperatorConfigMap != nil {
-		r.clusterIDFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(clusterIDKey)]
+		r.clusterIDFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
 		if r.clusterIDFromSapBtpManagerSecret != r.clusterIDFromSapBtpServiceOperatorConfigMap {
 			msg := fmt.Sprintf("cluster ID changed from %s to %s", r.clusterIDFromSapBtpServiceOperatorConfigMap, r.credentialsNamespaceFromSapBtpManagerSecret)
 			logger.Info(msg)
@@ -2179,12 +2187,12 @@ func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 
 func (r *BtpOperatorReconciler) getCredentialsNamespacesAndClusterID(s *corev1.Secret) {
 	credentialsNamespace := ChartNamespace
-	if v, ok := s.Data[customCredentialsNamespaceKey]; ok && len(v) > 0 {
+	if v, ok := s.Data[CredentialsNamespaceSecretKey]; ok && len(v) > 0 {
 		credentialsNamespace = string(v)
 	}
 	r.credentialsNamespaceFromSapBtpManagerSecret = credentialsNamespace
 	r.previousCredentialsNamespace = s.Annotations[previousCredentialsNamespaceAnnotationKey]
-	r.clusterIDFromSapBtpManagerSecret = string(s.Data[clusterIDKey])
+	r.clusterIDFromSapBtpManagerSecret = string(s.Data[ClusterIdSecretKey])
 }
 
 func (r *BtpOperatorReconciler) getDefaultCredentialsSecret(ctx context.Context) (*corev1.Secret, error) {

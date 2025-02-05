@@ -14,13 +14,9 @@ import (
 )
 
 const (
-	managementNamespaceValue     = "management"
-	ClientIdSecretKey            = "clientid"
-	ClientSecretSecretKey        = "clientsecret"
-	ClusterIdSecretKey           = "cluster_id"
-	ManagementNamespaceSecretKey = "management_namespace"
-	ClusterIdConfigKey           = "CLUSTER_ID"
-	ManagementNamespaceConfigKey = "MANAGEMENT_NAMESPACE"
+	managementNamespaceValue = "management"
+	clientIdSecretKey        = "clientid"
+	clientSecretSecretKey    = "clientsecret"
 )
 
 var _ = Describe("BTP Operator controller - secret customization", Pending, Label("customization"), func() {
@@ -95,7 +91,7 @@ var _ = Describe("BTP Operator controller - secret customization", Pending, Labe
 			btpManagerSecret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 
-			btpManagerSecret.Data[ManagementNamespaceSecretKey] = []byte(managementNamespaceValue)
+			btpManagerSecret.Data[CredentialsNamespaceSecretKey] = []byte(managementNamespaceValue)
 			Expect(k8sClient.Patch(ctx, btpManagerSecret, client.Apply, client.ForceOwnership, client.FieldOwner("user"))).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
@@ -118,7 +114,7 @@ var _ = Describe("BTP Operator controller - secret customization", Pending, Labe
 			btpManagerSecret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 
-			btpManagerSecret.Data[ClientIdSecretKey] = []byte("new_clientid")
+			btpManagerSecret.Data[clientIdSecretKey] = []byte("new_clientid")
 
 			Expect(k8sClient.Patch(ctx, btpManagerSecret, client.Apply, client.ForceOwnership, client.FieldOwner("user"))).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -142,9 +138,9 @@ var _ = Describe("BTP Operator controller - secret customization", Pending, Labe
 			btpManagerSecret, err := createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
 
-			btpManagerSecret.Data[ClientIdSecretKey] = []byte("brand_new_clientid")
+			btpManagerSecret.Data[clientIdSecretKey] = []byte("brand_new_clientid")
 			btpManagerSecret.Data[ClusterIdSecretKey] = []byte("brand_new_cluster_id")
-			btpManagerSecret.Data[ManagementNamespaceSecretKey] = []byte(managementNamespaceValue)
+			btpManagerSecret.Data[CredentialsNamespaceSecretKey] = []byte(managementNamespaceValue)
 
 			Expect(k8sClient.Patch(ctx, btpManagerSecret, client.Apply, client.ForceOwnership, client.FieldOwner("user"))).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -165,13 +161,13 @@ var _ = Describe("BTP Operator controller - secret customization", Pending, Labe
 })
 
 func expectSecretToHaveCredentials(secret *corev1.Secret, clientId, clientSecret, smUrl, tokenUrl string) {
-	Expect(secret.Data).To(HaveKeyWithValue(ClientIdSecretKey, []byte(clientId)))
-	Expect(secret.Data).To(HaveKeyWithValue(ClientSecretSecretKey, []byte(clientSecret)))
+	Expect(secret.Data).To(HaveKeyWithValue(clientIdSecretKey, []byte(clientId)))
+	Expect(secret.Data).To(HaveKeyWithValue(clientSecretSecretKey, []byte(clientSecret)))
 	Expect(secret.Data).To(HaveKeyWithValue("sm_url", []byte(smUrl)))
 	Expect(secret.Data).To(HaveKeyWithValue("tokenurl", []byte(tokenUrl)))
 }
 
 func expectConfigMapToHave(configMap *corev1.ConfigMap, clusterId, managmentNamespace string) {
-	Expect(configMap.Data).To(HaveKeyWithValue(ManagementNamespaceConfigKey, managmentNamespace))
-	Expect(configMap.Data).To(HaveKeyWithValue(ClusterIdConfigKey, clusterId))
+	Expect(configMap.Data).To(HaveKeyWithValue(ManagementNamespaceConfigMapKey, managmentNamespace))
+	Expect(configMap.Data).To(HaveKeyWithValue(ClusterIdConfigMapKey, clusterId))
 }
