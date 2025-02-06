@@ -56,7 +56,7 @@ You can't configure any entry parameters in the BtpOperator CR.
 | 6   | Processing | Ready          | false            | UpdateCheck                                       | Checking for updates                                                                |
 | 7   | Processing | Ready          | false            | Updated                                           | Resource has been updated                                                           |
 | 8   | Processing | Ready          | false            | CredentialsNamespaceChanged                       | Credentials namespace changed                                                       |
-| 9   | Processing | Ready          | false            | ClusterIDChanged                                  | Cluster ID changed                                                                  |
+| 9   | Processing | Ready          | false            | ClusterIdChanged                                  | Cluster ID changed                                                                  |
 | 10  | Deleting   | Ready          | false            | HardDeleting                                      | Trying to hard delete                                                               |
 | 11  | Deleting   | Ready          | false            | SoftDeleting                                      | Trying to soft-delete after hard-delete failed                                      |
 | 12  | Warning    | Ready          | false            | ServiceInstancesAndBindingsNotCleaned             | Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence |
