@@ -368,7 +368,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
-	r.getCredentialsNamespacesAndClusterId(requiredSecret)
+	r.setCredentialsNamespacesAndClusterId(requiredSecret)
 
 	if errWithReason := r.checkDefaultCredentialsSecretNamespace(ctx, logger, requiredSecret); errWithReason != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
@@ -1310,7 +1310,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
 	}
 
-	r.getCredentialsNamespacesAndClusterId(requiredSecret)
+	r.setCredentialsNamespacesAndClusterId(requiredSecret)
 
 	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
 	if err != nil {
@@ -2193,12 +2193,13 @@ func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 	return s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
 }
 
-func (r *BtpOperatorReconciler) getCredentialsNamespacesAndClusterId(s *corev1.Secret) {
+func (r *BtpOperatorReconciler) setCredentialsNamespacesAndClusterId(s *corev1.Secret) {
 	credentialsNamespace := ChartNamespace
 	if v, ok := s.Data[CredentialsNamespaceSecretKey]; ok && len(v) > 0 {
 		credentialsNamespace = string(v)
 	}
 	r.credentialsNamespaceFromSapBtpManagerSecret = credentialsNamespace
+	r.credentialsNamespaceFromSapBtpServiceOperatorSecret = credentialsNamespace
 	r.previousCredentialsNamespace = s.Annotations[previousCredentialsNamespaceAnnotationKey]
 	r.clusterIdFromSapBtpManagerSecret = string(s.Data[ClusterIdSecretKey])
 }
