@@ -250,15 +250,15 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
 
-      - name: Check if any PR was merged after bumps
+      - name: Check if any PR was merged after security scanner config bump
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
           echo "Latest commit sha: $COMMIT_SHA"
-          echo "Bump sha: ${{ needs.bumps.outputs.latest_commit}}"
-          if [ "$COMMIT_SHA" != "${{ needs.bumps.outputs.latest_commit}}" ]; then
-            echo "::error ::a PR was merged after the bumps. Don't rerun this workflow, create a new release with the same version"
+          echo "Bump sha: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}"
+          if [ "$COMMIT_SHA" != "${{ needs.bump-sec-scanners-config.outputs.latest_commit}}" ]; then
+            echo "::error ::a PR was merged after the security scanner config bump. Don't rerun this workflow, create a new release with the same version"
             exit 1 
           fi
 
@@ -294,8 +294,8 @@ jobs:
         run: |
           COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
           echo "Latest commit sha: $COMMIT_SHA"
-          echo "Bump sha: ${{ needs.bumps.outputs.latest_commit}}"
-          if [ "$COMMIT_SHA" != "${{ needs.bumps.outputs.latest_commit}}" ]; then
+          echo "Bump sha: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}"
+          if [ "$COMMIT_SHA" != "${{ needs.bump-sec-scanners-config.outputs.latest_commit}}" ]; then
             echo "::error ::a PR may have been merged before the tag and draft release were created. Delete the tag and the draft release. Don't rerun this workflow. Create a new release with the same version"
             exit 1 
           fi
