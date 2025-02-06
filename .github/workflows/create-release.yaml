@@ -181,6 +181,18 @@ jobs:
         if: ${{ !inputs.skip-sec-file-bump }}
         run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }} 
 
+      - name: Check if any PR was merged during release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
+          echo "Latest commit sha: $COMMIT_SHA"
+          echo "Workflow sha: ${{ github.sha }}"
+          if [ "$COMMIT_SHA" != "${{ github.sha }}" ]; then
+            echo "::error ::a PR was merged during the release. Don't rerun this workflow, create a new release with the same version"
+            exit 1
+          fi
+
       - name: Create PR if anything changed
         id: pr-needed
         if: ${{ !inputs.skip-sec-file-bump }}
@@ -223,6 +235,22 @@ jobs:
           else
             echo "Step skipped"
           fi
+
+      - name: Check if any PR have been merged before merging the bump PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$PR_NUMBER" -gt 0 ]; then
+            COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[1].sha')
+            echo "Latest commit sha: $COMMIT_SHA"
+            echo "Bump sha: ${{ github.sha }}"
+            if [ "$COMMIT_SHA" != "${{ github.sha }}" ]; then
+              echo "::error ::a PR have been merged before merging the bump PR. Don't rerun this workflow. Create a new release with the same version"
+              exit 1 
+          fi
+          else
+            echo "Step skipped"
+          fi   
 
       - name: Save latest commit ref
         id: pull-ref
