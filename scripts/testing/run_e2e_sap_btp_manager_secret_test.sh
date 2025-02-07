@@ -33,19 +33,22 @@ ENCODED_TOKEN_URL=$(echo -n ${TOKEN_URL} | base64)
 ENCODED_CLUSTER_ID=$(echo -n ${CLUSTER_ID} | base64)
 ENCODED_CREDENTIALS_NAMESPACE=$(echo -n ${CREDENTIALS_NAMESPACE} | base64)
 
-## Check secret existence in the release namespace
-(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret exists in ${KYMA_NAMESPACE} namespace") || \
+## Save current state of SAP BTP service operator secret
+SAP_BTP_OPERATOR_SECRET=$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o json) || \
 (echo "could not get ${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
-## Save current resourceVersion of the resources to be updated
-SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.metadata.resourceVersion}")
+## Save current state of SAP BTP service operator configmap
+SAP_BTP_OPERATOR_CONFIGMAP=$(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o json) || \
+(echo "could not get ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
-## Save current ID of the resource to be recreated
-SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o jsonpath="{.metadata.uid}")
+## Save current state of SAP BTP service operator cluster ID secret
+SAP_BTP_OPERATOR_CLUSTER_ID_SECRET=$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o json) || \
+(echo "could not get ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 ## Variables to track resources changes
-ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=${SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION}
-ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID}
+ACTUAL_SAP_BTP_OPERATOR_SECRET_RESOURCE_VERSION=$(echo "${SAP_BTP_OPERATOR_SECRET}" | jq -r '.metadata.resourceVersion')
+ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(echo "${SAP_BTP_OPERATOR_CONFIGMAP}" | jq -r '.metadata.resourceVersion')
+ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET}" | jq -r '.metadata.uid')
 
 ## Conditionals and loops control variables
 SAP_BTP_OPERATOR_SECRET_CHANGED=false
