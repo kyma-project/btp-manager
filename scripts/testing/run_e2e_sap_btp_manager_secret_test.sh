@@ -112,47 +112,24 @@ echo -e "\n--- Checking if ${SAP_BTP_OPERATOR_SECRET_NAME} has been removed from
 ([[ "$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] && echo "secret has been removed") || \
 (echo "secret has not been removed" && exit 1)
 
-# Save the current data from secret and configmap
-ACTUAL_SAP_BTP_OPERATOR_SECRET_CLIENT_ID=$(kubectl get secret -n ${CREDENTIALS_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o jsonpath="{.data.clientid}")
-ACTUAL_SAP_BTP_OPERATOR_SECRET_CLIENT_SECRET=$(kubectl get secret -n ${CREDENTIALS_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o jsonpath="{.data.clientsecret}")
-ACTUAL_SAP_BTP_OPERATOR_SECRET_SM_URL=$(kubectl get secret -n ${CREDENTIALS_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o jsonpath="{.data.sm_url}")
-ACTUAL_SAP_BTP_OPERATOR_SECRET_TOKEN_URL=$(kubectl get secret -n ${CREDENTIALS_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o jsonpath="{.data.tokenurl}")
-ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_CLUSTER_ID=$(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.data.CLUSTER_ID}")
-ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_MANAGEMENT_NAMESPACE=$(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.data.CREDENTIALS_NAMESPACE}")
-
-# Compare secrets and configmap data
-echo -e "\n--- Checking SAP BTP service operator secret and configmap data"
-
-if [[ "${ACTUAL_SAP_BTP_OPERATOR_SECRET_CLIENT_ID}" == "${CLIENT_ID}" && \
-      "${ACTUAL_SAP_BTP_OPERATOR_SECRET_CLIENT_SECRET}" == "${CLIENT_SECRET}" && \
-      "${ACTUAL_SAP_BTP_OPERATOR_SECRET_SM_URL}" == "${SM_URL}" && \
-      "${ACTUAL_SAP_BTP_OPERATOR_SECRET_TOKEN_URL}" == "${TOKEN_URL}" ]]; then
-  echo "Secret data matches"
-else
-  echo "Secret data does not match"
-  exit 1
-fi
-
-if [[ "${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_CLUSTER_ID}" == "${CLUSTER_ID}" && \
-      "${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_MANAGEMENT_NAMESPACE}" == "${CREDENTIALS_NAMESPACE}" ]]; then
-  echo "ConfigMap data matches"
-else
-  echo "ConfigMap data does not match"
-  exit 1
-fi
+echo -e "\n--- Checking if ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} has been removed from ${KYMA_NAMESPACE} namespace"
+([[ "$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} 2>&1)" = *"Error from server (NotFound)"* ]] && echo "secret has been removed") || \
+(echo "secret has not been removed" && exit 1)
 
 # Get SAP BTP service operator pod name
 SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
 
 # Get environment variables from the SAP BTP service operator pod
-ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID=$(kubectl exec -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -c manager -- printenv CLUSTER_ID)
-ACTUAL_SAP_BTP_OPERATOR_MANAGEMENT_NAMESPACE=$(kubectl exec -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -c manager -- printenv CREDENTIALS_NAMESPACE)
+ACTUAL_SAP_BTP_OPERATOR_POD_CLUSTER_ID=$(kubectl exec -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -c manager -- printenv CLUSTER_ID)
+ACTUAL_SAP_BTP_OPERATOR_POD_RELEASE_NAMESPACE=$(kubectl exec -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -c manager -- printenv RELEASE_NAMESPACE)
+ACTUAL_SAP_BTP_OPERATOR_POD_MANAGEMENT_NAMESPACE=$(kubectl exec -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -c manager -- printenv MANAGEMENT_NAMESPACE)
 
 # Check envs in the SAP BTP service operator pod
-echo -e "\n--- Checking ${SAP_BTP_OPERATOR_POD_NAME} pod CLUSTER_ID and CREDENTIALS_NAMESPACE environment variables"
+echo -e "\n--- Checking ${SAP_BTP_OPERATOR_POD_NAME} pod's CLUSTER_ID, RELEASE_NAMESPACE, MANAGEMENT_NAMESPACE environment variables"
 
-if [[ "${ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID}" == "${CLUSTER_ID}" && \
-      "${ACTUAL_SAP_BTP_OPERATOR_MANAGEMENT_NAMESPACE}" == "${CREDENTIALS_NAMESPACE}" ]]; then
+if [[ "${ACTUAL_SAP_BTP_OPERATOR_POD_CLUSTER_ID}" == "${CLUSTER_ID}" && \
+      "${ACTUAL_SAP_BTP_OPERATOR_POD_RELEASE_NAMESPACE}" == "${CREDENTIALS_NAMESPACE}" && \
+      "${ACTUAL_SAP_BTP_OPERATOR_POD_MANAGEMENT_NAMESPACE}" == "${CREDENTIALS_NAMESPACE}" ]]; then
   echo "Environment variables match"
 else
   echo "Environment variables do not match"
