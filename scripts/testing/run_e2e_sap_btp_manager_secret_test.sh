@@ -20,11 +20,11 @@ SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME=sap-btp-operator-clusterid
 SAP_BTP_OPERATOR_CONFIGMAP_NAME=sap-btp-operator-config
 
 ## Fake values for the secret
-CLIENT_ID="client-id"
-CLIENT_SECRET="client-secret"
-SM_URL="sm-url"
-TOKEN_URL="token-url"
-CLUSTER_ID="cluster-id"
+CLIENT_ID="new-client-id"
+CLIENT_SECRET="new-client-secret"
+SM_URL="new-sm-url"
+TOKEN_URL="new-token-url"
+CLUSTER_ID="new-cluster-id"
 CREDENTIALS_NAMESPACE="credentials-namespace"
 ENCODED_CLIENT_ID=$(echo -n ${CLIENT_ID} | base64)
 ENCODED_CLIENT_SECRET=$(echo -n ${CLIENT_SECRET} | base64)
@@ -33,35 +33,45 @@ ENCODED_TOKEN_URL=$(echo -n ${TOKEN_URL} | base64)
 ENCODED_CLUSTER_ID=$(echo -n ${CLUSTER_ID} | base64)
 ENCODED_CREDENTIALS_NAMESPACE=$(echo -n ${CREDENTIALS_NAMESPACE} | base64)
 
-## Save current state of SAP BTP service operator secret
-SAP_BTP_OPERATOR_SECRET=$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o json) || \
+## Check SAP BTP service operator secret existence
+(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
 (echo "could not get ${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
-## Save current state of SAP BTP service operator configmap
-SAP_BTP_OPERATOR_CONFIGMAP=$(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o json) || \
+## Check SAP BTP service operator configmap existence
+(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} && echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace exists") || \
 (echo "could not get ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
-## Save current state of SAP BTP service operator cluster ID secret
-SAP_BTP_OPERATOR_CLUSTER_ID_SECRET=$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o json) || \
+## Check SAP BTP service operator cluster ID secret existence
+(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
 (echo "could not get ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 ## Variables to track resources changes
-ACTUAL_SAP_BTP_OPERATOR_SECRET_RESOURCE_VERSION=$(echo "${SAP_BTP_OPERATOR_SECRET}" | jq -r '.metadata.resourceVersion')
-ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(echo "${SAP_BTP_OPERATOR_CONFIGMAP}" | jq -r '.metadata.resourceVersion')
-ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET}" | jq -r '.metadata.uid')
+ACTUAL_SAP_BTP_OPERATOR_SECRET=""
+ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP=""
+ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET=""
 
 ## Conditionals and loops control variables
 SAP_BTP_OPERATOR_SECRET_CHANGED=false
-SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION_CHANGED=false
-SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID_CHANGED=false
+SAP_BTP_OPERATOR_CONFIGMAP_CHANGED=false
+SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_CHANGED=false
 RESOURCES_CHANGED=false
+
+# Create credentials namespace if required
+kubectl create namespace ${CREDENTIALS_NAMESPACE} || echo "${CREDENTIALS_NAMESPACE} namespace already exists"
 
 # Patch the secret with fake values
 echo -e "\n--- Customizing ${BTP_MANAGER_SECRET_NAME} secret with fake values"
-kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data\":{\"clientid\":\"${CLIENT_ID}\",\"clientsecret\":\"${CLIENT_SECRET}\",\"sm_url\":\"${SM_URL}\",\"tokenurl\":\"${TOKEN_URL}\",\"cluster_id\":\"${ENCODED_CLUSTER_ID}\",\"management_namespace\":\"${ENCODED_MANAGEMENT_NAMESPACE}\"}}"
+kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data\":{\"clientid\":\"${ENCODED_CLIENT_ID}\",\"clientsecret\":\"${ENCODED_CLIENT_SECRET}\",\"sm_url\":\"${ENCODED_SM_URL}\",\"tokenurl\":\"${ENCODED_TOKEN_URL}\",\"cluster_id\":\"${ENCODED_CLUSTER_ID}\",\"credentials_namespace\":\"${ENCODED_CREDENTIALS_NAMESPACE}\"}}" || \
+(echo "could not patch ${BTP_MANAGER_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 # Wait until resources are reconciled
 echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
+echo -e "\n-- Expected changes:" \
+"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets in ${CREDENTIALS_NAMESPACE} namespace" \
+"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} secret contains updated Service Manager credentials" \
+"\n- ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret contains updated value of the INITIAL_CLUSTER_ID key" \
+"\n- ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace contains the updated values of the following keys: CLUSTER_ID, RELEASE_NAMESPACE, MANAGEMENT_NAMESPACE"
+
 SECONDS=0
 TIMEOUT=60
 until $RESOURCES_CHANGED
@@ -70,30 +80,29 @@ do
     echo "timed out after ${TIMEOUT}s" && exit 1
   fi
   if ! ${SAP_BTP_OPERATOR_SECRET_CHANGED}; then
-    if kubectl get secret -n ${CREDENTIALS_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME}; then
-      echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret exists in ${CREDENTIALS_NAMESPACE} namespace"
-      SAP_BTP_OPERATOR_SECRET_CHANGED=true
-    fi
+    ACTUAL_SAP_BTP_OPERATOR_SECRET=$(kubectl get secret -n ${CREDENTIALS_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} -o json) && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_SECRET} | jq -r .data.clientid)" == "${ENCODED_CLIENT_ID}" ]] && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_SECRET} | jq -r .data.clientsecret)" == "${ENCODED_CLIENT_SECRET}" ]] && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_SECRET} | jq -r .data.sm_url)" == "${ENCODED_SM_URL}" ]] && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_SECRET} | jq -r .data.tokenurl)" == "${ENCODED_TOKEN_URL}" ]] && \
+    echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret exists in ${CREDENTIALS_NAMESPACE} namespace and contains updated values" && \
+    SAP_BTP_OPERATOR_SECRET_CHANGED=true
   fi
-  if ! ${SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION_CHANGED}; then
-    ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION=$(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o jsonpath="{.metadata.resourceVersion}")
-    if [[ "${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION}" != "${SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION}" ]]; then
-      echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} configmap version changed"
-      SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION_CHANGED=true
-    fi
+  if ! ${SAP_BTP_OPERATOR_CONFIGMAP_CHANGED}; then
+    ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP=$(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} -o json) && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP} | jq -r .data.CLUSTER_ID)" == "${CLUSTER_ID}" ]] && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP} | jq -r .data.RELEASE_NAMESPACE)" == "${CREDENTIALS_NAMESPACE}" ]] && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP} | jq -r .data.MANAGEMENT_NAMESPACE)" == "${CREDENTIALS_NAMESPACE}" ]] && \
+    echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} contains updated values" && \
+    SAP_BTP_OPERATOR_CONFIGMAP_CHANGED=true
   fi
-  if ! ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID_CHANGED}; then
-    if [[ "$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} 2>&1)" != *"Error from server (NotFound)"* ]]; then
-      ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID=$(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o jsonpath="{.metadata.uid}")
-      if [[ "${ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID}" != "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID}" ]]; then
-        echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret ID changed"
-        SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID_CHANGED=true
-      fi
-    else
-      echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret does not exist in ${KYMA_NAMESPACE} namespace"
-    fi
+  if ! ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_CHANGED}; then
+    ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET=$(kubectl get secret -n ${CREDENTIALS_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -o json) && \
+    [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_CLUSTER_ID_SECRET} | jq -r .data.INITIAL_CLUSTER_ID)" == "${ENCODED_CLUSTER_ID}" ]] && \
+    echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret exists in ${CREDENTIALS_NAMESPACE} namespace and contains updated value" && \
+    SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_CHANGED=true
   fi
-  if ${SAP_BTP_OPERATOR_SECRET_CHANGED} && ${SAP_BTP_OPERATOR_CONFIGMAP_RESOURCE_VERSION_CHANGED} && ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_ID_CHANGED}; then
+  if ${SAP_BTP_OPERATOR_SECRET_CHANGED} && ${SAP_BTP_OPERATOR_CONFIGMAP_CHANGED} && ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_CHANGED}; then
     RESOURCES_CHANGED=true
   fi
   sleep 2
