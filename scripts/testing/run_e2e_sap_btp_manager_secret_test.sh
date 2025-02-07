@@ -9,7 +9,7 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-echo -e "\n--- BTP Manager secret customization test ---"
+echo -e "\n--- BTP Manager secret customization test ---\n"
 
 # Set environment variables
 ## Resources names
@@ -34,14 +34,17 @@ ENCODED_CLUSTER_ID=$(echo -n ${CLUSTER_ID} | base64)
 ENCODED_CREDENTIALS_NAMESPACE=$(echo -n ${CREDENTIALS_NAMESPACE} | base64)
 
 ## Check SAP BTP service operator secret existence
+echo -e "\n--- Checking ${SAP_BTP_OPERATOR_SECRET_NAME} existence"
 (kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
 (echo "could not get ${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 ## Check SAP BTP service operator configmap existence
+echo -e "\n--- Checking ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} existence"
 (kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} && echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace exists") || \
 (echo "could not get ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 ## Check SAP BTP service operator cluster ID secret existence
+echo -e "\n--- Checking ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} existence"
 (kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
 (echo "could not get ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
@@ -57,6 +60,7 @@ SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_CHANGED=false
 RESOURCES_CHANGED=false
 
 # Create credentials namespace if required
+echo -e "\n--- Creating ${CREDENTIALS_NAMESPACE} if required"
 kubectl create namespace ${CREDENTIALS_NAMESPACE} || echo "${CREDENTIALS_NAMESPACE} namespace already exists"
 
 # Patch the secret with fake values
@@ -66,11 +70,11 @@ kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data
 
 # Wait until resources are reconciled
 echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
-echo -e "\n-- Expected changes:" \
-"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets in ${CREDENTIALS_NAMESPACE} namespace" \
+echo -e "-- Expected changes:" \
+"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets exist in ${CREDENTIALS_NAMESPACE} namespace" \
 "\n- ${SAP_BTP_OPERATOR_SECRET_NAME} secret contains updated Service Manager credentials" \
 "\n- ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret contains updated value of the INITIAL_CLUSTER_ID key" \
-"\n- ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace contains the updated values of the following keys: CLUSTER_ID, RELEASE_NAMESPACE, MANAGEMENT_NAMESPACE"
+"\n- ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace contains the updated values of the following keys: CLUSTER_ID, RELEASE_NAMESPACE, MANAGEMENT_NAMESPACE\n"
 
 SECONDS=0
 TIMEOUT=60
@@ -93,7 +97,7 @@ do
     [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP} | jq -r .data.CLUSTER_ID)" == "${CLUSTER_ID}" ]] && \
     [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP} | jq -r .data.RELEASE_NAMESPACE)" == "${CREDENTIALS_NAMESPACE}" ]] && \
     [[ "$(echo ${ACTUAL_SAP_BTP_OPERATOR_CONFIGMAP} | jq -r .data.MANAGEMENT_NAMESPACE)" == "${CREDENTIALS_NAMESPACE}" ]] && \
-    echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} contains updated values" && \
+    echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace contains updated values" && \
     SAP_BTP_OPERATOR_CONFIGMAP_CHANGED=true
   fi
   if ! ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_CHANGED}; then
