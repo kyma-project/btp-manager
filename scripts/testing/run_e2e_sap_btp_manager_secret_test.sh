@@ -215,7 +215,7 @@ done
 echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
 echo -e "-- Expected changes:" \
 "\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets exist in ${KYMA_NAMESPACE} namespace" \
-"\n- ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret is recreated and contains the correct value of the INITIAL_CLUSTER_ID key" \
+"\n- ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret is recreated and contains the correct value of the INITIAL_CLUSTER_ID key\n"
 checkResourcesReconciliation ${KYMA_NAMESPACE}
 
 # Check SAP BTP service operator pod environment variables
