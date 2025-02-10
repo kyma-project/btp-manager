@@ -72,7 +72,7 @@ jobs:
 
   build-image:
     name: Build image
-    needs: [create-draft, bump-sec-scanners-config]
+    needs: [validate-release]
     uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
     with:
       name: btp-manager
@@ -82,7 +82,6 @@ jobs:
 
   run-unit-tests:
     name: Unit tests
-    needs: create-draft
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
 
   run-e2e-tests:
@@ -167,7 +166,7 @@ jobs:
 
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: validate-release
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests]
     runs-on: ubuntu-latest
 
     steps:
@@ -179,7 +178,7 @@ jobs:
 
       - name: Update sec-scanners-config.yaml
         if: ${{ !inputs.skip-sec-file-bump }}
-        run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }} 
+        run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
 
       - name: Check if any PR was merged during release
         env:
@@ -333,7 +332,7 @@ jobs:
 
   publish-release:
     name: Publish release
-    needs: [create-draft, bump-sec-scanners-config]
+    needs: [create-draft]
     if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
 
