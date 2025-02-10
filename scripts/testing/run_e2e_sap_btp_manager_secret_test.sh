@@ -190,10 +190,8 @@ until [[ -n "${SAP_BTP_OPERATOR_POD_NAME}" ]]; do
 done
 
 # Wait until the pod is in CrashLoopBackOff state
-echo -e "\n-- Waiting for pod to be in CrashLoopBackOff state"
-CRASH_LOOP_BACK_OFF_STATE=""
-until [[ "${CRASH_LOOP_BACK_OFF_STATE}" != "CrashLoopBackOff" ]]; do
-  CRASH_LOOP_BACK_OFF_STATE=$(kubectl get pod ${SAP_BTP_OPERATOR_POD_NAME} -n ${KYMA_NAMESPACE} -o json | jq -r '.status.containerStatuses[] | select(.state.waiting.reason == "CrashLoopBackOff") | .state.waiting.reason')
+until [[ "$(kubectl get pod -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -o json | jq -r '.status.containerStatuses[] | select(.state.waiting.reason == "CrashLoopBackOff") | .state.waiting.reason')" == "CrashLoopBackOff" ]]; do
+  echo -e "\n-- Waiting for ${SAP_BTP_OPERATOR_POD_NAME} pod to be in the CrashLoopBackOff state..."
   sleep 2
 done
 
