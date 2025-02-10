@@ -163,7 +163,7 @@ echo -e "\n--- Checking corner cases..."
 
 # Patch the secret with kyma-system namespace as credentials namespace
 echo -e "\n--- Customizing ${BTP_MANAGER_SECRET_NAME} secret with ${KYMA_NAMESPACE} namespace as credentials namespace"
-kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data\":\"credentials_namespace\":\"${ENCODED_KYMA_NAMESPACE}\"}}" || \
+kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data\":{\"credentials_namespace\":\"${ENCODED_KYMA_NAMESPACE}\"}}" || \
 (echo "could not patch ${BTP_MANAGER_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 # Wait until resources are reconciled
@@ -196,7 +196,7 @@ done
 
 # Trigger the reconciliation by patching the secret with a new client ID
 echo -e "\n--- Customizing ${BTP_MANAGER_SECRET_NAME} secret with new client ID to trigger reconciliation"
-kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data\":{\"clientid\":\"$(echo -n 'different-client-id' | base64)\"}" || \
+kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data\":{\"clientid\":\"$(echo -n 'different-client-id' | base64)\"}}" || \
 (echo "could not patch ${BTP_MANAGER_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 # Wait until resources are reconciled
