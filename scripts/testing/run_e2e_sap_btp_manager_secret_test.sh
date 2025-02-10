@@ -19,14 +19,6 @@ checkResourcesReconciliation () {
   local SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_CHANGED=false
   local RESOURCES_CHANGED=false
 
-  # Wait until resources are reconciled
-  echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
-  echo -e "-- Expected changes:" \
-  "\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets exist in $1 namespace" \
-  "\n- ${SAP_BTP_OPERATOR_SECRET_NAME} secret contains updated Service Manager credentials" \
-  "\n- ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret contains updated value of the INITIAL_CLUSTER_ID key" \
-  "\n- ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace contains the updated values of the following keys: CLUSTER_ID, RELEASE_NAMESPACE, MANAGEMENT_NAMESPACE\n"
-
   SECONDS=0
   TIMEOUT=60
   until $RESOURCES_CHANGED
@@ -145,6 +137,12 @@ kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data
 (echo "could not patch ${BTP_MANAGER_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 # Wait until resources are reconciled
+echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
+echo -e "-- Expected changes:" \
+"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets exist in ${CREDENTIALS_NAMESPACE} namespace" \
+"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} secret contains updated Service Manager credentials" \
+"\n- ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret contains updated value of the INITIAL_CLUSTER_ID key" \
+"\n- ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace contains the updated values of the following keys: CLUSTER_ID, RELEASE_NAMESPACE, MANAGEMENT_NAMESPACE\n"
 checkResourcesReconciliation ${CREDENTIALS_NAMESPACE}
 
 # Check if secrets have been removed from the previous namespace
@@ -169,18 +167,29 @@ kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data
 (echo "could not patch ${BTP_MANAGER_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 # Wait until resources are reconciled
+echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
+echo -e "-- Expected changes:" \
+"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets exist in ${KYMA_NAMESPACE} namespace" \
+"\n- ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace contains the updated values of the following keys: RELEASE_NAMESPACE, MANAGEMENT_NAMESPACE\n"
 checkResourcesReconciliation ${KYMA_NAMESPACE}
 
 # Check if secrets have been removed from the previous namespace
 checkSecretsRemovalFromPreviousNamespace ${CREDENTIALS_NAMESPACE}
 
-echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
-kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
+# Check SAP BTP service operator pod environment variables
+SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
+checkPodEnvs ${CLUSTER_ID} ${KYMA_NAMESPACE}
+
+while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n-- Changing INITIAL_CLUSTER_ID in ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret"
 kubectl patch secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -p "{\"data\":{\"INITIAL_CLUSTER_ID\":\"$(echo -n 'different-cluster-id' | base64)\"}}" || \
 (echo "could not patch ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
+
+echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
 SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
 echo -e "\n-- Deleting ${SAP_BTP_OPERATOR_POD_NAME} pod to enforce CrashLoopBackOff due to invalid cluster ID"
@@ -198,13 +207,9 @@ done
 # Wait until the pod is in CrashLoopBackOff state
 until [[ "$(kubectl get pod -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -o json | jq -r '.status.containerStatuses[] | select(.state.waiting.reason == "CrashLoopBackOff") | .state.waiting.reason')" == "CrashLoopBackOff" ]]; do
   echo -e "\n-- Waiting for ${SAP_BTP_OPERATOR_POD_NAME} pod to be in the CrashLoopBackOff state..."
+  SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
   sleep 2
 done
-
-# Trigger the reconciliation by patching the secret with a new client ID
-echo -e "\n--- Customizing ${BTP_MANAGER_SECRET_NAME} secret with new client ID to trigger reconciliation"
-kubectl patch secret -n ${KYMA_NAMESPACE} ${BTP_MANAGER_SECRET_NAME} -p "{\"data\":{\"clientid\":\"$(echo -n 'different-client-id' | base64)\"}}" || \
-(echo "could not patch ${BTP_MANAGER_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 # Wait until resources are reconciled
 checkResourcesReconciliation ${KYMA_NAMESPACE}
