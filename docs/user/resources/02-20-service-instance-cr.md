@@ -39,6 +39,7 @@ The following table lists the parameters of the given resource with their descri
 | **externalName**         | string   | The name for the service instance in SAP BTP; if not specified, defaults to the instance **metadata.name**. |
 | **parameters**           | []object | Some services support the provisioning of additional configuration parameters during the instance creation.<br/>For the list of supported parameters, check the documentation of the particular service offering. |
 | **parametersFrom**       | []object | List of sources from which parameters are populated. |
+| **watchParametersFromChanges** | bool | If set to `true`, it triggers an automatic update of the ServiceInstance resource with the changes to the Secret values listed in **parametersFrom**. Use this field together with **parameterFrom**.<br>Defaults to `false`. |
 | **customTags**           | []string | List of custom tags describing the service instance; copied to the ServiceBinding Secret in the key called **tags**. |
 | **userInfo**             | object   | The user that last modified this service instance. |
 | **shared**               | *bool    | The shared state. Possible values: `true`, `false`, or none.<br> If not specified, the value defaults to `false`. |

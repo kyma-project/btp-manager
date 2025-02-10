@@ -22,11 +22,15 @@ SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
 
 [[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
 
-SI_NAME=auditlog-management-si-${GITHUB_JOB}-${GITHUB_RUN_ID}
-SB_NAME=auditlog-management-sb-${GITHUB_JOB}-${GITHUB_RUN_ID}
+K8S_VER=$(kubectl version -o json | jq .serverVersion.gitVersion -r | cut -d + -f 1)
+
+SI_NAME=${GITHUB_JOB}-${K8S_VER}-${GITHUB_RUN_ID}
+SB_NAME=${GITHUB_JOB}-${K8S_VER}-${GITHUB_RUN_ID}
+SI_PARAMS_SECRET_NAME=params-secret
 
 export SI_NAME
 export SB_NAME
+export SI_PARAMS_SECRET_NAME
 
 echo -e "\n---Creating service instance: ${SI_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
@@ -135,6 +139,40 @@ while true; do
     echo -e "\n--- Waiting for btpOperator to be ready"; sleep 5;
   fi
 done
+
+if [[ "${CREDENTIALS}" == "real" ]]; then
+  echo -e "\n--- Checking Service Instance reconciliation after parameters change in the referenced Secret"
+
+  echo -e "\n-- Applying Secret with parameters"
+  envsubst <${YAML_DIR}/e2e-test-si-param-secret.yaml | kubectl apply -f -
+
+  echo -e "\n Current parameters in the Secret: $(kubectl get secret ${SI_PARAMS_SECRET_NAME} -o jsonpath="{.data.key1}" | base64 -d)"
+
+  echo -e "\n-- Patching Service Instance to get parameters from the Secret"
+  kubectl patch serviceinstances.services.cloud.sap.com/${SI_NAME} --type='json' -p="[{\"op\": \"add\", \"path\": \"/spec/watchParametersFromChanges\", \"value\":true}, {\"op\": \"add\", \"path\": \"/spec/parametersFrom\", \"value\": [{\"secretKeyRef\": {\"name\": \"${SI_PARAMS_SECRET_NAME}\", \"key\": \"key1\" } }] }]"
+
+  while [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.reason=="Updated")].status}') != "True" ]];
+  do echo -e "\n-- Waiting for Service Instance to be updated"; sleep 5; done
+
+  echo -e "\n-- Service Instance has been updated"
+
+  echo -e "\n-- Saving current resource version of the Service Instance"
+  SI_RESOURCE_VER=$(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o jsonpath="{.metadata.resourceVersion}")
+
+  echo -e "\n Current resource version: ${SI_RESOURCE_VER}"
+
+  echo -e "\n-- Patching Secret with new parameters"
+  PARAM=$(echo '{"new-param": "new-value"}' | base64)
+  kubectl patch secret ${SI_PARAMS_SECRET_NAME} -p "{\"data\":{\"key1\":\"$PARAM\"}}"
+
+  echo -e "\n Current parameters in the Secret: $(kubectl get secret ${SI_PARAMS_SECRET_NAME} -o jsonpath="{.data.key1}" | base64 -d)"
+
+  while [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.reason=="Updated")].status}') != "True" && \
+          $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o jsonpath="{.metadata.resourceVersion}") == "${SI_RESOURCE_VER}" ]];
+  do echo -e "\n-- Waiting for Service Instance to be updated"; sleep 5; done
+
+  echo -e "\n-- Service Instance has been updated - reconciliation after parameters change succeeded"
+fi
 
 echo -e "\n---Uninstalling..."
 
@@ -256,3 +294,4 @@ make undeploy
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
 kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
+kubectl delete secret ${SI_PARAMS_SECRET_NAME} || echo "ignoring failure during params secret removal"

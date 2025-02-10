@@ -20,11 +20,19 @@ The flows of the tests are similar. The upgrade tests contain extra steps for ch
 8. Verify if the ServiceInstance and ServiceBinding have the `Ready` status set to:
      - `True` if you use real credentials.
      - `NotProvisioned` if you use dummy credentials.
-9. Try to uninstall BtpOperator without the `force delete` label. 
-10. Verify if the deprovisioning safety measures work. 
-11. Add the `force delete` label to BtpOperator custom resource (CR). 
-12. Verify if BtpOperator, ServiceInstance CustomResourceDefinition (CRD) and ServiceBinding CRD were deleted. 
-13. Uninstall BTP Manager. 
+9. Verify if BTP Manager properly handles multiple BtpOperator CRs.
+10. Change SAP BTP service operator deployment's image to a non-existing one.
+11. Verify if BTP Manager reconciles the deployment and restores the correct image.
+12. Create a ConfigMap with configuration for BTP Manager.
+13. Verify if BTP Manager reads the configuration from the ConfigMap.
+14. Delete the ConfigMap.
+15. Create a Secret with parameters for the ServiceInstance.
+16. Verify if SAP BTP service operator reconciles the ServiceInstance.
+17. Try to uninstall BtpOperator without the `force delete` label. 
+18. Verify if the deprovisioning safety measures work. 
+19. Add the `force delete` label to BtpOperator custom resource (CR). 
+20. Verify if BtpOperator, ServiceInstance CustomResourceDefinition (CRD) and ServiceBinding CRD were deleted. 
+21. Uninstall BTP Manager. 
 
 #### E2E Tests for Upgradability Flow:
 1. Create a Kubernetes cluster. 
