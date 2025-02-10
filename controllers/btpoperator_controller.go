@@ -554,10 +554,6 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
-	if err := r.restartSapBtpServiceOperatorPodIfNotReady(ctx, logger); err != nil {
-		return fmt.Errorf("failed to handle SAP BTP service operator pod: %w", err)
-	}
-
 	logger.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
@@ -2278,6 +2274,9 @@ func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdSecret(ctx co
 			if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
 				logger.Error(err, fmt.Sprintf("while deleting %s secret", clusterIdSecret.Name))
 				return NewErrorWithReason(conditions.DeletionOfOrphanedResourcesFailed, err.Error())
+			}
+			if err := r.restartSapBtpServiceOperatorPodIfNotReady(ctx, logger); err != nil {
+				return NewErrorWithReason(conditions.ResourceRemovalFailed, fmt.Sprintf("while restarting SAP BTP service operator pod: %s", err))
 			}
 		}
 	}
