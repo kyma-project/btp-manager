@@ -96,6 +96,8 @@ checkPodEnvs() {
 echo -e "\n--- BTP Manager secret customization test ---\n"
 
 # Set environment variables
+YAML_DIR="scripts/testing/yaml"
+
 ## Resources names
 KYMA_NAMESPACE=kyma-system
 BTP_MANAGER_SECRET_NAME=sap-btp-manager
@@ -171,6 +173,10 @@ checkResourcesReconciliation ${KYMA_NAMESPACE}
 
 # Check if secrets have been removed from the previous namespace
 checkSecretsRemovalFromPreviousNamespace ${CREDENTIALS_NAMESPACE}
+
+echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
 echo -e "\n-- Changing INITIAL_CLUSTER_ID in ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret"
 kubectl patch secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -p "{\"data\":{\"INITIAL_CLUSTER_ID\":\"$(echo -n 'different-cluster-id' | base64)\"}}" || \
