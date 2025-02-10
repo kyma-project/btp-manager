@@ -176,11 +176,13 @@ echo -e "\n-- Changing INITIAL_CLUSTER_ID in ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRE
 kubectl patch secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -p "{\"data\":{\"INITIAL_CLUSTER_ID\":\"$(echo -n 'different-cluster-id' | base64)\"}}" || \
 (echo "could not patch ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
+SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
 echo -e "\n-- Deleting ${SAP_BTP_OPERATOR_POD_NAME} pod to enforce CrashLoopBackOff due to invalid cluster ID"
 kubectl delete pod -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} || \
 (echo "could not delete ${SAP_BTP_OPERATOR_POD_NAME} pod in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
 # Wait until the pod is recreated
+echo -e "\n-- Waiting for pod to be recreated"
 SAP_BTP_OPERATOR_POD_NAME=""
 until [[ -n "${SAP_BTP_OPERATOR_POD_NAME}" ]]; do
   SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
@@ -188,6 +190,7 @@ until [[ -n "${SAP_BTP_OPERATOR_POD_NAME}" ]]; do
 done
 
 # Wait until the pod is in CrashLoopBackOff state
+echo -e "\n-- Waiting for pod to be in CrashLoopBackOff state"
 CRASH_LOOP_BACK_OFF_STATE=""
 until [[ "${CRASH_LOOP_BACK_OFF_STATE}" != "CrashLoopBackOff" ]]; do
   CRASH_LOOP_BACK_OFF_STATE=$(kubectl get pod ${SAP_BTP_OPERATOR_POD_NAME} -n ${KYMA_NAMESPACE} -o json | jq -r '.status.containerStatuses[] | select(.state.waiting.reason == "CrashLoopBackOff") | .state.waiting.reason')
