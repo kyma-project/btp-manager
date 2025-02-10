@@ -208,10 +208,14 @@ done
 until [[ "$(kubectl get pod -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -o json | jq -r '.status.containerStatuses[] | select(.state.waiting.reason == "CrashLoopBackOff") | .state.waiting.reason')" == "CrashLoopBackOff" ]]; do
   echo -e "\n-- Waiting for ${SAP_BTP_OPERATOR_POD_NAME} pod to be in the CrashLoopBackOff state..."
   SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
-  sleep 2
+  sleep 1
 done
 
 # Wait until resources are reconciled
+echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
+echo -e "-- Expected changes:" \
+"\n- ${SAP_BTP_OPERATOR_SECRET_NAME} and ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secrets exist in ${KYMA_NAMESPACE} namespace" \
+"\n- ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret is recreated and contains the correct value of the INITIAL_CLUSTER_ID key" \
 checkResourcesReconciliation ${KYMA_NAMESPACE}
 
 # Check SAP BTP service operator pod environment variables
