@@ -1129,7 +1129,19 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 
 	if err = r.deleteAllOfResourcesTypes(ctx, resourcesToDelete...); err != nil {
 		logger.Error(err, "while deleting module resources")
-		return fmt.Errorf("Failed to delete module resources: %w", err)
+		return fmt.Errorf("failed to delete module resources: %w", err)
+	}
+
+	clusterIdSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
+	if err != nil {
+		logger.Error(err, "while getting %s secret in %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
+		return fmt.Errorf("failed to get cluster ID secret: %w", err)
+	}
+	if clusterIdSecret != nil {
+		if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
+			logger.Error(err, "while deleting %s secret from %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
+			return fmt.Errorf("failed to delete cluster ID secret: %w", err)
+		}
 	}
 
 	return nil
