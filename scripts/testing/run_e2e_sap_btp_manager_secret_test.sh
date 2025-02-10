@@ -220,7 +220,7 @@ checkResourcesReconciliation ${KYMA_NAMESPACE}
 
 # Check SAP BTP service operator pod environment variables
 SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
-checkPodEnvs ${CLUSTER_ID} ${CREDENTIALS_NAMESPACE}
+checkPodEnvs ${CLUSTER_ID} ${KYMA_NAMESPACE}
 
 while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
