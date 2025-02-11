@@ -1,9 +1,10 @@
 # Customize the Default Credentials and Access
 
-> [!NOTE]
-> This feature is still being developed and will be available soon.
-
 You can customize the `sap-btp-manager` Secret and manage your own default configuration of the SAP BTP Operator module.
+
+## Prerequisites
+
+You have the SAP BTP Operator module added. 
 
 ## Context
 
@@ -23,11 +24,11 @@ To customize the `sap-btp-manager` Secret, modify the credentials in the followi
 
 * Label the Secret with `kyma-project.io/skip-reconciliation: 'true'`.
 * Provide the following credentials from your SAP Service Manager instance: **clientid**, **clientsecret**, **sm_url**, and **tokenurl**.
-* Optionally, provide your **cluster_id**. Otherwise, it is generated automatically.
-* Optionally, add the **credentials_namespace** parameter and provide the name of your custom namespace for Secrets with credentials to communicate with the SAP Service Manager.
+* Optionally, provide your **cluster_id**. Otherwise, the default generated one is used.
+* Optionally, add the **credentials_namespace** parameter and provide the name of your existing custom namespace for Secrets with credentials to communicate with the SAP Service Manager.
 
    >[!NOTE]
-   > Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. BTP Manager deletes the Secrets from the default namespace and creates them in the custom namespace.
+   > Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. BTP Manager deletes the Secrets from the default `kyma-system` namespace and creates them in the custom namespace.
 
 See the following example:
 
