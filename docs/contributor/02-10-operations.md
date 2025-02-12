@@ -109,7 +109,7 @@ The only Condition used is of type `Ready`.
 | 17  | Error      | Ready          | false            | ConsistencyCheckFailed                            | Failure during consistency check                                                    |
 | 18  | Error      | Ready          | false            | DeletionOfOrphanedResourcesFailed                 | Deletion of orphaned resources failed                                               |
 | 19  | Error      | Ready          | false            | GettingConfigMapFailed                            | Getting ConfigMap failed                                                            |
-| 20  | Error      | Ready          | false            | InconsistentChart                                 | Chart is inconsistent; reconciliation initialized                                   |
+| 20  | Error      | Ready          | false            | InconsistentChart                                 | Chart is inconsistent, reconciliation initialized                                   |
 | 21  | Error      | Ready          | false            | InvalidSecret                                     | `sap-btp-manager` Secret does not contain required data - create proper Secret      |
 | 22  | Error      | Ready          | false            | PreparingInstallInfoFailed                        | Error while preparing installation information                                      |
 | 23  | Error      | Ready          | false            | ProvisioningFailed                                | Provisioning failed                                                                 |

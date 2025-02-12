@@ -71,7 +71,7 @@ var Reasons = map[Reason]Metadata{
 	ResourceRemovalFailed:                 {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Some resources can still be present due to errors while deprovisioning
 	SoftDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to soft-delete after hard-delete failed
 	UpdateCheck:                           {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Checking for updates
-	InconsistentChart:                     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Chart is inconsistent; reconciliation initialized
+	InconsistentChart:                     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Chart is inconsistent, reconciliation initialized
 	PreparingInstallInfoFailed:            {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Error while preparing installation information
 	ChartPathEmpty:                        {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;No chart path available for processing
 	DeletionOfOrphanedResourcesFailed:     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Deletion of orphaned resources failed
