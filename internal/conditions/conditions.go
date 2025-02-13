@@ -10,30 +10,36 @@ type Reason string
 
 // gophers_reasons_section_start
 const (
-	ReconcileSucceeded                    Reason = "ReconcileSucceeded"
-	ReconcileFailed                       Reason = "ReconcileFailed"
-	Initialized                           Reason = "Initialized"
-	Processing                            Reason = "Processing"
-	OlderCRExists                         Reason = "OlderCRExists"
-	ChartInstallFailed                    Reason = "ChartInstallFailed"
-	ConsistencyCheckFailed                Reason = "ConsistencyCheckFailed"
-	MissingSecret                         Reason = "MissingSecret"
-	InvalidSecret                         Reason = "InvalidSecret"
-	HardDeleting                          Reason = "HardDeleting"
-	ResourceRemovalFailed                 Reason = "ResourceRemovalFailed"
-	SoftDeleting                          Reason = "SoftDeleting"
-	Updated                               Reason = "Updated"
-	UpdateCheck                           Reason = "UpdateCheck"
-	UpdateCheckSucceeded                  Reason = "UpdateCheckSucceeded"
-	InconsistentChart                     Reason = "InconsistentChart"
-	UpdateDone                            Reason = "UpdateDone"
-	PreparingInstallInfoFailed            Reason = "PreparingInstallInfoFailed"
-	ChartPathEmpty                        Reason = "ChartPathEmpty"
-	DeletionOfOrphanedResourcesFailed     Reason = "DeletionOfOrphanedResourcesFailed"
-	ServiceInstancesAndBindingsNotCleaned Reason = "ServiceInstancesAndBindingsNotCleaned"
-	StoringChartDetailsFailed             Reason = "StoringChartDetailsFailed"
-	GettingConfigMapFailed                Reason = "GettingConfigMapFailed"
-	ProvisioningFailed                    Reason = "ProvisioningFailed"
+	ReconcileSucceeded                                Reason = "ReconcileSucceeded"
+	ReconcileFailed                                   Reason = "ReconcileFailed"
+	Initialized                                       Reason = "Initialized"
+	Processing                                        Reason = "Processing"
+	OlderCRExists                                     Reason = "OlderCRExists"
+	ChartInstallFailed                                Reason = "ChartInstallFailed"
+	ConsistencyCheckFailed                            Reason = "ConsistencyCheckFailed"
+	MissingSecret                                     Reason = "MissingSecret"
+	InvalidSecret                                     Reason = "InvalidSecret"
+	HardDeleting                                      Reason = "HardDeleting"
+	ResourceRemovalFailed                             Reason = "ResourceRemovalFailed"
+	SoftDeleting                                      Reason = "SoftDeleting"
+	Updated                                           Reason = "Updated"
+	UpdateCheck                                       Reason = "UpdateCheck"
+	UpdateCheckSucceeded                              Reason = "UpdateCheckSucceeded"
+	InconsistentChart                                 Reason = "InconsistentChart"
+	UpdateDone                                        Reason = "UpdateDone"
+	PreparingInstallInfoFailed                        Reason = "PreparingInstallInfoFailed"
+	ChartPathEmpty                                    Reason = "ChartPathEmpty"
+	DeletionOfOrphanedResourcesFailed                 Reason = "DeletionOfOrphanedResourcesFailed"
+	ServiceInstancesAndBindingsNotCleaned             Reason = "ServiceInstancesAndBindingsNotCleaned"
+	StoringChartDetailsFailed                         Reason = "StoringChartDetailsFailed"
+	GettingConfigMapFailed                            Reason = "GettingConfigMapFailed"
+	ProvisioningFailed                                Reason = "ProvisioningFailed"
+	GettingDefaultCredentialsSecretFailed             Reason = "GettingDefaultCredentialsSecretFailed"
+	GettingSapBtpServiceOperatorConfigMapFailed       Reason = "GettingSapBtpServiceOperatorConfigMapFailed"
+	CredentialsNamespaceChanged                       Reason = "CredentialsNamespaceChanged"
+	ClusterIdChanged                                  Reason = "ClusterIdChanged"
+	AnnotatingSecretFailed                            Reason = "AnnotatingSecretFailed"
+	GettingSapBtpServiceOperatorClusterIdSecretFailed Reason = "GettingSapBtpServiceOperatorClusterIdSecretFailed"
 )
 
 // gophers_reasons_section_end
@@ -59,20 +65,26 @@ var Reasons = map[Reason]Metadata{
 	ConsistencyCheckFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure during consistency check
 	Processing:                            {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Final State after deprovisioning
 	OlderCRExists:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;This CR is not the oldest one so does not represent the module State
-	MissingSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;sap-btp-manager secret was not found - create proper secret
-	InvalidSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;sap-btp-manager secret does not contain required data - create proper secret
+	MissingSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;`sap-btp-manager` Secret was not found - create proper Secret
+	InvalidSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;`sap-btp-manager` Secret does not contain required data - create proper Secret
 	HardDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to hard delete
 	ResourceRemovalFailed:                 {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Some resources can still be present due to errors while deprovisioning
-	SoftDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to soft delete after hard delete failed
+	SoftDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to soft-delete after hard-delete failed
 	UpdateCheck:                           {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Checking for updates
-	InconsistentChart:                     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Chart is inconsistent. Reconciliation initialized
+	InconsistentChart:                     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Chart is inconsistent, reconciliation initialized
 	PreparingInstallInfoFailed:            {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Error while preparing installation information
 	ChartPathEmpty:                        {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;No chart path available for processing
 	DeletionOfOrphanedResourcesFailed:     {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Deletion of orphaned resources failed
 	StoringChartDetailsFailed:             {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure of storing chart details
-	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting Config Map failed
+	GettingConfigMapFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting ConfigMap failed
 	ProvisioningFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Provisioning failed
 	ServiceInstancesAndBindingsNotCleaned: {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Deprovisioning blocked because of ServiceInstances and/or ServiceBindings existence
+	GettingDefaultCredentialsSecretFailed: {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting default credentials Secret failed
+	AnnotatingSecretFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Annotating the required Secret failed
+	GettingSapBtpServiceOperatorConfigMapFailed:       {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting SAP BTP service operator ConfigMap failed
+	CredentialsNamespaceChanged:                       {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Credentials namespace changed
+	ClusterIdChanged:                                  {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Cluster ID changed
+	GettingSapBtpServiceOperatorClusterIdSecretFailed: {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Getting SAP BTP service operator Cluster ID Secret failed
 }
 
 // gophers_metadata_section_end
