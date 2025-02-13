@@ -2190,10 +2190,10 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 }
 
 func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
-	return r.isCredentialSecret(s) || r.isCertSecret(s)
+	return r.isCredentialsSecret(s) || r.isCertSecret(s)
 }
 
-func (r *BtpOperatorReconciler) isCredentialSecret(s *corev1.Secret) bool {
+func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
 	return s.Namespace == ChartNamespace && s.Name == SecretName
 }
 
@@ -2362,11 +2362,9 @@ func (r *BtpOperatorReconciler) deleteResourcesIfBtpManagerSecretChanged(ctx con
 		}
 	}
 
-	if isCredentialsNamespaceChanged {
-		if credentialsSecret != nil {
-			if err := r.deleteObject(ctx, credentialsSecret); err != nil {
-				return err
-			}
+	if isCredentialsNamespaceChanged && credentialsSecret != nil {
+		if err := r.deleteObject(ctx, credentialsSecret); err != nil {
+			return err
 		}
 	}
 
