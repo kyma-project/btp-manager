@@ -16,6 +16,19 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+waitForBtpOperatorCrReadiness () {
+  echo -e "\n--- Waiting for BtpOperator CR to be ready"
+  while true; do
+    operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+    state_status=$(echo $operator_status | jq -r '.status.state')
+    if [[ $state_status == "Ready" ]]; then
+      break
+    else
+      echo -e "\n--- Waiting for BtpOperator CR to be ready"; sleep 5;
+    fi
+  done
+}
+
 CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
 SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
@@ -97,48 +110,35 @@ until [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-s
   sleep 5
 done
 
+waitForBtpOperatorCrReadiness
+
+echo -e "\n--- Saving lastTransitionTime of BtpOperator CR"
+last_transition_time=$(kubectl get btpoperators/e2e-test-btpoperator -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+
 echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
 kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
-echo -e "\n--- Saving lastTransitionTime of btpOperator"
-last_transition_time=$(kubectl get btpoperators/e2e-test-btpoperator -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+echo -e "\n--- Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to trigger reconciliation and change BtpOperator CR status"
+kubectl delete deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system
 
-echo -e "\n--- Changing CLUSTER_ID in configmap sap-btp-operator-config"
-kubectl patch configmap sap-btp-operator-config -n kyma-system -p '{"data":{"CLUSTER_ID":"dGVzdAo="}}'
-sleep 5
-kubectl delete pod -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
-
-echo -e "\n--- Waiting for btpOperator to be in error or LastTransitionTime to change"
+echo -e "\n--- Waiting for BtpOperator CR lastTransitionTime to change"
 while true; do
   operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
   state_status=$(echo $operator_status | jq -r '.status.state')
   current_last_transition_time=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
-  if [[ $state_status == "Error" ]]; then
-    echo -e "\n--- btpOperator is in error state"
-    break
-  elif [[ $current_last_transition_time != $last_transition_time ]]; then
-    echo -e "\n--- LastTransitionTime has changed so error state was set on btpOperator"
+  if [[ $current_last_transition_time != $last_transition_time ]]; then
+    echo -e "\n--- lastTransitionTime has changed"
     break
   else
-    echo -e "\n--- Waiting for btpOperator to be in error or LastTransitionTime to change"; sleep 1;
+    echo -e "\n--- Waiting for BtpOperator CR lastTransitionTime to change"; sleep 1;
   fi
 done
+
+waitForBtpOperatorCrReadiness
 
 echo -e "\n--- Removing sap-btp-manager configmap"
 kubectl delete -f ${YAML_DIR}/e2e-test-configmap.yaml
-
-echo -e "\n--- Waiting for btpOperator to be ready"
-while true; do
-  operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
-  state_status=$(echo $operator_status | jq -r '.status.state')
-
-  if [[ $state_status == "Ready" ]]; then
-    break
-  else
-    echo -e "\n--- Waiting for btpOperator to be ready"; sleep 5;
-  fi
-done
 
 if [[ "${CREDENTIALS}" == "real" ]]; then
   echo -e "\n--- Checking Service Instance reconciliation after parameters change in the referenced Secret"
