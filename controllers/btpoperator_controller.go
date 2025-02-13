@@ -812,6 +812,13 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 
+	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
+	if errWithReason != nil {
+		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
+	}
+
+	r.setCredentialsNamespacesAndClusterId(requiredSecret)
+
 	if len(cr.GetFinalizers()) == 0 {
 		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
 		return nil
@@ -1130,12 +1137,12 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 
 	clusterIdSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
 	if err != nil {
-		logger.Error(err, "while getting %s secret in %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
+		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret))
 		return fmt.Errorf("failed to get cluster ID secret: %w", err)
 	}
 	if clusterIdSecret != nil {
 		if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
-			logger.Error(err, "while deleting %s secret from %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
+			logger.Error(err, fmt.Sprintf("while deleting %s secret from %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret))
 			return fmt.Errorf("failed to delete cluster ID secret: %w", err)
 		}
 	}
@@ -2384,7 +2391,7 @@ func (r *BtpOperatorReconciler) getSecretByNameAndNamespace(ctx context.Context,
 		if k8serrors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("while getting secret %s from %s namespace: %w", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret, err)
+		return nil, fmt.Errorf("while getting %s secret from %s namespace: %w", name, namespace, err)
 	}
 	return secret, nil
 }
