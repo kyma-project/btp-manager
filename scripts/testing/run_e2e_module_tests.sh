@@ -16,6 +16,19 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
+waitForBtpOperatorCrReadiness () {
+  echo -e "\n--- Waiting for BtpOperator CR to be ready"
+  while true; do
+    operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+    state_status=$(echo $operator_status | jq -r '.status.state')
+    if [[ $state_status == "Ready" ]]; then
+      break
+    else
+      echo -e "\n--- Waiting for BtpOperator CR to be ready"; sleep 5;
+    fi
+  done
+}
+
 CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
 SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
@@ -97,17 +110,32 @@ until [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-s
   sleep 5
 done
 
-echo -e "\n--- Waiting for btpOperator to be ready"
+waitForBtpOperatorCrReadiness
+
+echo -e "\n--- Saving lastTransitionTime of BtpOperator CR"
+last_transition_time=$(kubectl get btpoperators/e2e-test-btpoperator -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+
+echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
+
+echo -e "\n--- Waiting for BtpOperator CR lastTransitionTime to change"
 while true; do
   operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
   state_status=$(echo $operator_status | jq -r '.status.state')
-
-  if [[ $state_status == "Ready" ]]; then
+  current_last_transition_time=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+  if [[ $current_last_transition_time != $last_transition_time ]]; then
+    echo -e "\n--- lastTransitionTime has changed"
     break
   else
-    echo -e "\n--- Waiting for btpOperator to be ready"; sleep 5;
+    echo -e "\n--- Waiting for BtpOperator CR lastTransitionTime to change"; sleep 1;
   fi
 done
+
+echo -e "\n--- Removing sap-btp-manager configmap"
+kubectl delete -f ${YAML_DIR}/e2e-test-configmap.yaml
+
+waitForBtpOperatorCrReadiness
 
 if [[ "${CREDENTIALS}" == "real" ]]; then
   echo -e "\n--- Checking Service Instance reconciliation after parameters change in the referenced Secret"
