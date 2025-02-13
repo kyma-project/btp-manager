@@ -119,6 +119,9 @@ echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
 kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
+echo -e "\n--- Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to trigger reconciliation and change BtpOperator CR status"
+kubectl delete deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system
+
 echo -e "\n--- Waiting for BtpOperator CR lastTransitionTime to change"
 while true; do
   operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
@@ -132,10 +135,10 @@ while true; do
   fi
 done
 
+waitForBtpOperatorCrReadiness
+
 echo -e "\n--- Removing sap-btp-manager configmap"
 kubectl delete -f ${YAML_DIR}/e2e-test-configmap.yaml
-
-waitForBtpOperatorCrReadiness
 
 if [[ "${CREDENTIALS}" == "real" ]]; then
   echo -e "\n--- Checking Service Instance reconciliation after parameters change in the referenced Secret"
