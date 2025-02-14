@@ -166,7 +166,7 @@ jobs:
 
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests]
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test]
     runs-on: ubuntu-latest
 
     steps:
