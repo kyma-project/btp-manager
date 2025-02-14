@@ -211,7 +211,7 @@ jobs:
           fi
 
       - name: Merge PR
-        if: ${{ !inputs.skip-sec-file-and-chart-bump }}
+        if: ${{ !inputs.skip-sec-file-bump }}
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}

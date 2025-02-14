@@ -702,11 +702,11 @@ func getSecret(name string) *corev1.Secret {
 }
 
 func getOperatorSecret() *corev1.Secret {
-	return getSecret(btpServiceOperatorSecret)
+	return getSecret(sapBtpServiceOperatorSecretName)
 }
 
 func getOperatorConfigMap() *corev1.ConfigMap {
-	return getConfigMap(btpServiceOperatorConfigMap)
+	return getConfigMap(sapBtpServiceOperatorConfigMapName)
 }
 func getConfigMap(name string) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{}
