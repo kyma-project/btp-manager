@@ -23,24 +23,32 @@ echo "Creating security scan configuration file:"
 if [ -n "${TAG}" ]; then
   cat <<EOF | tee ${FILENAME}
 module-name: btp-operator
+kind: kyma
 rc-tag: ${TAG}
-protecode:
+bdba:
   - ${IMAGE}
-whitesource:
+mend:
   language: golang-mod
-  subprojects: false
   exclude:
     - "**/*_test.go"
+checkmarx-one:
+  preset: go-default
+  exclude:
+    - '**/*_test.go'"
 EOF
 else
   cat <<EOF | tee ${FILENAME}
 module-name: btp-operator
-protecode:
+kind: kyma
+bdba:
   - ${IMAGE}
-whitesource:
+mend:
   language: golang-mod
-  subprojects: false
   exclude:
     - "**/*_test.go"
+checkmarx-one:
+  preset: go-default
+  exclude:
+    - '**/*_test.go'"
 EOF
 fi
