@@ -12,11 +12,11 @@ namePrefix: btp-manager-
 commonLabels:
   app.kubernetes.io/component: btp-manager.kyma-project.io
 
-# Labels to add to all resources and selectors.
-#labels:
-#- includeSelectors: true
-#  pairs:
-#    someName: someValue
+# Labels to add to all resources, excluding selectors.
+labels:
+  - includeSelectors: false
+    pairs:
+      kyma-project.io/module: btp-operator
 
 resources:
 - ../crd
