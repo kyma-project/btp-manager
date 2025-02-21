@@ -10,4 +10,4 @@ mend:
 checkmarx-one:
   preset: go-default
   exclude:
-    - '**/*_test.go'
+    - "**/*_test.go"
