@@ -10,7 +10,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *' 
-
+permissions:
+  contents: write
 jobs:
   auto-bump-chart:
     runs-on: ubuntu-latest
