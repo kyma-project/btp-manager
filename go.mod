@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
-	github.com/prometheus/client_golang v1.21.0
+	github.com/prometheus/client_golang v1.21.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v3 v3.0.1
