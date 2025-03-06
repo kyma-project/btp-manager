@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.24.0-alpine3.20 as builder
+FROM golang:1.24.1-alpine3.20 as builder
 
 WORKDIR /btp-manager-workspace
 # Copy the Go Modules manifests
