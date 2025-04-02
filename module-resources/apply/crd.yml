@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: servicebindings.services.cloud.sap.com
 spec:
   group: services.cloud.sap.com
@@ -112,6 +112,8 @@ spec:
                           - key
                           - name
                         type: object
+                    required:
+                      - secretKeyRef
                     type: object
                   type: array
                 secretKey:
@@ -518,7 +520,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: serviceinstances.services.cloud.sap.com
 spec:
   group: services.cloud.sap.com
@@ -632,6 +634,8 @@ spec:
                           - key
                           - name
                         type: object
+                    required:
+                      - secretKeyRef
                     type: object
                   type: array
                 serviceOfferingName:
