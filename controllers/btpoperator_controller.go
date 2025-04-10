@@ -209,12 +209,12 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := logr.FromContextAsSlogLogger(ctx)
-	if logger == nil {
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		}))
-	}
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	slogLogger := slog.New(handler)
+	ctxWithLogger := logr.NewContextWithSlogLogger(ctx, slogLogger)
+	logger := logr.FromContextAsSlogLogger(ctxWithLogger)
 	logger.Info("aaaa")
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
