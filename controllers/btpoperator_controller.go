@@ -22,14 +22,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log/slog"
-	"os"
-	"reflect"
-	"strconv"
-	"strings"
-	"time"
-	"unsafe"
-
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
@@ -48,6 +40,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"log/slog"
+	"os"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,6 +51,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -210,9 +208,6 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	fmt.Println("aaaaaaaaaaaaaa")
-	printContextInternals(ctx, false)
-	fmt.Println("aaaaaaaaaaaaaa")
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
 
@@ -278,33 +273,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func printContextInternals(ctx interface{}, inner bool) {
-	contextValues := reflect.ValueOf(ctx).Elem()
-	contextKeys := reflect.TypeOf(ctx).Elem()
-
-	if !inner {
-		fmt.Printf("\nFields for %s.%s\n", contextKeys.PkgPath(), contextKeys.Name())
-	}
-
-	if contextKeys.Kind() == reflect.Struct {
-		for i := 0; i < contextValues.NumField(); i++ {
-			reflectValue := contextValues.Field(i)
-			reflectValue = reflect.NewAt(reflectValue.Type(), unsafe.Pointer(reflectValue.UnsafeAddr())).Elem()
-
-			reflectField := contextKeys.Field(i)
-
-			if reflectField.Name == "Context" {
-				printContextInternals(reflectValue.Interface(), true)
-			} else {
-				fmt.Printf("field name: %+v\n", reflectField.Name)
-				fmt.Printf("value: %+v\n", reflectValue.Interface())
-			}
-		}
-	} else {
-		fmt.Printf("context is empty (int)\n")
-	}
 }
 
 func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOperators *v1alpha1.BtpOperatorList) (ctrl.Result, error) {
