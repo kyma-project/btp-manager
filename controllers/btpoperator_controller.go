@@ -209,6 +209,9 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	fmt.Println("aaaaaaaaaaaaaa")
+	fmt.Println(ctx)
+	fmt.Println("aaaaaaaaaaaaaa")
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
 
