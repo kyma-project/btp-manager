@@ -210,7 +210,12 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := logr.FromContextAsSlogLogger(ctx)
-	logger.Info("aaaaaaa")
+	if logger == nil {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}))
+	}
+	logger.Info("aaaa")
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
 
