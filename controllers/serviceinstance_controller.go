@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"k8s.io/client-go/util/workqueue"
@@ -20,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -39,8 +40,7 @@ func NewServiceInstanceReconciler(client client.Client, scheme *runtime.Scheme) 
 }
 
 func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("SI reconcile triggered")
+	slog.Info("SI reconcile triggered")
 
 	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(instanceGvk)
@@ -122,10 +122,9 @@ func (r *ServiceInstanceReconciler) deletionPredicate() predicate.Predicate {
 }
 
 func (r *ServiceInstanceReconciler) getOldestBtpOperator(ctx context.Context) (*v1alpha1.BtpOperator, error) {
-	logger := log.FromContext(ctx)
 	existingBtpOperators := &v1alpha1.BtpOperatorList{}
 	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to get existing BtpOperator CRs")
+		slog.Error(fmt.Sprintf("unable to get existing BtpOperator CRs: %v", err))
 		return nil, err
 	}
 

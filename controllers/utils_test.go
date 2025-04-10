@@ -43,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -354,7 +353,7 @@ func getCurrentCrStatus() v1alpha1.Status {
 	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
 		return v1alpha1.Status{}
 	}
-	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
+	logger.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
 	return cr.GetStatus()
 }
 
@@ -770,7 +769,7 @@ type resourceUpdate struct {
 
 func resourceUpdateHandler(obj any, t string) {
 	if cr, ok := obj.(*v1alpha1.BtpOperator); ok {
-		logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions)
+		logger.Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions)
 		updateCh <- resourceUpdate{Cr: cr, Action: t}
 	}
 }
@@ -835,13 +834,12 @@ func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.C
 }
 
 func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
 	deployment, err := r.Get(ctx, req.NamespacedName.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "failed to get deployment")
+		logger.Error(fmt.Sprintf("failed to get deployment: %v", err))
 		return ctrl.Result{}, err
 	}
 	deploymentProgressingCondition := appsv1.DeploymentCondition{Type: appsv1.DeploymentConditionType(deploymentProgressingConditionType), Status: corev1.ConditionStatus("True")}
@@ -852,7 +850,7 @@ func (r *deploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	deployment.Status = status
 	_, err = r.UpdateStatus(ctx, deployment, metav1.UpdateOptions{})
 	if err != nil {
-		logger.Error(err, "failed to update deployment status")
+		logger.Error(fmt.Sprintf("failed to update deployment status: %v", err))
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil

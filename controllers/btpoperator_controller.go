@@ -22,13 +22,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
@@ -53,7 +53,6 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -213,15 +212,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	r.workqueueSize += 1
 	defer func() { r.workqueueSize -= 1 }()
 
-	logger := log.FromContext(ctx)
-
 	reconcileCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info(fmt.Sprintf("%s BtpOperator CR not found. Ignoring it since object has been deleted.", req.Name))
+			slog.Info(fmt.Sprintf("%s BtpOperator CR not found. Ignoring it since object has been deleted.", req.Name))
 			existingBtpOperators := &v1alpha1.BtpOperatorList{}
 			if err := r.List(ctx, existingBtpOperators); err != nil {
-				logger.Error(err, "unable to get existing BtpOperator CRs")
+				slog.Error(fmt.Sprintf("unable to get existing BtpOperator CRs: %v", err))
 				return ctrl.Result{}, nil
 			}
 			if len(existingBtpOperators.Items) > 0 {
@@ -230,13 +227,13 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "unable to get BtpOperator CR")
+		slog.Error(fmt.Sprintf("unable to get BtpOperator CR: %v", err))
 		return ctrl.Result{}, err
 	}
 
 	existingBtpOperators := &v1alpha1.BtpOperatorList{}
 	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to get existing BtpOperator CRs")
+		slog.Error(fmt.Sprintf("unable to get existing BtpOperator CRs: %v", err))
 		return ctrl.Result{}, err
 	}
 
@@ -280,24 +277,23 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOperators *v1alpha1.BtpOperatorList) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
+	slog.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
 	oldestCr := r.getOldestCR(existingBtpOperators)
 	if oldestCr.GetStatus().State == v1alpha1.StateWarning && oldestCr.IsReasonStringEqual(string(conditions.OlderCRExists)) {
 		if err := r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing,
 			fmt.Sprintf("%s is the new leader", oldestCr.GetName())); err != nil {
-			logger.Error(err, fmt.Sprintf("unable to set %s BtpOperator CR as the new leader", oldestCr.GetName()))
+			slog.Error(fmt.Sprintf("unable to set %s BtpOperator CR as the new leader: %v", oldestCr.GetName(), err))
 			return ctrl.Result{}, err
 		}
 	}
-	logger.Info(fmt.Sprintf("%s BtpOperator is the new leader", oldestCr.GetName()))
+	slog.Info(fmt.Sprintf("%s BtpOperator is the new leader", oldestCr.GetName()))
 	for _, cr := range existingBtpOperators.Items {
 		if cr.GetUID() == oldestCr.GetUID() {
 			continue
 		}
 		redundantCR := cr.DeepCopy()
 		if err := r.HandleRedundantCR(ctx, oldestCr, redundantCR); err != nil {
-			logger.Info(fmt.Sprintf("unable to update %s BtpOperator CR Status", redundantCR.GetName()))
+			slog.Info(fmt.Sprintf("unable to update %s BtpOperator CR Status", redundantCR.GetName()))
 		}
 	}
 	return ctrl.Result{}, nil
@@ -315,14 +311,12 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 }
 
 func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling redundant BtpOperator CR")
+	slog.Info("Handling redundant BtpOperator CR")
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.OlderCRExists, fmt.Sprintf("The '%s' BtpOperator CR in '%s' namespace reconciles the module. To use this CR to reconcile the module, delete the '%s' BtpOperator CR in the '%s' namespace and remove finalizers from the '%s' BtpOperator CR in the '%s' namespace.",
 		oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace()))
 }
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState v1alpha1.State, reason conditions.Reason, message string) error {
-	logger := log.FromContext(ctx)
 	timeout := time.Now().Add(StatusUpdateTimeout)
 
 	var err error
@@ -331,7 +325,7 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			if k8serrors.IsNotFound(err) {
 				return nil
 			}
-			logger.Error(err, fmt.Sprintf("cannot get the BtpOperator to update the status. Retrying in %s...", StatusUpdateCheckInterval.String()))
+			slog.Error(fmt.Sprintf("cannot get the BtpOperator to update the status. Retrying in %s: %v", StatusUpdateCheckInterval.String(), err))
 			time.Sleep(StatusUpdateCheckInterval)
 			continue
 		}
@@ -344,43 +338,41 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
 		}
 		if err = r.Status().Update(ctx, cr); err != nil {
-			logger.Error(err, fmt.Sprintf("cannot update the status of the BtpOperator. Retrying in %s...", StatusUpdateCheckInterval.String()))
+			slog.Error(fmt.Sprintf("cannot update the status of the BtpOperator. Retrying in %s: %v", StatusUpdateCheckInterval.String(), err))
 			time.Sleep(StatusUpdateCheckInterval)
 			continue
 		}
 		time.Sleep(StatusUpdateCheckInterval)
 	}
-	logger.Error(err, fmt.Sprintf("timed out while waiting %s for the BtpOperator status change.", StatusUpdateTimeout.String()))
+	slog.Error(fmt.Sprintf("timed out while waiting %s for the BtpOperator status change: %v", StatusUpdateTimeout.String(), err))
 
 	return err
 }
 
 func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Initial state")
+	slog.Info("Handling Initial state")
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.Initialized, "Initialized")
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Processing state")
+	slog.Info("Handling Processing state")
 
 	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
+		return r.handleMissingSecret(ctx, cr, errWithReason)
 	}
 
 	r.setCredentialsNamespacesAndClusterId(requiredSecret)
 
-	if errWithReason := r.checkDefaultCredentialsSecretNamespace(ctx, logger, requiredSecret); errWithReason != nil {
+	if errWithReason := r.checkDefaultCredentialsSecretNamespace(ctx, requiredSecret); errWithReason != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
 	}
 
-	if errWithReason := r.checkSapBtpServiceOperatorClusterIdConfigMap(ctx, logger, requiredSecret); errWithReason != nil {
+	if errWithReason := r.checkSapBtpServiceOperatorClusterIdConfigMap(ctx, requiredSecret); errWithReason != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
 	}
 
-	if errWithReason := r.checkSapBtpServiceOperatorClusterIdSecret(ctx, logger, requiredSecret); errWithReason != nil {
+	if errWithReason := r.checkSapBtpServiceOperatorClusterIdSecret(ctx, requiredSecret); errWithReason != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
 	}
 
@@ -393,34 +385,32 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	}
 
 	if err := r.deleteResourcesIfBtpManagerSecretChanged(ctx); err != nil {
-		logger.Error(err, "while deleting resources")
+		slog.Error(fmt.Sprintf("while deleting resources: %v", err))
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ResourceRemovalFailed, err.Error())
 	}
 
 	r.instanceBindingService.EnableSISBController()
 
-	logger.Info("provisioning succeeded")
+	slog.Info("provisioning succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateReady, conditions.ReconcileSucceeded, "Module provisioning succeeded")
 }
 
-func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
-	logger.Info("secret verification failed: " + errWithReason.Error())
+func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, errWithReason *ErrorWithReason) error {
+	slog.Info("secret verification failed: " + errWithReason.Error())
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.reason, errWithReason.message)
 }
 
 func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
-	logger := log.FromContext(ctx)
-
-	logger.Info("getting the required Secret")
+	slog.Info("getting the required Secret")
 	secret, err := r.getRequiredSecret(ctx)
 	if err != nil {
-		logger.Error(err, "while getting the required Secret")
+		slog.Error(fmt.Sprintf("while getting the required Secret: %v", err))
 		return nil, NewErrorWithReason(conditions.MissingSecret, "Secret resource not found")
 	}
 
-	logger.Info("verifying the required Secret")
+	slog.Info("verifying the required Secret")
 	if err = r.verifySecret(secret); err != nil {
-		logger.Error(err, "while verifying the required Secret")
+		slog.Error(fmt.Sprintf("while verifying the required Secret: %v", err))
 		return nil, NewErrorWithReason(conditions.InvalidSecret, "Secret validation failed")
 	}
 	return secret, nil
@@ -469,19 +459,17 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 }
 
 func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-
-	logger.Info("getting outdated module resources to delete")
+	slog.Info("getting outdated module resources to delete")
 	resourcesToDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
 	if err != nil {
-		logger.Error(err, "while getting objects to delete from manifests")
+		slog.Error(fmt.Sprintf("while getting objects to delete from manifests: %v", err))
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d outdated module resources to delete", len(resourcesToDelete)))
+	slog.Info(fmt.Sprintf("got %d outdated module resources to delete", len(resourcesToDelete)))
 
 	err = r.deleteResources(ctx, resourcesToDelete)
 	if err != nil {
-		logger.Error(err, "while deleting outdated resources")
+		slog.Error(fmt.Sprintf("while deleting outdated resources: %v", err))
 		return fmt.Errorf("Failed to delete outdated resources: %w", err)
 	}
 
@@ -506,8 +494,6 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 }
 
 func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-
 	var errs []string
 	for _, u := range us {
 		if err := r.Delete(ctx, u); err != nil {
@@ -517,7 +503,7 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 				errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
 			}
 		}
-		logger.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
+		slog.Info("deleted resource", "name", u.GetName(), "kind", u.GetKind())
 	}
 
 	if errs != nil {
@@ -528,19 +514,17 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 }
 
 func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev1.Secret) error {
-	logger := log.FromContext(ctx)
-
-	logger.Info("getting module resources to apply")
+	slog.Info("getting module resources to apply")
 	resourcesToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
-		logger.Error(err, "while creating applicable objects from manifests")
+		slog.Error(fmt.Sprintf("while creating applicable objects from manifests: %v", err))
 		return fmt.Errorf("failed to create applicable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
+	slog.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	logger.Info("preparing module resources to apply")
+	slog.Info("preparing module resources to apply")
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
-		logger.Error(err, "while preparing objects to apply")
+		slog.Error(fmt.Sprintf("while preparing objects to apply: %v", err))
 		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
 
@@ -550,32 +534,32 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 
 	r.deleteCreationTimestamp(resourcesToApply...)
 
-	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
+	slog.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
 	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
-		logger.Error(err, "while applying module resources")
+		slog.Error(fmt.Sprintf("while applying module resources: %v", err))
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
 
-	logger.Info("waiting for module resources readiness")
+	slog.Info("waiting for module resources readiness")
 	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
-		logger.Error(err, "while waiting for module resources readiness")
+		slog.Error(fmt.Sprintf("while waiting for module resources readiness: %v", err))
 		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
 	}
 
 	return nil
 }
 
-func (r *BtpOperatorReconciler) restartSapBtpServiceOperatorPodIfNotReady(ctx context.Context, logger logr.Logger) error {
+func (r *BtpOperatorReconciler) restartSapBtpServiceOperatorPodIfNotReady(ctx context.Context) error {
 	pod, err := r.getSapBtpServiceOperatorPod(ctx)
 	if err != nil {
-		logger.Error(err, "while getting SAP BTP service operator pod")
+		slog.Error(fmt.Sprintf("while getting SAP BTP service operator pod: %v", err))
 		return err
 	}
 	if pod != nil {
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionFalse {
 				if err := r.deleteObject(ctx, pod); err != nil {
-					logger.Error(err, fmt.Sprintf("while deleting not ready %s pod", pod.Name))
+					slog.Error(fmt.Sprintf("while deleting not ready %s pod: %v", pod.Name, err))
 					return err
 				}
 			}
@@ -590,8 +574,6 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 }
 
 func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
-	logger := log.FromContext(ctx)
-
 	var configMapIndex, secretIndex int
 	for i, u := range resourcesToApply {
 		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
@@ -604,7 +586,7 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 
 	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
 	if err != nil {
-		logger.Error(err, "while getting module chart version")
+		slog.Error(fmt.Sprintf("while getting module chart version: %v", err))
 		return fmt.Errorf("failed to get module chart version: %w", err)
 	}
 
@@ -612,11 +594,11 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	r.setNamespace(resourcesToApply...)
 
 	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
-		logger.Error(err, "while setting ConfigMap values")
+		slog.Error(fmt.Sprintf("while setting ConfigMap values: %v", err))
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
 	if err := r.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
-		logger.Error(err, "while setting Secret values")
+		slog.Error(fmt.Sprintf("while setting Secret values: %v", err))
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
 
@@ -678,7 +660,6 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 }
 
 func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
 	for _, u := range us {
 		preExistingResource := &unstructured.Unstructured{}
 		preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
@@ -686,12 +667,12 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			if !k8serrors.IsNotFound(err) {
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
+			slog.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
 			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
-			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
+			slog.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
 			u.SetResourceVersion(preExistingResource.GetResourceVersion())
 			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
@@ -721,7 +702,6 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 }
 
 func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
-	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
 
@@ -731,7 +711,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	now := time.Now()
 	for {
 		if time.Since(now) >= ReadyTimeout {
-			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
+			slog.Error(fmt.Sprintf("timed out while checking %s %s readiness: %v", u.GetName(), u.GetKind(), err))
 			c <- ResourceReadiness{
 				Name:      u.GetName(),
 				Namespace: u.GetNamespace(),
@@ -757,7 +737,6 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 }
 
 func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
-	logger := log.FromContext(ctx)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
 	defer cancel()
 
@@ -767,7 +746,7 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	got.SetGroupVersionKind(u.GroupVersionKind())
 	for {
 		if time.Since(now) >= ReadyTimeout {
-			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
+			slog.Error(fmt.Sprintf("timed out while checking %s %s existence: %v", u.GetName(), u.GetKind(), err))
 			c <- ResourceReadiness{
 				Name:      u.GetName(),
 				Namespace: u.GetNamespace(),
@@ -784,8 +763,7 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 }
 
 func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Warning state")
+	slog.Info("Handling Warning state")
 
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 		err := r.handleDeleting(ctx, cr)
@@ -799,42 +777,38 @@ func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1al
 }
 
 func (r *BtpOperatorReconciler) HandleErrorState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Error state")
+	slog.Info("Handling Error state")
 
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.Updated, "CR has been updated")
 }
 
 func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Deleting state")
+	slog.Info("Handling Deleting state")
 
 	return r.handleDeleting(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-
 	requiredSecret, err := r.getSecretByNameAndNamespace(ctx, SecretName, ChartNamespace)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", SecretName, ChartNamespace))
+		slog.Error(fmt.Sprintf("while getting %s secret in %s namespace: %v", SecretName, ChartNamespace, err))
 		return fmt.Errorf("failed to get the required secret: %w", err)
 	}
 
 	r.setCredentialsNamespacesAndClusterId(requiredSecret)
 
 	if len(cr.GetFinalizers()) == 0 {
-		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
+		slog.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
 		return nil
 	}
 
 	if err := r.handleDeprovisioning(ctx, cr); err != nil {
-		logger.Error(err, "deprovisioning failed. Restoring resources")
-		r.reconcileResourcesWithoutChangingCrState(ctx, &logger)
+		slog.Error(fmt.Sprintf("deprovisioning failed. Restoring resources: %v", err))
+		r.reconcileResourcesWithoutChangingCrState(ctx)
 		return err
 	}
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		r.reconcileResourcesWithoutChangingCrState(ctx, &logger)
+		r.reconcileResourcesWithoutChangingCrState(ctx)
 
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
@@ -845,21 +819,21 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 			return err
 		}
 		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info(fmt.Sprintf("%d instances, %d bindings - leaving deletion", numberOfInstances, numberOfBindings))
+			slog.Info(fmt.Sprintf("%d instances, %d bindings - leaving deletion", numberOfInstances, numberOfBindings))
 			return nil
 		}
 	}
 
 	r.instanceBindingService.DisableSISBController()
 
-	logger.Info("Deprovisioning success. Removing finalizers in CR")
+	slog.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
 	if err := r.Update(ctx, cr); err != nil {
 		return err
 	}
 	existingBtpOperators := &v1alpha1.BtpOperatorList{}
 	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to fetch existing BtpOperators")
+		slog.Error(fmt.Sprintf("unable to fetch existing BtpOperators: %v", err))
 		return fmt.Errorf("while getting existing BtpOperators: %w", err)
 	}
 	for _, item := range existingBtpOperators.Items {
@@ -868,7 +842,7 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 		}
 		remainingCr := item
 		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, v1alpha1.StateProcessing, conditions.Processing, "After deprovisioning"); err != nil {
-			logger.Error(err, "unable to set \"Processing\" state")
+			slog.Error(fmt.Sprintf("unable to set \"Processing\" state: %v", err))
 		}
 	}
 
@@ -876,8 +850,6 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 }
 
 func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-
 	namespaces := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaces); err != nil {
 		return err
@@ -894,9 +866,9 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 		}
 
 		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) block BTP Operator deletion.", numberOfInstances, numberOfBindings))
+			slog.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) block BTP Operator deletion.", numberOfInstances, numberOfBindings))
 			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
-			logger.Info(msg)
+			slog.Info(msg)
 
 			// if the reason is already set, do nothing
 			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) && cr.Status.State == v1alpha1.StateWarning {
@@ -928,35 +900,35 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 	select {
 	case hardDeleteSucceeded := <-hardDeleteSucceededCh:
 		if hardDeleteSucceeded {
-			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
+			slog.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
 			if err := r.deleteBtpOperatorResources(ctx); err != nil {
-				logger.Error(err, "failed to remove module resources")
+				slog.Error(fmt.Sprintf("failed to remove module resources: %v", err))
 				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
-					logger.Error(updateStatusErr, "failed to update status")
+					slog.Error(fmt.Sprintf("failed to update status: %v", updateStatusErr))
 					return updateStatusErr
 				}
 				return err
 			}
 		} else {
-			logger.Info("Service Instances and Service Bindings hard delete failed")
+			slog.Info("Service Instances and Service Bindings hard delete failed")
 			if err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
-				logger.Error(err, "failed to update status")
+				slog.Error(fmt.Sprintf("failed to update status: %v", err))
 				return err
 			}
 			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
-				logger.Error(err, "failed to soft delete")
+				slog.Error(fmt.Sprintf("failed to soft delete: %v", err))
 				return err
 			}
 		}
 	case <-time.After(HardDeleteTimeout):
-		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
+		slog.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
 		hardDeleteTimeoutReachedCh <- true
 		if err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
-			logger.Error(err, "failed to update status")
+			slog.Error(fmt.Sprintf("failed to update status: %v", err))
 			return err
 		}
 		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
-			logger.Error(err, "failed to soft delete")
+			slog.Error(fmt.Sprintf("failed to soft delete: %v", err))
 			return err
 		}
 	}
@@ -965,20 +937,19 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 }
 
 func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh chan bool) {
-	logger := log.FromContext(ctx)
-	logger.Info("Deprovisioning BTP Operator - hard delete")
+	slog.Info("Deprovisioning BTP Operator - hard delete")
 	defer close(hardDeleteSucceededCh)
 
 	errs := make([]error, 0)
 
 	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
 	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
+		slog.Error(fmt.Sprintf("while checking CRD existence: %v", err), "GVK", bindingGvk.String())
 		errs = append(errs, err)
 	}
 	if sbCrdExists {
 		if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-			logger.Error(err, "while deleting Service Bindings")
+			slog.Error(fmt.Sprintf("while deleting Service Bindings: %v", err))
 			if !errors.Is(err, context.DeadlineExceeded) {
 				errs = append(errs, err)
 			}
@@ -987,12 +958,12 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 
 	siCrdExists, err := r.crdExists(ctx, instanceGvk)
 	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
+		slog.Error(fmt.Sprintf("while checking CRD existence: %v", err), "GVK", instanceGvk.String())
 		errs = append(errs, err)
 	}
 	if siCrdExists {
 		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-			logger.Error(err, "while deleting Service Instances")
+			slog.Error(fmt.Sprintf("while deleting Service Instances: %v", err))
 			if !errors.Is(err, context.DeadlineExceeded) {
 				errs = append(errs, err)
 			}
@@ -1015,7 +986,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		if sbCrdExists {
 			sbResourcesLeft, err = r.resourcesExist(ctx, namespaces, bindingGvk)
 			if err != nil {
-				logger.Error(err, "ServiceBinding leftover resources check failed")
+				slog.Error(fmt.Sprintf("ServiceBinding leftover resources check failed: %v", err))
 				hardDeleteSucceededCh <- false
 				return
 			}
@@ -1024,7 +995,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 		if siCrdExists {
 			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
 			if err != nil {
-				logger.Error(err, "ServiceInstance leftover resources check failed")
+				slog.Error(fmt.Sprintf("ServiceInstance leftover resources check failed: %v", err))
 				hardDeleteSucceededCh <- false
 				return
 			}
@@ -1113,40 +1084,38 @@ func (r *BtpOperatorReconciler) numberOfResources(ctx context.Context, gvk schem
 }
 
 func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-
-	logger.Info("getting module resources to delete")
+	slog.Info("getting module resources to delete")
 	resourcesToDeleteFromApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
-		logger.Error(err, "while getting objects to delete from manifests")
+		slog.Error(fmt.Sprintf("while getting objects to delete from manifests: %v", err))
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d module resources to delete from \"apply\" dir", len(resourcesToDeleteFromApply)))
+	slog.Info(fmt.Sprintf("got %d module resources to delete from \"apply\" dir", len(resourcesToDeleteFromApply)))
 
 	resourcesToDeleteFromDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
 	if err != nil {
-		logger.Error(err, "while getting objects to delete from manifests")
+		slog.Error(fmt.Sprintf("while getting objects to delete from manifests: %v", err))
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d module resources to delete from \"delete\" dir", len(resourcesToDeleteFromDelete)))
+	slog.Info(fmt.Sprintf("got %d module resources to delete from \"delete\" dir", len(resourcesToDeleteFromDelete)))
 
 	resourcesToDelete := make([]*unstructured.Unstructured, 0)
 	resourcesToDelete = append(resourcesToDelete, resourcesToDeleteFromApply...)
 	resourcesToDelete = append(resourcesToDelete, resourcesToDeleteFromDelete...)
 
 	if err = r.deleteAllOfResourcesTypes(ctx, resourcesToDelete...); err != nil {
-		logger.Error(err, "while deleting module resources")
+		slog.Error(fmt.Sprintf("while deleting module resources: %v", err))
 		return fmt.Errorf("failed to delete module resources: %w", err)
 	}
 
 	clusterIdSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret))
+		slog.Error(fmt.Sprintf("while getting %s secret in %s namespace: %v", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret, err))
 		return fmt.Errorf("failed to get cluster ID secret: %w", err)
 	}
 	if clusterIdSecret != nil {
 		if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
-			logger.Error(err, fmt.Sprintf("while deleting %s secret from %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret))
+			slog.Error(fmt.Sprintf("while deleting %s secret from %s namespace: %v", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret, err))
 			return fmt.Errorf("failed to delete cluster ID secret: %w", err)
 		}
 	}
@@ -1155,13 +1124,12 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 }
 
 func (r *BtpOperatorReconciler) deleteAllOfResourcesTypes(ctx context.Context, resourcesToDelete ...*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
 	deletedGvks := make(map[string]struct{}, 0)
 	for _, u := range resourcesToDelete {
 		if _, exists := deletedGvks[u.GroupVersionKind().String()]; exists {
 			continue
 		}
-		logger.Info(fmt.Sprintf("deleting all of %s/%s module resources in %s namespace",
+		slog.Info(fmt.Sprintf("deleting all of %s/%s module resources in %s namespace",
 			u.GroupVersionKind().GroupVersion(), u.GetKind(), ChartNamespace))
 		if err := r.DeleteAllOf(ctx, u, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
 			if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
@@ -1175,54 +1143,53 @@ func (r *BtpOperatorReconciler) deleteAllOfResourcesTypes(ctx context.Context, r
 }
 
 func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Deprovisioning BTP Operator - soft delete")
+	slog.Info("Deprovisioning BTP Operator - soft delete")
 
-	logger.Info("Deleting module deployment and webhooks")
+	slog.Info("Deleting module deployment and webhooks")
 	if err := r.preSoftDeleteCleanup(ctx); err != nil {
-		logger.Error(err, "module deployment and webhooks deletion failed")
+		slog.Error(fmt.Sprintf("module deployment and webhooks deletion failed: %v", err))
 		return err
 	}
 
 	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
 	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
+		slog.Error(fmt.Sprintf("while checking CRD existence: %v", err), "GVK", bindingGvk.String())
 		return err
 	}
 
 	siCrdExists, err := r.crdExists(ctx, instanceGvk)
 	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
+		slog.Error(fmt.Sprintf("while checking CRD existence: %v", err), "GVK", instanceGvk.String())
 		return err
 	}
 
 	if sbCrdExists {
-		logger.Info("Removing finalizers in Service Bindings and deleting connected Secrets")
+		slog.Info("Removing finalizers in Service Bindings and deleting connected Secrets")
 		if err := r.softDelete(ctx, bindingGvk); err != nil {
-			logger.Error(err, "while deleting Service Bindings")
+			slog.Error(fmt.Sprintf("while deleting Service Bindings: %v", err))
 			return err
 		}
 		if err := r.ensureResourcesDontExist(ctx, bindingGvk); err != nil {
-			logger.Error(err, "Service Bindings still exist")
+			slog.Error(fmt.Sprintf("Service Bindings still exist: %v", err))
 			return err
 		}
 	}
 
 	if siCrdExists {
-		logger.Info("Removing finalizers in Service Instances")
+		slog.Info("Removing finalizers in Service Instances")
 		if err := r.softDelete(ctx, instanceGvk); err != nil {
-			logger.Error(err, "while deleting Service Instances")
+			slog.Error(fmt.Sprintf("while deleting Service Instances: %v", err))
 			return err
 		}
 		if err := r.ensureResourcesDontExist(ctx, instanceGvk); err != nil {
-			logger.Error(err, "Service Instances still exist")
+			slog.Error(fmt.Sprintf("Service Instances still exist: %v", err))
 			return err
 		}
 	}
 
-	logger.Info("Deleting module resources")
+	slog.Info("Deleting module resources")
 	if err := r.deleteBtpOperatorResources(ctx); err != nil {
-		logger.Error(err, "failed to delete module resources")
+		slog.Error(fmt.Sprintf("failed to delete module resources: %v", err))
 		return err
 	}
 
@@ -1321,19 +1288,18 @@ func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gv
 }
 
 func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Ready state")
+	slog.Info("Handling Ready state")
 
 	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
+		return r.handleMissingSecret(ctx, cr, errWithReason)
 	}
 
 	r.setCredentialsNamespacesAndClusterId(requiredSecret)
 
 	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s Secret", sapBtpServiceOperatorSecretName))
+		slog.Error(fmt.Sprintf("while getting %s Secret: %v", sapBtpServiceOperatorSecretName, err))
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingDefaultCredentialsSecretFailed, err.Error())
 	}
 
@@ -1341,14 +1307,14 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		r.credentialsNamespaceFromSapBtpServiceOperatorSecret = defaultCredentialsSecret.Namespace
 		if r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret {
 			msg := fmt.Sprintf("credentials namespace changed from %s to %s", r.credentialsNamespaceFromSapBtpServiceOperatorSecret, r.credentialsNamespaceFromSapBtpManagerSecret)
-			logger.Info(msg)
+			slog.Info(msg)
 			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.CredentialsNamespaceChanged, msg)
 		}
 	}
 
 	sapBtpOperatorConfigMap, err := r.getSapBtpServiceOperatorConfigMap(ctx)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s ConfigMap", sapBtpServiceOperatorConfigMapName))
+		slog.Error(fmt.Sprintf("while getting %s ConfigMap: %v", sapBtpServiceOperatorConfigMapName, err))
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingSapBtpServiceOperatorConfigMapFailed, err.Error())
 	}
 
@@ -1356,7 +1322,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		r.clusterIdFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
 		if r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap {
 			msg := fmt.Sprintf("cluster ID changed from %s to %s", r.clusterIdFromSapBtpServiceOperatorConfigMap, r.credentialsNamespaceFromSapBtpManagerSecret)
-			logger.Info(msg)
+			slog.Info(msg)
 			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.ClusterIdChanged, msg)
 		}
 	}
@@ -1369,7 +1335,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
-	logger.Info("reconciliation succeeded")
+	slog.Info("reconciliation succeeded")
 	return nil
 }
 
@@ -1591,7 +1557,7 @@ func (r *BtpOperatorReconciler) watchMutatingWebhooksPredicates() predicate.Func
 }
 
 func (r *BtpOperatorReconciler) reconcileConfig(ctx context.Context, obj client.Object) []reconcile.Request {
-	logger := log.FromContext(nil, "name", obj.GetName(), "namespace", obj.GetNamespace())
+	logger := slog.With("name", obj.GetName(), "namespace", obj.GetNamespace())
 	cm, ok := obj.(*corev1.ConfigMap)
 	if !ok {
 		return []reconcile.Request{}
@@ -1668,8 +1634,7 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 // *[]*unstructured.Unstructured is required because we extend the slice during certificates regeneration adding secrets and webhook configurations,
 // so the result of the function execution is in resourcesToApply slice
 func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-	logger.Info("preparation of certificates reconciliation data started")
+	slog.Info("preparation of certificates reconciliation data started")
 
 	certificatesRegenerationDone, err := r.ensureCertificatesExists(ctx, resourcesToApply)
 	if err != nil {
@@ -1724,32 +1689,31 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 }
 
 func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
 	caSecretExists, err := r.checkIfSecretExists(ctx, CaSecret)
 	if err != nil {
 		return false, err
 	}
 	if !caSecretExists {
-		logger.Info("CA secret with cert doesn't exists")
+		slog.Info("CA secret with cert doesn't exists")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-	logger.Info("CA secret exists")
+	slog.Info("CA secret exists")
 	webhookSecretExists, err := r.checkIfSecretExists(ctx, WebhookSecret)
 
 	if err != nil {
 		return false, err
 	}
 	if !webhookSecretExists {
-		logger.Info("webhook secret with cert does not exists")
+		slog.Info("webhook secret with cert does not exists")
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-	logger.Info("webhook secret exists")
+	slog.Info("webhook secret exists")
 	return false, nil
 }
 
@@ -1786,8 +1750,7 @@ func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, reso
 }
 
 func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("checking structure of certificates")
+	slog.Info("checking structure of certificates")
 
 	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
 	if err != nil {
@@ -1795,11 +1758,11 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 	}
 	_, err = certs.TryDecodeCertificate(caCertificate)
 	if err != nil {
-		logger.Info("CA cert is structured incorrectly")
+		slog.Info("CA cert is structured incorrectly")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
-		logger.Info("full regeneration done due to CA cert being structured incorrectly")
+		slog.Info("full regeneration done due to CA cert being structured incorrectly")
 		return true, nil
 	}
 
@@ -1809,70 +1772,68 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 	}
 	_, err = certs.TryDecodeCertificate(webhookCertificate)
 	if err != nil {
-		logger.Info("webhook cert is structured incorrectly")
+		slog.Info("webhook cert is structured incorrectly")
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
-		logger.Info("partial regeneration done due to webhook cert being structured incorrectly")
+		slog.Info("partial regeneration done due to webhook cert being structured incorrectly")
 		return true, nil
 	}
 
-	logger.Info("checking structure of certificates succeeded. no work need to be done.")
+	slog.Info("checking structure of certificates succeeded. no work need to be done.")
 	return false, nil
 }
 
 func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
 	doCaCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, CaSecret)
 	if err != nil {
-		logger.Error(err, "CA cert is invalid")
+		slog.Error(fmt.Sprintf("CA cert is invalid: %v", err))
 		return false, err
 	}
 	if doCaCertificateExpiresSoon {
-		logger.Error(nil, "CA cert expires soon")
+		slog.Error("CA cert expires soon")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-	logger.Info("CA certificate is valid")
+	slog.Info("CA certificate is valid")
 
 	doWebhookCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, WebhookSecret)
 	if err != nil {
-		logger.Error(err, "webhook cert is invalid")
+		slog.Error(fmt.Sprintf("webhook cert is invalid: %v", err))
 		return false, err
 	}
 	if doWebhookCertificateExpiresSoon {
-		logger.Error(nil, "webhook cert expires soon")
+		slog.Error("webhook cert expires soon")
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-	logger.Info("webhook certificate is valid")
+	slog.Info("webhook certificate is valid")
 	return false, nil
 }
 
 func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectSigned(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
 	signOk, err := r.isWebhookSecretCertSignedByCaSecretCert(ctx)
-	logger.Info("checking if webhook is signed by correct CA")
+	slog.Info("checking if webhook is signed by correct CA")
 
 	if err != nil {
-		logger.Error(err, "while checking if webhook is signed by correct CA")
+		slog.Error(fmt.Sprintf("while checking if webhook is signed by correct CA: %v", err))
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
 	if !signOk {
-		logger.Error(nil, "webhook cert is not signed by correct CA")
+		slog.Error("webhook cert is not signed by correct CA")
 		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-	logger.Info("webhook certificate is signed by correct root CA")
+	slog.Info("webhook certificate is signed by correct root CA")
 
 	return false, nil
 }
@@ -1890,8 +1851,7 @@ func (r *BtpOperatorReconciler) checkIfSecretExists(ctx context.Context, name st
 }
 
 func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-	logger.Info("full regeneration of certificates started")
+	slog.Info("full regeneration of certificates started")
 
 	caCertificate, caPrivateKey, err := r.generateSelfSignedCertAndAddToApplyList(ctx, resourcesToApply)
 	if err != nil {
@@ -1907,13 +1867,12 @@ func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Conte
 		return fmt.Errorf("error while reconciling webhooks. %w", err)
 	}
 
-	logger.Info("full regeneration success")
+	slog.Info("full regeneration success")
 	return nil
 }
 
 func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Context, resourceToApply *[]*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-	logger.Info("partial regeneration started")
+	slog.Info("partial regeneration started")
 
 	err := r.generateSignedCertAndAddToApplyList(ctx, resourceToApply, nil, nil)
 	if err != nil {
@@ -1922,43 +1881,41 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 	if err := r.prepareWebhooksConfigurationsReconciliationData(ctx, resourceToApply, nil); err != nil {
 		return err
 	}
-	logger.Info("partial regeneration succeeded")
+	slog.Info("partial regeneration succeeded")
 	return nil
 }
 
 func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, []byte, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("generation of self signed cert started")
+	slog.Info("generation of self signed cert started")
 
 	caCertificate, caPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().UTC().Add(CaCertificateExpiration))
 	if err != nil {
 		return nil, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
 
-	logger.Info("adding secret with newly generated self signed cert to list of resources to apply")
+	slog.Info("adding secret with newly generated self signed cert to list of resources to apply")
 	err = r.appendCertificationDataToUnstructured(CaSecret, caCertificate, caPrivateKey, CaSecretDataPrefix, resourcesToApply)
 	if err != nil {
 		return nil, nil, fmt.Errorf("while adding newly generated self signed cert to list of resources to apply: %w", err)
 	}
 
-	logger.Info("generation of self signed cert succeeded")
+	slog.Info("generation of self signed cert succeeded")
 	return caCertificate, caPrivateKey, nil
 }
 
 func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, ca, caPrivateKey []byte) error {
-	logger := log.FromContext(ctx)
-	logger.Info("generation of signed webhook certificate started")
+	slog.Info("generation of signed webhook certificate started")
 
 	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().UTC().Add(WebhookCertificateExpiration), ca, caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("while generating signed webhook certificate: %w", err)
 	}
-	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
+	slog.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
 	err = r.appendCertificationDataToUnstructured(WebhookSecret, webhookCertificate, webhookPrivateKey, WebhookSecretDataPrefix, resourcesToApply)
 	if err != nil {
 		return fmt.Errorf("while adding newly generated signed webhook certificate to list of resources to apply: %w", err)
 	}
-	logger.Info("generation of signed webhook certificate success")
+	slog.Info("generation of signed webhook certificate success")
 	return nil
 }
 
@@ -2009,8 +1966,7 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []by
 }
 
 func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
-	logger := log.FromContext(ctx)
-	logger.Info("starting reconciliation of webhooks")
+	slog.Info("starting reconciliation of webhooks")
 	if expectedCa == nil {
 		secret := &corev1.Secret{}
 		if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecret}, secret); err != nil {
@@ -2033,7 +1989,7 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 		}
 	}
 
-	logger.Info("webhooks cert bundles check success")
+	slog.Info("webhooks cert bundles check success")
 	return nil
 }
 
@@ -2044,7 +2000,6 @@ func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Con
 		CaBundleKey     = "caBundle"
 	)
 
-	logger := log.FromContext(ctx)
 	webhooksValue, ok := webhook.Object[WebhooksKey]
 	if !ok {
 		return fmt.Errorf("while geting webhooks in reconcileCaBundle")
@@ -2072,24 +2027,23 @@ func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Con
 		clientConfigAsMap[CaBundleKey] = expectedCa
 		webhookAsMap[ClientConfigKey] = clientConfigAsMap
 		webhooks[i] = webhookAsMap
-		logger.Info("CA bundle replaced with success")
+		slog.Info("CA bundle replaced with success")
 	}
 	webhook.Object[WebhooksKey] = webhooks
 	return nil
 }
 
 func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
-	//logger := log.FromContext(ctx)
-	//logger.Info("CA bundle replaced with success")
+	//slog.Info("CA bundle replaced with success")
 
 	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
-	//logger.Info("CASecret", CaSecret)
+	//slog.Info(fmt.Sprintf("CASecret: %s", CaSecret))
 	if err != nil {
 		return false, err
 	}
 
 	webhookCertificate, err := r.getCertificateFromSecret(ctx, WebhookSecret)
-	//logger.Info("WebhookSecret", CaSecret)
+	//slog.Info(fmt.Sprintf("WebhookSecret: %s", CaSecret))
 	if err != nil {
 		return false, err
 	}
@@ -2187,16 +2141,16 @@ func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data m
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, logger *logr.Logger) {
+func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context) {
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		logger.Error(errWithReason, "secret verification failed")
+		slog.Error(fmt.Sprintf("secret verification failed: %v", errWithReason))
 	}
 	if err := r.deleteOutdatedResources(ctx); err != nil {
-		logger.Error(err, "outdated resources deletion failed")
+		slog.Error(fmt.Sprintf("outdated resources deletion failed: %v", err))
 	}
 	if err := r.reconcileResources(ctx, secret); err != nil {
-		logger.Error(err, "resources reconciliation failed")
+		slog.Error(fmt.Sprintf("resources reconciliation failed: %v", err))
 	}
 }
 
@@ -2225,17 +2179,17 @@ func (r *BtpOperatorReconciler) setCredentialsNamespacesAndClusterId(s *corev1.S
 	r.credentialsNamespaceFromSapBtpServiceOperatorSecret = credentialsNamespace
 }
 
-func (r *BtpOperatorReconciler) checkDefaultCredentialsSecretNamespace(ctx context.Context, logger logr.Logger, requiredSecret *corev1.Secret) *ErrorWithReason {
+func (r *BtpOperatorReconciler) checkDefaultCredentialsSecretNamespace(ctx context.Context, requiredSecret *corev1.Secret) *ErrorWithReason {
 	defaultCredentialsSecret, err := r.getDefaultCredentialsSecret(ctx)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret", sapBtpServiceOperatorSecretName))
+		slog.Error(fmt.Sprintf("while getting %s secret: %v", sapBtpServiceOperatorSecretName, err))
 		return NewErrorWithReason(conditions.GettingDefaultCredentialsSecretFailed, err.Error())
 	}
 
 	if defaultCredentialsSecret != nil {
 		r.credentialsNamespaceFromSapBtpServiceOperatorSecret = defaultCredentialsSecret.Namespace
 		if r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret {
-			logger.Info(fmt.Sprintf("credentials namespaces between %s secret and %s secret don't match", SecretName, sapBtpServiceOperatorSecretName))
+			slog.Info(fmt.Sprintf("credentials namespaces between %s secret and %s secret don't match", SecretName, sapBtpServiceOperatorSecretName))
 			if err := r.annotateSecret(ctx, requiredSecret, previousCredentialsNamespaceAnnotationKey, r.credentialsNamespaceFromSapBtpServiceOperatorSecret); err != nil {
 				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
@@ -2245,10 +2199,10 @@ func (r *BtpOperatorReconciler) checkDefaultCredentialsSecretNamespace(ctx conte
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdConfigMap(ctx context.Context, logger logr.Logger, requiredSecret *corev1.Secret) *ErrorWithReason {
+func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdConfigMap(ctx context.Context, requiredSecret *corev1.Secret) *ErrorWithReason {
 	sapBtpOperatorConfigMap, err := r.getSapBtpServiceOperatorConfigMap(ctx)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s ConfigMap", sapBtpServiceOperatorConfigMapName))
+		slog.Error(fmt.Sprintf("while getting %s ConfigMap: %v", sapBtpServiceOperatorConfigMapName, err))
 		return NewErrorWithReason(conditions.GettingSapBtpServiceOperatorConfigMapFailed, err.Error())
 	}
 
@@ -2256,7 +2210,7 @@ func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdConfigMap(ctx
 		r.clusterIdFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
 		r.clusterIdFromSapBtpServiceOperatorClusterIdSecret = r.clusterIdFromSapBtpServiceOperatorConfigMap //default value in case of missing cluster ID secret
 		if r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap {
-			logger.Info(fmt.Sprintf("cluster IDs between %s secret and %s configmap don't match", SecretName, sapBtpServiceOperatorConfigMapName))
+			slog.Info(fmt.Sprintf("cluster IDs between %s secret and %s configmap don't match", SecretName, sapBtpServiceOperatorConfigMapName))
 			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorConfigMap); err != nil {
 				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
@@ -2266,10 +2220,10 @@ func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdConfigMap(ctx
 	return nil
 }
 
-func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdSecret(ctx context.Context, logger logr.Logger, requiredSecret *corev1.Secret) *ErrorWithReason {
+func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdSecret(ctx context.Context, requiredSecret *corev1.Secret) *ErrorWithReason {
 	clusterIdSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpServiceOperatorSecret)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret", sapBtpServiceOperatorClusterIdSecretName))
+		slog.Error(fmt.Sprintf("while getting %s secret: %v", sapBtpServiceOperatorClusterIdSecretName, err))
 		return NewErrorWithReason(conditions.GettingSapBtpServiceOperatorClusterIdSecretFailed, err.Error())
 	}
 
@@ -2278,17 +2232,17 @@ func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdSecret(ctx co
 			r.clusterIdFromSapBtpServiceOperatorClusterIdSecret = string(clusterIdFromSecret)
 		}
 		if r.clusterIdFromSapBtpServiceOperatorConfigMap != r.clusterIdFromSapBtpServiceOperatorClusterIdSecret {
-			logger.Info(fmt.Sprintf("cluster IDs between %s configmap and %s secret don't match", sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorClusterIdSecretName))
+			slog.Info(fmt.Sprintf("cluster IDs between %s configmap and %s secret don't match", sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorClusterIdSecretName))
 			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorClusterIdSecret); err != nil {
-				logger.Error(err, fmt.Sprintf("while annotating %s secret", requiredSecret.Name))
+				slog.Error(fmt.Sprintf("while annotating %s secret: %v", requiredSecret.Name, err))
 				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
-			logger.Info(fmt.Sprintf("deleting %s secret from %s namespace due to invalid cluster ID", clusterIdSecret.Name, clusterIdSecret.Namespace))
+			slog.Info(fmt.Sprintf("deleting %s secret from %s namespace due to invalid cluster ID", clusterIdSecret.Name, clusterIdSecret.Namespace))
 			if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
-				logger.Error(err, fmt.Sprintf("while deleting %s secret", clusterIdSecret.Name))
+				slog.Error(fmt.Sprintf("while deleting %s secret: %v", clusterIdSecret.Name, err))
 				return NewErrorWithReason(conditions.DeletionOfOrphanedResourcesFailed, err.Error())
 			}
-			if err := r.restartSapBtpServiceOperatorPodIfNotReady(ctx, logger); err != nil {
+			if err := r.restartSapBtpServiceOperatorPodIfNotReady(ctx); err != nil {
 				return NewErrorWithReason(conditions.ResourceRemovalFailed, fmt.Sprintf("while restarting SAP BTP service operator pod: %s", err))
 			}
 		}

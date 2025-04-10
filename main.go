@@ -18,6 +18,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"log/slog"
 	"os"
 
 	//test
@@ -42,8 +44,7 @@ import (
 )
 
 var (
-	scheme   = clientgoscheme.Scheme
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = clientgoscheme.Scheme
 )
 
 func init() {
@@ -83,6 +84,11 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+	setupLog := slog.With("step", "setup")
 
 	restCfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
@@ -94,13 +100,13 @@ func main() {
 		NewCache:               controllers.CacheCreator,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(fmt.Sprintf("unable to start manager: %v", err))
 		os.Exit(1)
 	}
 
 	apiServerClient, err := client.New(restCfg, client.Options{})
 	if err != nil {
-		setupLog.Error(err, "unable to create API server client")
+		setupLog.Error(fmt.Sprintf("unable to create API server client: %v", err))
 		os.Exit(1)
 	}
 
@@ -110,23 +116,23 @@ func main() {
 	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), apiServerClient, scheme, cleanupReconciler, metrics)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
+		setupLog.Error(fmt.Sprintf("unable to create controller: %v", err), "controller", "BtpOperator")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		setupLog.Error(fmt.Sprintf("unable to set up health check: %v", err))
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		setupLog.Error(fmt.Sprintf("unable to set up ready check: %v", err))
 		os.Exit(1)
 	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(signalContext); err != nil {
-		setupLog.Error(err, "problem running manager")
+		setupLog.Error(fmt.Sprintf("problem running manager: %v", err))
 		os.Exit(1)
 	}
 }

@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -33,15 +34,12 @@ import (
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	// +kubebuilder:scaffold:imports
 )
@@ -49,7 +47,9 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var logger = logf.Log.WithName("suite_test")
+var logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	Level: slog.LevelInfo,
+})).With("component", "suite_test")
 
 const (
 	hardDeleteTimeoutForAllTests         = time.Second * 1
@@ -129,10 +129,9 @@ var _ = SynchronizedBeforeSuite(func() {
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, defaultResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
-		o.Development = true
-		o.TimeEncoder = zapcore.ISO8601TimeEncoder
-	}))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(GinkgoWriter, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
 	ctx, cancel = context.WithCancel(context.TODO())
 	ctxForDeploymentController, cancelDeploymentController = ctx, cancel
 

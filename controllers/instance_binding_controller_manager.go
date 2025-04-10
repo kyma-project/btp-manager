@@ -2,13 +2,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
@@ -39,7 +40,6 @@ func NewInstanceBindingControllerManager(ctx context.Context, client client.Clie
 func (r *InstanceBindingControllerManager) EnableSISBController() {
 	r.sisbControllerMu.Lock()
 	defer r.sisbControllerMu.Unlock()
-	logger := log.Log
 
 	if r.enabled {
 		return
@@ -50,7 +50,7 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 		HealthProbeBindAddress: "0",
 	})
 	if err != nil {
-		logger.Error(err, "unable to create controller manager")
+		slog.Error(fmt.Sprintf("unable to create controller manager: %v", err))
 		return
 	}
 	r.mgr = mgr
@@ -59,7 +59,7 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 		r.sisbReconciler = NewServiceInstanceReconciler(r.Client, r.Scheme)
 		err = r.sisbReconciler.SetupWithManager(r.mgr)
 		if err != nil {
-			logger.Error(err, "unable to create SI SB controller")
+			slog.Error(fmt.Sprintf("unable to create SI SB controller: %v", err))
 			return
 		}
 	}
@@ -70,9 +70,9 @@ func (r *InstanceBindingControllerManager) EnableSISBController() {
 	go func() {
 		err := r.mgr.Start(contextWithCancel)
 		if err != nil {
-			logger.Error(err, "unable to start SI SB controller")
+			slog.Error(fmt.Sprintf("unable to start SI SB controller: %v", err))
 		} else {
-			logger.Info("SI SB controller goroutine stopped")
+			slog.Info("SI SB controller goroutine stopped")
 		}
 	}()
 
