@@ -53,7 +53,7 @@ The following parameters manage cluster access:
 | **CLUSTER_ID**           | Generated when Kyma runtime is created.                                                                                                                                                  |
 | **MANAGEMENT_NAMESPACE** | Indicates the namespace for the Secrets with credentials to communicate with the SAP Service Manager. By default, set to `kyma-system`. |
 | **RELEASE_NAMESPACE**    | Indicates the namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. By default, set to `kyma-system`.              |
-| **ALLOW_CLUSTER_ACCESS** | You can use every namespace for your operations. The parameter is always set to `true`. If you change it to `false`, the setting is automatically reverted,  and SAP BTP Operator cluster-wide permissions remain unchanged.                              |
+| **ALLOW_CLUSTER_ACCESS** | You can use every namespace for your operations. The parameter is always set to `true`. If you change it to `false`, the setting is automatically reverted, and SAP BTP Operator cluster-wide permissions remain unchanged.                              |
 
 ## Default Credentials and Kyma Runtime Deletion
 
