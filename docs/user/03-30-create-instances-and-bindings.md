@@ -6,21 +6,26 @@ To use an SAP BTP service in your Kyma cluster, create its service instance and 
 
 * The [SAP BTP Operator module](README.md) is added. For instructions on adding modules, see [Add and Delete a Kyma Module](https://help.sap.com/docs/btp/sap-business-technology-platform/enable-and-disable-kyma-module).
 * For CLI interactions: [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.17 or higher.
+* For an enterprise account, you have added quotas to the services you purchased in your subaccount. Otherwise, only default free-of-charge services are listed in the service marketplace. Quotas are automatically assigned to the resources available in trial accounts.
+  For more information, see [Configure Entitlements and Quotas for Subaccounts](https://help.sap.com/docs/btp/sap-business-technology-platform/configure-entitlements-and-quotas-for-subaccounts?&version=Cloud).
 * You know the service offering name and service plan name for the SAP BTP service you want to connect to your Kyma cluster.
-  To find the service and service plan names, in the SAP BTP cockpit, go to **Services**->**Service Marketplace**. Click on the service tile and find its **name** and **Plan**.
+  >[!TIP]
+  >To find the service and service plan names, in the SAP BTP cockpit, go to **Services**->**Service Marketplace**. Click on the service tile and find its **name** and **Plan**.
 
 ## Create a Service Instance
-
-### Context
 
 To create a service instance, use either Kyma dashboard or kubectl.
 
 <!-- tabs:start -->
 #### **Kyma Dashboard**
 
-1. In the **Namespaces** view, go to the namespace you want to work in.
-2. Go to **Service Management** -> **Service Instances**.
-3. Provide the required service details and create a service instance.<br>
+Kyma dashboard is a web-based UI providing a graphical overview of your cluster and all its resources.
+To access Kyma dashboard, use the link available in the **Kyma Environment** section of your subaccount **Overview**.
+
+1. In the navigation area, choose **Namespaces**, and go to the namespace you want to work in.
+2. Go to **Service Management** -> **Service Instances**, and choose **Create**.
+3. Provide the required service details in **Form**. Alternatively, you can switch to the **YAML** tab and edit or upload your file.
+4. Choose **Create**<br>
    You see the status `PROVISIONED`.
 
 #### **kubectl**
@@ -73,14 +78,17 @@ To create a service binding, use either Kyma dashboard or kubectl.
 <!-- tabs:start -->
 #### **Kyma Dashboard**
 
-1. In the **Namespaces** view, go to the namespace you want to work in.
+Kyma dashboard is a web-based UI providing a graphical overview of your cluster and all its resources.
+To access Kyma dashboard, use the link available in the **Kyma Environment** section of your subaccount **Overview**.
+
+1. In the navigation area, choose **Namespaces**, and go to the namespace you want to work in.
 2. Go to **Service Management** -> **Service Bindings**.
 3. Choose your service instance name from the dropdown list and create a service binding.<br>
    You see the status `PROVISIONED`.
 
 #### **kubectl**
 
-1. To create a ServiceBinding CR, follow this example:
+1. To create a ServiceBinding CR, replace the palceholders and run the following command:
 
       ```yaml
       kubectl create -f - <<EOF

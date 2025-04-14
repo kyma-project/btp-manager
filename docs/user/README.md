@@ -53,7 +53,7 @@ The SAP BTP service operator is an open-source component that allows you to conn
 
 ### SAP Service Manager
 
-[SAP Service Manager](https://help.sap.com/docs/service-manager/sap-service-manager/sap-service-manager?locale=en-US) is the central registry for service brokers and platforms in SAP BTP, which enables you to:
+[SAP Service Manager](https://help.sap.com/docs/service-manager/sap-service-manager/sap-service-manager?locale=en-US) is the central registry for service brokers and platforms in SAP BTP, which enables you to do the following:
 
 * Consume platform services in any connected runtime environment.
 * Track the creation and management of service instances.
