@@ -62,6 +62,9 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
 
 To create the service instance, use either Kyma dashboard or kubectl.
 
+Kyma dashboard is a web-based UI providing a graphical overview of your cluster and all its resources.
+To access Kyma dashboard, use the link available in the **Kyma Environment** section of your subaccount **Overview**.
+
 ### Procedure
 
 <!-- tabs:start -->
