@@ -28,10 +28,10 @@ To create the `sap-btp-manager` Secret, follow these steps:
       tokenurl: {AUTH_URL}
       cluster_id: {CLUSTER_ID}
     ```
-4. To create the Secret, run: <!--is this step correct? remove it?-->
+4. To create the Secret, run:
 
     ```
     kubectl create -f ./operator-secret.yaml
     ```
 
-    You see the status `Created`.
+    You see the status `secret/sap-btp-manager created`.
