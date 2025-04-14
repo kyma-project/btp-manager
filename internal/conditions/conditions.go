@@ -14,7 +14,7 @@ const (
 	ReconcileFailed                                   Reason = "ReconcileFailed"
 	Initialized                                       Reason = "Initialized"
 	Processing                                        Reason = "Processing"
-	OlderCRExists                                     Reason = "OlderCRExists"
+	WrongNamespaceOrName                              Reason = "WrongNamespaceOrName"
 	ChartInstallFailed                                Reason = "ChartInstallFailed"
 	ConsistencyCheckFailed                            Reason = "ConsistencyCheckFailed"
 	MissingSecret                                     Reason = "MissingSecret"
@@ -64,7 +64,7 @@ var Reasons = map[Reason]Metadata{
 	ChartInstallFailed:                    {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure during chart installation
 	ConsistencyCheckFailed:                {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;Failure during consistency check
 	Processing:                            {Status: metav1.ConditionFalse, State: v1alpha1.StateProcessing}, //Processing;Final State after deprovisioning
-	OlderCRExists:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;This CR is not the oldest one so does not represent the module State
+	WrongNamespaceOrName:                  {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;Wrong namespace or name
 	MissingSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateWarning},    //Warning;`sap-btp-manager` Secret was not found - create proper Secret
 	InvalidSecret:                         {Status: metav1.ConditionFalse, State: v1alpha1.StateError},      //Error;`sap-btp-manager` Secret does not contain required data - create proper Secret
 	HardDeleting:                          {Status: metav1.ConditionFalse, State: v1alpha1.StateDeleting},   //Deleting;Trying to hard delete

@@ -50,7 +50,7 @@ import (
 )
 
 const (
-	btpOperatorName                = "btp-operator-test"
+	btpOperatorName                = "btpoperator"
 	btpOperatorKind                = "BtpOperator"
 	btpOperatorApiVersion          = `operator.kyma-project.io\v1alpha1`
 	secretYamlPath                 = "testdata/test-secret.yaml"
