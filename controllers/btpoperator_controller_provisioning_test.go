@@ -75,5 +75,17 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 			})
 		})
+
+		When("the btpoperator resource is not in the required namespace", func() {
+			It("should set state to Warning", func() {
+				secret, err := createCorrectSecretFromYaml()
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+				cr := createDefaultBtpOperator()
+				cr.SetNamespace("default")
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.WrongNamespaceOrName)))
+			})
+		})
 	})
 })
