@@ -3,7 +3,7 @@ cd "$(dirname "$0")"
 
 # Option tells for which application we are making secret
 OPTION=${1:-'manager'}
-CREDS=${3:-'creds.json'}
+CREDS=${2:-'creds.json'}
 
 if [ ! -f "$CREDS" ]; then
     echo "Required file: $CREDS does not exist."
