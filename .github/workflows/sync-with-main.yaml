@@ -5,6 +5,8 @@ on:
     - cron: '0 0 * * *'
 env:
   GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+permissions:
+  contents: write
 jobs:
   sync:
     runs-on: ubuntu-latest

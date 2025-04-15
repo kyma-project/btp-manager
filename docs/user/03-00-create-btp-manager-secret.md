@@ -10,21 +10,28 @@ To create the `sap-btp-manager` Secret, follow these steps:
    curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s
    ```
 
-The expected result is the file `operator-secret.yaml` created in your working directory:
+    The expected result is the file `operator-secret.yaml` created in your working directory:
 
-```yaml
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: sap-btp-manager
-  namespace: kyma-system
-  labels:
-    app.kubernetes.io/managed-by: kcp-kyma-environment-broker
-data:
-  clientid: {CLIENT_ID}
-  clientsecret: {CLIENT_SECRET}
-  sm_url: {SM_URL}
-  tokenurl: {AUTH_URL}
-  cluster_id: {CLUSTER_ID}
-```
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    type: Opaque
+    metadata:
+      name: sap-btp-manager
+      namespace: kyma-system
+      labels:
+        app.kubernetes.io/managed-by: kcp-kyma-environment-broker
+    data:
+      clientid: {CLIENT_ID}
+      clientsecret: {CLIENT_SECRET}
+      sm_url: {SM_URL}
+      tokenurl: {AUTH_URL}
+      cluster_id: {CLUSTER_ID}
+    ```
+4. To create the Secret, run:
+
+    ```
+    kubectl create -f ./operator-secret.yaml
+    ```
+
+    You see the status `secret/sap-btp-manager created`.

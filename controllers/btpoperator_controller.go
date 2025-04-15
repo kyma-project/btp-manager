@@ -94,6 +94,7 @@ const (
 	deploymentProgressingConditionType        = "Progressing"
 	operatorName                              = "btp-manager"
 	operandName                               = "sap-btp-operator"
+	moduleName                                = "btp-operator"
 	sapBtpServiceOperatorConfigMapName        = operandName + "-config"
 	sapBtpServiceOperatorClusterIdSecretName  = operandName + "-clusterid"
 	mutatingWebhookName                       = operandName + "-mutating-webhook-configuration"
@@ -106,6 +107,7 @@ const (
 	kubernetesAppLabelPrefix                  = "app.kubernetes.io/"
 	managedByLabelKey                         = kubernetesAppLabelPrefix + "managed-by"
 	instanceLabelKey                          = kubernetesAppLabelPrefix + "instance"
+	kymaProjectModuleLabelKey                 = "kyma-project.io/module"
 	chartVersionKey                           = "chart-version"
 	forceDeleteLabelKey                       = "force-delete"
 )
@@ -630,6 +632,7 @@ func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.U
 		}
 		labels[managedByLabelKey] = operatorName
 		labels[chartVersionKey] = chartVer
+		labels[kymaProjectModuleLabelKey] = moduleName
 		u.SetLabels(labels)
 	}
 }

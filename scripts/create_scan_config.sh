@@ -34,7 +34,7 @@ mend:
 checkmarx-one:
   preset: go-default
   exclude:
-    - '**/*_test.go'"
+    - "**/*_test.go"
 EOF
 else
   cat <<EOF | tee ${FILENAME}
@@ -49,6 +49,6 @@ mend:
 checkmarx-one:
   preset: go-default
   exclude:
-    - '**/*_test.go'"
+    - "**/*_test.go"
 EOF
 fi

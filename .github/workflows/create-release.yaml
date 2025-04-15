@@ -8,6 +8,10 @@ env:
   GIT_NAME: kyma-gopher-bot
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
 
+permissions:
+  contents: write
+  id-token: write
+  
 on:
   workflow_dispatch:
     inputs:
