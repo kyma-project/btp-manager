@@ -1,23 +1,24 @@
 #! /bin/bash
-cd "$(dirname "$0")"
 
+SECRETNAME=${3}
+# standard bash error handling
+set -o nounset  # treat unset variables as an error and exit immediately.
+set -o errexit  # exit immediately when a command fails.
+set -E          # needs to be set if we want the ERR trap
+set -o pipefail # prevents errors in a pipeline from being masked
+
+# mandatory arguments
 # Option tells for which application we are making secret
-OPTION=${1:-'manager'}
-CREDS=${2:-'creds.json'}
+OPTION=${1}
+CREDS=${2}
 
-if [ ! -f "$CREDS" ]; then
-    echo "Required file: $CREDS does not exist."
-    exit 1
-fi
-
-if [[ $OPTION != 'manager' && $OPTION != 'operator' ]]; then 
-  echo "unsupported option passed $OPTION"
-  exit 1
-fi  
+[[ ! -f "$CREDS" ]] && echo "required file $CREDS not found" && exit 1
+[[ $OPTION != 'manager' && $OPTION != 'operator' ]] && echo "Unsupported option passed $OPTION" && exit 1
+[[ $OPTION == "operator" && -z $SECRETNAME ]] && echo "for option 'operator' secret name parameter is required" && exit 1
 
 if [ "$OPTION" == "manager" ]; then
-echo 'secret for BTP Manager will be created' 
-cat <<EOF > operator-secret.yaml
+  echo 'secret for BTP Manager will be created'
+  cat <<EOF > operator-secret.yaml
 apiVersion: v1
 kind: Secret
 type: Opaque
@@ -33,18 +34,17 @@ data:
   tokenurl: $(jq --raw-output '.url | @base64' ${CREDS})
   cluster_id: dGVzdF9jbHVzdGVyX2lk
 EOF
-echo ''secret: operator-secret.yaml for BTP Manager created' ' 
-exit 0
+  echo 'secret: operator-secret.yaml for BTP Manager created'
 fi
 
 if [ "$OPTION" == "operator" ]; then
-echo 'secret with BTP access credentials for SAP BTP Service Operator will be created' 
-cat <<EOF > btp-access-credentials-secret.yaml
+  echo 'secret with BTP access credentials for SAP BTP Service Operator will be created'
+  cat <<EOF > btp-access-credentials-secret.yaml
 apiVersion: v1
 kind: Secret
 type: Opaque
 metadata:
-  name: $SECRETNAME
+  name: ${SECRETNAME}
   namespace: kyma-system
 data:
   clientid: $(jq --raw-output '.clientid | @base64' ${CREDS})
@@ -53,9 +53,5 @@ data:
   tokenurl: $(jq --raw-output '.url | @base64' ${CREDS})
   tokenurlsuffix: L29hdXRoL3Rva2Vu
 EOF
-echo 'secret: btp-access-credentials-secret.yaml with BTP access credentials for SAP BTP Service Operator created'
-exit 0
+  echo 'secret: btp-access-credentials-secret.yaml with BTP access credentials for SAP BTP Service Operator created'
 fi
-
-echo 'Unsupported case'
-exit 1 
