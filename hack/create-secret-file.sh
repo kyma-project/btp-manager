@@ -2,7 +2,7 @@
 
 # Usage examples:
 # ./create-secret-file.sh                        # uses credentials from creds.json file for creations of BTP Manager secret
-# ./create-secret-file.sh <file>                 # uses credentials from specified file for creations of BTP Manager secret
+# ./create-secret-file.sh <file>                 # uses credentials from specified JSON file for creations of BTP Manager secret
 # ./create-secret-file.sh operator <name>        # uses specified secret name and credentials from creds.json file for creation of SAP BTP Service Operator secret
 # ./create-secret-file.sh operator <name> <file> # uses specified secret name and specified JSON file for creation of SAP BTP Service Operator secret
 
