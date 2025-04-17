@@ -72,7 +72,7 @@ echo -e "\n--- Deployment available"
 echo -e "\n---Installing BTP operator"
 kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system  -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n--- BTP Operator is ready"
@@ -119,7 +119,7 @@ do echo -e "\n--- Waiting for deployment to be available"; sleep 5; done
 
 echo -e "\n--- Deployment available"
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n--- BTP Operator is ready"
@@ -151,11 +151,11 @@ echo -e "\n--- Upgrade succeeded"
 echo -e "\n--- Uninstalling..."
 
 # remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
-kubectl delete btpoperators/e2e-test-btpoperator &
+kubectl delete btpoperators/btpoperator -n kyma-system &
 
 echo -e "\n--- Checking deprovisioning without force delete label"
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "FalseServiceInstancesAndBindingsNotCleaned" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "FalseServiceInstancesAndBindingsNotCleaned" ]];
 do echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"; sleep 5; done
 
 echo -e "\n--- Condition reason is correct"
@@ -201,7 +201,7 @@ kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
 echo -e "\n--- Checking deprovisioning with force delete label"
 
-while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+while [[ "$(kubectl get btpoperators/btpoperator -n kyma-system 2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BtpOperator CR has been removed"

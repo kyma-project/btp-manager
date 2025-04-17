@@ -72,6 +72,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 	AfterEach(func() {
 		cr = &v1alpha1.BtpOperator{}
+		cr.Namespace = defaultNamespace
 		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
 		Eventually(updateCh).Should(Receive(matchDeleted()))

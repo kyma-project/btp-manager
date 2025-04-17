@@ -61,10 +61,10 @@ until kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME}; do sleep 5
 
 # set BtpOperator CR in Deleting state
 echo -e "\n--- Deleting BtpOperator CR (setting Deleting state)"
-kubectl delete btpoperators/e2e-test-btpoperator &
+kubectl delete btpoperators/btpoperator -n kyma-system  &
 
 echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseServiceInstancesAndBindingsNotCleaned" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseServiceInstancesAndBindingsNotCleaned" ]];
 do sleep 5; done
 
 BASE_SAP_BTP_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.labels.chart-version}')
@@ -112,7 +112,7 @@ echo -e "\n--- CLEANING UP"
 echo -e "\n--- Adding force delete label"
 kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
-while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+while [[ "$(kubectl get btpoperators/btpoperator -n kyma-system  2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BtpOperator CR has been removed"
