@@ -32,8 +32,8 @@ wait_for_condition() {
 delete_btp_operator() {
     local namespace=$1
     echo -e "\n---Deleting BTP Operator in $namespace namespace"
-    kubectl delete btpoperators e2e-test-btpoperator -n $namespace &
-    kubectl patch btpoperator e2e-test-btpoperator -n $namespace -p '{"metadata":{"finalizers":[]}}' --type=merge &
+    kubectl delete btpoperators btpoperator -n $namespace &
+    kubectl patch btpoperator btpoperator -n $namespace -p '{"metadata":{"finalizers":[]}}' --type=merge &
     wait
 }
 

@@ -19,7 +19,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 waitForBtpOperatorCrReadiness () {
   echo -e "\n--- Waiting for BtpOperator CR to be ready"
   while true; do
-    operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+    operator_status=$(kubectl get btpoperators/btpoperator -o json)
     state_status=$(echo $operator_status | jq -r '.status.state')
     if [[ $state_status == "Ready" ]]; then
       break
@@ -124,7 +124,7 @@ kubectl delete deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system
 
 echo -e "\n--- Waiting for BtpOperator CR lastTransitionTime to change"
 while true; do
-  operator_status=$(kubectl get btpoperators/e2e-test-btpoperator -o json)
+  operator_status=$(kubectl get btpoperators/btpoperator -o json)
   state_status=$(echo $operator_status | jq -r '.status.state')
   current_last_transition_time=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
   if [[ $current_last_transition_time != $last_transition_time ]]; then
@@ -267,7 +267,7 @@ kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
 echo -e "\n--- Checking deprovisioning with force delete label"
 
-while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+while [[ "$(kubectl get btpoperators/btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BtpOperator CR has been removed"

@@ -154,7 +154,7 @@ checkPodEnvs ${CLUSTER_ID} ${CREDENTIALS_NAMESPACE}
 
 echo -e "\n--- SAP BTP service operator secrets and configmap reconciliation succeeded!"
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n--- BTP Manager secret customization succeeded!"

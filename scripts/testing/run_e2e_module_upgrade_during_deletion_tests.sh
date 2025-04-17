@@ -61,10 +61,10 @@ until kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME}; do sleep 5
 
 # set BtpOperator CR in Deleting state
 echo -e "\n--- Deleting BtpOperator CR (setting Deleting state)"
-kubectl delete btpoperators/e2e-test-btpoperator &
+kubectl delete btpoperators/btpoperator &
 
 echo -e "\n--- Waiting for ServiceInstancesAndBindingsNotCleaned reason"
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseServiceInstancesAndBindingsNotCleaned" ]];
+while [[ $(kubectl get btpoperators/btpoperator -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs) != "FalseServiceInstancesAndBindingsNotCleaned" ]];
 do sleep 5; done
 
 BASE_SAP_BTP_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.labels.chart-version}')
