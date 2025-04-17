@@ -23,7 +23,7 @@ wait_for_condition() {
     local condition=$1
     local namespace=$2
     local message=$3
-    while [[ $(kubectl get btpoperators/e2e-test-btpoperator -n $namespace -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != $condition ]];
+    while [[ $(kubectl get btpoperators/btpoperator -n $namespace -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != $condition ]];
     do
         echo -e "\n---Waiting for BTP Operator in $namespace namespace to be $message"; sleep 5;
     done

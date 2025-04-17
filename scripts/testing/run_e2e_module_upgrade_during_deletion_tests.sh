@@ -112,7 +112,7 @@ echo -e "\n--- CLEANING UP"
 echo -e "\n--- Adding force delete label"
 kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
-while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+while [[ "$(kubectl get btpoperators/btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BtpOperator CR has been removed"
