@@ -19,7 +19,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 waitForBtpOperatorCrReadiness () {
   echo -e "\n--- Waiting for BtpOperator CR to be ready"
   while true; do
-    operator_status=$(kubectl get btpoperators/btpoperator -o json)
+    operator_status=$(kubectl get btpoperators/btpoperator -n kyma-system -o json)
     state_status=$(echo $operator_status | jq -r '.status.state')
     if [[ $state_status == "Ready" ]]; then
       break
@@ -113,7 +113,7 @@ done
 waitForBtpOperatorCrReadiness
 
 echo -e "\n--- Saving lastTransitionTime of BtpOperator CR"
-last_transition_time=$(kubectl get btpoperators/btpoperator -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
+last_transition_time=$(kubectl get btpoperators/btpoperator -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
 
 echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
 kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
@@ -124,7 +124,7 @@ kubectl delete deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system
 
 echo -e "\n--- Waiting for BtpOperator CR lastTransitionTime to change"
 while true; do
-  operator_status=$(kubectl get btpoperators/btpoperator -o json)
+  operator_status=$(kubectl get btpoperators/btpoperator -n kyma-system -o json)
   state_status=$(echo $operator_status | jq -r '.status.state')
   current_last_transition_time=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')
   if [[ $current_last_transition_time != $last_transition_time ]]; then
@@ -177,12 +177,12 @@ fi
 echo -e "\n---Uninstalling..."
 
 # remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
-kubectl delete btpoperators/btpoperator &
+kubectl delete btpoperators/btpoperator -n kyma-system  &
 
 echo -e "\n--- Checking deprovisioning without force delete label"
 
 while true; do
-  operator_status=$(kubectl get btpoperators/btpoperator -o json)
+  operator_status=$(kubectl get btpoperators/btpoperator -n kyma-system -o json)
   condition_status=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .status+.reason')
   state_status=$(echo $operator_status | jq -r '.status.state')
 
@@ -267,7 +267,7 @@ kubectl label -f ${YAML_DIR}/e2e-test-btpoperator.yaml force-delete=true
 
 echo -e "\n--- Checking deprovisioning with force delete label"
 
-while [[ "$(kubectl get btpoperators/btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+while [[ "$(kubectl get btpoperators/btpoperator -n kyma-system 2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BtpOperator CR has been removed"
