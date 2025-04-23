@@ -35,6 +35,7 @@ delete_btp_operator() {
     local namespace=$2
     echo -e "\n---Deleting BTP Operator $name in $namespace namespace"
     kubectl delete btpoperators $name -n $namespace &
+    kubectl patch btpoperator $name -n $namespace -p '{"metadata":{"finalizers":[]}}' --type=merge &
     wait
 }
 
