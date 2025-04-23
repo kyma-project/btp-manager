@@ -42,8 +42,14 @@ jobs:
             sleep 0.5
           done
 
-      - name: Fetch metrics from btp-manager-controller
+      - name: Fetch metrics from btp-manager-controller-manager
         run: |
-          METRICS=$(kubectl port-forward deployment/btp-manager-controller 8080:8080 -n btp-manager --timeout=10s & sleep 5 && curl -s http://localhost:8080/metrics)
+          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
+          sleep 5
+          METRICS=$(curl -s http://localhost:8080/metrics)
           echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}'
           echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}'
