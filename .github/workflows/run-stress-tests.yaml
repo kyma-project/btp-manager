@@ -81,3 +81,74 @@ jobs:
           echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
           echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
           echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
+
+  reconcile-different-statuses-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_image.sh $IMAGE_TAG"
+
+      - name: Install BTP Manager and SAP BTP Operator
+        timeout-minutes: 2
+        run: "./scripts/testing/install_module.sh $IMAGE_REPO:$IMAGE_TAG dummy ci"
+
+      - name: Fetch metrics from btp-manager-controller-manager
+        run: |
+          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
+          sleep 5
+          METRICS=$(curl -s http://localhost:8080/metrics)
+          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
+          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
+          echo "Sum of reconcile time: $SUM seconds"
+          echo "Count of reconciliations: $COUNT"
+          if [ "$COUNT" -ne 0 ]; then
+            AVG=$(echo "$SUM / $COUNT" | bc -l)
+            echo "Average reconcile time: $AVG seconds"
+          else
+            echo "Count is zero, cannot calculate average."
+          fi
+          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
+
+      - name: Delete and apply sap-btp-manager secret in a loop
+        run: |
+          for i in {1..10}; do
+            kubectl delete -f ./examples/btp-manager-secret.yaml
+            sleep 0.5
+            kubectl apply -f ./examples/btp-manager-secret.yaml
+            sleep 0.5
+          done
+
+      - name: Fetch metrics from btp-manager-controller-manager
+        run: |
+          METRICS=$(curl -s http://localhost:8080/metrics)
+          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
+          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
+          echo "Sum of reconcile time: $SUM seconds"
+          echo "Count of reconciliations: $COUNT"
+          if [ "$COUNT" -ne 0 ]; then
+            AVG=$(echo "$SUM / $COUNT" | bc -l)
+            echo "Average reconcile time: $AVG seconds"
+          else
+            echo "Count is zero, cannot calculate average."
+          fi
+          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
