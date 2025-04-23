@@ -153,16 +153,12 @@ jobs:
           echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
           echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
           BUCKETS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_bucket{controller="btpoperator",le=')
-          MAX_DURATION=0
-          PREV_COUNT=0
-
-          while IFS= read -r BUCKET; do
-          LE=$(echo "$BUCKET" | awk -F'[",}]' '{print $2}' | awk -F'=' '{print $2}')
-          COUNT=$(echo "$BUCKET" | awk -F' ' '{print $2}')
-          if [ "$COUNT" -gt "$PREV_COUNT" ]; then
-            MAX_DURATION=$(echo "$LE * ($COUNT - $PREV_COUNT)" | bc -l)
-            PREV_COUNT=$COUNT
+          PREVIOUS_VALUE=28
+          while read -r LINE; do
+          VALUE=$(echo "$LINE" | awk -F' ' '{print $2}')
+          if [ "$VALUE" -ne "$PREVIOUS_VALUE" ]; then
+            echo "First differing bucket: $LINE"
+            break
           fi
-          done <<< "$BUCKETS"
-
-          echo "Max reconcile duration: $MAX_DURATION seconds"
+          PREVIOUS_VALUE=$VALUE
+          done <<< "$(echo "$BUCKETS" | awk '{lines[NR] = $0} END {for (i = NR; i > 0; i--) print lines[i]}')"
