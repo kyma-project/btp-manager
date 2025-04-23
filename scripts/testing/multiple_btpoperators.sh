@@ -58,6 +58,5 @@ echo -e "\n---BTP Operator created successfully"
 echo -e "\n---Deleting btpopertors"
 delete_btp_operator "btpoperator" "kyma-system"
 delete_btp_operator "btpoperator-test" "kyma-system"
-delete_btp_operator "btpoperator" "default"
 
 echo -e "\n---Multiple BTP Operators handling finished successfully"
