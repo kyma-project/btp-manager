@@ -1,0 +1,48 @@
+name: Run stress tests
+
+on: 
+  pull_request:
+    branches: [main, sm-integration]
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
+
+jobs:
+  run-stress-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_image.sh PR-${{ github.event.number }}"
+
+      - name: Install BTP Manager and SAP BTP Operator
+        timeout-minutes: 2
+        run: "./scripts/testing/install_module.sh europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-${{ github.event.number }} dummy ci"
+
+      - name: Patch sap-btp-manager secret in a loop
+        run: |
+          for i in {1..10}; do
+            kubectl -n kyma-system patch secret sap-btp-manager --type='json' -p='[{"op": "replace", "path": "/data/sm_url", "value": "bmV3X3NtX3VybA=="}]'
+            sleep 0.5
+            kubectl -n kyma-system patch secret sap-btp-manager --type='json' -p='[{"op": "replace", "path": "/data/sm_url", "value": "dGVzdF9zbV91cmw="}]'
+            sleep 0.5
+          done
+
+      - name: Fetch metrics from btp-manager-controller
+        run: |
+          METRICS=$(kubectl port-forward deployment/btp-manager-controller 8080:8080 -n btp-manager --timeout=10s & sleep 5 && curl -s http://localhost:8080/metrics)
+          echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}'
