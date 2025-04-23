@@ -7,7 +7,7 @@ on:
       - "**.md"
       - "sec-scanners-config.yaml"
 env:
-  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/dev/btp-manager
   IMAGE_TAG: PR-${{ github.event.number }}
 
 jobs:
