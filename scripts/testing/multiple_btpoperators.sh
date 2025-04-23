@@ -56,7 +56,7 @@ wait_for_condition "TrueReconcileSucceeded" "btpoperator" "kyma-system" "ready a
 echo -e "\n---BTP Operator created successfully"
 
 echo -e "\n---Deleting btpopertors"
-delete_btp_operator "btpoperator" "kyma-system"
+delete_btp_operator "btpoperator" "default"
 delete_btp_operator "btpoperator-test" "kyma-system"
 
 echo -e "\n---Multiple BTP Operators handling finished successfully"
