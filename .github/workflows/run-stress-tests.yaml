@@ -11,7 +11,7 @@ env:
   IMAGE_TAG: PR-${{ github.event.number }}
 
 jobs:
-  run-stress-tests:
+  frequent-secret-update-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -50,18 +50,19 @@ jobs:
           else
             echo "Count is zero, cannot calculate average."
           fi
-          echo "Reconcile results breakdown:"
-          echo "Errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
-          echo "Requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
-          echo "Requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
-          echo "Successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
 
       - name: Patch sap-btp-manager secret in a loop
         run: |
-          for i in {1..10}; do
-            kubectl -n kyma-system patch secret sap-btp-manager --type='json' -p='[{"op": "replace", "path": "/data/sm_url", "value": "bmV3X3NtX3VybA=="}]'
-            kubectl -n kyma-system patch secret sap-btp-manager --type='json' -p='[{"op": "replace", "path": "/data/sm_url", "value": "dGVzdF9zbV91cmw="}]'
-          done
+            for i in {1..10}; do
+              kubectl -n kyma-system patch secret sap-btp-manager --type='json' -p='[{"op": "replace", "path": "/data/sm_url", "value": "bmV3X3NtX3VybA=="}]'
+              sleep 0.5
+              kubectl -n kyma-system patch secret sap-btp-manager --type='json' -p='[{"op": "replace", "path": "/data/sm_url", "value": "dGVzdF9zbV91cmw="}]'
+              sleep 0.5
+            done
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
@@ -76,8 +77,7 @@ jobs:
           else
             echo "Count is zero, cannot calculate average."
           fi
-          echo "Reconcile results breakdown:"
-          echo "Errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
-          echo "Requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
-          echo "Requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
-          echo "Successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
