@@ -87,5 +87,17 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.WrongNamespaceOrName)))
 			})
 		})
+
+		When("the btpoperator resource's name is not as required", func() {
+			It("should set state to Warning", func() {
+				secret, err := createCorrectSecretFromYaml()
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+				cr := createDefaultBtpOperator()
+				cr.SetName("wrong")
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.WrongNamespaceOrName)))
+			})
+		})
 	})
 })
