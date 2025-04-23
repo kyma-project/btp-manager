@@ -33,6 +33,18 @@ jobs:
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-${{ github.event.number }} dummy ci"
 
+      - name: Fetch metrics from btp-manager-controller-manager
+        run: |
+          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
+          sleep 5
+          METRICS=$(curl -s http://localhost:8080/metrics)
+          echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}'
+          echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}'
+
       - name: Patch sap-btp-manager secret in a loop
         run: |
           for i in {1..10}; do
@@ -44,8 +56,6 @@ jobs:
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
-          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
-          sleep 5
           METRICS=$(curl -s http://localhost:8080/metrics)
           echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}'
           echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}'
