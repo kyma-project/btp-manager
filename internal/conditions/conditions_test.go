@@ -17,10 +17,10 @@ func TestNewConditionForReason(t *testing.T) {
 		assert.Equal(t, "ReconcileSucceeded", condition.Reason)
 	})
 	t.Run("should create new condition for given predefined Reason with status False", func(t *testing.T) {
-		condition := ConditionFromExistingReason("WrongNamespaceOrName", "Only btpoperator kyma-system/btpoperator (namespace/name) is supported.")
+		condition := ConditionFromExistingReason("WrongNamespaceOrName", "Your resource must be in the kyma-system namespace. The resource's name must be btpoperator.")
 		assert.Equal(t, "Ready", condition.Type)
 		assert.Equal(t, metav1.ConditionFalse, condition.Status)
-		assert.Equal(t, "Only btpoperator kyma-system/btpoperator (namespace/name) is supported.", condition.Message)
+		assert.Equal(t, "Your resource must be in the kyma-system namespace. The resource's name must be btpoperator.", condition.Message)
 		assert.Equal(t, "WrongNamespaceOrName", condition.Reason)
 	})
 	t.Run("should not create new condition for not predefined Reason", func(t *testing.T) {
