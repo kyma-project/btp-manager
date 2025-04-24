@@ -154,7 +154,7 @@ checkPodEnvs ${CLUSTER_ID} ${CREDENTIALS_NAMESPACE}
 
 echo -e "\n--- SAP BTP service operator secrets and configmap reconciliation succeeded!"
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n--- BTP Manager secret customization succeeded!"
@@ -180,7 +180,7 @@ checkSecretsRemovalFromPreviousNamespace ${CREDENTIALS_NAMESPACE}
 SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
 checkPodEnvs ${CLUSTER_ID} ${KYMA_NAMESPACE}
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n-- Changing INITIAL_CLUSTER_ID in ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret"
@@ -222,15 +222,15 @@ checkResourcesReconciliation ${KYMA_NAMESPACE}
 SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
 checkPodEnvs ${CLUSTER_ID} ${KYMA_NAMESPACE}
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 echo -e "\n--- Corner cases check succeeded!"
 
 echo -e "\n--- Uninstalling..."
 
-kubectl delete btpoperators/e2e-test-btpoperator &
-while [[ "$(kubectl get btpoperators/e2e-test-btpoperator 2>&1)" != *"Error from server (NotFound)"* ]];
+kubectl delete btpoperators/btpoperator -n kyma-system &
+while [[ "$(kubectl get btpoperators/btpoperator -n kyma-system  2>&1)" != *"Error from server (NotFound)"* ]];
 do echo -e "\n--- Waiting for BtpOperator CR to be removed"; sleep 5; done
 
 echo -e "\n--- BTP Operator deprovisioning succeeded"
