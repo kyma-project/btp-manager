@@ -242,7 +242,7 @@ jobs:
       - name: Limit btp-manager-controller-manager resources
         run: |
           echo "Patching btp-manager-controller-manager deployment to reduce resource limits..."
-          kubectl patch deployment btp-manager-controller-manager -n kyma-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/resources/limits/cpu", "value": "20m"}, {"op": "replace", "path": "/spec/template/spec/containers/0/resources/limits/memory", "value": "64Mi"}]'
+          kubectl patch deployment btp-manager-controller-manager -n kyma-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/resources/limits/cpu", "value": "10m"}, {"op": "replace", "path": "/spec/template/spec/containers/0/resources/limits/memory", "value": "32Mi"}]'
           
           echo "Waiting for btp-manager-controller-manager pod to restart with new resource limits..."
           kubectl rollout status deployment btp-manager-controller-manager -n kyma-system --timeout=300s
@@ -254,9 +254,11 @@ jobs:
           until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Warning"; do
             sleep 1
           done
+          echo "Btpoperator entered 'Warning' state..."
 
           kubectl apply -f ./examples/btp-manager-secret.yaml
           echo "Waiting for btpoperator to enter 'Ready' state..."
           until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Ready"; do
             sleep 1
           done
+          echo "Btpoperator entered 'Ready' state..."
