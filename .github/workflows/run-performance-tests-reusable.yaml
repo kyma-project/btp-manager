@@ -1,19 +1,24 @@
-name: Run stress tests
+name: Run performancestress tests (reusable)
 
-on: 
-  pull_request:
-    branches: [main, sm-integration]
-    paths-ignore:
-      - "**.md"
-      - "sec-scanners-config.yaml"
-env:
-  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/dev/btp-manager
-  IMAGE_TAG: PR-${{ github.event.number }}
+on:
+  workflow_call:
+    inputs:
+      image-repo:
+        description: Binary image registry reference
+        required: true
+        type: string
+      image-tag:
+        description: Binary image tag
+        required: true
+        type: string
+      credentials-mode:
+        description: real or dummy credentials
+        required: true
+        type: string
 
 jobs:
   frequent-secret-update-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,11 +34,11 @@ jobs:
       - name: Wait for artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh $IMAGE_TAG"
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:$IMAGE_TAG dummy ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
@@ -84,7 +89,6 @@ jobs:
 
   reconcile-different-statuses-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,11 +104,11 @@ jobs:
       - name: Wait for artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh $IMAGE_TAG"
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:$IMAGE_TAG dummy ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
@@ -169,7 +173,6 @@ jobs:
 
   reconcile-after-crash-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -185,11 +188,11 @@ jobs:
       - name: Wait for artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh $IMAGE_TAG"
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:$IMAGE_TAG dummy ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
       - name: Delete btp-manager-controller-manager pod and measure recovery time
         run: |
@@ -217,7 +220,6 @@ jobs:
 
   resource-exhaustion-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -233,11 +235,11 @@ jobs:
       - name: Wait for artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh $IMAGE_TAG"
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:$IMAGE_TAG dummy ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
       - name: Limit btp-manager-controller-manager resources
         run: |
