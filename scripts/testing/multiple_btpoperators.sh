@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-# This script has the following arguments:
-#     - number of iterations of switching between which btpOperator is reconciled
-# ./multiple_btpoperators_exist.sh 10
+# This script creates btpoperator in the default namespace and in kyma-system namespace with wrong name and checks if the state is correct.
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -14,8 +12,8 @@ YAML_DIR="scripts/testing/yaml"
 
 apply_btp_operator() {
     local filename=$1
-    echo -e "\n---Creating BTP Operator in $namespace namespace"
-    kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml -n $namespace
+    echo -e "\n---Creating BTP Operator from $filename file"
+    kubectl apply -f ${YAML_DIR}/$filename
 }
 
 wait_for_condition() {

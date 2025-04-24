@@ -53,7 +53,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 
 	AfterEach(func() {
 		cr, secret := &v1alpha1.BtpOperator{}, &corev1.Secret{}
-		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
 		Eventually(updateCh).Should(Receive(matchDeleted()))
 		Expect(k8sClient.Get(ctx, client.ObjectKey{Name: SecretName, Namespace: kymaNamespace}, secret)).To(Succeed())
@@ -74,7 +74,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, kymaNamespace, kymaNamespace)
 
-			_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorName, Namespace: defaultNamespace}})
+			_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorName, Namespace: kymaNamespace}})
 			Expect(err).To(BeNil())
 
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
@@ -97,7 +97,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), clusterId, kymaNamespace, kymaNamespace)
 
-			_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorName, Namespace: defaultNamespace}})
+			_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorName, Namespace: kymaNamespace}})
 			Expect(err).To(BeNil())
 
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
@@ -119,7 +119,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, customCredentialsNamespace), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, customCredentialsNamespace, customCredentialsNamespace)
 
-			_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorName, Namespace: defaultNamespace}})
+			_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorName, Namespace: kymaNamespace}})
 			Expect(err).To(BeNil())
 
 			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, customCredentialsNamespace), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)

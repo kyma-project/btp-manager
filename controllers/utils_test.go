@@ -343,7 +343,7 @@ func setFinalizers(resource *unstructured.Unstructured) {
 
 func getCurrentCrState() v1alpha1.State {
 	cr := &v1alpha1.BtpOperator{}
-	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
+	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr); err != nil {
 		return ""
 	}
 	return cr.GetStatus().State
@@ -351,7 +351,7 @@ func getCurrentCrState() v1alpha1.State {
 
 func getCurrentCrStatus() v1alpha1.Status {
 	cr := &v1alpha1.BtpOperator{}
-	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr); err != nil {
+	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr); err != nil {
 		return v1alpha1.Status{}
 	}
 	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
@@ -360,7 +360,7 @@ func getCurrentCrStatus() v1alpha1.Status {
 
 func isCrNotFound() bool {
 	cr := &v1alpha1.BtpOperator{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)
 	return k8serrors.IsNotFound(err)
 }
 
@@ -372,7 +372,7 @@ func createBtpOperator(name string) *v1alpha1.BtpOperator {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: defaultNamespace,
+			Namespace: kymaNamespace,
 		},
 	}
 }
