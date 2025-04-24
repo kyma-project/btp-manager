@@ -194,21 +194,23 @@ jobs:
       - name: Delete btp-manager-controller-manager pod and measure recovery time
         run: |
           kubectl delete -f ./examples/btp-manager-secret.yaml
+          
           echo "Waiting for btpoperator to enter 'Warning' state..."
-            until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Warning"; do
+          until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Warning"; do
             sleep 1
           done
-          
           kubectl delete pod -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io
           kubectl apply -f ./examples/btp-manager-secret.yaml
           START_TIME=$(date +%s)
+
           echo "Waiting for btp-manager-controller-manager pod to be ready..."
           kubectl wait --for=condition=ready pod -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --timeout=300s
 
-          echo "Waiting for btpoperator to enter 'Processing' state..."
-            until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Ready"; do
+          echo "Waiting for btpoperator to enter 'Ready' state..."
+          until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Ready"; do
             sleep 1
           done
+
           END_TIME=$(date +%s)
           RECOVERY_TIME=$((END_TIME - START_TIME))
           echo "Time to recover and reconcile after crash: $RECOVERY_TIME seconds"
