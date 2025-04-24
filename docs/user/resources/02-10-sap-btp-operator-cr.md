@@ -7,7 +7,7 @@ To get the latest CRD in the YAML format, run the following command:
 ```shell
 kubectl get crd btpoperators.operator.kyma-project.io -o yaml
 ```
-You can only have one SAP BTP Operator (BtpOperator) CR. The Btpoperator CR must be in the `kyma-system` namespace and the resource's name must be 'btpoperator'. Other BtpOperator CR has the `Warning` state.
+You can only have one SAP BTP Operator (BtpOperator) CR. The BtpOperator CR must be in the `kyma-system` namespace, and the resource's name must be 'btpoperator'. Any other BtpOperator CR has the `Warning` state.
 
 ## Sample Custom Resource
 
