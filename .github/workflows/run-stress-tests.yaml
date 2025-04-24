@@ -158,7 +158,11 @@ jobs:
             VALUE=$(echo "$LINE" | awk -F' ' '{print $2}')
             if [ "$VALUE" -ne "$PREVIOUS_VALUE" ]; then
               echo "First differing bucket: $LINE"
+              echo "Previous bucket: $PREVIOUS_LINE"
+              LE_VALUE=$(echo "$PREVIOUS_LINE" | awk -F'le="' '{print $2}' | awk -F'"' '{print $1}')
+              echo "Maximum reconcile time is less than or equal to: $LE_VALUE seconds"
               break
             fi
+            PREVIOUS_LINE=$LINE
             PREVIOUS_VALUE=$VALUE
           done <<< "$(echo "$BUCKETS" | awk '{lines[NR] = $0} END {for (i = NR; i > 0; i--) print lines[i]}')"
