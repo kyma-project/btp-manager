@@ -35,11 +35,11 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 		})
 
 		AfterEach(func() {
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Expect(k8sClient.Update(ctx, cr)).To(Succeed())
 			Eventually(func() (bool, error) {
-				err := k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)
+				err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)
 				return cr.Labels[forceDeleteLabelKey] == "true", err
 			}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 			Eventually(updateCh).Should(Receive(matchDeleted()))
@@ -55,7 +55,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			_ = createResource(bindingGvk, kymaNamespace, bindingName)
 			ensureResourceExists(bindingGvk)
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.ServiceInstancesAndBindingsNotCleaned)))
@@ -95,7 +95,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			reconciler.Client = newTimeoutK8sClient(reconciler.Client)
 			setFinalizers(siUnstructured)
 			setFinalizers(sbUnstructured)
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.HardDeleting)))
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.SoftDeleting)))
@@ -107,7 +107,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			reconciler.Client = newErrorK8sClient(reconciler.Client)
 			setFinalizers(siUnstructured)
 			setFinalizers(sbUnstructured)
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.SoftDeleting)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))
@@ -116,7 +116,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 
 		It("hard delete should succeed", func() {
 			reconciler.Client = k8sClientFromManager
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.HardDeleting)))
 			Eventually(updateCh).Should(Receive(matchDeleted()))

@@ -1,8 +1,8 @@
 module-name: btp-operator
 kind: kyma
-rc-tag: 1.2.5
+rc-tag: 1.2.6
 bdba:
-  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:1.2.5
+  - europe-docker.pkg.dev/kyma-project/prod/btp-manager:1.2.6
 mend:
   language: golang-mod
   exclude:

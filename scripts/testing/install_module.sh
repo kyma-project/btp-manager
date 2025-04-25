@@ -49,7 +49,7 @@ echo -e "\n---Deployment available"
 echo -e "\n---Installing BTP operator"
 kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
 
-while [[ $(kubectl get btpoperators/e2e-test-btpoperator -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
 # verifying whether service instance and service binding custom resources were created

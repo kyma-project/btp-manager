@@ -110,6 +110,8 @@ const (
 	kymaProjectModuleLabelKey                 = "kyma-project.io/module"
 	chartVersionKey                           = "chart-version"
 	forceDeleteLabelKey                       = "force-delete"
+	btpoperatorCRName                         = "btpoperator"
+	kymaSystemNamespaceName                   = "kyma-system"
 )
 
 const (
@@ -219,34 +221,15 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
 		if k8serrors.IsNotFound(err) {
 			logger.Info(fmt.Sprintf("%s BtpOperator CR not found. Ignoring it since object has been deleted.", req.Name))
-			existingBtpOperators := &v1alpha1.BtpOperatorList{}
-			if err := r.List(ctx, existingBtpOperators); err != nil {
-				logger.Error(err, "unable to get existing BtpOperator CRs")
-				return ctrl.Result{}, nil
-			}
-			if len(existingBtpOperators.Items) > 0 {
-				return r.setNewLeader(ctx, existingBtpOperators)
-			}
-
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "unable to get BtpOperator CR")
 		return ctrl.Result{}, err
 	}
 
-	existingBtpOperators := &v1alpha1.BtpOperatorList{}
-	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to get existing BtpOperator CRs")
-		return ctrl.Result{}, err
-	}
-
-	if len(existingBtpOperators.Items) > 1 {
-		oldestCr := r.getOldestCR(existingBtpOperators)
-		if reconcileCr.GetUID() == oldestCr.GetUID() {
-			reconcileCr.Status.Conditions = nil
-		} else {
-			return ctrl.Result{}, r.HandleRedundantCR(ctx, oldestCr, reconcileCr)
-		}
+	if req.Name != btpoperatorCRName || req.Namespace != kymaSystemNamespaceName {
+		logger.Info(fmt.Sprintf("BtpOperator CR %s/%s is not the one we are looking for. Ignoring it.", req.Namespace, req.Name))
+		return ctrl.Result{}, r.HandleWrongNamespaceOrName(ctx, reconcileCr)
 	}
 
 	if ctrlutil.AddFinalizer(reconcileCr, deletionFinalizer) {
@@ -279,30 +262,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *BtpOperatorReconciler) setNewLeader(ctx context.Context, existingBtpOperators *v1alpha1.BtpOperatorList) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	logger.Info(fmt.Sprintf("Found %d existing BtpOperators", len(existingBtpOperators.Items)))
-	oldestCr := r.getOldestCR(existingBtpOperators)
-	if oldestCr.GetStatus().State == v1alpha1.StateWarning && oldestCr.IsReasonStringEqual(string(conditions.OlderCRExists)) {
-		if err := r.UpdateBtpOperatorStatus(ctx, oldestCr, v1alpha1.StateProcessing, conditions.Processing,
-			fmt.Sprintf("%s is the new leader", oldestCr.GetName())); err != nil {
-			logger.Error(err, fmt.Sprintf("unable to set %s BtpOperator CR as the new leader", oldestCr.GetName()))
-			return ctrl.Result{}, err
-		}
-	}
-	logger.Info(fmt.Sprintf("%s BtpOperator is the new leader", oldestCr.GetName()))
-	for _, cr := range existingBtpOperators.Items {
-		if cr.GetUID() == oldestCr.GetUID() {
-			continue
-		}
-		redundantCR := cr.DeepCopy()
-		if err := r.HandleRedundantCR(ctx, oldestCr, redundantCR); err != nil {
-			logger.Info(fmt.Sprintf("unable to update %s BtpOperator CR Status", redundantCR.GetName()))
-		}
-	}
-	return ctrl.Result{}, nil
-}
-
 func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOperatorList) *v1alpha1.BtpOperator {
 	oldestCr := existingBtpOperators.Items[0]
 	for _, item := range existingBtpOperators.Items {
@@ -314,11 +273,8 @@ func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOp
 	return &oldestCr
 }
 
-func (r *BtpOperatorReconciler) HandleRedundantCR(ctx context.Context, oldestCr *v1alpha1.BtpOperator, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling redundant BtpOperator CR")
-	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.OlderCRExists, fmt.Sprintf("The '%s' BtpOperator CR in '%s' namespace reconciles the module. To use this CR to reconcile the module, delete the '%s' BtpOperator CR in the '%s' namespace and remove finalizers from the '%s' BtpOperator CR in the '%s' namespace.",
-		oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace(), oldestCr.GetName(), oldestCr.GetNamespace()))
+func (r *BtpOperatorReconciler) HandleWrongNamespaceOrName(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.WrongNamespaceOrName, "Your resource must be in the kyma-system namespace. The resource's name must be btpoperator.")
 }
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState v1alpha1.State, reason conditions.Reason, message string) error {
