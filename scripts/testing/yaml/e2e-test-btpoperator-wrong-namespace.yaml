@@ -8,6 +8,6 @@ metadata:
     app.kubernetes.io/managed-by: btp-manager
     app.kubernetes.io/created-by: btp-manager
   name: btpoperator
-  namespace: kyma-system
+  namespace: default
 spec:
 # fields can be added here

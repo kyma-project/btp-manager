@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: btp-manager
     app.kubernetes.io/managed-by: btp-manager
     app.kubernetes.io/created-by: btp-manager
-  name: btpoperator
+  name: btpoperator-test
   namespace: kyma-system
 spec:
 # fields can be added here
