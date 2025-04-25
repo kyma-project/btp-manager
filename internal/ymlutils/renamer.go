@@ -13,7 +13,7 @@ func AddSuffixToNameInManifests(manifestsDir, suffix string) error {
 			return nil
 		}
 
-		filename := fmt.Sprintf(path)
+		filename := fmt.Sprint(path)
 		input, err := os.ReadFile(filename)
 		if err != nil {
 			return err

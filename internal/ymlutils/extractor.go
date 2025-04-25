@@ -122,7 +122,7 @@ func CopyManifestsFromYamlsIntoOneYaml(sourceManifestsDir, targetYaml string) er
 			return nil
 		}
 
-		filename := fmt.Sprintf(path)
+		filename := fmt.Sprint(path)
 		input, err := os.ReadFile(filename)
 		if err != nil {
 			return err
