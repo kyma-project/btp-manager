@@ -308,7 +308,7 @@ jobs:
           do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
-          echo "Install BTP Manager took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
+          echo "Installation of BTP Manager took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
       - name: Apply Btpoperator
         timeout-minutes: 1
@@ -319,7 +319,7 @@ jobs:
           do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
-          echo "Apply Btpoperator took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
+          echo "Installation of Btpoperator and reaching 'Ready' state took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
       - name: Delete Btpoperator
         timeout-minutes: 1
@@ -328,7 +328,7 @@ jobs:
           kubectl delete -f ./examples/btp-operator.yaml
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
-          echo "Delete Btpoperator took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
+          echo "Deletion of Btpoperator took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
       - name: Delete BTP Manager
         timeout-minutes: 1
@@ -337,6 +337,6 @@ jobs:
           kubectl delete -f ./manifests/btp-operator/btp-manager.yaml
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
-          echo "Delete BTP Manager took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
+          echo "Deletion of BTP Manager took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
         
