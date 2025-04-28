@@ -268,3 +268,46 @@ jobs:
             sleep 1
           done
           echo "Btpoperator entered 'Ready' state..."
+
+
+  installation-duration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          IMAGE_REPO: ${{ inputs.image-repo }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
+
+      - name: Install prerequisites
+        run: |
+          kubectl apply -f ./deployments/prerequisites.yaml
+          kubectl apply -f ./examples/btp-manager-secret.yaml
+
+      - name: Build BTP Manager
+        timeout-minutes: 2
+        run: IMG=${{ inputs.image-repo }}:${{ inputs.image-tag }} make create-manifest
+
+      - name: Install BTP Manager
+        timeout-minutes: 2
+        run: |
+          kubectl apply -f manifests/btp-operator/btp-manager.yam
+          while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
+          do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
+
+      - name: Aplly Btpoperator
+        run: |
+          while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+          do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
+        
