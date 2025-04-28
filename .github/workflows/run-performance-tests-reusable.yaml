@@ -302,23 +302,45 @@ jobs:
       - name: Install BTP Manager
         timeout-minutes: 1
         run: |
+          START_TIME=$(date +%s)
           kubectl apply -f manifests/btp-operator/btp-manager.yaml
           while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
           do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "INSTALL_BTP_MANAGER_DURATION=$DURATION" >> $GITHUB_ENV
+          echo "Install BTP Manager took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
       - name: Apply Btpoperator
         timeout-minutes: 1
         run: |
+          START_TIME=$(date +%s)
           kubectl apply -f ./examples/btp-operator.yaml
           while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
           do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "APPLY_BTPOPERATOR_DURATION=$DURATION" >> $GITHUB_ENV
+          echo "Apply Btpoperator took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
       - name: Delete Btpoperator
         timeout-minutes: 1
-        run: kubectl delete -f ./examples/btp-operator.yaml
+        run: |
+          START_TIME=$(date +%s)
+          kubectl delete -f ./examples/btp-operator.yaml
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "DELETE_BTPOPERATOR_DURATION=$DURATION" >> $GITHUB_ENV
+          echo "Delete Btpoperator took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
       - name: Delete BTP Manager
         timeout-minutes: 1
-        run: kubectl delete -f ./manifests/btp-operator/btp-manager.yaml
+        run: |
+          START_TIME=$(date +%s)
+          kubectl delete -f ./manifests/btp-operator/btp-manager.yaml
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "DELETE_BTP_MANAGER_DURATION=$DURATION" >> $GITHUB_ENV
+          echo "Delete BTP Manager took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
         
