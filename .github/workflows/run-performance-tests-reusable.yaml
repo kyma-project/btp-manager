@@ -306,8 +306,8 @@ jobs:
           while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
           do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
 
-      - name: Aplly Btpoperator
+      - name: Apply Btpoperator
         run: |
-          while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
+          while [[ $(kubectl get btpoperators -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
           do echo -e "\n---Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
         
