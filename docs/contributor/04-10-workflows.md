@@ -95,3 +95,42 @@ The workflow performs the following actions:
 - Waits for the binary image to be ready in the registry
 - Installs the module
 - Runs the E2E BTP Manager secret customization test on the cluster
+
+### Performance Tests
+
+The [workflow](/.github/workflows/run-performance-tests-reusable.yaml) runs performance and stress tests on the k3s cluster. The following parameters are required from the calling workflow:
+
+| Parameter name       | Required | Description                     |
+|----------------------|----------|---------------------------------|
+| **image-repo**       | yes      | Binary image registry reference |
+| **image-tag**        | yes      | Binary image tag                |
+| **credentials-mode** | yes      | Specifies whether to use real or dummy credentials |
+
+The workflow performs the following actions for all jobs:
+- Prepares the k3s cluster with the Docker registry
+- Waits for the binary image to be ready in the registry
+- Installs the module
+
+#### Jobs
+
+1. **Frequent Secret Update Test**
+- **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` secret is updated frequently.
+- **Steps**:
+    - Patches the `sap-btp-manager` secret in a loop to simulate frequent updates.
+    - Fetches metrics from the `btp-manager-controller-manager` to measure average reconcile time and reconcile errors.
+
+2. **Reconcile Different Statuses Test**
+- **Purpose**: Measures the reconciliation performance of BtpOperator under various status conditions.
+- **Steps**:
+    - Deletes and reapplies the `sap-btp-manager` secret in a loop to simulate different BtpOperator statuses.
+    - Fetches metrics from the `btp-manager-controller-manager` to measure average and maximum reconcile time, and counts the number of reconcile errors.
+
+3. **Reconcile After Crash Test**
+- **Purpose**: Tests the system's recovery and reconciliation performance after a crash of the `btp-manager-controller-manager` pod.
+- **Steps**:
+    - Simulates resource constraints by patching the `btp-manager-controller-manager` deployment with CPU limits of `10m` and memory limits of `32Mi`.
+    - Deletes the `btp-manager-controller-manager` pod to simulate a crash.
+    - Deletes the `sap-btp-manager` secret to simulate a missing secret scenario.
+    - Waits for the BtpOperator to reach the `Warning` state.
+    - Restores the `sap-btp-manager` secret to test the system's ability to recover.
+    - Waits for the BtpOperator to reach the `Ready` state.
