@@ -60,7 +60,6 @@ const (
 	resourceAdded                        = "added"
 	resourceUpdated                      = "updated"
 	resourceDeleted                      = "deleted"
-	defaultNamespace                     = "default"
 	kymaNamespace                        = "kyma-system"
 	defaultChartPath                     = "./testdata/test-module-chart"
 	defaultResourcesPath                 = "./testdata/test-module-resources"

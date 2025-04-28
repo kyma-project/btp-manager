@@ -26,7 +26,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 
 	AfterEach(func() {
 		cr = &v1alpha1.BtpOperator{}
-		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: defaultNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
 		Eventually(updateCh).Should(Receive(matchDeleted()))
 		Expect(isCrNotFound()).To(BeTrue())
@@ -73,6 +73,30 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				btpServiceOperatorDeployment := &appsv1.Deployment{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+			})
+		})
+
+		When("the btpoperator resource is not in the required namespace", func() {
+			It("should set state to Warning", func() {
+				secret, err := createCorrectSecretFromYaml()
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+				cr := createDefaultBtpOperator()
+				cr.SetNamespace("default")
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.WrongNamespaceOrName)))
+			})
+		})
+
+		When("the btpoperator resource's name is not as required", func() {
+			It("should set state to Warning", func() {
+				secret, err := createCorrectSecretFromYaml()
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+				cr := createDefaultBtpOperator()
+				cr.SetName("wrong")
+				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.WrongNamespaceOrName)))
 			})
 		})
 	})
