@@ -302,7 +302,7 @@ jobs:
       - name: Install BTP Manager
         timeout-minutes: 2
         run: |
-          kubectl apply -f manifests/btp-operator/btp-manager.yam
+          kubectl apply -f manifests/btp-operator/btp-manager.yaml
           while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
           do echo -e "\n---Waiting for deployment to be available"; sleep 5; done
 
