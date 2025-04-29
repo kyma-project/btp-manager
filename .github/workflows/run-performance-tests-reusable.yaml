@@ -75,18 +75,18 @@ jobs:
           METRICS=$(curl -s http://localhost:8080/metrics)
           SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
           COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          echo "Sum of reconcile time: $SUM seconds"
-          echo "Count of reconciliations: $COUNT"
+          echo "Sum of reconcile time: $SUM seconds" >> $GITHUB_STEP_SUMMARY
+          echo "Count of reconciliations: $COUNT" >> $GITHUB_STEP_SUMMARY
           if [ "$COUNT" -ne 0 ]; then
             AVG=$(echo "$SUM / $COUNT" | bc -l)
-            echo "Average reconcile time: $AVG seconds"
+            echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
           else
-            echo "Count is zero, cannot calculate average."
+            echo "Count is zero, cannot calculate average." >> $GITHUB_STEP_SUMMARY
           fi
-          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
+            echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+            echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+            echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+            echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
 
   reconcile-different-statuses-test:
     runs-on: ubuntu-latest
@@ -146,18 +146,18 @@ jobs:
           METRICS=$(curl -s http://localhost:8080/metrics)
           SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
           COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          echo "Sum of reconcile time: $SUM seconds"
-          echo "Count of reconciliations: $COUNT"
+          echo "Sum of reconcile time: $SUM seconds" >> $GITHUB_STEP_SUMMARY
+          echo "Count of reconciliations: $COUNT" >> $GITHUB_STEP_SUMMARY
           if [ "$COUNT" -ne 0 ]; then
             AVG=$(echo "$SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds"
           else
             echo "Count is zero, cannot calculate average."
           fi
-          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
+          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
           BUCKETS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_bucket{controller="btpoperator",le=')
           PREVIOUS_VALUE=$(echo "$BUCKETS" | tail -n 1 | awk -F' ' '{print $2}')
           while read -r LINE; do
@@ -166,7 +166,7 @@ jobs:
               echo "First differing bucket: $LINE"
               echo "Previous bucket: $PREVIOUS_LINE"
               LE_VALUE=$(echo "$PREVIOUS_LINE" | awk -F'le="' '{print $2}' | awk -F'"' '{print $1}')
-              echo "Maximum reconcile time is less than or equal to: $LE_VALUE seconds"
+              echo "Maximum reconcile time is less than or equal to: $LE_VALUE seconds" >> $GITHUB_STEP_SUMMARY
               break
             fi
             PREVIOUS_LINE=$LINE
@@ -219,7 +219,7 @@ jobs:
 
           END_TIME=$(date +%s)
           RECOVERY_TIME=$((END_TIME - START_TIME))
-          echo "Time to recover and reconcile after crash: $RECOVERY_TIME seconds"
+          echo "Time to recover and reconcile after crash: $RECOVERY_TIME seconds" >> $GITHUB_STEP_SUMMARY
 
   resource-exhaustion-test:
     runs-on: ubuntu-latest
