@@ -321,7 +321,7 @@ jobs:
           DURATION=$((END_TIME - START_TIME))
           echo "Installation of Btpoperator and reaching 'Ready' state took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
-      - name: Extract duration of certificate regeneration
+      - name: Extract duration of certificate generation
         run: |
           START_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration of certificates started" | tail -1)
           START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
@@ -335,6 +335,26 @@ jobs:
           SUCCESS_SECONDS=$(date -d "$SUCCESS_TIMESTAMP" +%s)
           DURATION=$((SUCCESS_SECONDS - START_SECONDS))
           echo "Generation of certs took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
+
+      - name: Extract duration of certificate regeneration
+        run: |
+          kubectl delete secrets -n kyma-system ca-server-cert
+          echo "Waiting for ca-server-cert to be regenerated..."
+          until kubectl get secrets -n kyma-system ca-server-cert; do
+            sleep 1
+          done
+          START_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration of certificates started" | tail -1)
+          START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
+          echo "Start timestamp of certificate regeneration: $START_TIMESTAMP"
+
+          SUCCESS_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration success" | tail -1)
+          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | awk '{print $1}')
+          echo "Success timestamp of certificate regeneration: $SUCCESS_TIMESTAMP"
+
+          START_SECONDS=$(date -d "$START_TIMESTAMP" +%s)
+          SUCCESS_SECONDS=$(date -d "$SUCCESS_TIMESTAMP" +%s)
+          DURATION=$((SUCCESS_SECONDS - START_SECONDS))
+          echo "Regeneration of certs took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
       - name: Delete Btpoperator
         timeout-minutes: 1
