@@ -33,7 +33,7 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
-GOLINT_VER = v1.55.2
+GOLINT_VER = v2.1.5
 ifeq (,$(GOLINT_TIMEOUT))
 GOLINT_TIMEOUT=2m
 endif
@@ -185,10 +185,10 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 go-lint-install: ## linter config in file at root of project -> '.golangci.yaml'
-	@if [ "$(shell command golangci-lint version --format short)" != "$(GOLINT_VER)" ]; then \
+	@if [ "$(shell command golangci-lint version --short)" != "$(GOLINT_VER)" ]; then \
   		echo golangci in version $(GOLINT_VER) not found. will be downloaded; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VER); \
-		echo golangci installed with version: $(shell command golangci-lint version --format short); \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLINT_VER); \
+		echo golangci installed with version: $(shell command golangci-lint version --short); \
 	fi;
 
 .PHONY: go-lint
