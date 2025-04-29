@@ -200,7 +200,6 @@ jobs:
       - name: Scale down btp-manager-controller-manager 
         run: |
           kubectl scale deployment btp-manager-controller-manager --replicas 0 -n kyma-system
-          kubectl delete -f ./examples/btp-manager-secret.yaml
           
       - name: Delete secrets and configmaps managed by BTP Manager
         run: |
