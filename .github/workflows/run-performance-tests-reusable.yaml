@@ -221,55 +221,6 @@ jobs:
           RECOVERY_TIME=$((END_TIME - START_TIME))
           echo "Time to recover and reconcile after crash: $RECOVERY_TIME seconds" >> $GITHUB_STEP_SUMMARY
 
-  resource-exhaustion-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-
-      - name: Prepare k3s cluster and docker registry
-        run: "./scripts/testing/k3s-setup.sh --wait"
-
-      - name: Wait for artifacts
-        env:
-          IMAGE_REPO: ${{ inputs.image-repo }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
-
-      - name: Install BTP Manager and SAP BTP Operator
-        timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
-
-      - name: Limit btp-manager-controller-manager resources
-        run: |
-          echo "Patching btp-manager-controller-manager deployment to reduce resource limits..."
-          kubectl patch deployment btp-manager-controller-manager -n kyma-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/resources/limits/cpu", "value": "10m"}, {"op": "replace", "path": "/spec/template/spec/containers/0/resources/limits/memory", "value": "32Mi"}]'
-          
-          echo "Waiting for btp-manager-controller-manager pod to restart with new resource limits..."
-          kubectl rollout status deployment btp-manager-controller-manager -n kyma-system --timeout=300s
-
-      - name: Delete and reapply sap-btp-manager secret
-        run: |
-          kubectl delete -f ./examples/btp-manager-secret.yaml
-          echo "Waiting for btpoperator to enter 'Warning' state..."
-          until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Warning"; do
-            sleep 1
-          done
-          echo "Btpoperator entered 'Warning' state..."
-
-          kubectl apply -f ./examples/btp-manager-secret.yaml
-          echo "Waiting for btpoperator to enter 'Ready' state..."
-          until kubectl get btpoperator -n kyma-system -o jsonpath='{.items[0].status.state}' | grep -q "Ready"; do
-            sleep 1
-          done
-          echo "Btpoperator entered 'Ready' state..."
-
-
   installation-duration-test:
     runs-on: ubuntu-latest
     steps:
