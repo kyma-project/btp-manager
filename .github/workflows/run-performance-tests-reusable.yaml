@@ -197,8 +197,9 @@ jobs:
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
-      - name: Delete btp-manager-controller-manager pod and measure recovery time
+      - name: Scale down btp-manager-controller-manager 
         run: |
+          kubectl scale deployment btp-manager-controller-manager --replicas 0 -n kyma-system
           kubectl delete -f ./examples/btp-manager-secret.yaml
           
           echo "Waiting for btpoperator to enter 'Warning' state..."
@@ -220,6 +221,39 @@ jobs:
           END_TIME=$(date +%s)
           RECOVERY_TIME=$((END_TIME - START_TIME))
           echo "Time to recover and reconcile after crash: $RECOVERY_TIME seconds" >> $GITHUB_STEP_SUMMARY
+
+      - name: Delete secrets and configmaps managed by BTP Manager
+        run: |
+          kubectl get secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system |wc -l 
+          MANAGED_RESOURCES_COUNT=$(kubectl get secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system | wc -l)
+          kubectl delete secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system
+
+      - name: Scale up btp-manager-controller-manager
+        run: |
+          kubectl scale deployment btp-manager-controller-manager --replicas 1 -n kyma-system
+          START_TIME=$(date +%s)
+          echo "Waiting for btp-manager-controller-manager pod to be ready..."
+          kubectl wait --for=condition=ready pod -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --timeout=300s
+          END_TIME=$(date +%s)
+          POD_STARTUP_DURATION=$((END_TIME - START_TIME))
+
+          echo "Waiting for secrets and configmaps managed by BTP Manager to be recreated..."
+          until [[ $(kubectl get secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system | wc -l) -eq $MANAGED_RESOURCES_COUNT ]]; do
+            sleep 5
+          done
+
+          START_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "starting manager" | tail -1)
+          START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
+          echo "Start timestamp of certificate regeneration: $START_TIMESTAMP"
+
+          SUCCESS_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "reconciliation succeeded" | tail -1)
+          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | awk '{print $1}')
+          echo "Success timestamp of certificate regeneration: $SUCCESS_TIMESTAMP"
+
+          START_SECONDS=$(date -d "$START_TIMESTAMP" +%s)
+          SUCCESS_SECONDS=$(date -d "$SUCCESS_TIMESTAMP" +%s)
+          DURATION=$((SUCCESS_SECONDS - START_SECONDS))
+          echo "Reconciliation took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
   installation-duration-test:
     runs-on: ubuntu-latest
@@ -292,7 +326,7 @@ jobs:
           kubectl delete secrets -n kyma-system ca-server-cert
           echo "Waiting for ca-server-cert to be regenerated..."
           until kubectl get secrets -n kyma-system ca-server-cert; do
-            sleep 1
+            sleep 5
           done
           START_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration of certificates started" | tail -1)
           START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
