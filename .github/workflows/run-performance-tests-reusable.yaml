@@ -226,6 +226,9 @@ jobs:
           START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
           echo "Start timestamp of certificate regeneration: $START_TIMESTAMP"
 
+          until [[ -n "$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "reconciliation succeeded" | tail -1)" ]]; do
+            sleep 5
+          done
           SUCCESS_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "reconciliation succeeded" | tail -1)
           SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | awk '{print $1}')
           echo "Success timestamp of certificate regeneration: $SUCCESS_TIMESTAMP"
