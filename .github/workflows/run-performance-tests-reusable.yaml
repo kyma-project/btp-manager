@@ -203,7 +203,6 @@ jobs:
           
       - name: Delete secrets and configmaps managed by BTP Manager
         run: |
-          kubectl get secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system |wc -l 
           MANAGED_RESOURCES_COUNT=$(kubectl get secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system | wc -l)
           kubectl delete secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system
 
