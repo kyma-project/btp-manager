@@ -52,6 +52,8 @@ jobs:
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
+          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
+          sleep 5
           METRICS=$(curl -s http://localhost:8080/metrics)
           SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
           COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
@@ -113,6 +115,8 @@ jobs:
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
+          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
+          sleep 5
           METRICS=$(curl -s http://localhost:8080/metrics)
           SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
           COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
