@@ -56,12 +56,12 @@ jobs:
           kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
           sleep 5
           METRICS=$(curl -s http://localhost:8080/metrics)
-          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
+          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk '{printf "%.2f", $2}')
+          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk '{print $2}')
           echo "Sum of reconcile time: $SUM seconds" >> $GITHUB_STEP_SUMMARY
           echo "Count of reconciliations: $COUNT" >> $GITHUB_STEP_SUMMARY
           if [ "$COUNT" -ne 0 ]; then
-            AVG=$(echo "$SUM / $COUNT" | bc -l)
+            AVG=$(echo "scale=2; $SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
             if (( $(echo "$AVG > $MAX_AVERAGE_RECONCILE_TIME" | bc -l) )); then
                 echo "::error ::average reconcile time exceeds $MAX_AVERAGE_RECONCILE_TIME seconds. Failing the test."
@@ -70,15 +70,15 @@ jobs:
           else
             echo "Count is zero, cannot calculate average." >> $GITHUB_STEP_SUMMARY
           fi
-          RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')
+          RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk '{print $2}')
           echo "Reconcile errors: $RECONCILE_ERRORS" >> $GITHUB_STEP_SUMMARY
           if [ "$RECONCILE_ERRORS" -gt 0 ]; then
             echo "::error ::reconcile errors detected. Failing the test."
             exit 1
           fi
-          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
-          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
-          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk '{print $2}')" >> $GITHUB_STEP_SUMMARY
           
 
   reconcile-secret-deletion-test:
@@ -120,12 +120,12 @@ jobs:
           kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
           sleep 5
           METRICS=$(curl -s http://localhost:8080/metrics)
-          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
+          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk '{printf "%.2f", $2}')
+          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk '{print $2}')
           echo "Sum of reconcile time: $SUM seconds" >> $GITHUB_STEP_SUMMARY
           echo "Count of reconciliations: $COUNT" >> $GITHUB_STEP_SUMMARY
           if [ "$COUNT" -ne 0 ]; then
-            AVG=$(echo "$SUM / $COUNT" | bc -l)
+            AVG=$(echo "scale=2; $SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
             if (( $(echo "$AVG > $MAX_AVERAGE_RECONCILE_TIME" | bc -l) )); then
               echo "::error ::average reconcile time exceeds $MAX_AVERAGE_RECONCILE_TIME seconds. Failing the test."
@@ -134,19 +134,19 @@ jobs:
           else
             echo "Count is zero, cannot calculate average." >> $GITHUB_STEP_SUMMARY
           fi
-          RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')
+          RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk '{print $2}')
           echo "Reconcile errors: $RECONCILE_ERRORS" >> $GITHUB_STEP_SUMMARY
           if [ "$RECONCILE_ERRORS" -gt 0 ]; then
             echo "::error ::reconcile errors detected. Failing the test."
             exit 1
           fi
-          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
-          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
-          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk '{print $2}')" >> $GITHUB_STEP_SUMMARY
           BUCKETS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_bucket{controller="btpoperator",le=')
-          PREVIOUS_VALUE=$(echo "$BUCKETS" | tail -n 1 | awk -F' ' '{print $2}')
+          PREVIOUS_VALUE=$(echo "$BUCKETS" | tail -n 1 | awk '{print $2}')
           while read -r LINE; do
-            VALUE=$(echo "$LINE" | awk -F' ' '{print $2}')
+            VALUE=$(echo "$LINE" | awk '{print $2}')
             if [ "$VALUE" -ne "$PREVIOUS_VALUE" ]; then
               echo "First differing bucket: $LINE"
               echo "Previous bucket: $PREVIOUS_LINE"
@@ -188,6 +188,7 @@ jobs:
           
       - name: Delete secrets and configmaps managed by BTP Manager
         run: |
+          # We count also headers as we don't need the exact number of resources, only a way to compare if they were recreated
           MANAGED_RESOURCES_COUNT=$(kubectl get secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system | wc -l)
           kubectl delete secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system
 
