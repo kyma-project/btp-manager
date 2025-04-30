@@ -56,7 +56,7 @@ const (
 	deleteRequestTimeoutForAllTests      = time.Millisecond * 200
 	statusUpdateTimeoutForAllTests       = time.Millisecond * 200
 	statusUpdateCheckIntervalForAllTests = time.Millisecond * 20
-	testRsaKeyBits                       = 512
+	testRsaKeyBits                       = 1024
 	resourceAdded                        = "added"
 	resourceUpdated                      = "updated"
 	resourceDeleted                      = "deleted"
