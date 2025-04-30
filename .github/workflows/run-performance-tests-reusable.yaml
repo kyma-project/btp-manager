@@ -41,27 +41,7 @@ jobs:
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
-      - name: Fetch metrics from btp-manager-controller-manager
-        run: |
-          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
-          sleep 5
-          METRICS=$(curl -s http://localhost:8080/metrics)
-          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          echo "Sum of reconcile time: $SUM seconds"
-          echo "Count of reconciliations: $COUNT"
-          if [ "$COUNT" -ne 0 ]; then
-            AVG=$(echo "$SUM / $COUNT" | bc -l)
-            echo "Average reconcile time: $AVG seconds"
-          else
-            echo "Count is zero, cannot calculate average."
-          fi
-          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
-
-      - name: Patch sap-btp-manager secret in a loop
+      - name: Edit sap-btp-manager secret in a loop
         run: |
             for i in {1..10}; do
               kubectl -n kyma-system patch secret sap-btp-manager --type='json' -p='[{"op": "replace", "path": "/data/sm_url", "value": "bmV3X3NtX3VybA=="}]'
@@ -80,15 +60,25 @@ jobs:
           if [ "$COUNT" -ne 0 ]; then
             AVG=$(echo "$SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
+            if (( $(echo "$AVG > 5" | bc -l) )); then
+              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test.""
+              exit 1
+            fi
           else
             echo "Count is zero, cannot calculate average." >> $GITHUB_STEP_SUMMARY
           fi
-            echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
-            echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
-            echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
-            echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')
+          echo "Reconcile errors: $RECONCILE_ERRORS" >> $GITHUB_STEP_SUMMARY
+          if [ "$RECONCILE_ERRORS" -gt 0 ]; then
+            echo "::error ::reconcile errors detected. Failing the test." >&2
+            exit 1
+          fi
+          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          
 
-  reconcile-different-statuses-test:
+  reconcile-secret-deletion-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -112,26 +102,6 @@ jobs:
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
-      - name: Fetch metrics from btp-manager-controller-manager
-        run: |
-          kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
-          sleep 5
-          METRICS=$(curl -s http://localhost:8080/metrics)
-          SUM=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_sum{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          COUNT=$(echo "$METRICS" | grep 'controller_runtime_reconcile_time_seconds_count{controller="btpoperator"}' | awk -F' ' '{print $2}')
-          echo "Sum of reconcile time: $SUM seconds"
-          echo "Count of reconciliations: $COUNT"
-          if [ "$COUNT" -ne 0 ]; then
-            AVG=$(echo "$SUM / $COUNT" | bc -l)
-            echo "Average reconcile time: $AVG seconds"
-          else
-            echo "Count is zero, cannot calculate average."
-          fi
-          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')"
-          echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')"
-
       - name: Delete and apply sap-btp-manager secret in a loop
         run: |
           for i in {1..10}; do
@@ -150,11 +120,20 @@ jobs:
           echo "Count of reconciliations: $COUNT" >> $GITHUB_STEP_SUMMARY
           if [ "$COUNT" -ne 0 ]; then
             AVG=$(echo "$SUM / $COUNT" | bc -l)
-            echo "Average reconcile time: $AVG seconds"
+            echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
+            if (( $(echo "$AVG > 5" | bc -l) )); then
+              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test.""
+              exit 1
+            fi
           else
-            echo "Count is zero, cannot calculate average."
+            echo "Count is zero, cannot calculate average." >> $GITHUB_STEP_SUMMARY
           fi
-          echo "Reconcile errors: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
+          RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')
+          echo "Reconcile errors: $RECONCILE_ERRORS" >> $GITHUB_STEP_SUMMARY
+          if [ "$RECONCILE_ERRORS" -gt 0 ]; then
+            echo "::error ::reconcile errors detected. Failing the test." >&2
+            exit 1
+          fi
           echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
           echo "Reconcile requeues after: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue_after"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
           echo "Reconcile successes: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="success"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
@@ -206,7 +185,8 @@ jobs:
           MANAGED_RESOURCES_COUNT=$(kubectl get secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system | wc -l)
           kubectl delete secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system
 
-      - name: Scale up btp-manager-controller-manager
+      - name: Scale up btp-manager-controller-manager and wait for reconciliation
+        timeout-minutes: 2
         run: |
           kubectl scale deployment btp-manager-controller-manager --replicas 1 -n kyma-system
           START_TIME=$(date +%s)
@@ -302,7 +282,8 @@ jobs:
           DURATION=$((SUCCESS_SECONDS - START_SECONDS))
           echo "Generation of certs took $DURATION seconds" >> $GITHUB_STEP_SUMMARY
 
-      - name: Extract duration of certificate regeneration
+      - name: Delete certs and extract duration of certificate regeneration
+        timeout-minutes: 1
         run: |
           kubectl delete secrets -n kyma-system ca-server-cert
           echo "Waiting for ca-server-cert to be regenerated..."
