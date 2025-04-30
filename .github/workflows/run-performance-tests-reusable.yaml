@@ -63,7 +63,7 @@ jobs:
             AVG=$(echo "$SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
             if (( $(echo "$AVG > 5" | bc -l) )); then
-              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test.""
+              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test."
               exit 1
             fi
           else
@@ -72,7 +72,7 @@ jobs:
           RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')
           echo "Reconcile errors: $RECONCILE_ERRORS" >> $GITHUB_STEP_SUMMARY
           if [ "$RECONCILE_ERRORS" -gt 0 ]; then
-            echo "::error ::reconcile errors detected. Failing the test." >&2
+            echo "::error ::reconcile errors detected. Failing the test."
             exit 1
           fi
           echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
@@ -126,7 +126,7 @@ jobs:
             AVG=$(echo "$SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
             if (( $(echo "$AVG > 5" | bc -l) )); then
-              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test.""
+              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test."
               exit 1
             fi
           else
@@ -135,7 +135,7 @@ jobs:
           RECONCILE_ERRORS=$(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="error"}' | awk -F' ' '{print $2}')
           echo "Reconcile errors: $RECONCILE_ERRORS" >> $GITHUB_STEP_SUMMARY
           if [ "$RECONCILE_ERRORS" -gt 0 ]; then
-            echo "::error ::reconcile errors detected. Failing the test." >&2
+            echo "::error ::reconcile errors detected. Failing the test."
             exit 1
           fi
           echo "Reconcile requeues: $(echo "$METRICS" | grep 'controller_runtime_reconcile_total{controller="btpoperator",result="requeue"}' | awk -F' ' '{print $2}')" >> $GITHUB_STEP_SUMMARY
