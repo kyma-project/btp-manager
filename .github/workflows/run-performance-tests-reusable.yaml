@@ -52,6 +52,7 @@ jobs:
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
+          MAX_AVERAGE_RECONCILE_TIME=5
           kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
           sleep 5
           METRICS=$(curl -s http://localhost:8080/metrics)
@@ -62,8 +63,8 @@ jobs:
           if [ "$COUNT" -ne 0 ]; then
             AVG=$(echo "$SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
-            if (( $(echo "$AVG > 5" | bc -l) )); then
-              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test."
+            if (( $(echo "$AVG > $MAX_AVERAGE_RECONCILE_TIME" | bc -l) )); then
+                echo "::error ::average reconcile time exceeds $MAX_AVERAGE_RECONCILE_TIME seconds. Failing the test."
               exit 1
             fi
           else
@@ -115,6 +116,7 @@ jobs:
 
       - name: Fetch metrics from btp-manager-controller-manager
         run: |
+          MAX_AVERAGE_RECONCILE_TIME=5
           kubectl port-forward deployment/btp-manager-controller-manager 8080:8080 -n kyma-system &
           sleep 5
           METRICS=$(curl -s http://localhost:8080/metrics)
@@ -125,8 +127,8 @@ jobs:
           if [ "$COUNT" -ne 0 ]; then
             AVG=$(echo "$SUM / $COUNT" | bc -l)
             echo "Average reconcile time: $AVG seconds" >> $GITHUB_STEP_SUMMARY
-            if (( $(echo "$AVG > 5" | bc -l) )); then
-              echo "::error ::average reconcile time exceeds 5 seconds. Failing the test."
+            if (( $(echo "$AVG > $MAX_AVERAGE_RECONCILE_TIME" | bc -l) )); then
+              echo "::error ::average reconcile time exceeds $MAX_AVERAGE_RECONCILE_TIME seconds. Failing the test."
               exit 1
             fi
           else
@@ -190,7 +192,7 @@ jobs:
           kubectl delete secrets,configmaps -l app.kubernetes.io/managed-by=btp-manager -n kyma-system
 
       - name: Scale up btp-manager-controller-manager and wait for reconciliation
-        timeout-minutes: 2
+        timeout-minutes: 1
         run: |
           kubectl scale deployment btp-manager-controller-manager --replicas 1 -n kyma-system
           START_TIME=$(date +%s)

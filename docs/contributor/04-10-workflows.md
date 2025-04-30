@@ -98,7 +98,7 @@ The workflow performs the following actions:
 
 ### Performance Tests
 
-The [workflow](/.github/workflows/run-performance-tests-reusable.yaml) runs performance and stress tests on the k3s cluster. The following parameters are required from the calling workflow:
+The [workflow](/.github/workflows/run-performance-tests-reusable.yaml) runs performance and tests on the k3s cluster. The following parameters are required from the calling workflow:
 
 | Parameter name       | Required | Description                     |
 |----------------------|----------|---------------------------------|
@@ -117,20 +117,26 @@ The workflow performs the following actions for all jobs:
 - **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` secret is updated frequently.
 - **Steps**:
     - Patches the `sap-btp-manager` secret in a loop to simulate frequent updates.
-    - Fetches metrics from the `btp-manager-controller-manager` to measure average reconcile time and reconcile errors.
+    - Fetches metrics from the `btp-manager-controller-manager` to measure average reconcile time, reconcile errors, and other reconciliation statistics.
 
-2. **Reconcile Different Statuses Test**
-- **Purpose**: Measures the reconciliation performance of BtpOperator under various status conditions.
+2. **Reconcile Secret Deletion Test**
+- **Purpose**: Measures the reconciliation performance of BtpOperator when the `sap-btp-manager` secret is repeatedly deleted and reapplied.
 - **Steps**:
     - Deletes and reapplies the `sap-btp-manager` secret in a loop to simulate different BtpOperator statuses.
     - Fetches metrics from the `btp-manager-controller-manager` to measure average and maximum reconcile time, and counts the number of reconcile errors.
 
 3. **Reconcile After Crash Test**
-- **Purpose**: Tests the system's recovery and reconciliation performance after a crash of the `btp-manager-controller-manager` pod.
+- **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the `btp-manager-controller-manager` deployment.
 - **Steps**:
-    - Simulates resource constraints by patching the `btp-manager-controller-manager` deployment with CPU limits of `10m` and memory limits of `32Mi`.
-    - Deletes the `btp-manager-controller-manager` pod to simulate a crash.
-    - Deletes the `sap-btp-manager` secret to simulate a missing secret scenario.
-    - Waits for the BtpOperator to reach the `Warning` state.
-    - Restores the `sap-btp-manager` secret to test the system's ability to recover.
-    - Waits for the BtpOperator to reach the `Ready` state.
+    - Scales down the `btp-manager-controller-manager` deployment to simulate a crash.
+    - Deletes secrets and configmaps managed by BTP Manager to simulate missing resources.
+    - Scales up the `btp-manager-controller-manager` deployment and waits for reconciliation.
+    - Measures the time taken for reconciliation and verifies the recreation of managed resources.
+
+4. **Installation Duration Test**
+- **Purpose**: Measures the time taken to install and uninstall the BTP Manager and BtpOperator, and the duration of certificate generation.
+- **Steps**:
+    - Installs the BTP Manager and measures the installation duration.
+    - Applies the BtpOperator and measures the time taken to reach the `Ready` state.
+    - Deletes and regenerates certificates to measure the duration of certificate regeneration.
+    - Deletes the BtpOperator and BTP Manager, measuring the time taken for each operation.
