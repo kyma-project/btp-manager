@@ -119,26 +119,26 @@ The workflow performs the following actions for all jobs:
     - Patches the `sap-btp-manager` Secret in a loop to simulate frequent updates.
     - Fetches metrics from `btp-manager-controller-manager` to measure average reconciliation time, reconciliation errors, and other reconciliation statistics.
 - **The test fails in the following conditions**:
-    - Average reconcile time exceeds the defined threshold.
-    - Reconcile errors are detected.
+    - Average reconciliation time exceeds the defined threshold.
+    - Reconciliation errors are detected.
 
 </details>
 
 <details>
-<summary>Reconcile Secret Deletion Test</summary>
+<summary>Reconciliation Secret Deletion Test</summary>
 
 - **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` Secret is repeatedly deleted and reapplied.
 - **Steps**:
     - Deletes and reapplies the `sap-btp-manager` Secret in a loop to simulate different BtpOperator statuses.
-    - Fetches metrics from `btp-manager-controller-manager` to measure average and maximum reconcile time, and counts the number of reconcile errors.
+    - Fetches metrics from `btp-manager-controller-manager` to measure average and maximum reconciliation time, and counts the number of reconciliation errors.
 - **The test fails in the following conditions**:
-    - Average reconcile time exceeds the defined threshold.
-    - Reconcile errors are detected.
+    - Average reconciliation time exceeds the defined threshold.
+    - Reconciliation errors are detected.
 
 </details>
 
 <details>
-<summary>Reconcile After Crash Test</summary>
+<summary>Reconciliation After Crash Test</summary>
 
 - **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the `btp-manager-controller-manager` deployment.
 - **Steps**:
