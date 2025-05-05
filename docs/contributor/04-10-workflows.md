@@ -111,8 +111,9 @@ The workflow performs the following actions for all jobs:
 - Waits for the binary image to be ready in the registry
 - Installs the module
 
-#### Jobs
-1. **Frequent Secret Update Test**
+<details>
+<summary>Frequent Secret Update Test</summary>
+
 - **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` Secret is updated frequently.
 - **Steps**:
     - Patches the `sap-btp-manager` Secret in a loop to simulate frequent updates.
@@ -121,7 +122,11 @@ The workflow performs the following actions for all jobs:
     - Average reconcile time exceeds the defined threshold.
     - Reconcile errors are detected.
 
-2. **Reconcile Secret Deletion Test**
+</details>
+
+<details>
+<summary>Reconcile Secret Deletion Test</summary>
+
 - **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` Secret is repeatedly deleted and reapplied.
 - **Steps**:
     - Deletes and reapplies the `sap-btp-manager` Secret in a loop to simulate different BtpOperator statuses.
@@ -130,7 +135,11 @@ The workflow performs the following actions for all jobs:
     - Average reconcile time exceeds the defined threshold.
     - Reconcile errors are detected.
 
-3. **Reconcile After Crash Test**
+</details>
+
+<details>
+<summary>Reconcile After Crash Test</summary>
+
 - **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the `btp-manager-controller-manager` deployment.
 - **Steps**:
     - Scales down the `btp-manager-controller-manager` deployment to simulate a crash.
@@ -141,7 +150,11 @@ The workflow performs the following actions for all jobs:
     - Reconciliation process does not complete within the expected time.
     - Managed resources are not recreated successfully.
 
-4. **Installation Duration Test**
+</details>
+
+<details>
+<summary>Installation Duration Test</summary>
+
 - **Purpose**: Measures the time taken to install and uninstall BTP Manager and BtpOperator, and the duration of certificate generation.
 - **Steps**:
     - Installs BTP Manager and measures the installation duration.
@@ -151,3 +164,5 @@ The workflow performs the following actions for all jobs:
 - **The test fails in the following conditions**:
     - Installation or uninstallation of BTP Manager or BtpOperator exceeds the expected duration.
     - Certificate regeneration process does not complete within the expected time.
+
+</details>
