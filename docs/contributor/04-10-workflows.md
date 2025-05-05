@@ -124,8 +124,8 @@ The workflow performs the following actions for all jobs:
 2. **Reconcile Secret Deletion Test**
 - **Purpose**: Measures the reconciliation performance of BtpOperator when the `sap-btp-manager` secret is repeatedly deleted and reapplied.
 - **Steps**:
-    - Deletes and reapplies the `sap-btp-manager` secret in a loop to simulate different BtpOperator statuses.
-    - Fetches metrics from the `btp-manager-controller-manager` to measure average and maximum reconcile time, and counts the number of reconcile errors.
+    - Deletes and reapplies the `sap-btp-manager` Secret in a loop to simulate different BtpOperator statuses.
+    - Fetches metrics from `btp-manager-controller-manager` to measure average and maximum reconcile time, and counts the number of reconcile errors.
 - **Failure Handling**:
     - The test fails if the average reconcile time exceeds the defined threshold.
     - The test fails if any reconcile errors are detected.
