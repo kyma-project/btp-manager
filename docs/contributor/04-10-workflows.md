@@ -125,7 +125,7 @@ The workflow performs the following actions for all jobs:
 </details>
 
 <details>
-<summary>Reconciliation Secret Deletion Test</summary>
+<summary>Reconciliation After Secret Deletion Test</summary>
 
 - **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` Secret is repeatedly deleted and reapplied.
 - **Steps**:
