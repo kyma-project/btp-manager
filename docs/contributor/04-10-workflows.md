@@ -116,19 +116,19 @@ The workflow performs the following actions for all jobs:
 - **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` Secret is updated frequently.
 - **Steps**:
     - Patches the `sap-btp-manager` Secret in a loop to simulate frequent updates.
-    - Fetches metrics from the `btp-manager-controller-manager` to measure average reconciliation time, reconciliation errors, and other reconciliation statistics.
-- **Failure Handling**:
-    - The test fails if the average reconcile time exceeds the defined threshold.
-    - The test fails if any reconcile errors are detected.
+    - Fetches metrics from `btp-manager-controller-manager` to measure average reconciliation time, reconciliation errors, and other reconciliation statistics.
+- **The test fails in the following conditions**:
+    - Average reconcile time exceeds the defined threshold.
+    - Reconcile errors are detected.
 
 2. **Reconcile Secret Deletion Test**
-- **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` secret is repeatedly deleted and reapplied.
+- **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` Secret is repeatedly deleted and reapplied.
 - **Steps**:
     - Deletes and reapplies the `sap-btp-manager` Secret in a loop to simulate different BtpOperator statuses.
     - Fetches metrics from `btp-manager-controller-manager` to measure average and maximum reconcile time, and counts the number of reconcile errors.
-- **Failure Handling**:
-    - The test fails if the average reconcile time exceeds the defined threshold.
-    - The test fails if any reconcile errors are detected.
+- **The test fails in the following conditions**:
+    - Average reconcile time exceeds the defined threshold.
+    - Reconcile errors are detected.
 
 3. **Reconcile After Crash Test**
 - **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the `btp-manager-controller-manager` deployment.
@@ -137,9 +137,9 @@ The workflow performs the following actions for all jobs:
     - Deletes Secrets and ConfigMaps managed by BTP Manager to simulate missing resources.
     - Scales up the `btp-manager-controller-manager` deployment and waits for reconciliation.
     - Measures the time taken for reconciliation and verifies the recreation of managed resources.
-- **Failure Handling**:
-    - The test fails if the reconciliation process does not complete within the expected time.
-    - The test fails if the managed resources are not recreated successfully.
+- **The test fails in the following conditions**:
+    - Reconciliation process does not complete within the expected time.
+    - Managed resources are not recreated successfully.
 
 4. **Installation Duration Test**
 - **Purpose**: Measures the time taken to install and uninstall BTP Manager and BtpOperator, and the duration of certificate generation.
@@ -148,6 +148,6 @@ The workflow performs the following actions for all jobs:
     - Applies BtpOperator and measures the time taken to reach the `Ready` state.
     - Deletes and regenerates certificates to measure the duration of certificate regeneration.
     - Deletes BtpOperator and BTP Manager, measuring the time taken for each operation.
-- **Failure Handling**:
-    - The test fails if the installation or uninstallation of BTP Manager or BtpOperator exceeds the expected duration.
-    - The test fails if the certificate regeneration process does not complete within the expected time.
+- **The test fails in the following conditions**:
+    - Installation or uninstallation of BTP Manager or BtpOperator exceeds the expected duration.
+    - Certificate regeneration process does not complete within the expected time.
