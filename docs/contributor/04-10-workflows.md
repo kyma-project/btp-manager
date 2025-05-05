@@ -115,7 +115,7 @@ The workflow performs the following actions for all jobs:
 1. **Frequent Secret Update Test**
 - **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` Secret is updated frequently.
 - **Steps**:
-    - Patches the `sap-btp-manager` secret in a loop to simulate frequent updates.
+    - Patches the `sap-btp-manager` Secret in a loop to simulate frequent updates.
     - Fetches metrics from the `btp-manager-controller-manager` to measure average reconcile time, reconcile errors, and other reconciliation statistics.
 - **Failure Handling**:
     - The test fails if the average reconcile time exceeds the defined threshold.
