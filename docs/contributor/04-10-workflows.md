@@ -147,7 +147,7 @@ The workflow performs the following actions for all jobs:
     - Installs BTP Manager and measures the installation duration.
     - Applies the BtpOperator and measures the time taken to reach the `Ready` state.
     - Deletes and regenerates certificates to measure the duration of certificate regeneration.
-    - Deletes the BtpOperator and BTP Manager, measuring the time taken for each operation.
+    - Deletes BtpOperator and BTP Manager, measuring the time taken for each operation.
 - **Failure Handling**:
     - The test fails if the installation or uninstallation of the BTP Manager or BtpOperator exceeds the expected duration.
     - The test fails if the certificate regeneration process does not complete within the expected time.
