@@ -144,7 +144,7 @@ The workflow performs the following actions for all jobs:
 4. **Installation Duration Test**
 - **Purpose**: Measures the time taken to install and uninstall the BTP Manager and BtpOperator, and the duration of certificate generation.
 - **Steps**:
-    - Installs the BTP Manager and measures the installation duration.
+    - Installs BTP Manager and measures the installation duration.
     - Applies the BtpOperator and measures the time taken to reach the `Ready` state.
     - Deletes and regenerates certificates to measure the duration of certificate regeneration.
     - Deletes the BtpOperator and BTP Manager, measuring the time taken for each operation.
