@@ -134,7 +134,7 @@ The workflow performs the following actions for all jobs:
 - **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the `btp-manager-controller-manager` deployment.
 - **Steps**:
     - Scales down the `btp-manager-controller-manager` deployment to simulate a crash.
-    - Deletes secrets and configmaps managed by BTP Manager to simulate missing resources.
+    - Deletes Secrets and ConfigMaps managed by BTP Manager to simulate missing resources.
     - Scales up the `btp-manager-controller-manager` deployment and waits for reconciliation.
     - Measures the time taken for reconciliation and verifies the recreation of managed resources.
 - **Failure Handling**:
