@@ -95,3 +95,74 @@ The workflow performs the following actions:
 - Waits for the binary image to be ready in the registry
 - Installs the module
 - Runs the E2E BTP Manager secret customization test on the cluster
+
+### Performance Tests
+
+The [workflow](/.github/workflows/run-performance-tests-reusable.yaml) runs performance tests on the k3s cluster. The following parameters are required from the calling workflow:
+
+| Parameter name       | Required | Description                     |
+|----------------------|----------|---------------------------------|
+| **image-repo**       | yes      | Binary image registry reference |
+| **image-tag**        | yes      | Binary image tag                |
+| **credentials-mode** | yes      | Specifies whether to use real or dummy credentials |
+
+The workflow performs the following actions for all jobs:
+- Prepares the k3s cluster with the Docker registry
+- Waits for the binary image to be ready in the registry
+- Installs the module
+
+<details>
+<summary>Frequent Secret Update Test</summary>
+
+- **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` Secret is updated frequently.
+- **Steps**:
+    - Patches the `sap-btp-manager` Secret in a loop to simulate frequent updates.
+    - Fetches metrics from `btp-manager-controller-manager` to measure average reconciliation time, reconciliation errors, and other reconciliation statistics.
+- **The test fails in the following conditions**:
+    - Average reconciliation time exceeds the defined threshold.
+    - Reconciliation errors are detected.
+
+</details>
+
+<details>
+<summary>Reconciliation After Secret Deletion Test</summary>
+
+- **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` Secret is repeatedly deleted and reapplied.
+- **Steps**:
+    - Deletes and reapplies the `sap-btp-manager` Secret in a loop to simulate different BtpOperator statuses.
+    - Fetches metrics from `btp-manager-controller-manager` to measure average and maximum reconciliation time, and counts the number of reconciliation errors.
+- **The test fails in the following conditions**:
+    - Average reconciliation time exceeds the defined threshold.
+    - Reconciliation errors are detected.
+
+</details>
+
+<details>
+<summary>Reconciliation After Crash Test</summary>
+
+- **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the `btp-manager-controller-manager` deployment.
+- **Steps**:
+    - Scales down the `btp-manager-controller-manager` deployment to simulate a crash.
+    - Deletes Secrets and ConfigMaps managed by BTP Manager to simulate missing resources.
+    - Scales up the `btp-manager-controller-manager` deployment and waits for reconciliation.
+    - Measures the time taken for reconciliation and verifies the recreation of managed resources.
+- **The test fails in the following conditions**:
+    - Reconciliation process does not complete within the expected time.
+    - Managed resources are not recreated successfully.
+
+</details>
+
+<details>
+<summary>Installation Duration Test</summary>
+
+- **Purpose**: Measures the time taken to install and uninstall BTP Manager and BtpOperator, and the duration of certificate generation.
+- **Steps**:
+    - Installs BTP Manager and measures the installation duration.
+    - Applies BtpOperator and measures the time taken to reach the `Ready` state.
+    - Deletes and regenerates certificates to measure the duration of certificate regeneration.
+    - Deletes BtpOperator and BTP Manager, measuring the time taken for each operation.
+- **The test fails in the following conditions**:
+    - Installation or uninstallation of BTP Manager or BtpOperator exceeds the expected duration.
+    - Certificate regeneration process does not complete within the expected time.
+
+</details>
