@@ -38,6 +38,11 @@ jobs:
         run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
+        env:
+          SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          SM_URL: ${{ secrets.SM_URL }}
+          SM_TOKEN_URL: ${{ secrets.TOKENURL }}  
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
@@ -102,6 +107,11 @@ jobs:
         run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
+        env:
+          SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          SM_URL: ${{ secrets.SM_URL }}
+          SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
@@ -179,6 +189,11 @@ jobs:
         run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
+        env:
+          SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          SM_URL: ${{ secrets.SM_URL }}
+          SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
 
