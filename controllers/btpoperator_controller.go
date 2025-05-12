@@ -2060,6 +2060,7 @@ func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx cont
 
 	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCertificate, webhookCertificate)
 	if err != nil {
+		logger.Info("Failed to verify whether CA is signed", "Error", err)
 		return false, err
 	}
 
