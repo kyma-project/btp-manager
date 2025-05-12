@@ -105,7 +105,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 			certAfterEach()
 		})
 
-		When("certs don't exist in the cluster prior provisioning", func() {
+		When("certs don't exist in the cluster prior to provisioning", func() {
 			It("should generate correct certs pair", func() {
 				ensureCorrectState()
 			})
@@ -113,6 +113,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 		When("CA certificate changes", func() {
 			It("should fully regenerate CA certificate and webhook certificate", func() {
+				// force change of CA certificate
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				newCaPrivateKeyStructured, err := structToByteArray(newCaPrivateKey)
 				Expect(err).To(BeNil())
@@ -129,8 +130,11 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				Expect(ok).To(BeTrue())
 
 				replaceSecretData(caSecret, certificateDataKeyName, newCaCertificate, privateKeyDataKeyName, newCaPrivateKeyStructured)
+
 				ensureReconciliationQueueIsEmpty()
-				// we expect that secret is reconciled here so cert and key are updated
+
+				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
+
 				updatedCaSecret := getSecret(CaSecretName)
 				updatedResourceVersion := updatedCaSecret.ObjectMeta.ResourceVersion
 				Expect(updatedResourceVersion).To(Not(Equal(originalResourceVersion)))
@@ -145,7 +149,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				GinkgoWriter.Println("CA certificate new: ", string(newCaCertificate))
 				GinkgoWriter.Println("CA certificate original: ", string(caCertificateOriginal))
 
-				Expect(bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeFalse()) //CAVEAT we fail here occasionally
+				Expect(bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeFalse())
 				Expect(bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeFalse())
 				Expect(bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeFalse())
 				Expect(bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeFalse())
