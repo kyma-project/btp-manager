@@ -4,7 +4,7 @@ To use an SAP BTP service in your Kyma cluster, create its service instance and 
 
 ## Prerequisites
 
-* The [SAP BTP Operator module](README.md) is added. For instructions on adding modules, see [Add and Delete a Kyma Module](https://help.sap.com/docs/btp/sap-business-technology-platform/enable-and-disable-kyma-module).
+* The [SAP BTP Operator module](README.md) is added. For instructions on adding modules, see [Adding and Deleting a Kyma Module](https://help.sap.com/docs/btp/sap-business-technology-platform/enable-and-disable-kyma-module).
 * For CLI interactions: [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.17 or higher.
 * For an enterprise account, you have added quotas to the services you purchased in your subaccount. Otherwise, only default free-of-charge services are listed in the service marketplace. Quotas are automatically assigned to the resources available in trial accounts.
   For more information, see [Configure Entitlements and Quotas for Subaccounts](https://help.sap.com/docs/btp/sap-business-technology-platform/configure-entitlements-and-quotas-for-subaccounts?&version=Cloud).
@@ -30,7 +30,7 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 #### **kubectl**
 
-1.  To create a ServiceInstance custom resource (CR), follow this example:
+1.  To create a ServiceInstance custom resource (CR), replace the placeholders and run the following command:
 
     ```yaml
         kubectl create -f - <<EOF 
@@ -48,7 +48,6 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
               key2: val2
         EOF
     ```
-      In the **serviceOfferingName** and  **servicePlanName** fields, enter the name of the SAP BTP service you want to use and the service plan respectively.
     
 2.  To check the service's status in your cluster, run:
    
@@ -66,12 +65,10 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 ## Create a Service Binding
 
-### Context
+To create a service binding, use either Kyma dashboard or kubectl.
 
 With a ServiceBinding custom resource (CR), your application can get access credentials for communicating with an SAP BTP service.
 These access credentials are available to applications through a Secret resource generated in your cluster.
-
-To create a service binding, use either Kyma dashboard or kubectl.
 
 ### Procedure
 
@@ -82,8 +79,9 @@ Kyma dashboard is a web-based UI providing a graphical overview of your cluster 
 To access Kyma dashboard, use the link available in the **Kyma Environment** section of your subaccount **Overview**.
 
 1. In the navigation area, choose **Namespaces**, and go to the namespace you want to work in.
-2. Go to **Service Management** -> **Service Bindings**.
-3. Choose your service instance name from the dropdown list and create a service binding.<br>
+2. Go to **Service Management** -> **Service Bindings**, and choose **Create**. Alternatively, you can provide the required details by switching from the **Form** to **YAML** tab, and editing or uploading your file.
+
+3. Choose **Create**.<br>
    You see the status `PROVISIONED`.
 
 #### **kubectl**

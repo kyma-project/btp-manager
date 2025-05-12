@@ -9,8 +9,8 @@ To enable automatic service binding rotation, use the **credentialsRotationPolic
 | Parameter         | Type     | Description                                                                                                                               | Valid Values |
 |-----------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------|--------------|
 | **enabled**           | bool    | Turns automatic rotation on or off.                                                                                                    | `true` or `false`                    |
-| **rotationFrequency** | string  | Defines the desired interval between binding rotations.             | "m" (minute), "h" (hour)|
-| **rotatedBindingTTL** | string  | Determines how long to keep the old ServiceBinding resource after rotation and before deletion. The actual TTL may be slightly longer. | "m" (minute), "h" (hour) |   
+| **rotationFrequency** | string  | Defines the desired interval between binding rotations.             | "m" (minutes), "h" (hours)|
+| **rotatedBindingTTL** | string  | Determines how long to keep the old ServiceBinding resource after rotation and before deletion. The actual TTL may be slightly longer. | "m" (minutes), "h" (hours) |   
 
 > [!NOTE] 
 > The `credentialsRotationPolicy` does not manage the validity or expiration of the credentials themselves. This is determined by the service you are using.
@@ -19,7 +19,7 @@ The `credentialsRotationPolicy` is evaluated periodically during a [control loop
 
 ## Enable Immediate Rotation
 
-To trigger an immediate rotation regardless of the configured **rotationFrequency**, add the `services.cloud.sap.com/forceRotate: "true"` annotation to the ServiceBinding resource.
+To trigger an immediate rotation regardless of the configured rotation frequency, add the `services.cloud.sap.com/forceRotate: "true"` annotation to the ServiceBinding resource.
 The immediate rotation only works if automatic rotation is already enabled. 
 
 The following example shows the configuration of a ServiceBinding resource for rotating credentials every 25 days (600 hours) and keeping the old ServiceBinding resource for 2 days (48 hours) before deleting it:
@@ -43,11 +43,11 @@ Rotating the service binding has the following results:
 
 * The Secret is updated with the latest credentials. 
 * The old credentials are kept in a newly-created Secret named `original-secret-name(variable)-guid(variable)`.
-This temporary Secret is kept until the configured deletion time (TTL) expires.
+This temporary Secret is kept until the configured deletion time (TTL).
 
 To see the timestamp of the last service binding rotation, go to the **status.lastCredentialsRotationTime** field.
 
 ## Limitations 
 
-Automatic credential rotation cannot be enabled for a backup service binding (named: original-binding-name(variable)-guid(variable)) marked with the `services.cloud.sap.com/stale` label.
+You cannot enable automatic credential rotation for a backup service binding (named: original-binding-name(variable)-guid(variable)) marked with the `services.cloud.sap.com/stale` label.
 This backup service binding is created during the credentials rotation process to facilitate the process.

@@ -1,4 +1,4 @@
-# Formats of Service Binding Secrets
+# Format Service Binding Secrets
 
 Use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 
@@ -82,7 +82,7 @@ See the following examples:
       type: {SERVICE_OFFERING_NAME}
   ```
 
-## Credentials and Service Info as One JSON Object
+## Credentials and Service Information as One JSON Object
 
 To show both credentials returned from the service broker and additional **ServiceInstance** attributes as a JSON object, use the **secretRootKey** attribute in the service binding spec.
 
@@ -121,8 +121,8 @@ See the following examples:
 
 ## Custom Formats 
 
-For additional flexibility, you can model the Secret resources according to your needs. 
-To generate a custom-formatted Secret, use the **secretTemplate** attribute in the ServiceBinding `spec`.
+For additional flexibility, model the Secret resources according to your needs. 
+To generate a custom-formatted Secret, use the **secretTemplate** attribute in the service binding `spec`.
 This attribute expects a Go template as its value. For more information, see [Go Templates](https://pkg.go.dev/text/template).
 
 Ensure the template is in the YAML format and has the structure of a Kubernetes Secret. 
@@ -130,7 +130,7 @@ Ensure the template is in the YAML format and has the structure of a Kubernetes 
 In the provided Secret, you can customize the `metadata` and `data` sections with the following options:
 
 * `metadata`: labels and annotations
-* `data`: customize or utilize one of the available formatting options following the instructions in the [Context](#context) section
+* `data`: customize or utilize one of the available formatting options listed in the [Context](#context) section
 
 
 > [!NOTE]  
