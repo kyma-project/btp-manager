@@ -770,7 +770,7 @@ type resourceUpdate struct {
 
 func resourceUpdateHandler(obj any, t string) {
 	if cr, ok := obj.(*v1alpha1.BtpOperator); ok {
-		logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions)
+		logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions, "version", cr.ResourceVersion)
 		updateCh <- resourceUpdate{Cr: cr, Action: t}
 	}
 }

@@ -129,15 +129,15 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, error) {
 	caCertificateDecoded, err := TryDecodeCertificate(caCertificate)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("CA certificate: %w", err)
 	}
 	leafCertificateDecoded, err := TryDecodeCertificate(leafCertificate)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("leaf certificate: %w", err)
 	}
 	caCertificateTemplate, err := x509.ParseCertificate(caCertificateDecoded.Bytes)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("CA certificate: %w", err)
 	}
 	if !caCertificateTemplate.IsCA {
 		return false, fmt.Errorf("CA certificate is not CA")
@@ -155,7 +155,7 @@ func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool,
 
 	leafCertificateTemplate, err := x509.ParseCertificate(leafCertificateDecoded.Bytes)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("leaf certificate: %w", err)
 	}
 
 	if leafCertificateTemplate.IsCA {

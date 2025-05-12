@@ -500,7 +500,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
 
-	if err := r.prepareCertificatesReconciliationData(ctx, &resourcesToApply); err != nil {
+	if err = r.prepareCertificatesReconciliationData(ctx, &resourcesToApply); err != nil {
 		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
 	}
 
@@ -2036,7 +2036,6 @@ func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Con
 		webhookAsMap[ClientConfigKey] = clientConfigAsMap
 		webhooks[i] = webhookAsMap
 		logger.Info("CA bundle replaced with success")
-		logger.Info("Expected CA", "CA", string(expectedCa))
 	}
 	webhook.Object[WebhooksKey] = webhooks
 	return nil
@@ -2055,8 +2054,8 @@ func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx cont
 		return false, err
 	}
 
-	logger.Info("CA bundle is signed", "CA Certificate", string(caCertificate))
-	logger.Info("Webhook certificate is signed", "Webhook Certificate", string(webhookCertificate))
+	logger.Info("isSigned CA", "CA Certificate", string(caCertificate))
+	logger.Info("isSigned WH", "WH Certificate", string(webhookCertificate))
 
 	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCertificate, webhookCertificate)
 	if err != nil {
