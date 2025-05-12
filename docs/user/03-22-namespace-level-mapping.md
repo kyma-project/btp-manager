@@ -1,6 +1,6 @@
 # Namespace-Level Mapping
 
-You can map a Kubernetes namespace to an SAP Service Manager instance in a given subaccount. The Service Manager instance is then used to provision all service instances in this namespace.
+You can map a Kubernetes namespace to an SAP Service Manager instance in a given subaccount. The Service Manager instance is then used to provision all service instances in that namespace.
 
 ## Prerequisites
 
@@ -17,13 +17,13 @@ To connect a namespace to a specific subaccount, maintain the access credentials
 2. Create a service binding to the SAP Service Manager service instance you have created. See [Creating Service Bindings in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-bindings-in-other-environments?locale=en-US&version=Cloud).
 3. Get the access credentials of the SAP Service Manager instance from its service binding. Copy them from the SAP BTP cockpit as a JSON file.
 4. Create the `creds.json` file in your working directory and save the credentials there.
-5. In the same working directory, generate the Secret by calling the `create-secret-file.sh` script with the **operator** option as the first parameter and **namespace-name-sap-btp-service-operator** Secret as the second parameter.
+5. In the same working directory, call the `create-secret-file.sh` script with the **operator** option as the first parameter and **namespace-name-sap-btp-service-operator** Secret as the second parameter.
 
     ```sh
     curl https://raw.githubusercontent.com/kyma-project/btp-manager/main/hack/create-secret-file.sh | bash -s operator {NAMESPACE_NAME}-sap-btp-service-operator
     ```
 
-    The expected result is the file `btp-access-credentials-secret.yaml` created in your working directory:
+    The expected result is the `btp-access-credentials-secret.yaml` file created in your working directory:
 
     ```yaml
     apiVersion: v1
@@ -45,14 +45,14 @@ To connect a namespace to a specific subaccount, maintain the access credentials
     kubectl create -f ./btp-access-credentials-secret.yaml
     ```
 
-   You can see the status `Created`.
+   You see the status `Created`.
 
 
 ## Create a Service Instance with a Namespace-Based Secret
 
 1. To create a service instance with a namespace-based Secret, follow the instructions in [Create Service Instances and Service Bindings](03-30-create-instances-and-bindings.md).
 
-2. To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the custom resource (CR) `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
+2. To verify that you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the custom resource (CR) `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
 
 ## Related Information
 

@@ -4,12 +4,12 @@ You can customize the `sap-btp-manager` Secret and manage your own default confi
 
 ## Prerequisites
 
-You have the SAP BTP Operator module added. 
+You have the SAP BTP Operator module added. See [Adding and Deleting a Kyma Module](https://help.sap.com/docs/btp/sap-business-technology-platform/enable-and-disable-kyma-module).
 
 ## Context
 
 When you create SAP BTP, Kyma runtime, the `sap-btp-manager` Secret is automatically created as the default Secret managing the SAP BTP Operator's resources. 
-Because of Kyma's automatic reconciliation, any changes to the Secret are reverted, and the previous settings are restored within up to 24 hours.
+Because of Kyma's automatic reconciliation, any changes to the Secret are reverted, and the previous settings are restored within 24 hours.
 See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md#credentials).
 
 To customize the `sap-btp-manager` Secret and prevent your changes from being reverted, you must stop the Secret's reconciliation.
@@ -60,4 +60,4 @@ Your customized `sap-btp-manager` Secret is now the default Secret of the SAP BT
 The reconciliation of the Secret stops and your changes are not reverted.
 
 > [!WARNING]
-> If you delete the customized `sap-btp-manager` Secret, the reconciliation starts again, and the preconfigured default `sap-btp-manager` Secret is recreated for your Kyma instance within 24 hours. See [Preconfigured Credentials and Access](./03-10-preconfigured-secret.md#credentials).
+> If you delete the customized `sap-btp-manager` Secret or remove the `kyma-project.io/skip-reconciliation: 'true'` label from it, the reconciliation starts again, and the preconfigured default `sap-btp-manager` Secret is recreated for your Kyma instance within 24 hours. See [Preconfigured Credentials and Access](./03-10-preconfigured-secret.md#credentials).
