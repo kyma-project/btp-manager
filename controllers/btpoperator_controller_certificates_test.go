@@ -122,7 +122,6 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 				caSecret := getSecret(CaSecretName)
 				originalResourceVersion := caSecret.ObjectMeta.ResourceVersion
-				GinkgoWriter.Println("OriginalResourceVersion:", originalResourceVersion)
 				caCertificateOriginal, ok := caSecret.Data[certificateDataKeyName]
 				Expect(ok).To(BeTrue())
 
@@ -134,7 +133,6 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				// we expect that secret is reconciled here so cert and key are updated
 				updatedCaSecret := getSecret(CaSecretName)
 				updatedResourceVersion := updatedCaSecret.ObjectMeta.ResourceVersion
-				GinkgoWriter.Println("UpdatedResourceVersion:", updatedResourceVersion)
 				Expect(updatedResourceVersion).To(Not(Equal(originalResourceVersion)))
 
 				caCertificateAfterUpdate, ok := updatedCaSecret.Data[certificateDataKeyName]
@@ -142,6 +140,10 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[privateKeyDataKeyName]
 				Expect(ok).To(BeTrue())
+
+				GinkgoWriter.Println("CA certificate after update: ", string(caCertificateAfterUpdate))
+				GinkgoWriter.Println("CA certificate new: ", string(newCaCertificate))
+				GinkgoWriter.Println("CA certificate original: ", string(caCertificateOriginal))
 
 				Expect(bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeFalse()) //CAVEAT we fail here occasionally
 				Expect(bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeFalse())
