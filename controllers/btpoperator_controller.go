@@ -1672,7 +1672,7 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 		return nil
 	}
 
-	if err := r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, nil); err != nil {
+	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, nil); err != nil {
 		return err
 	}
 
@@ -1854,12 +1854,14 @@ func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Conte
 		return fmt.Errorf("error while generating self signed cert in full regeneration proccess. %w", err)
 	}
 
+	logger.Info("CA created", "CA", string(caCertificate))
+
 	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, caCertificate, caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
 	}
 
-	if err := r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, caCertificate); err != nil {
+	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, caCertificate); err != nil {
 		return fmt.Errorf("error while reconciling webhooks. %w", err)
 	}
 
@@ -1909,6 +1911,8 @@ func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.
 	if err != nil {
 		return fmt.Errorf("while generating signed webhook certificate: %w", err)
 	}
+	logger.Info("webhook signed cert created", "webhook cert", string(webhookCertificate))
+
 	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
 	err = r.appendCertificationDataToUnstructured(WebhookSecret, webhookCertificate, webhookPrivateKey, WebhookSecretDataPrefix, resourcesToApply)
 	if err != nil {
@@ -1964,6 +1968,7 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []by
 	}
 }
 
+// TODO refactor to avoid controlling behavior by sending nil as expected CA
 func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
 	logger := log.FromContext(ctx)
 	logger.Info("starting reconciliation of webhooks")
@@ -1982,6 +1987,7 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 	for _, resource := range *resourcesToApply {
 		kind := resource.GetKind()
 		if kind == MutatingWebhookConfiguration || kind == ValidatingWebhookConfiguration {
+			// changes resource structure so in effect resourcesToApply
 			err := r.prepareWebhookReconciliationData(ctx, resource, expectedCa)
 			if err != nil {
 				return err
@@ -1993,6 +1999,7 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 	return nil
 }
 
+// TODO consider refactoring this function to avoid implicit changes - i.e return webhooks or error as result
 func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Context, webhook *unstructured.Unstructured, expectedCa []byte) error {
 	const (
 		WebhooksKey     = "webhooks"
@@ -2029,12 +2036,14 @@ func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Con
 		webhookAsMap[ClientConfigKey] = clientConfigAsMap
 		webhooks[i] = webhookAsMap
 		logger.Info("CA bundle replaced with success")
+		logger.Info("Expected CA", "CA", string(expectedCa))
 	}
 	webhook.Object[WebhooksKey] = webhooks
 	return nil
 }
 
 func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
+	logger := log.FromContext(ctx)
 
 	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecretName)
 	if err != nil {
@@ -2045,6 +2054,9 @@ func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx cont
 	if err != nil {
 		return false, err
 	}
+
+	logger.Info("CA bundle is signed", "CA Certificate", string(caCertificate))
+	logger.Info("Webhook certificate is signed", "Webhook Certificate", string(webhookCertificate))
 
 	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCertificate, webhookCertificate)
 	if err != nil {

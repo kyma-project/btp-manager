@@ -149,7 +149,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				GinkgoWriter.Println("CA certificate new: ", string(newCaCertificate))
 				GinkgoWriter.Println("CA certificate original: ", string(caCertificateOriginal))
 
-				Expect(bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeFalse())
+				Expect(bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeFalse()) // CAVEAT this fails occasionally
 				Expect(bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeFalse())
 				Expect(bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeFalse())
 				Expect(bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeFalse())
@@ -196,7 +196,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 			})
 		})
 
-		When("webhook certificate is signed by different CA certificate", func() {
+		When("webhook certificate is signed by different CA certificate", func() { //CAVEAT this fails occasionally
 			It("CA certificate and webhook certificate are fully regenerated", func() {
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
