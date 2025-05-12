@@ -1687,7 +1687,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, re
 	}
 	if !caSecretExists {
 		logger.Info("CA secret with cert doesn't exists")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err = r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -1700,7 +1700,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, re
 	}
 	if !webhookSecretExists {
 		logger.Info("webhook secret with cert does not exists")
-		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err = r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
