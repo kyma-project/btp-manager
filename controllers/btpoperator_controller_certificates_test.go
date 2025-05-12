@@ -128,7 +128,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 				caCertificateAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
-				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue()) //TODO we fail here sometimes
+				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue()) //CAVEAT we fail here occasionally
 
 				caCertificateOriginal, ok := caSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 				Expect(ok).To(BeTrue())
