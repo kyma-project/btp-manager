@@ -74,6 +74,11 @@ test: manifests kustomize generate fmt vet envtest ginkgo test-docs ## Run tests
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
 	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
 
+.PHONY: ginkgo-test
+ginkgo-test: manifests kustomize generate fmt vet envtest ginkgo ## Run tests.
+	@. ./scripts/testing/set-env-vars.sh; \
+	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
+
 .PHONY: test-docs
 test-docs:
 	go run cmd/autodoc/main.go
@@ -171,7 +176,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download & Build ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.20.0
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.23.4
 
 ##@ Checks
 

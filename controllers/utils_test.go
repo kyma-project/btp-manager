@@ -668,7 +668,7 @@ func replaceCaBundleInMutatingWebhooks(newCaBundle []byte) bool {
 		Expect(len(webhook.Webhooks) > 0).To(BeTrue())
 		if len(webhook.Webhooks) > 0 {
 			webhook.Webhooks[0].ClientConfig.CABundle = newCaBundle
-			err := k8sClient.Update(ctx, &webhook)
+			err = k8sClient.Update(ctx, &webhook)
 			Expect(err).To(BeNil())
 			return true
 		}
@@ -730,7 +730,7 @@ func checkHowManySecondsToExpiration(name string) float64 {
 }
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
-	secret := getSecret(CaSecret)
+	secret := getSecret(CaSecretName)
 	ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 	Expect(ok).To(BeTrue())
 	Expect(ca).To(Not(BeNil()))

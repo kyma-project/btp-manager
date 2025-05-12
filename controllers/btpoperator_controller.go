@@ -136,7 +136,7 @@ var (
 )
 
 var (
-	CaSecret                       = "ca-server-cert"
+	CaSecretName                   = "ca-server-cert"
 	WebhookSecret                  = "webhook-server-cert"
 	CaCertificateExpiration        = time.Hour * 87600 // 10 years
 	WebhookCertificateExpiration   = time.Hour * 8760  // 1 year
@@ -1681,7 +1681,7 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 
 func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
-	caSecretExists, err := r.checkIfSecretExists(ctx, CaSecret)
+	caSecretExists, err := r.checkIfSecretExists(ctx, CaSecretName)
 	if err != nil {
 		return false, err
 	}
@@ -1710,7 +1710,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, re
 }
 
 func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	caSecretData, err := r.getDataFromSecret(ctx, CaSecret)
+	caSecretData, err := r.getDataFromSecret(ctx, CaSecretName)
 	_, err = r.getValueByKey(r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix), caSecretData)
 	caSecretDataIncorrect := err != nil
 
@@ -1745,7 +1745,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 	logger := log.FromContext(ctx)
 	logger.Info("checking structure of certificates")
 
-	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
+	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecretName)
 	if err != nil {
 		return false, err
 	}
@@ -1779,7 +1779,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 
 func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
-	doCaCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, CaSecret)
+	doCaCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, CaSecretName)
 	if err != nil {
 		logger.Error(err, "CA cert is invalid")
 		return false, err
@@ -1892,7 +1892,7 @@ func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx cont
 	}
 
 	logger.Info("adding secret with newly generated self signed cert to list of resources to apply")
-	err = r.appendCertificationDataToUnstructured(CaSecret, caCertificate, caPrivateKey, CaSecretDataPrefix, resourcesToApply)
+	err = r.appendCertificationDataToUnstructured(CaSecretName, caCertificate, caPrivateKey, CaSecretDataPrefix, resourcesToApply)
 	if err != nil {
 		return nil, nil, fmt.Errorf("while adding newly generated self signed cert to list of resources to apply: %w", err)
 	}
@@ -1920,7 +1920,7 @@ func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.
 
 func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expiration time.Time, caCertificate, caPrivateKey []byte) ([]byte, []byte, error) {
 	if caCertificate == nil || caPrivateKey == nil {
-		data, err := r.getDataFromSecret(ctx, CaSecret)
+		data, err := r.getDataFromSecret(ctx, CaSecretName)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1969,7 +1969,7 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 	logger.Info("starting reconciliation of webhooks")
 	if expectedCa == nil {
 		secret := &corev1.Secret{}
-		if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecret}, secret); err != nil {
+		if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecretName}, secret); err != nil {
 			return err
 		}
 		ca, ok := secret.Data[r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
@@ -2035,17 +2035,13 @@ func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Con
 }
 
 func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
-	//logger := log.FromContext(ctx)
-	//logger.Info("CA bundle replaced with success")
 
-	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecret)
-	//logger.Info("CASecret", CaSecret)
+	caCertificate, err := r.getCertificateFromSecret(ctx, CaSecretName)
 	if err != nil {
 		return false, err
 	}
 
 	webhookCertificate, err := r.getCertificateFromSecret(ctx, WebhookSecret)
-	//logger.Info("WebhookSecret", CaSecret)
 	if err != nil {
 		return false, err
 	}
@@ -2104,7 +2100,7 @@ func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, se
 
 func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) (string, error) {
 	switch secretName {
-	case CaSecret:
+	case CaSecretName:
 		return CaSecretDataPrefix, nil
 	case WebhookSecret:
 		return WebhookSecretDataPrefix, nil
@@ -2165,7 +2161,7 @@ func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
 }
 
 func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
-	return s.Namespace == ChartNamespace && (s.Name == CaSecret || s.Name == WebhookSecret)
+	return s.Namespace == ChartNamespace && (s.Name == CaSecretName || s.Name == WebhookSecret)
 }
 
 func (r *BtpOperatorReconciler) setCredentialsNamespacesAndClusterId(s *corev1.Secret) {
