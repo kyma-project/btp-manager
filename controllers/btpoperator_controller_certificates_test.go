@@ -117,30 +117,36 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				newCaPrivateKeyStructured, err := structToByteArray(newCaPrivateKey)
 				Expect(err).To(BeNil())
 
+				certificateDataKeyName := reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)
+				privateKeyDataKeyName := reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix)
+
 				caSecret := getSecret(CaSecretName)
-				replaceSecretData(caSecret,
-					reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix),
-					newCaCertificate,
-					reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix),
-					newCaPrivateKeyStructured)
+				originalResourceVersion := caSecret.ObjectMeta.ResourceVersion
+				GinkgoWriter.Println("OriginalResourceVersion:", originalResourceVersion)
+				caCertificateOriginal, ok := caSecret.Data[certificateDataKeyName]
+				Expect(ok).To(BeTrue())
+
+				caPrivateKeyOriginal, ok := caSecret.Data[privateKeyDataKeyName]
+				Expect(ok).To(BeTrue())
+
+				replaceSecretData(caSecret, certificateDataKeyName, newCaCertificate, privateKeyDataKeyName, newCaPrivateKeyStructured)
 				ensureReconciliationQueueIsEmpty()
+				// we expect that secret is reconciled here so cert and key are updated
 				updatedCaSecret := getSecret(CaSecretName)
+				updatedResourceVersion := updatedCaSecret.ObjectMeta.ResourceVersion
+				GinkgoWriter.Println("UpdatedResourceVersion:", updatedResourceVersion)
+				Expect(updatedResourceVersion).To(Not(Equal(originalResourceVersion)))
 
-				caCertificateAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				caCertificateAfterUpdate, ok := updatedCaSecret.Data[certificateDataKeyName]
 				Expect(ok).To(BeTrue())
-				Expect(!bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeTrue()) //CAVEAT we fail here occasionally
 
-				caCertificateOriginal, ok := caSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[privateKeyDataKeyName]
 				Expect(ok).To(BeTrue())
-				Expect(!bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeTrue())
 
-				caPrivateKeyAfterUpdate, ok := updatedCaSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix)]
-				Expect(ok).To(BeTrue())
-				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeTrue())
-
-				caPrivateKeyOriginal, ok := caSecret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, RsaKeyPostfix)]
-				Expect(ok).To(BeTrue())
-				Expect(!bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeTrue())
+				Expect(bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeFalse()) //CAVEAT we fail here occasionally
+				Expect(bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeFalse())
+				Expect(bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeFalse())
+				Expect(bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeFalse())
 
 				ensureCorrectState()
 			})
