@@ -688,10 +688,6 @@ func replaceSecretData(secret *corev1.Secret, key string, value []byte, key2 str
 	secret.Data = data
 	err := k8sClient.Update(ctx, secret)
 	Expect(err).To(BeNil())
-	Eventually(func() bool {
-		updated := getSecret(secret.Name)
-		return err == nil && bytes.Equal(secret.Data[key], updated.Data[key]) && bytes.Equal(secret.Data[key2], updated.Data[key2])
-	})
 }
 
 func getSecretFromNamespace(name, namespace string) *corev1.Secret {

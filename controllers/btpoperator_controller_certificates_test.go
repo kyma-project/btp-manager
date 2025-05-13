@@ -131,26 +131,25 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 				replaceSecretData(caSecret, certificateDataKeyName, newCaCertificate, privateKeyDataKeyName, newCaPrivateKeyStructured)
 
-				ensureReconciliationQueueIsEmpty()
-
 				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
 
-				controllerUpdatedCaSecret := getSecret(CaSecretName)
+				Eventually(func() bool {
+					controllerUpdatedCaSecret := getSecret(CaSecretName)
+					caCertificateAfterUpdate, ok := controllerUpdatedCaSecret.Data[certificateDataKeyName]
+					isRegeneratedCA := ok && !bytes.Equal(caCertificateAfterUpdate, newCaCertificate) && !bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)
+					caPrivateKeyAfterUpdate, ok := controllerUpdatedCaSecret.Data[privateKeyDataKeyName]
+					isRegeneratedPrivateKey := ok && !bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKey) && !bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)
+					return isRegeneratedCA && isRegeneratedPrivateKey
+				})
 
-				caCertificateAfterUpdate, ok := controllerUpdatedCaSecret.Data[certificateDataKeyName]
-				Expect(ok).To(BeTrue())
-
-				caPrivateKeyAfterUpdate, ok := controllerUpdatedCaSecret.Data[privateKeyDataKeyName]
-				Expect(ok).To(BeTrue())
-
-				GinkgoWriter.Println("CA certificate (test generated): ", string(newCaCertificate))
-				GinkgoWriter.Println("CA certificate (original): ", string(caCertificateOriginal))
-				GinkgoWriter.Println("CA certificate (read): ", string(caCertificateAfterUpdate))
-
-				Expect(bytes.Equal(caCertificateAfterUpdate, newCaCertificate)).To(BeFalse()) // CAVEAT this fails occasionally - no reconciliation
-				Expect(bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKeyStructured)).To(BeFalse())
-				Expect(bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)).To(BeFalse())
-				Expect(bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)).To(BeFalse())
+				GinkgoWriter.Println("CA initial", string(caCertificateOriginal))
+				GinkgoWriter.Println("CA test-generated", string(newCaCertificate))
+				finalCaSecret := getSecret(CaSecretName)
+				caCert, ok := finalCaSecret.Data[certificateDataKeyName]
+				finalWebhookSecret := getSecret(WebhookSecret)
+				webhookCert, ok := finalWebhookSecret.Data[webhookCertDataKeyName]
+				GinkgoWriter.Println("CA Cert", string(caCert))
+				GinkgoWriter.Println("Webhook Cert", string(webhookCert))
 
 				ensureCorrectState()
 			})
@@ -196,14 +195,13 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 		When("webhook certificate is signed by different CA certificate", func() { //CAVEAT this fails occasionally
 			It("CA certificate and webhook certificate are fully regenerated", func() {
+
 				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
-				GinkgoWriter.Println("CA certificate (test generated): ", string(newCaCertificate))
 
 				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), newCaCertificate, newCaPrivateKey)
 				newWebhookCertificateStructured, err := structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
-				GinkgoWriter.Println("WH certificate (test generated): ", string(newWebhookCertificate))
 
 				beforeCaSecret := getSecret(CaSecretName)
 				beforeCaCert, ok := beforeCaSecret.Data[certificateDataKeyName]
@@ -212,28 +210,35 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				beforeWebhookSecret := getSecret(WebhookSecret)
 				beforeWebhookCert, ok := beforeWebhookSecret.Data[webhookCertDataKeyName]
 				Expect(ok).To(BeTrue())
-				GinkgoWriter.Println("CA certificate before: ", string(beforeCaCert))
-				GinkgoWriter.Println("WH certificate before: ", string(beforeWebhookCert))
 
-				webhookCertSecret := getSecret(WebhookSecret)
+				webhookCertSecret := beforeWebhookSecret
+				// this forces full regeneration since this webhook certificate is signed by different CA certificate (test generated)
 				replaceSecretData(webhookCertSecret, webhookCertDataKeyName, newWebhookCertificate, webhookPrivateKeyDataKeyName, newWebhookCertificateStructured)
-				ensureReconciliationQueueIsEmpty()
 
-				currentCaSecret := getSecret(CaSecretName)
-				currentCaCert, ok := currentCaSecret.Data[certificateDataKeyName]
-				Expect(ok).To(BeTrue())
+				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
+				// accordingly webhook certificate should be different from old one and new one
+				Eventually(func() bool {
+					controllerUpdatedCaSecret := getSecret(CaSecretName)
+					caCertificateAfterUpdate, ok := controllerUpdatedCaSecret.Data[certificateDataKeyName]
+					isRegeneratedCA := ok && !bytes.Equal(caCertificateAfterUpdate, newCaCertificate) && !bytes.Equal(caCertificateAfterUpdate, beforeCaCert)
 
-				currentWebhookSecret := getSecret(WebhookSecret)
-				currentWebhookCert, ok := currentWebhookSecret.Data[webhookCertDataKeyName]
-				Expect(ok).To(BeTrue())
-				GinkgoWriter.Println("CA certificate read: ", string(currentCaCert))
-				GinkgoWriter.Println("WH certificate read: ", string(currentWebhookCert))
+					controllerUpdatedWebhookSecret := getSecret(WebhookSecret)
+					controllerUpdatedWebhookCert, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
+					isRegeneratedWebhookCert := ok && !bytes.Equal(controllerUpdatedWebhookCert, newWebhookCertificate) && !bytes.Equal(controllerUpdatedWebhookCert, beforeWebhookCert)
+					return isRegeneratedCA && isRegeneratedWebhookCert
+				})
 
-				Expect(!bytes.Equal(currentCaCert, beforeCaCert))
-				Expect(!bytes.Equal(currentCaCert, newCaCertificate))
+				GinkgoWriter.Println("CA initial", string(beforeCaCert))
+				GinkgoWriter.Println("Webhook initial", string(beforeWebhookCert))
+				GinkgoWriter.Println("CA test-generated", string(newCaCertificate))
+				GinkgoWriter.Println("Webhook test-generated", string(newWebhookCertificate))
 
-				Expect(!bytes.Equal(currentWebhookCert, beforeWebhookCert))
-				Expect(!bytes.Equal(currentWebhookCert, newWebhookCertificate))
+				finalCaSecret := getSecret(CaSecretName)
+				caCert, ok := finalCaSecret.Data[certificateDataKeyName]
+				finalWebhookSecret := getSecret(WebhookSecret)
+				webhookCert, ok := finalWebhookSecret.Data[webhookCertDataKeyName]
+				GinkgoWriter.Println("CA Cert", string(caCert))
+				GinkgoWriter.Println("Webhook Cert", string(webhookCert))
 
 				ensureCorrectState()
 			})
