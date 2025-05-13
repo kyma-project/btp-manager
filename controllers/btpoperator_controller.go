@@ -1854,8 +1854,6 @@ func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Conte
 		return fmt.Errorf("error while generating self signed cert in full regeneration proccess. %w", err)
 	}
 
-	logger.Info("CA created", "CA", string(caCertificate))
-
 	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, caCertificate, caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
@@ -1911,7 +1909,6 @@ func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.
 	if err != nil {
 		return fmt.Errorf("while generating signed webhook certificate: %w", err)
 	}
-	logger.Info("webhook signed cert created", "webhook cert", string(webhookCertificate))
 
 	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
 	err = r.appendCertificationDataToUnstructured(WebhookSecret, webhookCertificate, webhookPrivateKey, WebhookSecretDataPrefix, resourcesToApply)
