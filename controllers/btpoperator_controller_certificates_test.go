@@ -129,18 +129,25 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				caPrivateKeyOriginal, ok := caSecret.Data[privateKeyDataKeyName]
 				Expect(ok).To(BeTrue())
 
+				beforeWebhookSecret := getSecret(WebhookSecret)
+				beforeWebhookCert, ok := beforeWebhookSecret.Data[webhookCertDataKeyName]
+				Expect(ok).To(BeTrue())
+
 				replaceSecretData(caSecret, certificateDataKeyName, newCaCertificate, privateKeyDataKeyName, newCaPrivateKeyStructured)
 
 				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
-
 				Eventually(func() bool {
 					controllerUpdatedCaSecret := getSecret(CaSecretName)
 					caCertificateAfterUpdate, ok := controllerUpdatedCaSecret.Data[certificateDataKeyName]
 					isRegeneratedCA := ok && !bytes.Equal(caCertificateAfterUpdate, newCaCertificate) && !bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)
 					caPrivateKeyAfterUpdate, ok := controllerUpdatedCaSecret.Data[privateKeyDataKeyName]
 					isRegeneratedPrivateKey := ok && !bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKey) && !bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)
-					return isRegeneratedCA && isRegeneratedPrivateKey
-				})
+					controllerUpdatedWebhookSecret := getSecret(WebhookSecret)
+					webhookCertAfterUpdate, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
+					isRegeneratedWebhookCert := ok && !bytes.Equal(webhookCertAfterUpdate, beforeWebhookCert)
+
+					return isRegeneratedCA && isRegeneratedPrivateKey && isRegeneratedWebhookCert
+				}).Should(Equal(true))
 
 				GinkgoWriter.Println("CA initial", string(caCertificateOriginal))
 				GinkgoWriter.Println("CA test-generated", string(newCaCertificate))
@@ -148,8 +155,8 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				caCert, ok := finalCaSecret.Data[certificateDataKeyName]
 				finalWebhookSecret := getSecret(WebhookSecret)
 				webhookCert, ok := finalWebhookSecret.Data[webhookCertDataKeyName]
-				GinkgoWriter.Println("CA Cert", string(caCert))
-				GinkgoWriter.Println("Webhook Cert", string(webhookCert))
+				GinkgoWriter.Println("Final CA Cert", string(caCert))
+				GinkgoWriter.Println("Final Webhook Cert", string(webhookCert))
 
 				ensureCorrectState()
 			})
@@ -223,10 +230,11 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 					isRegeneratedCA := ok && !bytes.Equal(caCertificateAfterUpdate, newCaCertificate) && !bytes.Equal(caCertificateAfterUpdate, beforeCaCert)
 
 					controllerUpdatedWebhookSecret := getSecret(WebhookSecret)
-					controllerUpdatedWebhookCert, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
-					isRegeneratedWebhookCert := ok && !bytes.Equal(controllerUpdatedWebhookCert, newWebhookCertificate) && !bytes.Equal(controllerUpdatedWebhookCert, beforeWebhookCert)
+					webhookCertAfterUpdate, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
+					isRegeneratedWebhookCert := ok && !bytes.Equal(webhookCertAfterUpdate, newWebhookCertificate) && !bytes.Equal(webhookCertAfterUpdate, beforeWebhookCert)
+
 					return isRegeneratedCA && isRegeneratedWebhookCert
-				})
+				}).Should(Equal(true))
 
 				GinkgoWriter.Println("CA initial", string(beforeCaCert))
 				GinkgoWriter.Println("Webhook initial", string(beforeWebhookCert))
@@ -237,8 +245,8 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				caCert, ok := finalCaSecret.Data[certificateDataKeyName]
 				finalWebhookSecret := getSecret(WebhookSecret)
 				webhookCert, ok := finalWebhookSecret.Data[webhookCertDataKeyName]
-				GinkgoWriter.Println("CA Cert", string(caCert))
-				GinkgoWriter.Println("Webhook Cert", string(webhookCert))
+				GinkgoWriter.Println("Final CA Cert", string(caCert))
+				GinkgoWriter.Println("Final Webhook Cert", string(webhookCert))
 
 				ensureCorrectState()
 			})

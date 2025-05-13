@@ -1877,7 +1877,7 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in partial regeneration proccess. %w", err)
 	}
-	if err := r.prepareWebhooksConfigurationsReconciliationData(ctx, resourceToApply, nil); err != nil {
+	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourceToApply, nil); err != nil {
 		return err
 	}
 	logger.Info("partial regeneration succeeded")
@@ -2243,16 +2243,16 @@ func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdSecret(ctx co
 		}
 		if r.clusterIdFromSapBtpServiceOperatorConfigMap != r.clusterIdFromSapBtpServiceOperatorClusterIdSecret {
 			logger.Info(fmt.Sprintf("cluster IDs between %s configmap and %s secret don't match", sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorClusterIdSecretName))
-			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorClusterIdSecret); err != nil {
+			if err = r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorClusterIdSecret); err != nil {
 				logger.Error(err, fmt.Sprintf("while annotating %s secret", requiredSecret.Name))
 				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
 			logger.Info(fmt.Sprintf("deleting %s secret from %s namespace due to invalid cluster ID", clusterIdSecret.Name, clusterIdSecret.Namespace))
-			if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
+			if err = r.deleteObject(ctx, clusterIdSecret); err != nil {
 				logger.Error(err, fmt.Sprintf("while deleting %s secret", clusterIdSecret.Name))
 				return NewErrorWithReason(conditions.DeletionOfOrphanedResourcesFailed, err.Error())
 			}
-			if err := r.restartSapBtpServiceOperatorPodIfNotReady(ctx, logger); err != nil {
+			if err = r.restartSapBtpServiceOperatorPodIfNotReady(ctx, logger); err != nil {
 				return NewErrorWithReason(conditions.ResourceRemovalFailed, fmt.Sprintf("while restarting SAP BTP service operator pod: %s", err))
 			}
 		}
@@ -2328,19 +2328,19 @@ func (r *BtpOperatorReconciler) deleteResourcesIfBtpManagerSecretChanged(ctx con
 
 	if isCredentialsNamespaceChanged || isClusterIdChanged {
 		if clusterIdSecret != nil {
-			if err := r.deleteObject(ctx, clusterIdSecret); err != nil {
+			if err = r.deleteObject(ctx, clusterIdSecret); err != nil {
 				return err
 			}
 		}
 		if pod != nil {
-			if err := r.deleteObject(ctx, pod); err != nil {
+			if err = r.deleteObject(ctx, pod); err != nil {
 				return err
 			}
 		}
 	}
 
 	if isCredentialsNamespaceChanged && credentialsSecret != nil {
-		if err := r.deleteObject(ctx, credentialsSecret); err != nil {
+		if err = r.deleteObject(ctx, credentialsSecret); err != nil {
 			return err
 		}
 	}
