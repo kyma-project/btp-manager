@@ -12,7 +12,7 @@ The SAP BTP service operator enables provisioning and managing service instances
 
 The SAP BTP Operator module provides the following features:
 
-* Credentials and access preconfiguration: Your Secret is provided on Kyma runtime creation. See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md).
+* Credentials and access preconfiguration: Your Secret is available on Kyma runtime creation. See [Preconfigured Credentials and Access](03-10-preconfigured-secret.md).
 * Customization of the default credentials and access: You can customize the default `sap-btp-manager` Secret. See [Customize the Default Credentials and Access](03-11-customize_secret.md).
 * Multitenancy: You can configure multiple subaccounts in a single cluster. See [Working with Multiple Subaccounts](03-20-multitenancy.md).
 * Lifecycle management of service instances and service bindings: You can create and delete service instances and service bindings. See [Create Service Instances and Service Bindings](03-30-create-instances-and-bindings.md) and [Delete Service Bindings and Service Instances](03-70-delete-bindings-and-instances.md).
@@ -65,7 +65,7 @@ SAP Service Manager uses [Open Service Broker API](https://www.openservicebroker
 
 Service brokers manage the lifecycle of services. SAP Service Manager interacts with service brokers using OSB API to provision and manage service instances and service bindings.
 
-## API / Custom Resource Definitions
+## API/Custom Resource Definitions
 
 The `btpoperators.operator.kyma-project.io` Custom Resource Definition (CRD) describes the kind and the data format that SAP BTP Operator uses to configure resources.
 
@@ -78,4 +78,4 @@ See the documentation related to the BtpOperator custom resource (CR):
 
 ## Resource Consumption
 
-To learn more about the resources the SAP BTP Operator module uses, see [Kyma Modules' Sizing](https://help.sap.com/docs/btp/sap-business-technology-platform-internal/kyma-modules-sizing?locale=en-US&state=DRAFT&version=Internal#sap-btp-operator).
+To learn more about the resources used by the SAP BTP Operator module, see [Kyma Modules' Sizing](https://help.sap.com/docs/btp/sap-business-technology-platform-internal/kyma-modules-sizing?locale=en-US&state=DRAFT&version=Internal#sap-btp-operator).

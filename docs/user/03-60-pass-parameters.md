@@ -4,17 +4,17 @@ You can set input parameters for your resources.
 
 ## Procedure
 
-To set input parameters, go to the `spec` of the ServiceInstance or ServiceBinding resource, and use both or one of the following fields:
+To set input parameters, go to the `spec` of the ServiceInstance or ServiceBinding resource, and use one or all of the following fields:
 
 * **parameters**: Specifies a set of properties sent to the service broker.
-  The specified data is passed to the service broker without any modifications - aside from converting it to the JSON format for transmission to the broker if the `spec` field is specified as a YAML file.
+  The specified data is passed to the service broker without any modifications - aside from converting it to JSON for transmission to the broker if the `spec` field is specified as YAML.
   All valid YAML or JSON constructs are supported.
 * **parametersFrom**: Specifies which Secret, together with the key in it, to include in the set of parameters sent to the service broker.
   The key contains a `string` that represents a JSON file. The **parametersFrom** field is a list that supports multiple sources referenced per `spec`.
   The ServiceInstance resource can specify multiple related Secrets.
 * **watchParametersFromChanges**: Use this field together with **parametersFrom**.
-  Set it to `true` to trigger an automatic update of the ServiceInstance resource with the changes to the Secret values listed in **parametersFrom**.
-  By default, the field is set to `false`.
+  This field is only relevant for ServiceInstance resources because you cannot update ServiceBinding resources. Set it to `true` to trigger an automatic update of the ServiceInstance resource with the changes to the Secret values listed in **parametersFrom**.
+  By default, it is set to `false`.
 
 If you specify multiple sources in the **parameters** and **parametersFrom** fields, the final payload merges all of them at the top level.
 To avoid errors, do not use the same top-level parameter name in multiple sources in the **parameters** and **parametersFrom** fields.
