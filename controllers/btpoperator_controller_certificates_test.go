@@ -135,6 +135,11 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 				replaceSecretData(caSecret, certificateDataKeyName, newCaCertificate, privateKeyDataKeyName, newCaPrivateKeyStructured)
 
+				GinkgoWriter.Println("Secret overwritten: ", time.Now().Format(time.RFC3339Nano))
+				GinkgoWriter.Println("CA initial", string(caCertificateOriginal))
+				GinkgoWriter.Println("CA test-generated", string(newCaCertificate))
+				GinkgoWriter.Println("WH initial", string(beforeWebhookCert))
+
 				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
 				Eventually(func() bool {
 					controllerUpdatedCaSecret := getSecret(CaSecretName)
@@ -146,11 +151,12 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 					webhookCertAfterUpdate, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
 					isRegeneratedWebhookCert := ok && !bytes.Equal(webhookCertAfterUpdate, beforeWebhookCert)
 
-					return isRegeneratedCA && isRegeneratedPrivateKey && isRegeneratedWebhookCert
-				}).Should(Equal(true))
+					GinkgoWriter.Println("isregenerated: ", isRegeneratedCA, isRegeneratedWebhookCert)
+					GinkgoWriter.Println("isregenerated: ", string(caCertificateAfterUpdate), string(webhookCertAfterUpdate))
 
-				GinkgoWriter.Println("CA initial", string(caCertificateOriginal))
-				GinkgoWriter.Println("CA test-generated", string(newCaCertificate))
+					return isRegeneratedCA && isRegeneratedPrivateKey && isRegeneratedWebhookCert
+				}).WithTimeout(time.Second * 20).WithPolling(time.Second).Should(Equal(true))
+
 				finalCaSecret := getSecret(CaSecretName)
 				caCert, ok := finalCaSecret.Data[certificateDataKeyName]
 				finalWebhookSecret := getSecret(WebhookSecret)
@@ -221,9 +227,16 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				webhookCertSecret := beforeWebhookSecret
 				// this forces full regeneration since this webhook certificate is signed by different CA certificate (test generated)
 				replaceSecretData(webhookCertSecret, webhookCertDataKeyName, newWebhookCertificate, webhookPrivateKeyDataKeyName, newWebhookCertificateStructured)
+				GinkgoWriter.Println("Secret overwritten: ", time.Now().Format(time.RFC3339Nano))
 
 				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
 				// accordingly webhook certificate should be different from old one and new one
+
+				GinkgoWriter.Println("CA initial", string(beforeCaCert))
+				GinkgoWriter.Println("Webhook initial", string(beforeWebhookCert))
+				GinkgoWriter.Println("CA test-generated", string(newCaCertificate))
+				GinkgoWriter.Println("Webhook test-generated", string(newWebhookCertificate))
+
 				Eventually(func() bool {
 					controllerUpdatedCaSecret := getSecret(CaSecretName)
 					caCertificateAfterUpdate, ok := controllerUpdatedCaSecret.Data[certificateDataKeyName]
@@ -233,13 +246,11 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 					webhookCertAfterUpdate, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
 					isRegeneratedWebhookCert := ok && !bytes.Equal(webhookCertAfterUpdate, newWebhookCertificate) && !bytes.Equal(webhookCertAfterUpdate, beforeWebhookCert)
 
-					return isRegeneratedCA && isRegeneratedWebhookCert
-				}).Should(Equal(true))
+					GinkgoWriter.Println("isRegenerated: ", isRegeneratedCA, isRegeneratedWebhookCert)
+					GinkgoWriter.Println("isRegenerated: ", string(caCertificateAfterUpdate), string(webhookCertAfterUpdate))
 
-				GinkgoWriter.Println("CA initial", string(beforeCaCert))
-				GinkgoWriter.Println("Webhook initial", string(beforeWebhookCert))
-				GinkgoWriter.Println("CA test-generated", string(newCaCertificate))
-				GinkgoWriter.Println("Webhook test-generated", string(newWebhookCertificate))
+					return isRegeneratedCA && isRegeneratedWebhookCert
+				}).WithTimeout(time.Second * 20).WithPolling(time.Second).Should(Equal(true))
 
 				finalCaSecret := getSecret(CaSecretName)
 				caCert, ok := finalCaSecret.Data[certificateDataKeyName]
