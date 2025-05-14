@@ -206,9 +206,9 @@ var _ = SynchronizedBeforeSuite(func() {
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})
 	Expect(err).ToNot(HaveOccurred())
 	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(o any) { resourceUpdateHandler(o, resourceAdded) },
-		UpdateFunc: func(o, n any) { resourceUpdateHandler(n, resourceUpdated) },
-		DeleteFunc: func(o any) { resourceUpdateHandler(o, resourceDeleted) },
+		AddFunc:    func(o any) { resourceAddDeleteHandler(o, resourceAdded) },
+		UpdateFunc: func(o, n any) { resourceUpdateHandler(o, n, resourceUpdated) },
+		DeleteFunc: func(o any) { resourceAddDeleteHandler(o, resourceDeleted) },
 	})
 	Expect(err).ToNot(HaveOccurred())
 

@@ -786,7 +786,7 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 		return nil
 	}
 
-	if err := r.handleDeprovisioning(ctx, cr); err != nil {
+	if err = r.handleDeprovisioning(ctx, cr); err != nil {
 		logger.Error(err, "deprovisioning failed. Restoring resources")
 		r.reconcileResourcesWithoutChangingCrState(ctx, &logger)
 		return err
@@ -812,22 +812,8 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 
 	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
-	if err := r.Update(ctx, cr); err != nil {
+	if err = r.Update(ctx, cr); err != nil {
 		return err
-	}
-	existingBtpOperators := &v1alpha1.BtpOperatorList{}
-	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to fetch existing BtpOperators")
-		return fmt.Errorf("while getting existing BtpOperators: %w", err)
-	}
-	for _, item := range existingBtpOperators.Items {
-		if item.GetUID() == cr.GetUID() {
-			continue
-		}
-		remainingCr := item
-		if err := r.UpdateBtpOperatorStatus(ctx, &remainingCr, v1alpha1.StateProcessing, conditions.Processing, "After deprovisioning"); err != nil {
-			logger.Error(err, "unable to set \"Processing\" state")
-		}
 	}
 
 	return nil
