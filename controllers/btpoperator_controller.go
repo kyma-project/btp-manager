@@ -644,12 +644,12 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			if !k8serrors.IsNotFound(err) {
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
+			logger.Info(fmt.Sprintf("applying %s - %s [%s]", u.GetKind(), u.GetName(), u.GetLabels()))
 			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
-			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
+			logger.Info(fmt.Sprintf("updating %s - %s [%s]", u.GetKind(), u.GetName(), u.GetLabels()))
 			u.SetResourceVersion(preExistingResource.GetResourceVersion())
 			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
