@@ -164,7 +164,8 @@ func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool,
 
 	_, err = leafCertificateTemplate.Verify(verifyOpts)
 	if err != nil {
-		return false, fmt.Errorf("while verifying certificate: %w", err)
+		// err is expected to be nil if leaf certificate is signed by CA, otherwise it is not
+		return false, nil
 	}
 
 	return true, nil

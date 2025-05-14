@@ -644,12 +644,12 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			if !k8serrors.IsNotFound(err) {
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			logger.Info(fmt.Sprintf("applying %s - %s [%s]", u.GetKind(), u.GetName(), u.GetLabels()))
+			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
 			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
-			logger.Info(fmt.Sprintf("updating %s - %s [%s]", u.GetKind(), u.GetName(), u.GetLabels()))
+			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
 			u.SetResourceVersion(preExistingResource.GetResourceVersion())
 			if err := r.Update(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
@@ -1818,14 +1818,14 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectSigned(ctx context.C
 
 	if err != nil {
 		logger.Error(err, "while checking if webhook is signed by correct CA")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err = r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
 	if !signOk {
 		logger.Error(nil, "webhook cert is not signed by correct CA")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err = r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -2052,9 +2052,6 @@ func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx cont
 	if err != nil {
 		return false, err
 	}
-
-	logger.Info("isSigned CA", "CA Certificate", string(caCertificate))
-	logger.Info("isSigned WH", "WH Certificate", string(webhookCertificate))
 
 	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCertificate, webhookCertificate)
 	if err != nil {
