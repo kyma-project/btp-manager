@@ -217,8 +217,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	logger := log.FromContext(ctx)
 
-	logger.Info("Reconciling BtpOperator")
-
 	reconcileCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -294,7 +292,6 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			continue
 		}
 		if cr.Status.State == newState && cr.IsMsgForGivenReasonEqual(string(reason), message) {
-			logger.Info("BtpOperatorStatus eventually updated", "name", cr.Name, "namespace", cr.Namespace)
 			return nil
 		}
 		cr.Status.WithState(newState)

@@ -74,11 +74,6 @@ test: manifests kustomize generate fmt vet envtest ginkgo test-docs ## Run tests
 	go test -skip=TestAPIs ./... -timeout $(SUITE_TIMEOUT) -coverprofile cover.out -v; \
 	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
 
-.PHONY: ginkgo-test
-ginkgo-test: manifests kustomize generate fmt vet envtest ginkgo ## Run tests.
-	@. ./scripts/testing/set-env-vars.sh; \
-	if [ "$(USE_EXISTING_CLUSTER)" == "true" ]; then $(GINKGO) controllers; else $(GINKGO) $(GINKGO_PARALLEL_FLAG) controllers; fi
-
 .PHONY: test-docs
 test-docs:
 	go run cmd/autodoc/main.go
