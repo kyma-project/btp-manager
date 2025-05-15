@@ -61,7 +61,8 @@ func (r *ServiceInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	btpOperator, err := r.getOldestBtpOperator(ctx)
+	btpOperator, err := r.getPrimaryBtpOperator(ctx)
+	//k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -121,24 +122,13 @@ func (r *ServiceInstanceReconciler) deletionPredicate() predicate.Predicate {
 	}
 }
 
-func (r *ServiceInstanceReconciler) getOldestBtpOperator(ctx context.Context) (*v1alpha1.BtpOperator, error) {
+func (r *ServiceInstanceReconciler) getPrimaryBtpOperator(ctx context.Context) (*v1alpha1.BtpOperator, error) {
 	logger := log.FromContext(ctx)
-	existingBtpOperators := &v1alpha1.BtpOperatorList{}
-	if err := r.List(ctx, existingBtpOperators); err != nil {
-		logger.Error(err, "unable to get existing BtpOperator CRs")
+	btpOperator := &v1alpha1.BtpOperator{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: kymaSystemNamespaceName, Name: btpoperatorCRName}, btpOperator); err != nil {
+		logger.Error(err, "unable to get BtpOperator CR")
 		return nil, err
 	}
 
-	if len(existingBtpOperators.Items) == 0 {
-		return nil, nil
-	}
-
-	oldestCr := existingBtpOperators.Items[0]
-	for _, item := range existingBtpOperators.Items {
-		itemCreationTimestamp := &item.CreationTimestamp
-		if !(oldestCr.CreationTimestamp.Before(itemCreationTimestamp)) {
-			oldestCr = item
-		}
-	}
-	return &oldestCr, nil
+	return btpOperator, nil
 }

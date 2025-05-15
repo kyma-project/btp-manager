@@ -1323,7 +1323,7 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Watches(
@@ -1333,17 +1333,17 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(
 			&admissionregistrationv1.MutatingWebhookConfiguration{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
 		).
 		Watches(
 			&admissionregistrationv1.ValidatingWebhookConfiguration{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
 		Watches(
 			&appsv1.Deployment{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchDeploymentPredicates()),
 		).
 		Complete(r)
@@ -1375,11 +1375,11 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForProperBtpOperator(ctx context.Context, obj client.Object) []reconcile.Request {
-	return r.enqueueBtpOperator(ctx)
+func (r *BtpOperatorReconciler) reconcileRequestForPrimaryBtpOperator(ctx context.Context, obj client.Object) []reconcile.Request {
+	return r.enqueuePrimaryBtpOperatorRequest(ctx)
 }
 
-func (r *BtpOperatorReconciler) enqueueBtpOperator(ctx context.Context) []reconcile.Request {
+func (r *BtpOperatorReconciler) enqueuePrimaryBtpOperatorRequest(ctx context.Context) []reconcile.Request {
 	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: btpoperatorCRName, Namespace: kymaSystemNamespaceName}}}
 }
 
@@ -1576,7 +1576,7 @@ func (r *BtpOperatorReconciler) reconcileConfig(ctx context.Context, obj client.
 		}
 	}
 
-	return r.enqueueBtpOperator(ctx)
+	return r.enqueuePrimaryBtpOperatorRequest(ctx)
 }
 
 func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
