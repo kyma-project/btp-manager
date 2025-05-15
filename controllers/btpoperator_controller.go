@@ -262,17 +262,6 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *BtpOperatorReconciler) getOldestCR(existingBtpOperators *v1alpha1.BtpOperatorList) *v1alpha1.BtpOperator {
-	oldestCr := existingBtpOperators.Items[0]
-	for _, item := range existingBtpOperators.Items {
-		itemCreationTimestamp := &item.CreationTimestamp
-		if !(oldestCr.CreationTimestamp.Before(itemCreationTimestamp)) {
-			oldestCr = item
-		}
-	}
-	return &oldestCr
-}
-
 func (r *BtpOperatorReconciler) HandleWrongNamespaceOrName(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, conditions.WrongNamespaceOrName, "Your resource must be in the kyma-system namespace. The resource's name must be btpoperator.")
 }
