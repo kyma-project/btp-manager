@@ -217,7 +217,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	logger := log.FromContext(ctx)
 
-	logger.Info("Reconciling BtpOperator", "request", req)
+	logger.Info("Reconciling BtpOperator")
 
 	reconcileCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
@@ -294,6 +294,7 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			continue
 		}
 		if cr.Status.State == newState && cr.IsMsgForGivenReasonEqual(string(reason), message) {
+			logger.Info("BtpOperatorStatus eventually updated", "name", cr.Name, "namespace", cr.Namespace)
 			return nil
 		}
 		cr.Status.WithState(newState)
@@ -1325,7 +1326,7 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Watches(
@@ -1335,17 +1336,17 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(
 			&admissionregistrationv1.MutatingWebhookConfiguration{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
 			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
 		).
 		Watches(
 			&admissionregistrationv1.ValidatingWebhookConfiguration{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
 			builder.WithPredicates(r.watchValidatingWebhooksPredicates()),
 		).
 		Watches(
 			&appsv1.Deployment{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForOldestBtpOperator),
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForProperBtpOperator),
 			builder.WithPredicates(r.watchDeploymentPredicates()),
 		).
 		Complete(r)
@@ -1377,24 +1378,12 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileRequestForOldestBtpOperator(ctx context.Context, obj client.Object) []reconcile.Request {
-	return r.enqueueOldestBtpOperator()
+func (r *BtpOperatorReconciler) reconcileRequestForProperBtpOperator(ctx context.Context, obj client.Object) []reconcile.Request {
+	return r.enqueueBtpOperator(ctx)
 }
 
-func (r *BtpOperatorReconciler) enqueueOldestBtpOperator() []reconcile.Request {
-	btpOperators := &v1alpha1.BtpOperatorList{}
-	err := r.List(context.Background(), btpOperators)
-	if err != nil {
-		return []reconcile.Request{}
-	}
-	if len(btpOperators.Items) == 0 {
-		return nil
-	}
-	requests := make([]reconcile.Request, 0)
-	oldestCr := r.getOldestCR(btpOperators)
-	requests = append(requests, reconcile.Request{NamespacedName: k8sgenerictypes.NamespacedName{Name: oldestCr.GetName(), Namespace: oldestCr.GetNamespace()}})
-
-	return requests
+func (r *BtpOperatorReconciler) enqueueBtpOperator(ctx context.Context) []reconcile.Request {
+	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: btpoperatorCRName, Namespace: kymaSystemNamespaceName}}}
 }
 
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate[client.Object] {
@@ -1590,7 +1579,7 @@ func (r *BtpOperatorReconciler) reconcileConfig(ctx context.Context, obj client.
 		}
 	}
 
-	return r.enqueueOldestBtpOperator()
+	return r.enqueueBtpOperator(ctx)
 }
 
 func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
@@ -1660,7 +1649,12 @@ func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx contex
 		return nil
 	}
 
-	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, nil); err != nil {
+	certFromSecret, err := r.getCaCertFromSecret(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, certFromSecret); err != nil {
 		return err
 	}
 
@@ -1863,7 +1857,13 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in partial regeneration proccess. %w", err)
 	}
-	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourceToApply, nil); err != nil {
+
+	caCertFromSecret, err := r.getCaCertFromSecret(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourceToApply, caCertFromSecret); err != nil {
 		return err
 	}
 	logger.Info("partial regeneration succeeded")
@@ -1953,26 +1953,14 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []by
 	}
 }
 
-// TODO refactor to avoid controlling behavior by sending nil as expected CA
 func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
 	logger := log.FromContext(ctx)
 	logger.Info("starting reconciliation of webhooks")
-	if expectedCa == nil {
-		secret := &corev1.Secret{}
-		if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecretName}, secret); err != nil {
-			return err
-		}
-		ca, ok := secret.Data[r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
-		if !ok || ca == nil {
-			return fmt.Errorf("while receiving certificate data from CA secret in reconcilation webhook")
-		}
-		expectedCa = ca
-	}
 
 	for _, resource := range *resourcesToApply {
 		kind := resource.GetKind()
 		if kind == MutatingWebhookConfiguration || kind == ValidatingWebhookConfiguration {
-			// changes resource structure so in effect resourcesToApply
+			// here we change resource structure so in effect resourcesToApply is changed
 			err := r.prepareWebhookReconciliationData(ctx, resource, expectedCa)
 			if err != nil {
 				return err
@@ -1982,6 +1970,18 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 
 	logger.Info("webhooks cert bundles check success")
 	return nil
+}
+
+func (r *BtpOperatorReconciler) getCaCertFromSecret(ctx context.Context) ([]byte, error) {
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: CaSecretName}, secret); err != nil {
+		return nil, err
+	}
+	ca, ok := secret.Data[r.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+	if !ok || ca == nil {
+		return nil, fmt.Errorf("while fetching certificate data from CA secret")
+	}
+	return ca, nil
 }
 
 // TODO consider refactoring this function to avoid implicit changes - i.e return webhooks or error as result

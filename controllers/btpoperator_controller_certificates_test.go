@@ -117,9 +117,8 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 		When("CA certificate changes", func() {
 			It("should fully regenerate CA certificate and webhook certificate", func() {
-				// force full regeneration by change of CA certificate
-				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
-				newCaPrivateKeyStructured, err := structToByteArray(newCaPrivateKey)
+				testGeneratedCaCert, testGeneratedPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				testGeneratedPrivateKeyArray, err := structToByteArray(testGeneratedPrivateKey)
 				Expect(err).To(BeNil())
 
 				caSecret := getSecret(CaSecretName)
@@ -129,23 +128,30 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				caPrivateKeyOriginal, ok := caSecret.Data[privateKeyDataKeyName]
 				Expect(ok).To(BeTrue())
 
-				beforeWebhookSecret := getSecret(WebhookSecret)
-				beforeWebhookCert, ok := beforeWebhookSecret.Data[webhookCertDataKeyName]
+				initialWebhookSecret := getSecret(WebhookSecret)
+				initialWebhookCert, ok := initialWebhookSecret.Data[webhookCertDataKeyName]
 				Expect(ok).To(BeTrue())
 
-				replaceSecretData(caSecret, certificateDataKeyName, newCaCertificate, privateKeyDataKeyName, newCaPrivateKeyStructured)
+				// this forces full regeneration by change of CA certificate
+				replaceSecretData(caSecret, certificateDataKeyName, testGeneratedCaCert, privateKeyDataKeyName, testGeneratedPrivateKeyArray)
 
-				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
+				GinkgoWriter.Println("Secret overwritten: ", time.Now().Format(time.RFC3339Nano))
+
+				// updated CA certificate should be the result of full regeneration so it is different from initial one and test generated one
 				Eventually(func() bool {
-					controllerUpdatedCaSecret := getSecret(CaSecretName)
-					caCertificateAfterUpdate, ok := controllerUpdatedCaSecret.Data[certificateDataKeyName]
-					isRegeneratedCA := ok && !bytes.Equal(caCertificateAfterUpdate, newCaCertificate) && !bytes.Equal(caCertificateAfterUpdate, caCertificateOriginal)
-					caPrivateKeyAfterUpdate, ok := controllerUpdatedCaSecret.Data[privateKeyDataKeyName]
-					isRegeneratedPrivateKey := ok && !bytes.Equal(caPrivateKeyAfterUpdate, newCaPrivateKey) && !bytes.Equal(caPrivateKeyAfterUpdate, caPrivateKeyOriginal)
-					controllerUpdatedWebhookSecret := getSecret(WebhookSecret)
-					webhookCertAfterUpdate, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
-					isRegeneratedWebhookCert := ok && !bytes.Equal(webhookCertAfterUpdate, beforeWebhookCert)
+					currentSecret := getSecret(CaSecretName)
+					currentCaCert, ok := currentSecret.Data[certificateDataKeyName]
+					isRegeneratedCA := ok && !bytes.Equal(currentCaCert, testGeneratedCaCert) && !bytes.Equal(currentCaCert, caCertificateOriginal)
+
+					currentPrivateKey, ok := currentSecret.Data[privateKeyDataKeyName]
+					isRegeneratedPrivateKey := ok && !bytes.Equal(currentPrivateKey, testGeneratedPrivateKey) && !bytes.Equal(currentPrivateKey, caPrivateKeyOriginal)
+
+					currentWebhookSecret := getSecret(WebhookSecret)
+					currentWebhookCert, ok := currentWebhookSecret.Data[webhookCertDataKeyName]
+					isRegeneratedWebhookCert := ok && !bytes.Equal(currentWebhookCert, initialWebhookCert)
+
 					return isRegeneratedCA && isRegeneratedPrivateKey && isRegeneratedWebhookCert
+
 				}).WithTimeout(time.Second * 5).WithPolling(time.Second).Should(Equal(true))
 
 				ensureCorrectState()
@@ -193,39 +199,41 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 		When("webhook certificate is signed by different CA certificate", func() { //CAVEAT this fails occasionally
 			It("CA certificate and webhook certificate are fully regenerated", func() {
 
-				newCaCertificate, newCaPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				testGeneratedCaCertificate, testGeneratedPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
 				Expect(err).To(BeNil())
 
-				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), newCaCertificate, newCaPrivateKey)
-				newWebhookCertificateStructured, err := structToByteArray(newWebhookPrivateKey)
+				testGeneratedWebhookCert, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), testGeneratedCaCertificate, testGeneratedPrivateKey)
+				testGeneratedPrivateKeyArray, err := structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
-				beforeCaSecret := getSecret(CaSecretName)
-				beforeCaCert, ok := beforeCaSecret.Data[certificateDataKeyName]
+				initialCaSecret := getSecret(CaSecretName)
+				initialCaCert, ok := initialCaSecret.Data[certificateDataKeyName]
 				Expect(ok).To(BeTrue())
 
-				beforeWebhookSecret := getSecret(WebhookSecret)
-				beforeWebhookCert, ok := beforeWebhookSecret.Data[webhookCertDataKeyName]
+				initialWebhookSecret := getSecret(WebhookSecret)
+				initialWebhhookCert, ok := initialWebhookSecret.Data[webhookCertDataKeyName]
 				Expect(ok).To(BeTrue())
 
-				webhookCertSecret := beforeWebhookSecret
+				webhookCertSecret := initialWebhookSecret
 				// this forces full regeneration since this webhook certificate is signed by different CA certificate (test generated)
-				replaceSecretData(webhookCertSecret, webhookCertDataKeyName, newWebhookCertificate, webhookPrivateKeyDataKeyName, newWebhookCertificateStructured)
+				replaceSecretData(webhookCertSecret, webhookCertDataKeyName, testGeneratedWebhookCert, webhookPrivateKeyDataKeyName, testGeneratedPrivateKeyArray)
+
 				GinkgoWriter.Println("Secret overwritten: ", time.Now().Format(time.RFC3339Nano))
 
 				// updated CA certificate should be the result of full regeneration so it is different from old one and new one
 				// accordingly webhook certificate should be different from old one and new one
 
 				Eventually(func() bool {
-					controllerUpdatedCaSecret := getSecret(CaSecretName)
-					caCertificateAfterUpdate, ok := controllerUpdatedCaSecret.Data[certificateDataKeyName]
-					isRegeneratedCA := ok && !bytes.Equal(caCertificateAfterUpdate, newCaCertificate) && !bytes.Equal(caCertificateAfterUpdate, beforeCaCert)
+					currentCaSecret := getSecret(CaSecretName)
+					currentCaCert, ok := currentCaSecret.Data[certificateDataKeyName]
+					isRegeneratedCA := ok && !bytes.Equal(currentCaCert, testGeneratedCaCertificate) && !bytes.Equal(currentCaCert, initialCaCert)
 
-					controllerUpdatedWebhookSecret := getSecret(WebhookSecret)
-					webhookCertAfterUpdate, ok := controllerUpdatedWebhookSecret.Data[webhookCertDataKeyName]
-					isRegeneratedWebhookCert := ok && !bytes.Equal(webhookCertAfterUpdate, newWebhookCertificate) && !bytes.Equal(webhookCertAfterUpdate, beforeWebhookCert)
+					currentWebhookSecret := getSecret(WebhookSecret)
+					currentWebhookCert, ok := currentWebhookSecret.Data[webhookCertDataKeyName]
+					isRegeneratedWebhookCert := ok && !bytes.Equal(currentWebhookCert, testGeneratedWebhookCert) && !bytes.Equal(currentWebhookCert, initialWebhhookCert)
 
 					return isRegeneratedCA && isRegeneratedWebhookCert
+
 				}).WithTimeout(time.Second * 5).WithPolling(time.Second).Should(Equal(true))
 
 				ensureCorrectState()

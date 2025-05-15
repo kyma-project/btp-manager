@@ -758,7 +758,7 @@ type resourceUpdate struct {
 func resourceUpdateHandler(old, new any, t string) {
 	if cr, ok := new.(*v1alpha1.BtpOperator); ok {
 		if oldCr, ok := old.(*v1alpha1.BtpOperator); ok {
-			logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "namespace", cr.Namespace, "action", t, "prev state", oldCr.Status.State, "state", cr.Status.State, "prev conditions", oldCr.Status.Conditions, "conditions", cr.Status.Conditions, "prev version", oldCr.ResourceVersion, "version", cr.ResourceVersion)
+			logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "namespace", cr.Namespace, "action", t, "previous state", oldCr.Status.State, "previous conditions", oldCr.Status.Conditions, "previous version", oldCr.ResourceVersion, "state", cr.Status.State, "conditions", cr.Status.Conditions, "version", cr.ResourceVersion)
 		}
 		updateCh <- resourceUpdate{Cr: cr, Action: t}
 	}
@@ -766,7 +766,7 @@ func resourceUpdateHandler(old, new any, t string) {
 
 func resourceAddDeleteHandler(obj any, t string) {
 	if cr, ok := obj.(*v1alpha1.BtpOperator); ok {
-		logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "namespace", cr.Namespace, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions, "version", cr.ResourceVersion)
+		logger.V(1).Info("Triggered add/delete handler for BTPOperator CR", "name", cr.Name, "namespace", cr.Namespace, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions, "version", cr.ResourceVersion)
 		updateCh <- resourceUpdate{Cr: cr, Action: t}
 	}
 }

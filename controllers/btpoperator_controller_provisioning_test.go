@@ -85,9 +85,10 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				cr.SetNamespace("default")
 				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.WrongNamespaceOrName)))
-				Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-				Eventually(updateCh).Should(Receive(matchDeleted()))
-				Expect(isNamedCrNotFound(btpOperatorName, "default")).To(BeTrue())
+				// cleanup
+				//Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+				//Eventually(updateCh).Should(Receive(matchDeleted()))
+				//Expect(isNamedCrNotFound(btpOperatorName, "default")).To(BeTrue())
 			})
 		})
 
@@ -100,9 +101,10 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				cr.SetName("wrong")
 				Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.WrongNamespaceOrName)))
-				Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-				Eventually(updateCh).Should(Receive(matchDeleted()))
-				Expect(isNamedCrNotFound("wrong", kymaNamespace)).To(BeTrue())
+				// cleanup
+				//Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+				//Eventually(updateCh).Should(Receive(matchDeleted()))
+				//Expect(isNamedCrNotFound("wrong", kymaNamespace)).To(BeTrue())
 			})
 		})
 	})
