@@ -52,7 +52,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 	}
 
 	newCertificatePem := new(bytes.Buffer)
-	if err := pem.Encode(newCertificatePem, &pem.Block{
+	if err = pem.Encode(newCertificatePem, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: newCertificate,
 	}); err != nil {
@@ -60,7 +60,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 	}
 
 	newCertificatePrivateKeyPem := new(bytes.Buffer)
-	if err := pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
+	if err = pem.Encode(newCertificatePrivateKeyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(newCertificatePrivateKey),
 	}); err != nil {
@@ -129,15 +129,15 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool, error) {
 	caCertificateDecoded, err := TryDecodeCertificate(caCertificate)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("CA certificate: %w", err)
 	}
 	leafCertificateDecoded, err := TryDecodeCertificate(leafCertificate)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("leaf certificate: %w", err)
 	}
 	caCertificateTemplate, err := x509.ParseCertificate(caCertificateDecoded.Bytes)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("CA certificate: %w", err)
 	}
 	if !caCertificateTemplate.IsCA {
 		return false, fmt.Errorf("CA certificate is not CA")
@@ -155,7 +155,7 @@ func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool,
 
 	leafCertificateTemplate, err := x509.ParseCertificate(leafCertificateDecoded.Bytes)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("leaf certificate: %w", err)
 	}
 
 	if leafCertificateTemplate.IsCA {
@@ -164,7 +164,8 @@ func VerifyIfLeafIsSignedByGivenCA(caCertificate, leafCertificate []byte) (bool,
 
 	_, err = leafCertificateTemplate.Verify(verifyOpts)
 	if err != nil {
-		return false, fmt.Errorf("while verifying certificate: %w", err)
+		// err is expected to be nil if leaf certificate is signed by CA, otherwise it is not
+		return false, nil
 	}
 
 	return true, nil

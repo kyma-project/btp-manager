@@ -341,26 +341,13 @@ func setFinalizers(resource *unstructured.Unstructured) {
 	Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 }
 
-func getCurrentCrState() v1alpha1.State {
-	cr := &v1alpha1.BtpOperator{}
-	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr); err != nil {
-		return ""
-	}
-	return cr.GetStatus().State
-}
-
-func getCurrentCrStatus() v1alpha1.Status {
-	cr := &v1alpha1.BtpOperator{}
-	if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr); err != nil {
-		return v1alpha1.Status{}
-	}
-	GinkgoLogr.Info(fmt.Sprintf("Got CR status: %s\n", cr.Status.State))
-	return cr.GetStatus()
-}
-
 func isCrNotFound() bool {
+	return isNamedCrNotFound(btpOperatorName, kymaNamespace)
+}
+
+func isNamedCrNotFound(name, namespace string) bool {
 	cr := &v1alpha1.BtpOperator{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, cr)
 	return k8serrors.IsNotFound(err)
 }
 
@@ -650,7 +637,7 @@ func replaceCaBundleInValidatingWebhooks(newCaBundle []byte) bool {
 		Expect(len(webhook.Webhooks) > 0).To(BeTrue())
 		if len(webhook.Webhooks) > 0 {
 			webhook.Webhooks[0].ClientConfig.CABundle = newCaBundle
-			err := k8sClient.Update(ctx, &webhook)
+			err = k8sClient.Update(ctx, &webhook)
 			Expect(err).To(BeNil())
 			return true
 		}
@@ -668,7 +655,7 @@ func replaceCaBundleInMutatingWebhooks(newCaBundle []byte) bool {
 		Expect(len(webhook.Webhooks) > 0).To(BeTrue())
 		if len(webhook.Webhooks) > 0 {
 			webhook.Webhooks[0].ClientConfig.CABundle = newCaBundle
-			err := k8sClient.Update(ctx, &webhook)
+			err = k8sClient.Update(ctx, &webhook)
 			Expect(err).To(BeNil())
 			return true
 		}
@@ -730,7 +717,7 @@ func checkHowManySecondsToExpiration(name string) float64 {
 }
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
-	secret := getSecret(CaSecret)
+	secret := getSecret(CaSecretName)
 	ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
 	Expect(ok).To(BeTrue())
 	Expect(ca).To(Not(BeNil()))
@@ -768,9 +755,18 @@ type resourceUpdate struct {
 	Action string
 }
 
-func resourceUpdateHandler(obj any, t string) {
+func resourceUpdateHandler(old, new any, t string) {
+	if cr, ok := new.(*v1alpha1.BtpOperator); ok {
+		if oldCr, ok := old.(*v1alpha1.BtpOperator); ok {
+			logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "namespace", cr.Namespace, "action", t, "previous state", oldCr.Status.State, "previous conditions", oldCr.Status.Conditions, "previous version", oldCr.ResourceVersion, "state", cr.Status.State, "conditions", cr.Status.Conditions, "version", cr.ResourceVersion)
+		}
+		updateCh <- resourceUpdate{Cr: cr, Action: t}
+	}
+}
+
+func resourceAddDeleteHandler(obj any, t string) {
 	if cr, ok := obj.(*v1alpha1.BtpOperator); ok {
-		logger.V(1).Info("Triggered update handler for BTPOperator CR", "name", cr.Name, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions)
+		logger.V(1).Info("Triggered add/delete handler for BTPOperator CR", "name", cr.Name, "namespace", cr.Namespace, "action", t, "state", cr.Status.State, "conditions", cr.Status.Conditions, "version", cr.ResourceVersion)
 		updateCh <- resourceUpdate{Cr: cr, Action: t}
 	}
 }
