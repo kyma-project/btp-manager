@@ -59,7 +59,7 @@ The following parameters manage cluster access:
 
 The preconfigured credentials described in the [Credentials](#credentials) section may affect the deletion of your Kyma cluster.
 
-If any non-deleted service instances in your Kyma cluster use the credentials from the SAP Service Manager resources created automatically, you can't delete the cluster. In this case, the existing service instances block the cluster's deletion. Before you attempt to delete the cluster from the SAP BTP cockpit, delete your service instances and bindings in Kyma dashboard. See [Delete Service Bindings and Service Instances](03-70-delete-bindings-and-instances.md#kyma-dashboard).
+If any non-deleted service instances in your Kyma cluster use the credentials from the SAP Service Manager resources created automatically, you can't delete the cluster. In this case, the existing service instances block the cluster's deletion. Before you attempt to delete the cluster from the SAP BTP cockpit, delete your service instances and bindings in Kyma dashboard. See [Delete Service Bindings and Service Instances](03-32-delete-bindings-and-instances.md#kyma-dashboard).
 
 However, if all existing service instances in your Kyma cluster use your custom SAP Service Manager credentials, the non-deleted service instances do not block the cluster's deletion. See [Customize the Default Credentials and Access](03-11-customize_secret.md#procedure).
 
