@@ -45,7 +45,7 @@ In the [`user`](./docs/user) folder, you will find the following documents:
 * [Instance-Level Mapping](./docs/user/03-21-instance-level-mapping.md)
 * [Namespace-Level Mapping](./docs/user/03-22-namespace-level-mapping.md)
 * [Create  Service Instances and Service Bindings](./docs//user/03-30-create-instances-and-bindings.md)
-* [Update Service Instances](./docs//user/03-31-update-service-instances.md)
+* [Update Service Instances](./docs/user/03-31-update-service-instances.md)
 * [Delete Service Bindigs and Service Instances](./docs/user/03-32-delete-bindings-and-instances.md)
 * [Rotate Service Binding](./docs//user/03-40-service-binding-rotation.md)
 * [Formats of Service Binding Secrets](./docs//user/03-50-formatting-service-binding-secret.md)

@@ -1,6 +1,6 @@
 # Update Service Instances
 
-Use Kyma dashboard or kubectl to update  service instances.
+Use Kyma dashboard or kubectl to update service instances.
 
 ## Prerequisites
 
@@ -15,9 +15,7 @@ You are using a service instance in the Kyma environment and want to update the 
 
 ## Procedure
 
-## Create a Service Instance
-
-To create a service instance, use either Kyma dashboard or kubectl.
+To update a service instance, use either Kyma dashboard or kubectl.
 
 <!-- tabs:start -->
 #### **Kyma Dashboard**
