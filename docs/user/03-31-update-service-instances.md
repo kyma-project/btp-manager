@@ -31,10 +31,17 @@ You see the message confirming the service instance update.
 
 #### **kubectl**
 
-1.  To update a ServiceInstance custom resource (CR), replace the placeholders with the service instance name, namespace name, and add your update details. Then, run: 
+1.  To update a ServiceInstance custom resource (CR), replace the placeholders with the following:
+    - The name of the service instance you want to update
+    - The namespace in which the service instance resides
+    - The name of the service offering you are using
+    - The name of the service plan associated with the service offering
+    - Updated or new parameters in the `parameters` section
+
+    Then, run: 
 
     ```yaml
-        kubectl create -f - <<EOF 
+        kubectl apply -f - <<EOF 
         apiVersion: services.cloud.sap.com/v1
         kind: ServiceInstance
         metadata:
@@ -59,7 +66,7 @@ You see the message confirming the service instance update.
     You get an output similar to this one:
 
     ```
-    NAME                      OFFERING                  PLAN                  STATUS    AGE
-    {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   Created   44s
+    NAME                      OFFERING                  PLAN                  STATUS        TIME
+    {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   
     ```
 <!-- tabs:end -->
