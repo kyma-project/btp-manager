@@ -66,7 +66,7 @@ You see the message confirming the service instance update.
     You get an output similar to this one:
 
     ```
-    NAME                      OFFERING                  PLAN                  STATUS        TIME
+    NAME                      OFFERING                  PLAN                  STATUS    AGE
     {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   
     ```
 <!-- tabs:end -->
