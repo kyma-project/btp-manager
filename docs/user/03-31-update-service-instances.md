@@ -41,20 +41,20 @@ You see the message confirming the service instance update.
     Then, run: 
 
     ```yaml
-        kubectl apply -f - <<EOF 
-        apiVersion: services.cloud.sap.com/v1
-        kind: ServiceInstance
-        metadata:
-            name: {SERVICE_INSTANCE_NAME}
-            namespace: {NAMESPACE} 
-        spec:
-            serviceOfferingName: {SERVICE_OFFERING_NAME}
-            servicePlanName: {SERVICE_PLAN_NAME}
-            externalName: {SERVICE_INSTANCE_NAME}
-            parameters:
-              key1: val1
-              key2: val2
-        EOF
+    kubectl apply -f - <<EOF 
+    apiVersion: services.cloud.sap.com/v1
+    kind: ServiceInstance
+    metadata:
+        name: {SERVICE_INSTANCE_NAME}
+        namespace: {NAMESPACE} 
+    spec:
+        serviceOfferingName: {SERVICE_OFFERING_NAME}
+        servicePlanName: {SERVICE_PLAN_NAME}
+        externalName: {SERVICE_INSTANCE_NAME}
+        parameters:
+            key1: val1
+            key2: val2
+    EOF
     ```
     
 2.  To check the service's status in your cluster, run:
