@@ -67,6 +67,6 @@ You see the message confirming the service instance update.
 
     ```
     NAME                      OFFERING                  PLAN                  STATUS    AGE
-    {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   
+    {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   UPDATED   30m27s
     ```
 <!-- tabs:end -->
