@@ -817,7 +817,7 @@ func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.C
 		Config:              cfg,
 		Scheme:              scheme.Scheme,
 	}
-	deploymentController, err := controller.NewUnmanaged("deployment-controller", mgr, controller.Options{
+	deploymentController, err := controller.NewUnmanaged("deployment-controller", controller.Options{
 		Reconciler: btpOperatorDeploymentReconciler,
 	})
 	Expect(err).ToNot(HaveOccurred())
