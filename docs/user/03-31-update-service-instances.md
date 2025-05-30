@@ -31,23 +31,30 @@ You see the message confirming the service instance update.
 
 #### **kubectl**
 
-1.  To update a ServiceInstance custom resource (CR), replace the placeholders with the service instance name, namespace name, and add your update details. Then, run: 
+1.  To update a ServiceInstance custom resource (CR), replace the placeholders with the following:
+    - The name of the service instance you want to update
+    - The namespace in which the service instance resides
+    - The name of the service offering you are using
+    - The name of the service plan associated with the service offering
+    - Updated or new parameters in the `parameters` section
+
+    Then, run: 
 
     ```yaml
-        kubectl create -f - <<EOF 
-        apiVersion: services.cloud.sap.com/v1
-        kind: ServiceInstance
-        metadata:
-            name: {SERVICE_INSTANCE_NAME}
-            namespace: {NAMESPACE} 
-        spec:
-            serviceOfferingName: {SERVICE_OFFERING_NAME}
-            servicePlanName: {SERVICE_PLAN_NAME}
-            externalName: {SERVICE_INSTANCE_NAME}
-            parameters:
-              key1: val1
-              key2: val2
-        EOF
+    kubectl apply -f - <<EOF 
+    apiVersion: services.cloud.sap.com/v1
+    kind: ServiceInstance
+    metadata:
+        name: {SERVICE_INSTANCE_NAME}
+        namespace: {NAMESPACE} 
+    spec:
+        serviceOfferingName: {SERVICE_OFFERING_NAME}
+        servicePlanName: {SERVICE_PLAN_NAME}
+        externalName: {SERVICE_INSTANCE_NAME}
+        parameters:
+            key1: val1
+            key2: val2
+    EOF
     ```
     
 2.  To check the service's status in your cluster, run:
@@ -60,6 +67,6 @@ You see the message confirming the service instance update.
 
     ```
     NAME                      OFFERING                  PLAN                  STATUS    AGE
-    {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   Created   44s
+    {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   UPDATED   30m27s
     ```
 <!-- tabs:end -->

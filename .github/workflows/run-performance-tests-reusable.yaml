@@ -223,14 +223,14 @@ jobs:
           done
 
           START_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "starting manager" | tail -1)
-          START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
+          START_TIMESTAMP=$(echo "$START_LOG_LINE" | jq -r .ts)
           echo "Start timestamp of certificate regeneration: $START_TIMESTAMP"
 
           until [[ -n "$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "reconciliation succeeded" | tail -1)" ]]; do
             sleep 5
           done
           SUCCESS_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "reconciliation succeeded" | tail -1)
-          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | awk '{print $1}')
+          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | jq -r .ts)
           echo "Success timestamp of certificate regeneration: $SUCCESS_TIMESTAMP"
 
           START_SECONDS=$(date -d "$START_TIMESTAMP" +%s)
@@ -292,11 +292,11 @@ jobs:
       - name: Extract duration of certificate generation
         run: |
           START_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration of certificates started" | tail -1)
-          START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
+          START_TIMESTAMP=$(echo "$START_LOG_LINE" | jq -r .ts)
           echo "Start timestamp of certificate regeneration: $START_TIMESTAMP"
 
           SUCCESS_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration success" | tail -1)
-          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | awk '{print $1}')
+          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | jq -r .ts)
           echo "Success timestamp of certificate regeneration: $SUCCESS_TIMESTAMP"
 
           START_SECONDS=$(date -d "$START_TIMESTAMP" +%s)
@@ -313,11 +313,11 @@ jobs:
             sleep 5
           done
           START_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration of certificates started" | tail -1)
-          START_TIMESTAMP=$(echo "$START_LOG_LINE" | awk '{print $1}')
+          START_TIMESTAMP=$(echo "$START_LOG_LINE" | jq -r .ts)
           echo "Start timestamp of certificate regeneration: $START_TIMESTAMP"
 
           SUCCESS_LOG_LINE=$(kubectl logs -n kyma-system deployment/btp-manager-controller-manager | grep "full regeneration success" | tail -1)
-          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | awk '{print $1}')
+          SUCCESS_TIMESTAMP=$(echo "$SUCCESS_LOG_LINE" | jq -r .ts)
           echo "Success timestamp of certificate regeneration: $SUCCESS_TIMESTAMP"
 
           START_SECONDS=$(date -d "$START_TIMESTAMP" +%s)
