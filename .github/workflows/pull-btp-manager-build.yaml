@@ -18,3 +18,5 @@ jobs:
          name: btp-manager
          dockerfile: Dockerfile
          context: .
+         build-engine: buildx
+         platforms: linux/amd64,linux/arm64
