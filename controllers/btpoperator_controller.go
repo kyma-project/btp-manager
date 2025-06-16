@@ -1856,6 +1856,7 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 	return nil
 }
 
+// test
 func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, []byte, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("generation of self signed cert started")
