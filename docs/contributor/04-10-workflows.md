@@ -48,7 +48,7 @@ The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-t
 
 ## Upload Release Logs as Assets Workflow
 
-This [workflow](/.github/workflows/upload-release-logs.yaml) uploads the logs from the release workflow as assets to the corresponding GitHub release. It is triggered on every published release event.
+This [workflow](/.github/workflows/upload-release-logs.yml) uploads the logs from the release workflow as assets to the corresponding GitHub release. It is triggered on every published release event.
 
 The workflow performs the following steps:
 
