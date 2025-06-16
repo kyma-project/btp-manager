@@ -46,6 +46,17 @@ This [workflow](/.github/workflows/pr-checks.yaml) checks if all jobs, except th
 
 The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) runs the E2E BTP Manager secret customization tests by calling the [reusable workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml).
 
+## Upload Release Logs as Assets Workflow
+
+This [workflow](/.github/workflows/upload-release-logs.yml) uploads the logs from the release workflow as assets to the corresponding GitHub release. It is triggered on every published release event.
+
+The workflow performs the following steps:
+
+1. Checks out the repository
+2. Waits for the "Create and promote release" workflow to finish if it is still in progress
+3. Downloads logs from all attempts of the "Create and promote release" workflow for the current release
+4. Uploads the downloaded logs as assets to the current GitHub release
+
 ## Reusable Workflows
 
 There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
