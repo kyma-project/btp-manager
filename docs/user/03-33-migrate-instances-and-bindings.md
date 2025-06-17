@@ -42,7 +42,7 @@ where **SERVICE_BINDING_NAME** and **SERVICE_BINDING_NAMESPACE** are placeholder
 > [!NOTE] 
 > Make sure kubectl is connected to the Kyma cluster by setting the **KUBECONFIG** environment variable or setting cluster context with `kubectl config use-context` command.
 
-The following steps concern the `sap-btp-manager` secret customization. Make sure the secret has `kyma-project.io/skip-reconciliation: 'true'` label. See [Customize the Default Credentials and Access](03-11-customize_secret.md) for details.
+The following steps concern the **sap-btp-manager** secret customization. Make sure the secret has `kyma-project.io/skip-reconciliation: 'true'` label. See [Customize the Default Credentials and Access](03-11-customize_secret.md) for details.
 
 1. Find **sap-btp-manager** secret in the Kyma cluster by running `kubectl get secrets -A` command.
 2. Save the secret name and namespace in **BTP_MANAGER_SECRET_NAME**, **BTP_MANAGER_SECRET_NAMESPACE** environment variables.
@@ -57,7 +57,7 @@ kubectl patch secret -n ${BTP_MANAGER_SECRET_NAMESPACE} ${BTP_MANAGER_SECRET_NAM
 > [!NOTE] 
 > Make sure kubectl is connected to the cluster with custom SAP BTP service operator by setting the **KUBECONFIG** environment variable or setting cluster context with `kubectl config use-context` command.
 
-The following steps are required to limit Service Instances and Service Bindings management to SAP BTP service operator in the Kyma cluster.
+The following steps are required to limit Service Instances and Service Bindings management to the SAP BTP service operator in the Kyma cluster.
 
 1. Find **sap-btp-operator-controller-manager** deployment in the unmanaged cluster by running `kubectl get deployments -A` command.
 2. Save the deployment name and namespace in **SAP_BTP_OPERATOR_DEPLOYMENT_NAME**, **SAP_BTP_OPERATOR_DEPLOYMENT_NAMESPACE** environment variables.
