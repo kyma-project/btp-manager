@@ -1,0 +1,363 @@
+name: "Create release"
+run-name: Create release ${{ inputs.name }}
+
+env:
+  IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+  KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
+  GIT_EMAIL: team-gopher+1@sap.com
+  GIT_NAME: kyma-gopher-bot
+  BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
+
+permissions:
+  contents: write
+  id-token: write
+  
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Create release'
+        default: ""
+        required: true
+      credentials:
+        type: choice
+        description: SM credentials
+        default: real
+        options:
+          - dummy
+          - real
+      skip-sec-file-bump:
+        type: boolean
+        description: 'Do not bump sec-scanners-config file'
+        default: false
+      dry-run:
+        type: boolean
+        description: 'Do not publish'
+        default: false
+
+jobs:
+  validate-release:
+    name: Validate release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Check if tag already exists
+        run: |
+          if [ $(git tag -l ${{ inputs.name }}) ]; then
+            echo "::error ::Tag ${{ inputs.name }} already exists" && exit 1
+          fi
+
+      - name: Check for existing artifacts from previous release runs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }}"
+
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install requirements
+        run: pip install -r scripts/python/requirements.txt
+
+      - name: Validate labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
+          NAME: ${{ inputs.name }}
+        run: python3 scripts/python/release_label_validator.py
+
+
+  build-image:
+    name: Build image
+    needs: [validate-release]
+    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+    with:
+      name: btp-manager
+      dockerfile: Dockerfile
+      context: .
+      tags: ${{ inputs.name }}
+      build-engine: buildx
+
+  run-unit-tests:
+    name: Unit tests
+    uses: "./.github/workflows/run-unit-tests-reusable.yaml"
+
+  run-e2e-tests:
+    name: E2E tests
+    needs: build-image
+    uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
+    secrets: inherit
+    with:
+      image-tag: ${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      credentials-mode: ${{ github.event.inputs.credentials }}
+      last-k3s-versions: ${{ vars.LAST_K3S_VERSIONS }}
+
+  run-stress-tests:
+    name: Stress tests
+    needs: build-image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare k3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "./scripts/await_image.sh ${{ inputs.name }}"
+
+      - name: Install BTP Manager and SAP BTP Operator
+        timeout-minutes: 2
+        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci"
+
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: "./scripts/testing/check_top.sh"
+        
+      - name: Run stress test - instances and bindings
+        run: "./scripts/testing/stress-mem-instances-bindings.sh 500 30"
+
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: "./scripts/testing/check_top.sh"
+
+      - name: Run stress test - secrets and configmaps
+        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120"
+
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: "./scripts/testing/check_top.sh"
+
+  run-performance-tests:
+    name: Performance tests
+    needs: build-image
+    uses: "./.github/workflows/run-performance-tests-reusable.yaml"
+    secrets: inherit
+    with:
+      image-tag: ${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      credentials-mode: real
+
+  run-e2e-upgrade-tests:
+    name: E2E upgrade tests
+    needs: build-image
+    secrets: inherit
+    if: ${{ inputs.credentials == 'real' }}
+    uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
+    with:
+      image-tag: ${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+
+  run-e2e-upgrade-while-deleting-tests:
+    name: E2E upgrade while deleting tests
+    needs: build-image
+    secrets: inherit
+    uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
+    with:
+      image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      image-tag: ${{ github.event.inputs.name }}
+
+  run-e2e-sap-btp-manager-secret-customization-test:
+    name: E2E BTP Manager secret customization test
+    needs: build-image
+    secrets: inherit
+    uses: "./.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml"
+    with:
+      image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+      image-tag: ${{ github.event.inputs.name }}
+
+  bump-sec-scanners-config:
+    name: Bump sec-scanners-config
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git pull
+
+      - name: Update sec-scanners-config.yaml
+        if: ${{ !inputs.skip-sec-file-bump }}
+        run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
+
+      - name: Check if any PR was merged during release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
+          echo "Latest commit sha: $COMMIT_SHA"
+          echo "Workflow sha: ${{ github.sha }}"
+          if [ "$COMMIT_SHA" != "${{ github.sha }}" ]; then
+            echo "::error ::a PR was merged during the release. Don't rerun this workflow, create a new release with the same version"
+            exit 1
+          fi
+
+      - name: Create PR if anything changed
+        id: pr-needed
+        if: ${{ !inputs.skip-sec-file-bump }}
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+          if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
+            echo "PR already exists, no need to create a new one"
+            echo "PR_NUMBER=$(gh pr list --search "base:main head:${{ env.BRANCH_NAME }}" --json number | jq -r '.[] | .number')" >> $GITHUB_ENV
+          elif [ -z "$(git status --porcelain)" ]; then
+            echo "Nothing changed, no need to create PR"
+            echo "PR_NUMBER=-1" >> $GITHUB_ENV
+          else
+            PR_STATUS=$(scripts/create_sec_scanner_bump_pr.sh ${{ inputs.name }})
+            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV          
+          fi
+
+      - name: Merge PR
+        if: ${{ !inputs.skip-sec-file-bump }}
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
+        run: |
+          if [ "$PR_NUMBER" -gt 0 ]; then
+            scripts/merge_pr.sh
+          else
+            echo "Step skipped"
+          fi
+
+      - name: Await PR merge
+        if: ${{ !inputs.skip-sec-file-bump }}
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$PR_NUMBER" -gt 0 ]; then
+            scripts/await_pr_merge.sh
+            git push origin -d ${{ env.BRANCH_NAME }}
+          else
+            echo "Step skipped"
+          fi
+
+      - name: Check if any PR have been merged before merging the bump PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$PR_NUMBER" -gt 0 ]; then
+            COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[1].sha')
+            echo "Latest commit sha: $COMMIT_SHA"
+            echo "Bump sha: ${{ github.sha }}"
+            if [ "$COMMIT_SHA" != "${{ github.sha }}" ]; then
+              echo "::error ::a PR have been merged before merging the bump PR. Don't rerun this workflow. Create a new release with the same version"
+              exit 1 
+          fi
+          else
+            echo "Step skipped"
+          fi   
+
+      - name: Save latest commit ref
+        id: pull-ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout main
+          git pull
+          LATEST_COMMIT=$(git rev-parse HEAD)
+          echo "latest_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+          echo "Latest commit ref $LATEST_COMMIT"
+
+    outputs:
+      latest_commit: ${{ steps.pull-ref.outputs.latest_commit }}
+
+  create-draft:
+    name: Create draft release
+    needs: bump-sec-scanners-config
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
+
+      - name: Check if any PR was merged after security scanner config bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
+          echo "Latest commit sha: $COMMIT_SHA"
+          echo "Bump sha: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}"
+          if [ "$COMMIT_SHA" != "${{ needs.bump-sec-scanners-config.outputs.latest_commit}}" ]; then
+            echo "::error ::a PR was merged after the security scanner config bump. Don't rerun this workflow, create a new release with the same version"
+            exit 1 
+          fi
+
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Create draft release
+        id: create-draft
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_ID=$(./scripts/create_draft_release.sh ${{ github.event.inputs.name }})
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+
+      - name: Create manifest and upload assets
+        id: create-manifest
+        env:
+          BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IMG=$IMAGE_REPO:${{ inputs.name }} make create-manifest
+          ./scripts/upload_assets.sh ${{ steps.create-draft.outputs.release_id }}
+
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
+
+      - name: Check if any PR may have been merged before creating the tag and draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA=$(gh api repos/${{ env.KYMA_BTP_MANAGER_REPO }}/commits -q '.[0].sha')
+          echo "Latest commit sha: $COMMIT_SHA"
+          echo "Bump sha: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}"
+          if [ "$COMMIT_SHA" != "${{ needs.bump-sec-scanners-config.outputs.latest_commit}}" ]; then
+            echo "::error ::a PR may have been merged before the tag and draft release were created. Delete the tag and the draft release. Don't rerun this workflow. Create a new release with the same version"
+            exit 1 
+          fi
+
+    outputs:
+      release_id: ${{ steps.create-draft.outputs.release_id }}
+
+  publish-release:
+    name: Publish release
+    needs: [create-draft]
+    if: ${{ !inputs.dry-run }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: ./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
