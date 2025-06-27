@@ -1,4 +1,4 @@
-name: Promote to channel via module-manifests
+name: Test module version submit
 #  Workflow requires following variables to be defined
 #     DOC_URL - location of btp-manager documentation
 #     GIT_USER_NAME - user creating head branch and PR

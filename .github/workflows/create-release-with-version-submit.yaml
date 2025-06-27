@@ -1,4 +1,4 @@
-name: "Create release"
+name: Test create release with version submit
 run-name: Create release ${{ inputs.name }}
 
 env:
