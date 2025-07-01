@@ -1,4 +1,4 @@
-name: Test module version submit
+name: Submit module version to module-manifests repository
 #  Workflow requires following variables to be defined
 #     DOC_URL - location of btp-manager documentation
 #     GIT_USER_NAME - user creating head branch and PR
@@ -19,6 +19,8 @@ env:
   BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
   BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
 
+  BTP_MANAGER_REPO: "kyma-project/btp-manager"
+
   # File names
   TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
   DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
@@ -28,6 +30,9 @@ env:
   # needed by gh cli for GitHub enterprise
   GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
 
+  # needed by gh cli for local repo
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -35,14 +40,12 @@ on:
         description: "Release Tag"
         default: 'use latest release'
         required: true
-      channel:
-        description: "Channel"
-        type: choice
-        options:
-          - fast
-          - regular
+  workflow_call:
+    inputs:
+      releaseTag:
+        description: "Release Tag"
         required: true
-        default: fast
+        type: string
 
 jobs:
   promote:
@@ -59,3 +62,97 @@ jobs:
           [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1 
           [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1 
           echo "Validated"
+
+      - name: Use default (latest) Release Tag
+        if: inputs.releaseTag == 'use latest release'
+        shell: bash
+        run: |
+          latest_release=$(gh release view --repo $BTP_MANAGER_REPO --json tagName --jq '.tagName')
+          echo "TAG=${latest_release}" >> $GITHUB_ENV
+          echo "Submitting module with latest release tag: ${latest_release}"| tee $GITHUB_STEP_SUMMARY
+
+      - name: Validate given release tag
+        if: inputs.releaseTag != 'use latest release'
+        shell: bash
+        run: |
+          echo "Validating given release tag: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
+          release_info=$(gh release view --repo $BTP_MANAGER_REPO ${{ inputs.releaseTag }})      
+          if [ $? -eq 0 ]; then
+              echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
+              echo "Submitting module release tag: ${latest_release}"| tee $GITHUB_STEP_SUMMARY
+          else
+              echo "Release tag not found: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
+              exit 1  
+          fi
+      - name: Set branch name
+        run: echo "BRANCH_NAME=btp-manager-${TAG}" >> $GITHUB_ENV
+
+      - name: Setup git and clone repo
+        run: |
+          git config --global user.email ${{ vars.GIT_USER_EMAIL }}
+          git config --global user.name ${{ vars.GIT_USER_NAME }}
+          git clone ${MODULE_MANIFESTS_WITH_USER}
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+
+      - name: Sync Repo and create branch
+        working-directory: module-manifests
+        run: |
+          git remote add upstream ${MODULE_MANIFESTS_WITH_USER}
+          git fetch upstream
+          git merge upstream/main
+          git checkout -B ${BRANCH_NAME}
+          mkdir -p modules/btp-operator/${TAG}
+
+      - name: Create module configuration
+        working-directory: module-manifests/modules/btp-operator
+        run: |
+          echo "Creating module configuration file:"
+
+          cat <<EOF | tee ${TAG}/module-config.yaml
+          name: ${FULL_MODULE_NAME}
+          version: ${TAG}
+          repository: https://github.com/kyma-project/btp-manager.git
+          repositoryTag: ${TAG}
+          manifest:  https://github.com/kyma-project/btp-manager/releases/download/${TAG}/${MANIFEST_FILENAME}
+          defaultCR: https://github.com/kyma-project/btp-manager/releases/download/${TAG}/${DEFAULT_CR_FILENAME}
+          documentation: ${{ vars.DOC_URL }}
+          manager:
+            name: btp-manager-controller-manager
+            namespace: kyma-system
+            group: apps
+            version: v1
+            kind: Deployment
+          security: ${SCAN_CONFIG_FILENAME}
+          icons:
+            - name: module-icon
+              # TODO: provide btp-operator icon
+              link: https://raw.githubusercontent.com/kyma-project/kyma/refs/heads/main/docs/assets/logo_icon.svg
+          EOF
+
+      - name: Commit and push changes
+        working-directory: module-manifests
+        env:
+          FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
+        run: |
+          git add .
+          git commit -m "Configuration files update"
+          git remote set-url origin ${FORK_ORIGIN}
+          git push --set-upstream origin ${BRANCH_NAME} -f
+
+      - name: Create PR if needed
+        working-directory: module-manifests
+        shell: bash
+        env:
+          MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
+        run: |
+          prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+
+          if  echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
+              echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
+              exit 0
+          fi
+          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Submit BTP Manager version ${TAG}" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
+
+          
+          
