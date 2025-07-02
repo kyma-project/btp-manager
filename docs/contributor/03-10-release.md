@@ -23,15 +23,13 @@ To create a release, follow these steps:
    vi. Choose whether to bump or not to bump the security scanner config  
    vii. Choose whether you want to publish the release
 2. The GitHub action, defined in the [`create-release`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that are part of this release are labeled correctly. Additionally, it stops the release process if a feature has been added, but only the patch version number has been bumped up.
-3. If you chose in step 1.vi to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
-4. A code owner approves the PR. 
-5. The GitHub action creates a GitHub tag and draft release with the provided name.
-6. The GitHub action asynchronously initiates unit tests and Image Builder.
-7. The Image Builder uploads the binary image.
-8. The GitHub action asynchronously initiates stress tests jobs, performance tests jobs, and E2E tests jobs upon the Image Builder job success status. E2E upgrade tests run only with real credentials for Service Manager.
-9. The GitHub action runs E2E tests in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable. 
-10. If the unit tests, stress tests, and E2E tests are completed successfully and you have chosen to publish in step 1.vii, the GitHub action publishes the release.
-
+3. The GitHub action asynchronously initiates unit tests.
+4. The Image Builder builds binary images.
+5. The Image Builder uploads the binary images to registry.
+6. The GitHub action initiates tests jobs (stress tests, performance tests, upgrade tests, secret customization tests) using built image. E2E upgrade tests run only with real credentials for Service Manager. E2E tests are executed in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable.
+7. If you chose in step 1.vi to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
+8. The GitHub action creates a GitHub tag and draft release with the provided name.
+9. If you have chosen to publish in step 1.vii, the GitHub action publishes the release.
 
 ### Replace an Existing Release
 
