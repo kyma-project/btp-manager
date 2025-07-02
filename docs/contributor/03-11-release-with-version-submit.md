@@ -11,7 +11,7 @@ The BTP Manager release pipeline creates proper artifacts:
 
 ### Create a Release
 
-![Release diagram](../assets/release.drawio.svg)
+![Release diagram](../assets/release-with-version-submit.drawio.svg)
 
 To create a release, follow these steps:
 
