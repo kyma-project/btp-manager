@@ -5,6 +5,7 @@
 The BTP Manager release pipeline creates proper artifacts:
  - btp-manager Docker image in the [registry](https://console.cloud.google.com/artifacts/docker/kyma-project/europe/prod/unsigned%2Fcomponent-descriptors%2Fkyma.project.io%2Fmodule%2Fbtp-operator)
  - `btp-manager.yaml`, `btp-btp-operator-default-cr.yaml`
+ - `module-config.yaml` for the released version in the [module-manifests repository](https://github.tools.sap/kyma/module-manifests)
 
 ## Run the Pipeline
 
@@ -33,6 +34,8 @@ To create a release, follow these steps:
 10. If the unit tests, stress tests, and E2E tests are completed successfully, and you have chosen to publish in step 1.vii, the GitHub action publishes the release.
 11. The GitHub action creates in module-manifests repository a PR with module-config.yaml for the new version of the module. If the PR for the given version already exists, the GitHub action updates the existing PR with the new module-config.yaml.
 
+[!NOTE]
+The PR created in the module-manifests repository is not automatically merged. It requires a code owner approval.
 
 ### Replace an Existing Release
 
