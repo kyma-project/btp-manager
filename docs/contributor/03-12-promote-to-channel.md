@@ -2,15 +2,11 @@
 
 ## Overview
 
-The BTP Manager release pipeline creates proper artifacts:
- - btp-manager Docker image in the [registry](https://console.cloud.google.com/artifacts/docker/kyma-project/europe/prod/unsigned%2Fcomponent-descriptors%2Fkyma.project.io%2Fmodule%2Fbtp-operator)
- - `btp-manager.yaml`, `btp-btp-operator-default-cr.yaml`
+The BTP Manager promote to channel pipeline creates PR in the `module-manifests` changing `module-releases.yaml` file accordingly.
 
 ## Run the Pipeline
 
-### Create a Release
-
-![Release diagram](../assets/release.drawio.svg)
+### Promote to channel
 
 To create a release, follow these steps:
 
