@@ -2,37 +2,22 @@
 
 ## Overview
 
-The BTP Manager promote to channel pipeline creates PR in the `module-manifests` changing `module-releases.yaml` file accordingly.
+The BTP Manager Promote to Channel Pipeline creates PR in the `module-manifests` modifying the `module-releases.yaml` file accordingly.
 
 ## Run the Pipeline
 
 ### Promote to channel
 
-To create a release, follow these steps:
+To promote a released version, follow these steps:
 
-1. Run GitHub action **Create release**:  
+1. Run GitHub action **Promote module to channel**:  
    i.  Go to the **Actions** tab  
-   ii. Click **Create release** workflow   
+   ii. Click **Promote module to channel** workflow   
    iii. Click  **Run workflow** on the right  
    iv. Provide a version, for example, 1.2.0  
-   v. Choose real or dummy credentials for Service Manager  
-   vi. Choose whether to bump or not to bump the security scanner config  
-   vii. Choose whether you want to publish the release
-2. The GitHub action, defined in the [`create-release`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that are part of this release are labeled correctly. Additionally, it stops the release process if a feature has been added, but only the patch version number has been bumped up.
-3. If you chose in step 1.vi to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
-4. A code owner approves the PR. 
-5. The GitHub action creates a GitHub tag and draft release with the provided name.
-6. The GitHub action asynchronously initiates unit tests and Image Builder.
-7. The Image Builder uploads the binary image.
-8. The GitHub action asynchronously initiates stress tests jobs, performance tests jobs, and E2E tests jobs upon the Image Builder job success status. E2E upgrade tests run only with real credentials for Service Manager.
-9. The GitHub action runs E2E tests in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable. 
-10. If the unit tests, stress tests, and E2E tests are completed successfully and you have chosen to publish in step 1.vii, the GitHub action publishes the release.
+   v. Choose regular or fast channel  
+2. The GitHub action, defined in the [`promote_module_to_channel`](/.github/workflows/promote_module_to_channel.yaml) file, validates the release by checking if the GitHub tag already exists.
+3. The GitHub actions creates a PR in the `module-manifests` repository with the `module-releases.yaml` file modified in the section for the specified channel.
+4. A code owner approves the PR.
+5. Once PR is merged Submission Pipeline is triggered that generates a ModuleReleaseMeta CR, and pushes it to the /kyma/kyma-modules repository.
 
-
-### Replace an Existing Release
-
-To regenerate an existing release, perform the following steps:
-
-1. Delete the GitHub release.
-2. Delete the GitHub tag.
-3. Run the [**Create release**](#create-a-release) pipeline. 

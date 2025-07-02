@@ -35,7 +35,7 @@ To create a release, follow these steps:
 11. The GitHub action creates in module-manifests repository a PR with module-config.yaml for the new version of the module. If the PR for the given version already exists, the GitHub action updates the existing PR with the new module-config.yaml.
 
 [!NOTE]
-The PR created in the module-manifests repository is not automatically merged. It requires a code owner approval.
+The PR created in the module-manifests repository is not automatically merged. It requires a code owner approval. Once the PR is merged, the Submission Pipeline is triggered, and pushes the generated ModuleTemplate to the /kyma/kyma-modules repository.
 
 ### Replace an Existing Release
 
