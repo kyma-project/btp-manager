@@ -30,7 +30,8 @@ To create a release, follow these steps:
 7. The Image Builder uploads the binary image.
 8. The GitHub action asynchronously initiates stress tests jobs, performance tests jobs, and E2E tests jobs upon the Image Builder job success status. E2E upgrade tests run only with real credentials for Service Manager.
 9. The GitHub action runs E2E tests in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable. 
-10. If the unit tests, stress tests, and E2E tests are completed successfully and you have chosen to publish in step 1.vii, the GitHub action publishes the release.
+10. If the unit tests, stress tests, and E2E tests are completed successfully, and you have chosen to publish in step 1.vii, the GitHub action publishes the release.
+11. The GitHub action creates in module-manifests repository a PR with module-config.yaml for the new version of the module. If the PR for the given version already exists, the GitHub action updates the existing PR with the new module-config.yaml.
 
 
 ### Replace an Existing Release
