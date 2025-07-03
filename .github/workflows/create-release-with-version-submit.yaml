@@ -1,4 +1,4 @@
-name: Test create release with version submit
+name: Create release and submit version to module-manifests
 run-name: Create release ${{ inputs.name }}
 
 env:
@@ -11,7 +11,7 @@ env:
 permissions:
   contents: write
   id-token: write
-  
+
 on:
   workflow_dispatch:
     inputs:
@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
+
       - name: Check if tag already exists
         run: |
           if [ $(git tag -l ${{ inputs.name }}) ]; then
@@ -128,7 +128,7 @@ jobs:
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh"
-        
+
       - name: Run stress test - instances and bindings
         run: "./scripts/testing/stress-mem-instances-bindings.sh 500 30"
 
@@ -361,3 +361,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: ./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
+
+  submit-version:
+    needs: [publish-release]
+    name: Submit version
+    uses: "./.github/workflows/module-version-submit.yaml"
+    with:
+      releaseTag: ${{ inputs.name }}
+    secrets: inherit

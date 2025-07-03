@@ -24,6 +24,7 @@ env:
   DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
   MANIFEST_FILENAME: btp-manager.yaml
   SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
+  CHANNEL_MAPPING_FILENAME: module-releases.yaml
 
   # needed by gh cli for GitHub enterprise
   GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
@@ -33,7 +34,6 @@ on:
     inputs:
       releaseTag:
         description: "Release Tag"
-        default: 'use latest release'
         required: true
       channel:
         description: "Channel"
@@ -60,27 +60,6 @@ jobs:
           [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1 
           echo "Validated"
 
-      - name: Use default (latest) Release Tag
-        if: inputs.releaseTag == 'use latest release'
-        shell: bash
-        run: |
-          latest=$(curl -s -H "Accept: application/vnd.github+json" ${BTP_MANAGER_API_URL}/releases/latest | jq -r '.tag_name') 
-          echo "TAG=${latest}" >> $GITHUB_ENV
-
-      - name: Validate given release tag
-        if: inputs.releaseTag != 'use latest release'
-        shell: bash
-        run: |
-          tags=$(curl -s -H "Accept: application/vnd.github+json" ${BTP_MANAGER_API_URL}/tags | jq -r '.[] | .name')
-          
-          if  echo $tags | tr " " '\n' | grep -F -q -x ${{ inputs.releaseTag }}; then
-              echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
-              echo "tag found"
-          else
-              echo "tag not found: ${{ inputs.releaseTag }}"
-              exit 1  
-          fi
-
       - name: Set branch name
         run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}" >> $GITHUB_ENV
 
@@ -99,33 +78,30 @@ jobs:
           git fetch upstream
           git merge upstream/main
           git checkout -B ${BRANCH_NAME}
-          mkdir -p modules/btp-operator/${{ inputs.channel }}
 
-      - name: Download artifacts
-        working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
-
-        run: |
-          curl -JL ${BTP_MANAGER_RELEASES_URL}/download/${TAG}/${MANIFEST_FILENAME} >${MANIFEST_FILENAME}
-          curl -JL ${BTP_MANAGER_RELEASES_URL}/download/${TAG}/${DEFAULT_CR_FILENAME} >${DEFAULT_CR_FILENAME}
-
-      - name: Create module configuration
+      - name: Modify channel mapping
+        working-directory: module-manifests/modules/btp-operator
         env:
+          TAG: ${{ inputs.releaseTag }}
           CHANNEL: ${{ inputs.channel }}
-        working-directory: module-manifests/modules/btp-operator/${{ inputs.channel }}
         run: |
-          echo "Creating module configuration file:"
-
-          cat <<EOF | tee module-config.yaml
-          name: ${FULL_MODULE_NAME}
-          channel: ${CHANNEL}
-          version: ${TAG}
-          manifest: ${MANIFEST_FILENAME}
-          defaultCR: ${DEFAULT_CR_FILENAME}
-          annotations:
-            "operator.kyma-project.io/doc-url": "${{ vars.DOC_URL }}"
-          moduleRepo: https://github.com/kyma-project/btp-manager.git
-          moduleSecurityScanConfig: true
+          echo "Updating channel mapping configuration file: ${CHANNEL_MAPPING_FILENAME}"
+          if [ -f "${CHANNEL_MAPPING_FILENAME}" ]; then
+            echo "File exists, updating it"
+            yq -i '.channels[]|select(.channel == env(CHANNEL)).version=env(TAG)' ${CHANNEL_MAPPING_FILENAME}
+            cat ${CHANNEL_MAPPING_FILENAME}
+          else
+            echo "File does not exist, creating it"
+            cat <<EOF | tee ${CHANNEL_MAPPING_FILENAME}
+          targetLandscapes:
+            - dev
+          channels:
+           - channel: regular
+             version: ${TAG}
+           - channel: fast
+             version: ${TAG}
           EOF
+          fi
 
       - name: Commit and push changes
         working-directory: module-manifests
@@ -142,6 +118,7 @@ jobs:
         shell: bash
         env:
           CHANNEL: ${{ inputs.channel }}
+          TAG: ${{ inputs.releaseTag }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
         run: |
           prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
@@ -150,4 +127,4 @@ jobs:
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}"
+          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
