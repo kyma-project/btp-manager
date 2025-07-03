@@ -1,8 +1,8 @@
-# BTP Manager Promote to Channel
+# BTP Manager Promote Module to Channel
 
 ## Overview
 
-The BTP Manager Promote to Channel Pipeline creates PR in the `module-manifests` modifying the `module-releases.yaml` file accordingly.
+The BTP Manager Promote Module to Channel Pipeline creates PR in the `module-manifests` modifying the `module-releases.yaml` file accordingly.
 
 ## Run the Pipeline
 
