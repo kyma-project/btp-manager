@@ -146,12 +146,16 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			}})
 			Expect(err).To(BeNil())
 
-			actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
-			Expect(err).To(BeNil())
-			Expect(actualNumOfOldResources).To(Equal(0))
-			actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
-			Expect(err).To(BeNil())
-			Expect(actualNumOfNewResources).To(Equal(initResourcesNum))
+			Eventually(func() int {
+				actualNumOfOldResources, err := countResourcesForGivenChartVer(gvks, initChartVersion)
+				Expect(err).To(BeNil())
+				return actualNumOfOldResources
+			}).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+			Eventually(func() int {
+				actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
+				Expect(err).To(BeNil())
+				return actualNumOfNewResources
+			}).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(initResourcesNum))
 			assertResourcesRemoval(oldUns...)
 		})
 	})
