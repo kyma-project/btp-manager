@@ -1,4 +1,4 @@
-name: Promote module to channel
+name: Promote module version to channel
 #  Workflow requires following variables to be defined
 #     DOC_URL - location of btp-manager documentation
 #     GIT_USER_NAME - user creating head branch and PR
