@@ -18,12 +18,12 @@ Module version which is not submitted to the module-manifests repository is not 
 ![NOTE] You can submit a new version of the BTP Manager module to the module-manifests repository later using the **Submit module version** GitHub action.
 
 ### Release and Submit
-Executing the release and submit is useful when you want to create a new release of the BTP Manager module and submit a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, release notes, and PR in the module-manifests repository).
+Executing the release and submit is useful when you want to create a new release of the BTP Manager module and submit a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, release notes), and PR in the module-manifests repository.
 To execute the release and submit, you can use the **Create release with version submit** GitHub action.
 
 ### Release, Submit, and Promote
 
-Executing the release, submit, and promote is useful when you want to create a new release of the BTP Manager module, submit a new version to the module-manifests repository, and promote the released version to a specific channel. Proper artifacts are created (GitHub tag, Docker images, release notes, and two PRs in the module-manifests repository - one for the module-config.yaml file and one for the module-releases.yaml file).
+Executing the release, submit, and promote is useful when you want to create a new release of the BTP Manager module, submit a new version to the module-manifests repository, and promote the released version to a specific channel. Proper artifacts are created (GitHub tag, Docker images, release notes), and two PRs in the module-manifests repository - one for the module-config.yaml file and one for the module-releases.yaml file.
 You can execute the release, submit, and promote using the **Create release with version submit** GitHub action and then use the **Promote module to channel** GitHub action to promote the released version to a specific channel, or you can use **Create release**, then **Submit module version**, and finally **Promote module to channel** GitHub actions.
 
 
