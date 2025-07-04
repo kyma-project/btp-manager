@@ -1,29 +1,29 @@
-# BTP Manager Release and Promotion
+# SAP BTP Operator module Release and Promotion
 
 ## Overview
 
-There are following stages in the BTP Manager release and promotion process:
- - BTP Manager release - this is a process of creating a new release of the BTP Manager module, which includes building and testing the module, creating a GitHub tag, and publishing the release.
- - Module Version Submit - this is a process of submitting a new version of the BTP Manager module to the module-manifests repository, which includes creating a PR with the module-config.yaml file for the new version.
- - Promotion to Channel - this is a process of promoting a released version of the BTP Manager module to a specific channel, which includes creating a PR in the module-manifests repository with the module-releases.yaml file modified in the section for the specified channel.
+There are following stages in the SAP BTP Operator module release and promotion process:
+ - BTP Manager release - this is a process of creating a new release of the SAP BTP Operator module, which includes building and testing the module, creating a GitHub tag, and publishing the release.
+ - Module Version Submit - this is a process of submitting a new version of the SAP BTP Operator module to the module-manifests repository, which includes creating a PR with the module-config.yaml file for the new version.
+ - Promotion to Channel - this is a process of promoting a released version of the SAP BTP Operator module to a specific channel, which includes creating a PR in the module-manifests repository with the module-releases.yaml file modified in the section for the specified channel.
 
 ## Scenarios
 
 ### Release only
 
-Executing the release only is useful when you want to create a new release of the BTP Manager module without submitting a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, and release notes), but no PR is created in the module-manifests repository.
+Executing the release only is useful when you want to create a new release of the SAP BTP Operator module without submitting a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, and release notes), but no PR is created in the module-manifests repository.
 To execute the release only, you can use the **Create release** GitHub action.
 Module version which is not submitted to the module-manifests repository is not available for the Kyma modules repository, and it is not possible to use it in the Kyma installation.
 
-![NOTE] You can submit a new version of the BTP Manager module to the module-manifests repository later using the **Submit module version** GitHub action.
+![NOTE] You can submit a new version of the SAP BTP Operator module to the module-manifests repository later using the **Submit module version** GitHub action.
 
 ### Release and Submit
-Executing the release and submit is useful when you want to create a new release of the BTP Manager module and submit a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, release notes), and PR in the module-manifests repository.
+Executing the release and submit is useful when you want to create a new release of the SAP BTP Operator module and submit a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, release notes), and PR in the module-manifests repository.
 To execute the release and submit, you can use the **Create release with version submit** GitHub action.
 
 ### Release, Submit, and Promote
 
-Executing the release, submit, and promote is useful when you want to create a new release of the BTP Manager module, submit a new version to the module-manifests repository, and promote the released version to a specific channel. Proper artifacts are created (GitHub tag, Docker images, release notes), and two PRs in the module-manifests repository - one for the module-config.yaml file and one for the module-releases.yaml file.
+Executing the release, submit, and promote is useful when you want to create a new release of the SAP BTP Operator module, submit a new version to the module-manifests repository, and promote the released version to a specific channel. Proper artifacts are created (GitHub tag, Docker images, release notes), and two PRs in the module-manifests repository - one for the module-config.yaml file and one for the module-releases.yaml file.
 You can execute the release, submit, and promote using the **Create release with version submit** GitHub action and then use the **Promote module to channel** GitHub action to promote the released version to a specific channel, or you can use **Create release**, then **Submit module version**, and finally **Promote module to channel** GitHub actions.
 
 
