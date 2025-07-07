@@ -85,7 +85,7 @@ To submit a module version, follow these steps:
    ii. Click **Submit module version** workflow   
    iii. Click  **Run workflow** on the right  
    iv. Provide a version, for example, 1.2.0. By default, the version is taken from the latest GitHub tag, but you can override it with a custom version.
-2. The GitHub action creates in module-manifests repository a PR with module-config.yaml for the new version of the module. If the PR for the given version already exists, the GitHub action updates the existing PR with the new module-config.yaml.
+2. In the `module-manifests` repository, the GitHub action creates a PR with `module-config.yaml` for the new version of the module. If the PR for the given version already exists, the GitHub action updates the existing PR with the new `module-config.yaml`.
 
 [!NOTE]
 The PR created in the module-manifests repository is not automatically merged. It requires a code owner approval. Once the PR is merged, the Submission Pipeline is triggered, and pushes the generated ModuleTemplate to the /kyma/kyma-modules repository.
