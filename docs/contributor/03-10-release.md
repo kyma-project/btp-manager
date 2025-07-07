@@ -101,5 +101,5 @@ To promote a released version, follow these steps:
 2. The GitHub action, defined in the [`promote_module_to_channel`](/.github/workflows/promote_module_to_channel.yaml) file, validates the release by checking if the GitHub tag already exists.
 3. The GitHub action creates a PR in the `module-manifests` repository with the `module-releases.yaml` file modified in the section for the specified channel.
 4. A code owner approves the PR.
-5. Once PR is merged Submission Pipeline is triggered that generates a ModuleReleaseMeta CR, and pushes it to the /kyma/kyma-modules repository.
+5. Once the PR is merged, the Submission Pipeline is triggered, which generates a ModuleReleaseMeta CR and pushes it to the `/kyma/kyma-modules` repository.
 
