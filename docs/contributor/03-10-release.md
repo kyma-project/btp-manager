@@ -13,7 +13,7 @@ SAP BTP Operator's release and promotion process includes the following stages:
 
 Executing the release only is useful when you want to create a new release of the SAP BTP Operator module without submitting a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, and release notes), but no PR is created in the module-manifests repository.
 To execute only the release, use the **Create release** GitHub action.
-Module version which is not submitted to the module-manifests repository is not available for the Kyma modules repository, and it is not possible to use it in the Kyma installation.
+A module version not submitted to the `module-manifests` repository is not available for the `kyma-modules` repository, and it cannot be used in the Kyma installation.
 
 ![NOTE] You can submit a new version of the SAP BTP Operator module to the module-manifests repository later using the **Submit module version** GitHub action.
 
