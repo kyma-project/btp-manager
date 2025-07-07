@@ -37,7 +37,7 @@ Execute the release, submit, and promote scenario in one of the following ways:
 To create a release, follow these steps:
 
 1. Run GitHub action **Create release**:  
-   i.  Go to the **Actions** tab, and choose the **Create release** workflow, and next  **Run workflow**.
+   i.  Go to the **Actions** tab, and choose the **Create release** workflow, and next  **Run workflow**.  
    ii. Provide a version, for example, 1.2.0  
    iii. Choose real or dummy credentials for Service Manager  
    iv. Choose whether to bump or not to bump the security scanner config  
