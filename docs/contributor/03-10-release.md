@@ -10,7 +10,7 @@ SAP BTP Operator's release and promotion process includes the following stages:
 
 ### Release Only
 
-Executing only the release is useful when you want to create a new release of BTP Manager without submitting a new version to the `module-manifests` repository. Proper artifacts (GitHub tag, Docker images, and release notes) are created, but no PR is opened in the module-manifests repository.
+Executing only the release is useful when you want to create a new release of BTP Manager without submitting a new version to the `module-manifests` repository. Executing only the release is useful when you create a new release of the SAP BTP Operator module without submitting a new version to the `module-manifests` repository. You only create proper artifacts (GitHub tag, Docker images, and release notes), but do not open a PR in the `module-manifests` repository.
 To execute only the release, use the **Create release** GitHub action.
 A module version not submitted to the `module-manifests` repository is not available for the `kyma-modules` repository, and it cannot be used in the Kyma installation.
 
@@ -18,7 +18,8 @@ A module version not submitted to the `module-manifests` repository is not avail
 > To submit a new version of the SAP BTP Operator module to the `module-manifests` repository later, use the **Submit module version** GitHub action.
 
 ### Release and Submit
-Executing the release and submit is useful when you want to create a new release of the SAP BTP Operator module and submit a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, release notes), and PR in the module-manifests repository.
+
+Execute the release and submit scenario when you want to create a new release of the SAP BTP Operator module and submit a new version to the `module-manifests` repository. You create proper artifacts (GitHub tag, Docker images, release notes) and a PR in the `module-manifests` repository
 To execute the release and submit scenario, use the **Create release with version submit** GitHub action.
 
 ### Release, Submit, and Promote
