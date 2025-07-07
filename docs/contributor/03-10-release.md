@@ -80,7 +80,7 @@ To create a release, follow these steps:
 
 To submit a module version, follow these steps:
 1. Run GitHub action **Submit module version**:  
-   i.   Go to the **Actions** tab, and choose the **Submit module version** workflow, and next  **Run workflow**.
+   i.   Go to the **Actions** tab, and choose the **Submit module version** workflow, and next  **Run workflow**.  
    ii. [Optional] Override the default version taken from the latest GitHub tag with a custom version. For example, 1.2.0.
 2. In the `module-manifests` repository, the GitHub action creates a PR with `module-config.yaml` for the new version of the module. If the PR for the given version already exists, the GitHub action updates the existing PR with the new `module-config.yaml`.
 
