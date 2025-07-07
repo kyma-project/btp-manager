@@ -92,7 +92,7 @@ To submit a module version, follow these steps:
 To promote a released version, follow these steps:
 
 1. Run GitHub action **Promote module to channel**:  
-   i.  Go to the **Actions** tab, and choose the **Promote module to channel** workflow, and next  **Run workflow**.
+   i.  Go to the **Actions** tab, and choose the **Promote module to channel** workflow, and next  **Run workflow**.  
    ii. Provide a version, for example, 1.2.0  
    iii. Choose the regular or fast channel
 2. The GitHub action, defined in the [`promote_module_to_channel`](/.github/workflows/promote_module_to_channel.yaml) file, validates the release by checking if the GitHub tag already exists.
