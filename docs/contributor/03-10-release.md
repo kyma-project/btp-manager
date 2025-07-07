@@ -9,7 +9,7 @@ There are following stages in the SAP BTP Operator module release and promotion 
 
 ## Scenarios
 
-### Release only
+### Release Only
 
 Executing the release only is useful when you want to create a new release of the SAP BTP Operator module without submitting a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, and release notes), but no PR is created in the module-manifests repository.
 To execute the release only, you can use the **Create release** GitHub action.
