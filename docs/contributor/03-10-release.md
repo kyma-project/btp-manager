@@ -15,7 +15,8 @@ Executing the release only is useful when you want to create a new release of th
 To execute only the release, use the **Create release** GitHub action.
 A module version not submitted to the `module-manifests` repository is not available for the `kyma-modules` repository, and it cannot be used in the Kyma installation.
 
-![NOTE] You can submit a new version of the SAP BTP Operator module to the module-manifests repository later using the **Submit module version** GitHub action.
+> [!NOTE]
+> To submit a new version of the SAP BTP Operator module to the `module-manifests` repository later, use the **Submit module version** GitHub action.
 
 ### Release and Submit
 Executing the release and submit is useful when you want to create a new release of the SAP BTP Operator module and submit a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, release notes), and PR in the module-manifests repository.
