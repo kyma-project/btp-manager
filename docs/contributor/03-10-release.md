@@ -19,7 +19,7 @@ A module version not submitted to the `module-manifests` repository is not avail
 
 ### Release and Submit
 
-Execute the release and submit scenario when you want to create a new release of the SAP BTP Operator module and submit a new version to the `module-manifests` repository. You create proper artifacts (GitHub tag, Docker images, release notes) and a PR in the `module-manifests` repository
+Execute the release and submit scenario when you want to create a new release of the SAP BTP Operator module and submit a new version to the `module-manifests` repository. You create proper artifacts (GitHub tag, Docker images, release notes) and a PR in the `module-manifests` repository.
 To execute the release and submit scenario, use the **Create release with version submit** GitHub action.
 
 ### Release, Submit, and Promote
