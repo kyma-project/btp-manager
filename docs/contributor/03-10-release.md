@@ -5,7 +5,7 @@
 SAP BTP Operator's release and promotion process includes the following stages:
  - BTP Manager release - the process of creating a new release of the SAP BTP Operator module, which includes building and testing the module, creating a GitHub tag, and publishing the release.
  - Module Version Submit - the process of submitting a new version of the SAP BTP Operator module to the `module-manifests` repository, which includes creating a PR with the `module-config.yaml` file for the new version.
- - Promotion to Channel - this is a process of promoting a released version of the SAP BTP Operator module to a specific channel, which includes creating a PR in the module-manifests repository with the module-releases.yaml file modified in the section for the specified channel.
+ - Promotion to Channel - the process of promoting a released version of the SAP BTP Operator module to a specific channel, which includes creating a PR in the `module-manifests` repository with the `module-releases.yaml` file modified in the section for the specified channel.
 
 ## Scenarios
 
