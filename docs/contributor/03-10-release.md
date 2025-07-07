@@ -24,7 +24,7 @@ To execute the release and submit scenario, use the **Create release with versio
 
 ### Release, Submit, and Promote
 
-Executing the release, submit, and promote is useful when you want to create a new release of the SAP BTP Operator module, submit a new version to the module-manifests repository, and promote the released version to a specific channel. Proper artifacts are created (GitHub tag, Docker images, release notes), and two PRs in the module-manifests repository - one for the module-config.yaml file and one for the module-releases.yaml file.
+Execute the release, submit, and promote scenario when you want to create a new release of the SAP BTP Operator module, submit a new version to the `module-manifests` repository, and promote the released version to a specific channel. You create proper artifacts (GitHub tag, Docker images, release notes), and open two PRs in the `module-manifests` repository - one for the `module-config.yaml` file and one for the `module-releases.yaml` file.
 You can execute the release, submit, and promote using the **Create release with version submit** GitHub action and then use the **Promote module to channel** GitHub action to promote the released version to a specific channel, or you can use **Create release**, then **Submit module version**, and finally **Promote module to channel** GitHub actions.
 
 
