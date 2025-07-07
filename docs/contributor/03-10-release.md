@@ -51,7 +51,7 @@ To create a release, follow these steps:
 6. The GitHub action initiates tests jobs (stress tests, performance tests, upgrade tests, secret customization tests) using built image. E2E upgrade tests run only with real credentials for Service Manager. E2E tests are executed in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable.
 7. If you chose in step 1.vi to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
 8. The GitHub action creates a GitHub tag and draft release with the provided name.
-9. If you have chosen to publish in step 1.vii, the GitHub action publishes the release.
+9. If you chose to publish the release in step "Run GitHub action **Create release**", the GitHub action publishes the release.
 
 ##  Create Release With Version Submit
 
