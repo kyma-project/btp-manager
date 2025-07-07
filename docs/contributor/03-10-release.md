@@ -58,9 +58,9 @@ To create a release, follow these steps:
 To create a release, follow these steps:
 
 1. Run GitHub action **Create release**:  
-   i.  Go to the **Actions** tab, and choose the **Create release** workflow, and next  **Run workflow**.
+   i.  Go to the **Actions** tab, and choose the **Create release** workflow, and next  **Run workflow**.  
    ii. Provide a version, for example, 1.2.0  
-   iii. Choose real or dummy credentials for the Service Manager  
+   iii. Choose real or dummy credentials for Service Manager  
    iv. Choose whether to bump or not to bump the security scanner config  
    v. Choose whether you want to publish the release
 2. The GitHub action, defined in the [`create-release`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that are part of this release are labeled correctly. Additionally, it stops the release process if a feature has been added, but only the patch version number has been bumped up.
