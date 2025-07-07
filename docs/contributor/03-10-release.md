@@ -1,4 +1,4 @@
-# SAP BTP Operator module Release and Promotion
+# SAP BTP Operator Module Release and Promotion
 
 ## Overview
 
