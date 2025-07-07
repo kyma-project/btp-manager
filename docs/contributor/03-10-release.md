@@ -3,15 +3,14 @@
 ## Overview
 
 SAP BTP Operator's release and promotion process includes the following stages:
- - BTP Manager release - the process of creating a new release of the SAP BTP Operator module, which includes building and testing the module, creating a GitHub tag, and publishing the release.
- - Module Version Submit - the process of submitting a new version of the SAP BTP Operator module to the `module-manifests` repository, which includes creating a PR with the `module-config.yaml` file for the new version.
- - Promotion to Channel - the process of promoting a released version of the SAP BTP Operator module to a specific channel, which includes creating a PR in the `module-manifests` repository with the `module-releases.yaml` file modified in the section for the specified channel.
-
+ - BTP Manager release - the process of creating a new release of BTP Manager, which includes building and testing it, creating a GitHub tag, and publishing the release.
+ - Module Version Submit - the process of submitting a new version of BTP Manager to the `module-manifests` repository, which includes creating a PR with the `module-config.yaml` file for the new version.
+ - Promotion to Channel - the process of promoting a released version of BTP Manager to a specific channel, which includes creating a PR in the `module-manifests` repository with the `module-releases.yaml` file modified in the section for the specified channel.
 ## Scenarios
 
 ### Release Only
 
-Executing the release only is useful when you want to create a new release of the SAP BTP Operator module without submitting a new version to the module-manifests repository. Proper artifacts are created (GitHub tag, Docker images, and release notes), but no PR is created in the module-manifests repository.
+Executing only the release is useful when you want to create a new release of BTP Manager without submitting a new version to the `module-manifests` repository. Proper artifacts (GitHub tag, Docker images, and release notes) are created, but no PR is opened in the module-manifests repository.
 To execute only the release, use the **Create release** GitHub action.
 A module version not submitted to the `module-manifests` repository is not available for the `kyma-modules` repository, and it cannot be used in the Kyma installation.
 
@@ -37,13 +36,11 @@ Execute the release, submit, and promote scenario in one of the following ways:
 To create a release, follow these steps:
 
 1. Run GitHub action **Create release**:  
-   i.  Go to the **Actions** tab  
-   ii. Click **Create release** workflow   
-   iii. Click  **Run workflow** on the right  
-   iv. Provide a version, for example, 1.2.0  
-   v. Choose real or dummy credentials for Service Manager  
-   vi. Choose whether to bump or not to bump the security scanner config  
-   vii. Choose whether you want to publish the release
+   i.  Go to the **Actions** tab, and choose the **Create release** workflow, and next  **Run workflow**.
+   ii. Provide a version, for example, 1.2.0  
+   iii. Choose real or dummy credentials for Service Manager  
+   iv. Choose whether to bump or not to bump the security scanner config  
+   v. Choose whether you want to publish the release
 2. The GitHub action, defined in the [`create-release`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that are part of this release are labeled correctly. Additionally, it stops the release process if a feature has been added, but only the patch version number has been bumped up.
 3. The GitHub action asynchronously initiates unit tests.
 4. The Image Builder builds binary images.
