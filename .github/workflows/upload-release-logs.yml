@@ -15,25 +15,37 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Wait for release workflow to finish if in progress
-        if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Checking if a release workflow is in progress..."
+          WORKFLOWS=$(gh workflow list --json name --template '{{range .}}{{.name}}{{"\n"}}{{end}}' | awk '/Create.*release/')
           while true; do
-            IN_PROGRESS=$(gh run list --workflow "Create release and submit version to module-manifests" --json status -L 1 --jq '.[] | select(.status == "in_progress") | .status')
+            IN_PROGRESS=""
+            WORKFLOWS_ARRAY=()
+            while IFS= read -r line; do
+              WORKFLOWS_ARRAY+=("$line")
+            done <<< "$WORKFLOWS"
+            for WF in "${WORKFLOWS_ARRAY[@]}"; do
+              echo "Checking workflow: $WF"
+              STATUS=$(gh run list --workflow "$WF" --json status -L 1 --jq '.[] | select(.status == "in_progress") | .status')
+              if [ -n "$STATUS" ]; then
+                IN_PROGRESS=1
+                break
+              fi
+            done
             if [ -z "$IN_PROGRESS" ]; then
               echo "No release workflow in progress."
               break
             fi
-            echo "Release workflow is in progress. Waiting 30 seconds..."
+            echo "A release workflow is in progress. Waiting 30 seconds..."
             sleep 30
           done
 
       - name: Download logs from all attempts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/download_workflow_logs.sh "Create release and submit version to module-manifests" "Create release ${{ github.event.release.tag_name }}"
+        run: ./scripts/download_workflow_logs.sh "${WORKFLOWS_ARRAY[@]}" "Create release ${{ github.event.release.tag_name }}"
 
       - name: Upload logs as release assets
         env:
@@ -43,3 +55,12 @@ jobs:
             echo "Uploading $file to release ${{ github.event.release.tag_name }}..."
             gh release upload ${{ github.event.release.tag_name }} "$file" --repo "$GITHUB_REPOSITORY" --clobber
           done
+      
+      - name: Notify slack channel about failure
+        if: ${{ !success() && env.SLACK_BOT_TOKEN != ''}}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+            channel-id: 'kyma-gopher-private-alerts'
+            slack-message: "Logs uploading to release failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+            SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
