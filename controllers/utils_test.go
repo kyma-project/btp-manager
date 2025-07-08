@@ -717,26 +717,40 @@ func checkHowManySecondsToExpiration(name string) float64 {
 }
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
-	secret := getSecret(CaSecretName)
-	ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
-	Expect(ok).To(BeTrue())
-	Expect(ca).To(Not(BeNil()))
-	vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
-	err := k8sClient.List(ctx, vw, managedByLabelFilter)
-	Expect(err).To(BeNil())
-	for _, w := range vw.Items {
-		for _, n := range w.Webhooks {
-			Expect(bytes.Equal(n.ClientConfig.CABundle, ca)).To(BeTrue())
+	Eventually(func() error {
+		secret := getSecret(CaSecretName)
+		ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+		if !ok || ca == nil {
+			return fmt.Errorf("CA bundle not found in secret")
 		}
-	}
-	mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
-	err = k8sClient.List(ctx, mw, managedByLabelFilter)
-	Expect(err).To(BeNil())
-	for _, w := range mw.Items {
-		for _, n := range w.Webhooks {
-			Expect(bytes.Equal(n.ClientConfig.CABundle, ca)).To(BeTrue())
+
+		vw := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
+		err := k8sClient.List(ctx, vw, managedByLabelFilter)
+		if err != nil {
+			return err
 		}
-	}
+		for _, w := range vw.Items {
+			for _, n := range w.Webhooks {
+				if !bytes.Equal(n.ClientConfig.CABundle, ca) {
+					return fmt.Errorf("ValidatingWebhook CABundle does not match CA")
+				}
+			}
+		}
+
+		mw := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+		err = k8sClient.List(ctx, mw, managedByLabelFilter)
+		if err != nil {
+			return err
+		}
+		for _, w := range mw.Items {
+			for _, n := range w.Webhooks {
+				if !bytes.Equal(n.ClientConfig.CABundle, ca) {
+					return fmt.Errorf("MutatingWebhook CABundle does not match CA")
+				}
+			}
+		}
+		return nil
+	}).Should(Succeed())
 }
 
 func structToByteArray(s any) ([]byte, error) {

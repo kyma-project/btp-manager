@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/conditions"
@@ -101,6 +102,11 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 				// THEN
 				Eventually(updateCh).Should(Receive(matchDeleted()))
 			})
+		})
+		// NOTE: Without this sleep, the tests are flaky when run sequentially.
+		// However, if only a single test from this file is run (without the second one), it always passes. Even if the sleep is removed.
+		AfterEach(func() {
+			time.Sleep(1 * time.Second)
 		})
 	})
 
