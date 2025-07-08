@@ -21,7 +21,7 @@ jobs:
         run: |
           echo "Checking if a release workflow is in progress..."
           while true; do
-            IN_PROGRESS=$(gh run list --workflow "Create release" --json status -L 1 --jq '.[] | select(.status == "in_progress") | .status')
+            IN_PROGRESS=$(gh run list --workflow "Create release and submit version to module-manifests" --json status -L 1 --jq '.[] | select(.status == "in_progress") | .status')
             if [ -z "$IN_PROGRESS" ]; then
               echo "No release workflow in progress."
               break
@@ -33,7 +33,7 @@ jobs:
       - name: Download logs from all attempts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/download_workflow_logs.sh "Create release" "Create release ${{ github.event.release.tag_name }}"
+        run: ./scripts/download_workflow_logs.sh "Create release and submit version to module-manifests" "Create release ${{ github.event.release.tag_name }}"
 
       - name: Upload logs as release assets
         env:
