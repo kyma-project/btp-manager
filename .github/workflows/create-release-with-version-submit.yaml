@@ -1,4 +1,4 @@
-name: Create release and submit version to module-manifests
+name: Create release and submit module version
 run-name: Create release ${{ inputs.name }}
 
 env:
