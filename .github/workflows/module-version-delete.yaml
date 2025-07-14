@@ -22,10 +22,7 @@ env:
   BTP_MANAGER_REPO: "kyma-project/btp-manager"
 
   # File names
-  TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
-  DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
-  MANIFEST_FILENAME: btp-manager.yaml
-  SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
+  MODULE_CONFIG_FILENAME: module-config.yaml
 
   # needed by gh cli for GitHub enterprise
   GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
@@ -88,17 +85,17 @@ jobs:
           git checkout -B ${BRANCH_NAME}
           mkdir -p modules/btp-operator/${TAG}
 
-      - name: Remove module version directory
+      - name: Remove module version
         working-directory: module-manifests/modules/btp-operator
         run: |
-          echo "Creating module configuration file:"
+          echo "Removing module version config: ${TAG}/${MODULE_CONFIG_FILENAME}" | tee $GITHUB_STEP_SUMMARY
+          rm -rf ${TAG}/${MODULE_CONFIG_FILENAME}
 
       - name: Commit and push changes
         working-directory: module-manifests
         env:
           FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
-          git add .
           git commit -m "removal of module version ${TAG} from module-manifests repository"
           git remote set-url origin ${FORK_ORIGIN}
           git push --set-upstream origin ${BRANCH_NAME} -f
@@ -115,7 +112,7 @@ jobs:
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Remove BTP Manager version ${TAG}" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
+          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Remove BTP Manager version ${TAG}" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}/${MODULE_CONFIG_FILENAME}" | tee $GITHUB_STEP_SUMMARY
 
           
           
