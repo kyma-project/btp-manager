@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
 
+# This script extracts container images from module-chart/chart/values.yaml by
+# concatenating manager.image.repository and manager.image.tag for the first image,
+# and manager.rbacProxy.image.repository and manager.rbacProxy.image.tag for the second image.
+# The images are written to external-images.yaml in the format:
+# images:
+#   - source: "<IMAGE>"
+
 set -euo pipefail
 
 OUTPUT_FILE="external-images.yaml"
+VALUES_YAML="./module-chart/chart/values.yaml"
 
 echo "images:" > "$OUTPUT_FILE"
 
-# Extract images from module-resources/apply/deployment.yml if the file exists
-DEPLOYMENT_YAML="./module-resources/apply/deployment.yml"
-if [ -f "$DEPLOYMENT_YAML" ]; then
-  IMAGES=$(yq '.spec.template.spec.containers[].image' "$DEPLOYMENT_YAML" | uniq)
-  echo "Images found in $DEPLOYMENT_YAML:"
-  echo "$IMAGES" | awk '{print "- "$0""}'
-  echo "$IMAGES" | awk '{print "  - source: \""$0"\""}' >> "$OUTPUT_FILE"
+if [ -f "$VALUES_YAML" ]; then
+  MANAGER_IMAGE=$(yq -r '.manager.image.repository + ":" + .manager.image.tag' "$VALUES_YAML")
+  RBAC_PROXY_IMAGE=$(yq -r '.manager.rbacProxy.image.repository + ":" + .manager.rbacProxy.image.tag' "$VALUES_YAML")
+  echo "Images found in $VALUES_YAML:"
+  echo "- $MANAGER_IMAGE"
+  echo "- $RBAC_PROXY_IMAGE"
+  echo "  - source: \"$MANAGER_IMAGE\"" >> "$OUTPUT_FILE"
+  echo "  - source: \"$RBAC_PROXY_IMAGE\"" >> "$OUTPUT_FILE"
 fi
 
 echo "Images have been written to $OUTPUT_FILE"
