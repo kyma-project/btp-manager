@@ -12,3 +12,8 @@ manager:
     enabled: true
   enable_limited_cache: false
   priorityClassName: "btp-manager-kyma-priority"
+  image:
+    repository: europe-docker.pkg.dev/kyma-project/prod/external/ghcr.io/sap/sap-btp-service-operator/controller
+  rbacProxy:
+    image:
+      repository: europe-docker.pkg.dev/kyma-project/prod/external/quay.io/brancz/kube-rbac-proxy

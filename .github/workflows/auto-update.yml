@@ -48,6 +48,11 @@ jobs:
           scripts/update/make-module-chart.sh $TAG
           scripts/update/make-module-resources.sh $TAG
 
+      - name: Update external images
+        if: env.CONTINUE_JOB == 'true'
+        run: |
+          scripts/update/update-external-images.sh
+
       - name: Create PR if anything changed
         if: env.CONTINUE_JOB == 'true'
         env:
