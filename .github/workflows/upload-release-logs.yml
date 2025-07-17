@@ -20,6 +20,7 @@ jobs:
         run: |
           echo "Checking if a release workflow is in progress..."
           WORKFLOWS=$(gh workflow list --json name --template '{{range .}}{{.name}}{{"\n"}}{{end}}' | awk '/Create.*release/')
+          echo "$WORKFLOWS" > workflows.txt
           while true; do
             IN_PROGRESS=""
             WORKFLOWS_ARRAY=()
@@ -45,7 +46,12 @@ jobs:
       - name: Download logs from all attempts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/download_workflow_logs.sh "${WORKFLOWS_ARRAY[@]}" "Create release ${{ github.event.release.tag_name }}"
+        run: |
+          WORKFLOWS_ARRAY=()
+          while IFS= read -r line; do
+            WORKFLOWS_ARRAY+=("$line")
+          done < workflows.txt
+          ./scripts/download_workflow_logs.sh "${WORKFLOWS_ARRAY[@]}" "Create release ${{ github.event.release.tag_name }}"
 
       - name: Upload logs as release assets
         env:
