@@ -11,7 +11,6 @@ on:
       - main
     paths:
       - "external-images.yaml"
-  workflow_dispatch:
 
 permissions:
   id-token: write
