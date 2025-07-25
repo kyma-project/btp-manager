@@ -38,33 +38,63 @@ jobs:
             echo "version update from $current to $latest"
             echo "CONTINUE_JOB=true" >> $GITHUB_ENV
             echo "TAG=${latest}" >> $GITHUB_ENV
-            echo "BRANCH_NAME=chart-${latest}" >> $GITHUB_ENV
+            echo "BASE_BRANCH_NAME=chart-${latest}" >> $GITHUB_ENV
             echo "MSG=Update module chart and resources to ${latest}" >> $GITHUB_ENV
           fi
 
-      - name: Update chart and module resources
+      - name: Update chart
         if: env.CONTINUE_JOB == 'true'
-        run: |
-          scripts/update/make-module-chart.sh $TAG
-          scripts/update/make-module-resources.sh $TAG
-
+        run: scripts/update/make-module-chart.sh $TAG
+      
       - name: Update external images
         if: env.CONTINUE_JOB == 'true'
-        run: |
-          scripts/update/update-external-images.sh
+        run: scripts/update/update-external-images.sh
 
-      - name: Create PR if anything changed
+      - name: Create PR for image-syncer
         if: env.CONTINUE_JOB == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
+          BRANCH_NAME=${BASE_BRANCH_NAME}-update-external-images
+          echo "MSG=Update module chart to ${latest}" >> $GITHUB_ENV
           prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
           elif [ -z "$(git status --porcelain)" ]; then
             echo "nothing changed, no need to create PR"
           else
-            scripts/update/create_pr.sh
+            scripts/update/create_pr_module_chart.sh
+          fi      
+      
+      - name: Wait for sap-btp-service-operator image
+        if: env.CONTINUE_JOB == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/await_image.sh ${}
+
+      - name: Wait for kube-rbac-proxy image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/await_image.sh ${}
+      
+      - name: Update module resources
+        if: env.CONTINUE_JOB == 'true'
+        run: scripts/update/make-module-resources.sh $TAG
+
+      - name: Create PR for resources update
+        if: env.CONTINUE_JOB == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          BRANCH_NAME=${BASE_BRANCH_NAME}-update-resources
+          echo "MSG=Update module resources to ${latest}" >> $GITHUB_ENV
+          prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+          if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
+            echo "PR already exists, no need to create a new one"
+          elif [ -z "$(git status --porcelain)" ]; then
+            echo "nothing changed, no need to create PR"
+          else
+            scripts/update/create_pr_module_resources.sh
           fi
 
       - name: Notify slack channel about failure
