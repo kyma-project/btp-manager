@@ -17,7 +17,6 @@ set -o pipefail # prevents errors in a pipeline from being masked# link the PR f
 #   TAG                           - new chart version
 
 # add changed files to stage
-git add module-chart/*
 git add module-resources/*
 git add controllers/btpoperator_controller.go
 git add config/rbac/role.yaml
@@ -31,7 +30,6 @@ git checkout -B ${BRANCH_NAME}
 
 #apply stashed changes
 git stash apply
-git add module-chart/*
 git add module-resources/*
 git add controllers/btpoperator_controller.go
 git add config/rbac/role.yaml
