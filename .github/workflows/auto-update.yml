@@ -56,7 +56,7 @@ jobs:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           BRANCH_NAME=${BASE_BRANCH_NAME}-update-external-images
-          echo "MSG=Update module chart to ${latest}" >> $GITHUB_ENV
+          echo "MSG=Update module chart to ${TAG}" >> $GITHUB_ENV
           prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
@@ -75,6 +75,7 @@ jobs:
           scripts/await_image.sh "${{ vars.EXTERNAL_IMAGES_REPO }}/${EXTERNAL_IMAGE}"
 
       - name: Wait for kube-rbac-proxy image
+        if: env.CONTINUE_JOB == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -91,7 +92,7 @@ jobs:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           BRANCH_NAME=${BASE_BRANCH_NAME}-update-resources
-          echo "MSG=Update module resources to ${latest}" >> $GITHUB_ENV
+          echo "MSG=Update module resources to ${TAG}" >> $GITHUB_ENV
           prs=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $prs | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
@@ -105,7 +106,7 @@ jobs:
         if: ${{ !success() && env.SLACK_BOT_TOKEN != ''}}
         uses: slackapi/slack-github-action@v1.24.0
         with:
-            channel-id: 'kyma-gopher-private-alerts'
-            slack-message: "Auto-update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          channel-id: 'kyma-gopher-private-alerts'
+          slack-message: "Auto-update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
-            SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
