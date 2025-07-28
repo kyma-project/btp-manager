@@ -70,12 +70,16 @@ jobs:
         if: env.CONTINUE_JOB == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/await_image.sh ${}
+        run: |
+          EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("sap-btp-service-operator")) | .source' external-images.yaml)
+          scripts/await_image.sh "${{ vars.EXTERNAL_IMAGES_REPO }}/${EXTERNAL_IMAGE}"
 
       - name: Wait for kube-rbac-proxy image
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/await_image.sh ${}
+        run: |
+          EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("kube-rbac-proxy")) | .source' external-images.yaml)
+          scripts/await_image.sh "${{ vars.EXTERNAL_IMAGES_REPO }}/${EXTERNAL_IMAGE}"
       
       - name: Update module resources
         if: env.CONTINUE_JOB == 'true'
