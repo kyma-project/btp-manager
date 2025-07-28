@@ -35,7 +35,7 @@ jobs:
         env:
           IMAGE_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
+        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         env:
@@ -104,7 +104,7 @@ jobs:
         env:
           IMAGE_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
+        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         env:
@@ -186,7 +186,7 @@ jobs:
         env:
           IMAGE_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
+        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.image-tag }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         env:
@@ -256,7 +256,7 @@ jobs:
         env:
           IMAGE_REPO: ${{ inputs.image-repo }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
+        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.image-tag }}"
 
       - name: Install prerequisites
         run: |

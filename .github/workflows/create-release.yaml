@@ -120,7 +120,7 @@ jobs:
       - name: Wait for artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.name }}"
+        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.name }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
