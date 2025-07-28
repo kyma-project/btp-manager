@@ -6,6 +6,7 @@ env:
   SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-gopher-bot
+  EXTERNAL_IMAGES_REPO: ${{ vars.EXTERNAL_IMAGES_REPO }}
 on:
   workflow_dispatch:
   schedule:
@@ -72,7 +73,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("sap-btp-service-operator")) | .source' external-images.yaml)
-          scripts/await_image.sh "${{ vars.EXTERNAL_IMAGES_REPO }}/${EXTERNAL_IMAGE}"
+          scripts/await_image.sh "${EXTERNAL_IMAGES_REPO}/${EXTERNAL_IMAGE}"
 
       - name: Wait for kube-rbac-proxy image
         if: env.CONTINUE_JOB == 'true'
@@ -80,11 +81,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("kube-rbac-proxy")) | .source' external-images.yaml)
-          scripts/await_image.sh "${{ vars.EXTERNAL_IMAGES_REPO }}/${EXTERNAL_IMAGE}"
+          scripts/await_image.sh "${EXTERNAL_IMAGES_REPO}/${EXTERNAL_IMAGE}"
       
       - name: Update module resources
         if: env.CONTINUE_JOB == 'true'
         run: scripts/update/make-module-resources.sh $TAG
+
+      - name: Set images as envs in module deployment
+        if: env.CONTINUE_JOB == 'true'
+        run: ./scripts/update/add_module_managed_images_envs.sh
 
       - name: Create PR for resources update
         if: env.CONTINUE_JOB == 'true'
