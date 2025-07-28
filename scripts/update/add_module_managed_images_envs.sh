@@ -6,7 +6,6 @@ EXTERNAL_IMAGES_YAML="./external-images.yaml"
 EXTERNAL_IMAGES_REPO="europe-docker.pkg.dev/kyma-project/prod/external"
 BTP_MANAGER_DEPLOYMENT_PATCH_YAML="./config/manager/set_external_images.yaml"
 
-
 update_env_var() {
   export ENV_NAME=${1}
   export ENV_VALUE=${2}
