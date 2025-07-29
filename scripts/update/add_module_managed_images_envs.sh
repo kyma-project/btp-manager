@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 
+# This script updates environment variables in the BTP Manager deployment patch manifest
+# (set_external_images.yaml) based on image references found in external-images.yaml.
+# It extracts image names, constructs full image paths, and ensures the deployment manifest
+# contains the correct environment variables for these images.
+#
+# Usage: Run this script from the repository root. Requires yq and bash.
+#
+# Expected variables passed (passed from CI):
+#   EXTERNAL_IMAGES_REPO - Kyma external images repository
+
+
 set -euo pipefail
 
 EXTERNAL_IMAGES_YAML="./external-images.yaml"
-EXTERNAL_IMAGES_REPO="europe-docker.pkg.dev/kyma-project/prod/external"
 BTP_MANAGER_DEPLOYMENT_PATCH_YAML="./config/manager/set_external_images.yaml"
 
 update_env_var() {
@@ -32,10 +42,10 @@ env_var_exists() {
 }
 
 handle_env_var() {
-  if env_var_exists ${1}; then
-    update_env_var ${1} ${2}
+  if env_var_exists "${1}"; then
+    update_env_var "${1}" "${2}"
   else
-    add_env_var ${1} ${2}
+    add_env_var "${1}" "${2}"
   fi
 }
 
