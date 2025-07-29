@@ -1,27 +1,31 @@
 #!/usr/bin/env bash
 
-# This script extracts container images from module-chart/chart/values.yaml by
-# concatenating manager.image.repository and manager.image.tag for the first image,
-# and manager.rbacProxy.image.repository and manager.rbacProxy.image.tag for the second image.
+# This script extracts all container images from module-chart/chart/values.yaml by
+# searching for objects with both 'repository' and 'tag' keys and concatenating their values.
+# It excludes images listed in the EXCLUDE_IMAGES array.
 # The images are written to external-images.yaml in the format:
 # images:
 #   - source: "<IMAGE>"
+# The script also prints the found images to the console.
 
 set -euo pipefail
 
 OUTPUT_FILE="external-images.yaml"
 VALUES_YAML="./module-chart/chart/values.yaml"
 
+# List of images to exclude from the output
+EXCLUDE_IMAGES=("bitnami/kubectl")
+
 echo "images:" > "$OUTPUT_FILE"
 
 if [ -f "$VALUES_YAML" ]; then
-  MANAGER_IMAGE=$(yq -r '.manager.image.repository + ":" + .manager.image.tag' "$VALUES_YAML")
-  RBAC_PROXY_IMAGE=$(yq -r '.manager.rbacProxy.image.repository + ":" + .manager.rbacProxy.image.tag' "$VALUES_YAML")
-  echo "Images found in $VALUES_YAML:"
-  echo "- $MANAGER_IMAGE"
-  echo "- $RBAC_PROXY_IMAGE"
-  echo "  - source: \"$MANAGER_IMAGE\"" >> "$OUTPUT_FILE"
-  echo "  - source: \"$RBAC_PROXY_IMAGE\"" >> "$OUTPUT_FILE"
+  IMAGES=$(yq -r '.. | select(has("repository") and has("tag")) | .repository + ":" + .tag' "$VALUES_YAML" | sort -u)
+  for exclude in "${EXCLUDE_IMAGES[@]}"; do
+    IMAGES=$(echo "$IMAGES" | grep -v "$exclude")
+  done
+  echo "Images found in $VALUES_YAML (excluding: ${EXCLUDE_IMAGES[*]}):"
+  echo "$IMAGES" | awk '{print "- "$0}'
+  echo "$IMAGES" | awk '{print "  - source: \""$0"\""}' >> "$OUTPUT_FILE"
 fi
 
 echo "Images have been written to $OUTPUT_FILE"

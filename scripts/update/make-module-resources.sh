@@ -119,6 +119,13 @@ updateRbac() {
     (cd ../../; make manifests)
 }
 
+set_images_to_empty_strings() {
+  local deployment_file="${EXISTING_RESOURCES_APPLY_PATH}/deployment.yml"
+  if [ -f "$deployment_file" ]; then
+    yq -i '(.spec.template.spec.containers[].image) = ""' "$deployment_file"
+  fi
+}
+
 incoming_resources=()
 touch to-exclude.yml
 filterProhibitedFiles ${NEW_RESOURCES_PATH}
@@ -141,3 +148,4 @@ mv to-exclude.yml $EXCLUDED_RESOURCES_PATH
 
 rm -r $HELM_OUTPUT_PATH
 
+set_images_to_empty_strings

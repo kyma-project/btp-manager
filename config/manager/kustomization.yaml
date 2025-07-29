@@ -6,3 +6,5 @@ images:
 - name: controller
   newName: europe-docker.pkg.dev/kyma-project/prod/btp-manager
   newTag: 0.0.23-test
+patches:
+- path: set_external_images.yaml

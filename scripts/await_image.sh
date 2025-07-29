@@ -6,21 +6,27 @@ set -o errexit  # exit immediately when a command fails.
 set -E          # must be set if you want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
-# This script has the following arguments:
-#                       - binary image tag - mandatory
+# This script accepts a single argument:
+#   1. image repository with tag (e.g., repo/image:tag)
 #
-# ./await_image.sh 1.1.0
-
+# Usage:
+#   ./await_image.sh <image>
+#
 # Expected variables:
-#             IMAGE_REPO - binary image repository
-#             GITHUB_TOKEN - github token
-
-
-export IMAGE_TAG=$1
+#   GITHUB_TOKEN - github token
 
 PROTOCOL=docker://
 
-until $(skopeo list-tags ${PROTOCOL}${IMAGE_REPO} | jq '.Tags|any(. == env.IMAGE_TAG)'); do
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <image>"
+  exit 1
+fi
+
+IMAGE_REPO_WITH_TAG="$1"
+IMAGE_REPO="${IMAGE_REPO_WITH_TAG%:*}"
+IMAGE_TAG="${IMAGE_REPO_WITH_TAG##*:}"
+
+until $(skopeo list-tags ${PROTOCOL}${IMAGE_REPO} | jq --arg IMAGE_TAG "$IMAGE_TAG" '.Tags|any(. == $IMAGE_TAG)'); do
   echo "Waiting for binary image: ${IMAGE_REPO}:${IMAGE_TAG}"
   sleep 10
 done

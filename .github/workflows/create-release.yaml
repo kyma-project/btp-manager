@@ -120,7 +120,7 @@ jobs:
       - name: Wait for artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.name }}"
+        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.name }}"
 
       - name: Install BTP Manager and SAP BTP Operator
         timeout-minutes: 2
@@ -323,7 +323,6 @@ jobs:
           BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IMG=$IMAGE_REPO:${{ inputs.name }} make create-manifest
-          ./scripts/add_module_managed_images_envs.sh
           ./scripts/upload_assets.sh ${{ steps.create-draft.outputs.release_id }}
 
       - name: Create lightweight tag

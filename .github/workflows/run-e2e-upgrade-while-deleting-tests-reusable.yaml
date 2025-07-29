@@ -31,7 +31,7 @@ jobs:
         env:
           IMAGE_REPO: ${{ inputs.image-registry }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/await_image.sh ${{ inputs.image-tag }}"
+        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.image-tag }}"
 
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_upgrade_during_deletion_tests.sh ${{ inputs.image-registry }}:${{ inputs.image-tag }}"
