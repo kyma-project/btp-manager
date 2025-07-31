@@ -43,3 +43,7 @@ git push --set-upstream origin ${BRANCH_NAME} -f
 # create PR
 pr_link=$(gh pr create -B main --title "${MSG}" --body "${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/tag/${TAG}" | tail -n 1)
 echo "Link for created PR: ${pr_link}"
+
+pr_number=$(echo "$pr_link" | awk -F'/' '{print $NF}')
+gh pr edit $pr_number --add-label kind/enhancement
+echo "$pr_number"
