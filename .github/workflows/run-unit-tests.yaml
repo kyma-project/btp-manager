@@ -9,6 +9,8 @@ on:
     paths-ignore:
       - "**.md"
       - "sec-scanners-config.yaml"
+      - "external-images.yaml"
+      - "module-chart/**"
 
 jobs:
   run-unit-tests:
