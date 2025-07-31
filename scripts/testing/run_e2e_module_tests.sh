@@ -234,20 +234,18 @@ echo -e "\n--- Deprovisioning safety measures work"
 
 echo -e "\n--- Checking module resources reconciliation when BtpOperator CR is in Deleting state"
 
+OLD_SAP_BTP_OPERATOR_DEPLOYMENT_UID=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath="{.metadata.uid}")
+
 echo "Deleting ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment"
 kubectl delete -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME}
 
-while [[ "$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} 2>&1)" != *"Error from server (NotFound)"* ]];
-do echo -e "\n--- Waiting for ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment deletion"; sleep 5; done
-
-echo -e "\n--- Triggering reconciliation by annotating BtpOperator CR"
-kubectl annotate --overwrite -f ${YAML_DIR}/e2e-test-btpoperator.yaml last-manual-reconciliation-timestamp="$(date -u -Iseconds)"
-
-echo -e "\n--- Waiting for reconciliation (${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment existence)"
+echo -e "\n--- Waiting for reconciliation (new ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment)"
 SECONDS=0
 TIMEOUT=120
-until kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME}
+until [[ "$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} 2>&1)" != *"Error from server (NotFound)"* ]] && \
+  [[ $(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath="{.metadata.uid}") != "${OLD_SAP_BTP_OPERATOR_DEPLOYMENT_UID}" ]]
 do
+  echo "Waiting for new ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment to be created"
   if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
     echo "timed out after ${TIMEOUT}s" && exit 1
   fi
