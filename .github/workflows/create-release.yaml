@@ -83,7 +83,6 @@ jobs:
       dockerfile: Dockerfile
       context: .
       tags: ${{ inputs.name }}
-      build-engine: buildx
 
   run-unit-tests:
     name: Unit tests
