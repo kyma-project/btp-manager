@@ -14,6 +14,7 @@ set -o pipefail # prevents errors in a pipeline from being masked# link the PR f
 #   SAP_BTP_SERVICE_OPERATOR_REPO - upstream repository with new chart versions
 #   BRANCH_NAME                   - branch with updated resources
 #   TAG                           - new chart version
+#   MSG                           - commit message
 
 # add changed files to stage
 git add module-chart/*

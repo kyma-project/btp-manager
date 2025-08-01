@@ -15,9 +15,11 @@ set -o pipefail # prevents errors in a pipeline from being masked# link the PR f
 #   SAP_BTP_SERVICE_OPERATOR_REPO - upstream repository with new chart versions
 #   BRANCH_NAME                   - branch with updated resources
 #   TAG                           - new chart version
+#   MSG                           - commit message
 
 # add changed files to stage
 git add module-resources/*
+git add config/*
 git add controllers/btpoperator_controller.go
 git add config/rbac/role.yaml
 
@@ -31,6 +33,7 @@ git checkout -B ${BRANCH_NAME}
 #apply stashed changes
 git stash apply
 git add module-resources/*
+git add config/*
 git add controllers/btpoperator_controller.go
 git add config/rbac/role.yaml
 

@@ -55,13 +55,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
-          CHART_UPDATE_BRANCH_NAME=${BASE_BRANCH_NAME}-update-chart-and-external-images
-          echo "CHART_UPDATE_BRANCH_NAME=${CHART_UPDATE_BRANCH_NAME}" >> $GITHUB_ENV
-          MSG=Update module chart to ${TAG}
+          export BRANCH_NAME=${BASE_BRANCH_NAME}-update-chart-and-external-images
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+          export MSG="Update module chart to ${TAG}"
           PRS=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-          if echo $PRS | tr " " '\n' | grep -F -q -x ${CHART_UPDATE_BRANCH_NAME}; then
+          if echo $PRS | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
             echo "PR already exists, no need to create a new one"
-            echo "CHART_UPDATE_PR_NUMBER=$(gh pr list --search "base:main head:${CHART_UPDATE_BRANCH_NAME}" --json number | jq -r '.[] | .number')" >> $GITHUB_ENV
+            echo "CHART_UPDATE_PR_NUMBER=$(gh pr list --search "base:main head:${BRANCH_NAME}" --json number | jq -r '.[] | .number')" >> $GITHUB_ENV
           elif [ -z "$(git status --porcelain)" ]; then
             echo "Nothing changed, no need to create PR"
             echo "CHART_UPDATE_PR_NUMBER=-1" >> $GITHUB_ENV
@@ -91,7 +91,7 @@ jobs:
         run: |
           if [ "$PR_NUMBER" -gt 0 ]; then
             scripts/await_pr_merge.sh
-            git push origin -d $CHART_UPDATE_BRANCH_NAME
+            git push origin -d $BRANCH_NAME
           else
             echo "Step skipped"
           fi
@@ -124,17 +124,17 @@ jobs:
 
       - name: Set images as envs in module deployment
         if: env.CONTINUE_JOB == 'true'
-        run: ./scripts/update/add_module_managed_images_envs.sh
+        run: scripts/update/add_module_managed_images_envs.sh
 
       - name: Create PR for resources update
         if: env.CONTINUE_JOB == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
-          RESOURCES_UPDATE_BRANCH_NAME=${BASE_BRANCH_NAME}-update-resources
-          MSG=Update module resources to ${TAG}
+          export BRANCH_NAME=${BASE_BRANCH_NAME}-update-resources
+          export MSG="Update module resources to ${TAG}"
           PRS=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
-          if echo $PRS | tr " " '\n' | grep -F -q -x $RESOURCES_UPDATE_BRANCH_NAME; then
+          if echo $PRS | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
           elif [ -z "$(git status --porcelain)" ]; then
             echo "Nothing changed, no need to create PR"
