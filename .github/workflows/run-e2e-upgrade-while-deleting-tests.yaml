@@ -10,6 +10,9 @@ on:
     paths-ignore:
       - "**.md"
       - "sec-scanners-config.yaml"
+      - "external-images.yaml"
+      - "module-chart/**"
+
 jobs:
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
