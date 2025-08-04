@@ -87,6 +87,8 @@ const (
 )
 
 const (
+	SapBtpServiceOperatorName                 = "sap-btp-service-operator"
+	KubeRbacProxyName                         = "kube-rbac-proxy"
 	secretKind                                = "Secret"
 	configMapKind                             = "ConfigMap"
 	deploymentKind                            = "Deployment"
@@ -99,8 +101,7 @@ const (
 	sapBtpServiceOperatorClusterIdSecretName  = operandName + "-clusterid"
 	mutatingWebhookName                       = operandName + "-mutating-webhook-configuration"
 	validatingWebhookName                     = operandName + "-validating-webhook-configuration"
-	sapBtpServiceOperatorName                 = "sap-btp-service-operator"
-	sapBtpServiceOperatorSecretName           = sapBtpServiceOperatorName
+	sapBtpServiceOperatorSecretName           = SapBtpServiceOperatorName
 	sapBtpServiceOperatorContainerName        = "manager"
 	operatorLabelPrefix                       = "operator.kyma-project.io/"
 	deletionFinalizer                         = operatorLabelPrefix + operatorName
@@ -114,7 +115,6 @@ const (
 	forceDeleteLabelKey                       = "force-delete"
 	btpoperatorCRName                         = "btpoperator"
 	kymaSystemNamespaceName                   = "kyma-system"
-	kubeRbacProxyName                         = "kube-rbac-proxy"
 )
 
 const (
