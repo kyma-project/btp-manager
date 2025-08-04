@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: servicebindings.services.cloud.sap.com
 spec:
   group: services.cloud.sap.com
@@ -76,6 +76,7 @@ spec:
                 type: object
               externalName:
                 description: The name of the binding in Service Manager
+                maxLength: 100
                 type: string
               parameters:
                 description: |-
@@ -260,6 +261,10 @@ spec:
                 description: Indicates when binding secret was rotated
                 format: date-time
                 type: string
+              observedGeneration:
+                description: Last generation that was acted on
+                format: int64
+                type: integer
               operationType:
                 description: The operation type (CREATE/UPDATE/DELETE) for ongoing
                   operation
@@ -344,6 +349,7 @@ spec:
                 type: object
               externalName:
                 description: The name of the binding in Service Manager
+                maxLength: 100
                 type: string
               parameters:
                 description: |-
@@ -538,7 +544,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: serviceinstances.services.cloud.sap.com
 spec:
   group: services.cloud.sap.com
@@ -619,6 +625,7 @@ spec:
                 type: string
               externalName:
                 description: The name of the instance in Service Manager
+                maxLength: 100
                 type: string
               parameters:
                 description: |-
@@ -785,6 +792,10 @@ spec:
                 description: The generated ID of the instance, will be automatically
                   filled once the instance is created
                 type: string
+              observedGeneration:
+                description: Last generation that was acted on
+                format: int64
+                type: integer
               operationType:
                 description: The operation type (CREATE/UPDATE/DELETE) for ongoing
                   operation
@@ -870,6 +881,7 @@ spec:
                 type: array
               externalName:
                 description: The name of the instance in Service Manager
+                maxLength: 100
                 type: string
               parameters:
                 description: |-
