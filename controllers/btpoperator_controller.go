@@ -88,7 +88,9 @@ const (
 
 const (
 	SapBtpServiceOperatorName                 = "sap-btp-service-operator"
+	SapBtpServiceOperatorEnv                  = "SAP_BTP_SERVICE_OPERATOR"
 	KubeRbacProxyName                         = "kube-rbac-proxy"
+	KubeRbacProxyEnv                          = "KUBE_RBAC_PROXY"
 	secretKind                                = "Secret"
 	configMapKind                             = "ConfigMap"
 	deploymentKind                            = "Deployment"
@@ -634,8 +636,8 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 }
 
 func (r *BtpOperatorReconciler) setDeploymentImages(u *unstructured.Unstructured) error {
-	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorName)
-	kubeRbacProxyImage := os.Getenv(KubeRbacProxyName)
+	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
+	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
 	if err := r.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
 		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
 	}
