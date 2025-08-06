@@ -46,6 +46,11 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
+const (
+	fakeSapBtpOperatorImage = "local.test/sap/sap-btp-service-operator/controller:v0.0.1"
+	fakeKubeRbacProxyImage  = "local.test/brancz/kube-rbac-proxy:v0.0.1"
+)
+
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
@@ -201,10 +206,10 @@ var _ = SynchronizedBeforeSuite(func() {
 	}
 
 	if os.Getenv(SapBtpServiceOperatorEnv) == "" {
-		Expect(os.Setenv(SapBtpServiceOperatorEnv, "local.test/sap/sap-btp-service-operator/controller:v0.0.1")).To(Succeed())
+		Expect(os.Setenv(SapBtpServiceOperatorEnv, fakeSapBtpOperatorImage)).To(Succeed())
 	}
 	if os.Getenv(KubeRbacProxyEnv) == "" {
-		Expect(os.Setenv(KubeRbacProxyEnv, "local.test/brancz/kube-rbac-proxy:v0.0.1")).To(Succeed())
+		Expect(os.Setenv(KubeRbacProxyEnv, fakeKubeRbacProxyImage)).To(Succeed())
 	}
 
 	err = reconciler.SetupWithManager(k8sManager)
