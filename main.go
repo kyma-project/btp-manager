@@ -17,8 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"flag"
 	"os"
+	"strings"
 
 	//test
 
@@ -82,6 +84,15 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	requiredEnvs := []string{
+		controllers.SapBtpServiceOperatorEnv,
+		controllers.KubeRbacProxyEnv,
+	}
+	if err := ensureRequiredEnvs(requiredEnvs...); err != nil {
+		setupLog.Error(err, "missing required environment variables")
+		os.Exit(1)
+	}
+
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	restCfg := ctrl.GetConfigOrDie()
@@ -129,4 +140,18 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func ensureRequiredEnvs(envs ...string) error {
+	missingEnvs := make([]string, 0)
+	for _, e := range envs {
+		if os.Getenv(e) == "" {
+			missingEnvs = append(missingEnvs, e)
+		}
+	}
+	if len(missingEnvs) > 0 {
+		return errors.New("required environment variables not set: " + strings.Join(missingEnvs, ", "))
+	}
+
+	return nil
 }
