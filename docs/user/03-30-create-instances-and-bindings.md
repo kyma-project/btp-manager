@@ -4,8 +4,8 @@ To use an SAP BTP service in your Kyma cluster, create its service instance and 
 
 ## Prerequisites
 
-* The [SAP BTP Operator module](README.md) is added. For instructions on adding modules, see [Adding and Deleting a Kyma Module](https://help.sap.com/docs/btp/sap-business-technology-platform/enable-and-disable-kyma-module).
-* For CLI interactions: [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.17 or higher.
+* You have the [SAP BTP Operator module](README.md) added. For instructions on adding modules, see [Adding and Deleting a Kyma Module](https://help.sap.com/docs/btp/sap-business-technology-platform/enable-and-disable-kyma-module).
+* For CLI interactions: [kubectl](https://kubernetes.io/docs/tasks/tools/) configured to communicate with your Kyma instance. See [Access a Kyma Instance Using kubectl](https://help.sap.com/docs/btp/sap-business-technology-platform/access-kyma-instance-using-kubectl?version=Cloud).
 * For an enterprise account, you have added quotas to the services you purchased in your subaccount. Otherwise, only default free-of-charge services are listed in the service marketplace. Quotas are automatically assigned to the resources available in trial accounts.
   For more information, see [Configure Entitlements and Quotas for Subaccounts](https://help.sap.com/docs/btp/sap-business-technology-platform/configure-entitlements-and-quotas-for-subaccounts?&version=Cloud).
 * You know the service offering name and service plan name for the SAP BTP service you want to connect to your Kyma cluster.
@@ -79,9 +79,10 @@ Kyma dashboard is a web-based UI providing a graphical overview of your cluster 
 To access Kyma dashboard, use the link available in the **Kyma Environment** section of your subaccount **Overview**.
 
 1. In the navigation area, choose **Namespaces**, and go to the namespace you want to work in.
-2. Go to **Service Management** -> **Service Bindings**, and choose **Create**. Alternatively, you can provide the required details by switching from the **Form** to **YAML** tab, and editing or uploading your file.
+2. Go to **Service Management** -> **Service Bindings**, and choose **Create**.
+3. Provide the required details, and choose your service instance name from the dropdown list. Alternatively, you can provide the required details by switching from the **Form** to **YAML** tab, and editing or uploading your file.
 
-3. Choose **Create**.<br>
+4. Choose **Create**.<br>
    You see the status `PROVISIONED`.
 
 #### **kubectl**
