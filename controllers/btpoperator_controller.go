@@ -547,12 +547,15 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	for i, u := range resourcesToApply {
 		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
 			configMapIndex = i
+			continue
 		}
 		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
 			secretIndex = i
+			continue
 		}
 		if u.GetName() == DeploymentName && u.GetKind() == deploymentKind {
 			deploymentIndex = i
+			continue
 		}
 	}
 
@@ -651,10 +654,10 @@ func (r *BtpOperatorReconciler) setDeploymentImages(u *unstructured.Unstructured
 func (r *BtpOperatorReconciler) setContainerImage(u *unstructured.Unstructured, containerName, image string) error {
 	containers, found, err := unstructured.NestedSlice(u.Object, "spec", "template", "spec", "containers")
 	if err != nil {
-		return fmt.Errorf("failed to get containers from Deployment: %w", err)
+		return fmt.Errorf("failed to get containers from %s %s: %w", u.GetKind(), u.GetName(), err)
 	}
 	if !found {
-		return fmt.Errorf("containers not found in Deployment %s", u.GetName())
+		return fmt.Errorf("containers not found in %s %s", u.GetKind(), u.GetName())
 	}
 	for i, c := range containers {
 		container, ok := c.(map[string]interface{})

@@ -27,7 +27,7 @@ const (
 
 var _ = Describe("BTP Operator controller - updating", func() {
 	var cr *v1alpha1.BtpOperator
-	var initChartVersion, chartUpdatePathForProcess, resourcesUpdatePathForProcess string
+	var initChartVersion, chartUpdatePathForProcess, resourcesUpdatePathForProcess, defaultDeploymentName string
 	var manifestHandler *manifest.Handler
 	var initApplyObjs []runtime.Object
 	var gvks []schema.GroupVersionKind
@@ -68,6 +68,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		copyDirRecursively(ResourcesPath, resourcesUpdatePathForProcess)
 		ChartPath = chartUpdatePathForProcess
 		ResourcesPath = resourcesUpdatePathForProcess
+		defaultDeploymentName = DeploymentName
 	})
 
 	AfterEach(func() {
@@ -87,6 +88,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 		ChartPath = defaultChartPath
 		ResourcesPath = defaultResourcesPath
+		DeploymentName = defaultDeploymentName
 	})
 
 	When("update all resources names and bump chart version", Label("test-update"), func() {
@@ -96,6 +98,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 			err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
 			Expect(err).To(BeNil())
+
+			DeploymentName = defaultDeploymentName + suffix
 
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
@@ -132,6 +136,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 			err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix)
 			Expect(err).To(BeNil())
+
+			DeploymentName = defaultDeploymentName + suffix
 
 			err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
 			Expect(err).To(BeNil())

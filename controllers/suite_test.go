@@ -200,6 +200,13 @@ var _ = SynchronizedBeforeSuite(func() {
 		StatusUpdateCheckInterval = statusUpdateCheckIntervalForAllTests
 	}
 
+	if os.Getenv(SapBtpServiceOperatorEnv) == "" {
+		Expect(os.Setenv(SapBtpServiceOperatorEnv, "local.test/sap/sap-btp-service-operator/controller:v0.0.1")).To(Succeed())
+	}
+	if os.Getenv(KubeRbacProxyEnv) == "" {
+		Expect(os.Setenv(KubeRbacProxyEnv, "local.test/brancz/kube-rbac-proxy:v0.0.1")).To(Succeed())
+	}
+
 	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
