@@ -27,7 +27,7 @@ git add config/rbac/role.yaml
 git stash push --staged
 
 #pass changes to branch created from main
-git checkout --force -B main refs/remotes/origin/main
+git checkout --force -B ms-test refs/remotes/origin/ms-test
 git checkout -B ${BRANCH_NAME}
 
 #apply stashed changes
@@ -47,7 +47,7 @@ git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${KYMA_B
 git push --set-upstream origin ${BRANCH_NAME} -f
 
 #create PR
-pr_link=$(gh pr create -B main --title "${MSG}" --body "${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/tag/${TAG}" | tail -n 1)
+pr_link=$(gh pr create -B ms-test --title "${MSG}" --body "${SAP_BTP_SERVICE_OPERATOR_REPO}/releases/tag/${TAG}" | tail -n 1)
 echo "Link for created PR: ${pr_link}"
 
 pr_number=$(echo "${pr_link}" | awk -F '/' '{print($NF)}')
