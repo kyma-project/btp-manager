@@ -52,8 +52,8 @@ handle_env_var() {
 echo "Updating environment variables in the patch manifest for the deployment based on images from $EXTERNAL_IMAGES_YAML"
 
 # Extract images from external-images.yaml
-SAP_BTP_SERVICE_OPERATOR_EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("SAP_BTP_SERVICE_OPERATOR")) | .source' "$EXTERNAL_IMAGES_YAML")
-KUBE_RBAC_PROXY_EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("KUBE_RBAC_PROXY")) | .source' "$EXTERNAL_IMAGES_YAML")
+SAP_BTP_SERVICE_OPERATOR_EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("sap-btp-service-operator")) | .source' "$EXTERNAL_IMAGES_YAML")
+KUBE_RBAC_PROXY_EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("kube-rbac-proxy")) | .source' "$EXTERNAL_IMAGES_YAML")
 if [[ -z "$SAP_BTP_SERVICE_OPERATOR_EXTERNAL_IMAGE" || -z "$KUBE_RBAC_PROXY_EXTERNAL_IMAGE" ]]; then
   echo "Error: Could not extract images from $EXTERNAL_IMAGES_YAML"
   exit 1
