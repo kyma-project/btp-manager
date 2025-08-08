@@ -29,11 +29,40 @@ waitForBtpOperatorCrReadiness () {
   done
 }
 
+checkContainerImages () {
+  echo -e "\n--- Checking SAP BTP service operator container images and BTP Manager environment variables with container images"
+  sap_btp_service_operator_images=( $(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.spec.template.spec.containers[].image') )
+  btp_manager_envs_values=( $(kubectl get deployment ${BTP_MANAGER_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.spec.template.spec.containers[].env[].value') )
+
+  missing_elements=()
+  for img in "${sap_btp_service_operator_images[@]}"; do
+    found=false
+    for env in "${btp_manager_envs_values[@]}"; do
+      if [[ "$img" == "$env" ]]; then
+        found=true
+        break
+      fi
+    done
+    if ! $found; then
+      missing_elements+=("$img")
+    fi
+  done
+  if [ ${#missing_elements[@]} -gt 0 ]; then
+    echo -e "Missing container images in BTP Manager envs: ${missing_elements[@]}"
+    exit 1
+  else
+    echo -e "BTP Manager envs include all SAP BTP service operator container images"
+  fi
+}
+
 CREDENTIALS=$1
 YAML_DIR="scripts/testing/yaml"
 SAP_BTP_OPERATOR_DEPLOYMENT_NAME=sap-btp-operator-controller-manager
+BTP_MANAGER_DEPLOYMENT_NAME=btp-manager-controller-manager
 
 [[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
+
+checkContainerImages
 
 K8S_VER=$(kubectl version -o json | jq .serverVersion.gitVersion -r | cut -d + -f 1)
 
