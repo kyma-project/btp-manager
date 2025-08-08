@@ -87,6 +87,10 @@ const (
 )
 
 const (
+	SapBtpServiceOperatorName                 = "sap-btp-service-operator"
+	SapBtpServiceOperatorEnv                  = "SAP_BTP_SERVICE_OPERATOR"
+	KubeRbacProxyName                         = "kube-rbac-proxy"
+	KubeRbacProxyEnv                          = "KUBE_RBAC_PROXY"
 	secretKind                                = "Secret"
 	configMapKind                             = "ConfigMap"
 	deploymentKind                            = "Deployment"
@@ -99,7 +103,9 @@ const (
 	sapBtpServiceOperatorClusterIdSecretName  = operandName + "-clusterid"
 	mutatingWebhookName                       = operandName + "-mutating-webhook-configuration"
 	validatingWebhookName                     = operandName + "-validating-webhook-configuration"
-	sapBtpServiceOperatorSecretName           = "sap-btp-service-operator"
+	sapBtpServiceOperatorSecretName           = SapBtpServiceOperatorName
+	sapBtpServiceOperatorContainerName        = "manager"
+	kubeRbacProxyContainerName                = KubeRbacProxyName
 	operatorLabelPrefix                       = "operator.kyma-project.io/"
 	deletionFinalizer                         = operatorLabelPrefix + operatorName
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
@@ -537,13 +543,19 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
-	var configMapIndex, secretIndex int
+	var configMapIndex, secretIndex, deploymentIndex int
 	for i, u := range resourcesToApply {
 		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
 			configMapIndex = i
+			continue
 		}
 		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
 			secretIndex = i
+			continue
+		}
+		if u.GetName() == DeploymentName && u.GetKind() == deploymentKind {
+			deploymentIndex = i
+			continue
 		}
 	}
 
@@ -563,6 +575,10 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	if err := r.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
 		logger.Error(err, "while setting Secret values")
 		return fmt.Errorf("failed to set Secret values: %w", err)
+	}
+	if err := r.setDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+		logger.Error(err, "while setting container images in Deployment")
+		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
 
 	return nil
@@ -620,6 +636,42 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 		}
 	}
 	return nil
+}
+
+func (r *BtpOperatorReconciler) setDeploymentImages(u *unstructured.Unstructured) error {
+	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
+	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
+	if err := r.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
+		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
+	}
+	if err := r.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
+		return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) setContainerImage(u *unstructured.Unstructured, containerName, image string) error {
+	containers, found, err := unstructured.NestedSlice(u.Object, "spec", "template", "spec", "containers")
+	if err != nil {
+		return fmt.Errorf("failed to get containers from %s %s: %w", u.GetKind(), u.GetName(), err)
+	}
+	if !found {
+		return fmt.Errorf("containers not found in %s %s", u.GetKind(), u.GetName())
+	}
+	for i, c := range containers {
+		container, ok := c.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("cannot cast container field to map[string]interface{}: %v", c)
+		}
+		if container["name"] == containerName {
+			container["image"] = image
+			containers[i] = container
+			break
+		}
+	}
+
+	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
 }
 
 func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
