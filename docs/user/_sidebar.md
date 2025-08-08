@@ -7,6 +7,7 @@
 * [Create Service Instances and Service Bindings](/btp-manager/user/03-30-create-instances-and-bindings.md)
 * [Update Service Instances](/btp-manager/user/03-31-update-service-instances.md)
 * [Delete Service Bindigs and Service Instances](/btp-manager/user/03-32-delete-bindings-and-instances.md)
+* [Migrate Service Instances and Service Bindings from a Custom SAP BTP Service Operator](/btp-manager/user/03-33-migrate-instances-and-bindings.md)
 * [Working with Multiple Subaccounts](/btp-manager/user/03-20-multitenancy.md)
    * [Instance-Level Mapping](/btp-manager/user/03-21-instance-level-mapping.md)
    * [Namespace-Level Mapping](/btp-manager/user/03-22-namespace-level-mapping.md)
