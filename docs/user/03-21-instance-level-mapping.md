@@ -5,7 +5,8 @@ You can map a Kubernetes service instance to an SAP Service Manager instance in 
 ## Prerequisites
 
 * A subaccount in the SAP BTP cockpit.
-* kubectl configured for communicating with your Kyma instance. See [Access a Kyma Instance Using kubectl](https://help.sap.com/docs/btp/sap-business-technology-platform/access-kyma-instance-using-kubectl).
+* You have the [SAP BTP Operator module](README.md) added. For instructions on adding modules, see [Adding and Deleting a Kyma Module](https://help.sap.com/docs/btp/sap-business-technology-platform/enable-and-disable-kyma-module).
+* [kubectl](https://kubernetes.io/docs/tasks/tools/) configured to communicate with your Kyma instance. See [Access a Kyma Instance Using kubectl](https://help.sap.com/docs/btp/sap-business-technology-platform/access-kyma-instance-using-kubectl?version=Cloud).
 
 ## Context
 
@@ -47,7 +48,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     kubectl create -f ./btp-access-credentials-secret.yaml
     ```
 
-7. To verify if the Secret has been successfully created, run:
+7. To verify that the Secret has been successfully created, run:
    
    ```
    kubectl get secret -n kyma-system {YOUR_SECRET_NAME}
@@ -115,7 +116,7 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
     You see the status `Created` and the message that your service instance has been created successfully.
     You also see your Secret name in the **btpAccessCredentialsSecret** field of the `spec`.
 
-3.  To verify if you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
+3.  To verify that you've correctly added the access credentials of the SAP Service Manager instance in your service instance, go to the CR `status` section, and make sure the subaccount ID to which the instance belongs is provided in the **subaccountID** field. The field must not be empty.
 <!-- tabs:end -->
 
 ## Related Information
