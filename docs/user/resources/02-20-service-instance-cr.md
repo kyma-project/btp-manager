@@ -29,7 +29,6 @@ The following ServiceInstance object is an example of a service instance configu
 ## Custom Resource Parameters
 
 The following table lists the parameters of the given resource with their descriptions:
-
 **Spec:**
 | Parameter             | Type   | Description                                                                                                                                    |
 |-------------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------|
