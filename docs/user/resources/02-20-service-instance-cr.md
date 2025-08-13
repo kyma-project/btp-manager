@@ -31,6 +31,7 @@ The following ServiceInstance object is an example of a service instance configu
 The following table lists the parameters of the given resource with their descriptions:
 
 **Spec:**
+
 | Parameter             | Type   | Description                                                                                                                                    |
 |-------------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------|
 | **serviceOfferingName** | string    | The name of the SAP BTP service you want to consume. |
