@@ -1,0 +1,5 @@
+channels:
+  - channel: regular
+    version: 1.0
+  - channel: fast
+    version: 1.0
