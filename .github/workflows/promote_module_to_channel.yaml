@@ -84,22 +84,7 @@ jobs:
         env:
           TAG: ${{ inputs.releaseTag }}
           CHANNEL: ${{ inputs.channel }}
-        run: |
-          echo "Updating channel mapping configuration file: ${CHANNEL_MAPPING_FILENAME}"
-          if [ -f "${CHANNEL_MAPPING_FILENAME}" ]; then
-            echo "File exists, updating it"
-            yq -i '.channels |= map(select(.channel == env(CHANNEL)).version = env(TAG))' ${CHANNEL_MAPPING_FILENAME}
-          else
-            echo "File does not exist, creating it"
-            cat <<EOF | tee ${CHANNEL_MAPPING_FILENAME}
-          channels:
-           - channel: regular
-             version: ${TAG}
-           - channel: fast
-             version: ${TAG}
-          EOF
-          fi
-          cat ${CHANNEL_MAPPING_FILENAME}
+        run: "./scripts/update_channel_mapping.sh ${CHANNEL_MAPPING_FILENAME}"
 
       - name: Commit and push changes
         working-directory: module-manifests
