@@ -327,7 +327,7 @@ jobs:
       - name: Create manifest and upload assets
         id: create-manifest
         env:
-          BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IMG=$IMAGE_REPO:${{ inputs.name }} make create-manifest
           MANIFEST_FILE="./manifests/btp-operator/btp-manager.yaml"
