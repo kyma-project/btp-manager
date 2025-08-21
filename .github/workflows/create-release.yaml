@@ -308,6 +308,11 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
+
       - name: Create draft release
         id: create-draft
         env:
@@ -334,11 +339,6 @@ jobs:
           --clobber \
           ${MANIFEST_FILE} \
           ${DEFAULT_CR_FILE}
-
-      - name: Create lightweight tag
-        run: |
-          git tag ${{ github.event.inputs.name }}
-          git push origin ${{ github.event.inputs.name }}
 
       - name: Check if any PR may have been merged before creating the tag and draft release
         env:
