@@ -353,9 +353,6 @@ jobs:
             exit 1 
           fi
 
-    outputs:
-      release_id: ${{ steps.create-draft.outputs.release_id }}
-
   publish-release:
     name: Publish release
     needs: [create-draft]
