@@ -308,13 +308,21 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
+
       - name: Create draft release
         id: create-draft
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_ID=$(./scripts/create_draft_release.sh ${{ github.event.inputs.name }})
-          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          gh release create ${{ inputs.name }} \
+            --draft \
+            --title "${{ inputs.name }}" \
+            --generate-notes \
+            --verify-tag
 
       - name: Create manifest and upload assets
         id: create-manifest
@@ -322,12 +330,15 @@ jobs:
           BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IMG=$IMAGE_REPO:${{ inputs.name }} make create-manifest
-          ./scripts/upload_assets.sh ${{ steps.create-draft.outputs.release_id }}
-
-      - name: Create lightweight tag
-        run: |
-          git tag ${{ github.event.inputs.name }}
-          git push origin ${{ github.event.inputs.name }}
+          MANIFEST_FILE="./manifests/btp-operator/btp-manager.yaml"
+          DEFAULT_CR_FILE="./examples/btp-operator.yaml"
+          [[ ! -e ${MANIFEST_FILE} ]] && echo "::error ::Manifest file does not exist" && exit 1
+          [[ ! -e ${DEFAULT_CR_FILE} ]] && echo "::error ::BTP operator CR does not exist" && exit 1
+          
+          gh release upload ${{ inputs.name }} \
+          --clobber \
+          ${MANIFEST_FILE} \
+          ${DEFAULT_CR_FILE}
 
       - name: Check if any PR may have been merged before creating the tag and draft release
         env:
@@ -340,9 +351,6 @@ jobs:
             echo "::error ::a PR may have been merged before the tag and draft release were created. Delete the tag and the draft release. Don't rerun this workflow. Create a new release with the same version"
             exit 1 
           fi
-
-    outputs:
-      release_id: ${{ steps.create-draft.outputs.release_id }}
 
   publish-release:
     name: Publish release
@@ -359,4 +367,5 @@ jobs:
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
-        run: ./scripts/publish_release.sh ${{ needs.create-draft.outputs.release_id }}
+        run: |
+          gh release edit ${{ inputs.name }} --draft=false
