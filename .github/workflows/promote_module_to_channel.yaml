@@ -53,7 +53,7 @@ jobs:
           github-server-url: https://${{ vars.GH_TOOLS_HOST }}
           repository: kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}
           token: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-          path: ${{ vars.MODULE_MANIFESTS_REPO_NAME }}
+          path: module-manifests
 
       - name: Set branch name
         run: echo "BRANCH_NAME=btp-manager-${{ inputs.releaseTag }}-${{ inputs.channel }}" >> $GITHUB_ENV
@@ -74,8 +74,7 @@ jobs:
         env:
           TAG: ${{ inputs.releaseTag }}
           CHANNEL: ${{ inputs.channel }}
-        run: ./btp-manager/scripts/update_channel_mapping.sh \
-          ./${{ vars.MODULE_MANIFESTS_REPO_NAME }}/modules/btp-operator/${CHANNEL_MAPPING_FILENAME}
+        run: ./btp-manager/scripts/update_channel_mapping.sh ./module-manifests/modules/btp-operator/${CHANNEL_MAPPING_FILENAME}
 
       - name: Commit and push changes
         working-directory: module-manifests
