@@ -61,7 +61,7 @@ jobs:
           echo "Validated"
 
       - name: Set branch name
-        run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}" >> $GITHUB_ENV
+        run: echo "BRANCH_NAME=btp-manager-${{ inputs.releaseTag }}-${{ inputs.channel }}" >> $GITHUB_ENV
 
       - name: Setup git and clone repo
         run: |
