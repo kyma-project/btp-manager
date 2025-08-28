@@ -58,7 +58,7 @@ jobs:
       - name: Set branch name
         run: echo "BRANCH_NAME=btp-manager-${{ inputs.releaseTag }}-${{ inputs.channel }}" >> $GITHUB_ENV
 
-      - name: Setup git and sync repo
+      - name: Setup git and sync module-manifests repository
         working-directory: ./module-manifests
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
@@ -71,11 +71,11 @@ jobs:
           git checkout -B ${BRANCH_NAME}
 
       - name: Modify channel mapping
-        working-directory: module-manifests/modules/btp-operator
         env:
           TAG: ${{ inputs.releaseTag }}
           CHANNEL: ${{ inputs.channel }}
-        run: "./scripts/update_channel_mapping.sh ${CHANNEL_MAPPING_FILENAME}"
+        run: ./btp-manager/scripts/update_channel_mapping.sh \
+          ./${{ vars.MODULE_MANIFESTS_REPO_NAME }}/modules/btp-operator/${CHANNEL_MAPPING_FILENAME}
 
       - name: Commit and push changes
         working-directory: module-manifests
