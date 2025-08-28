@@ -20,10 +20,6 @@ env:
   BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
 
   # File names
-  TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
-  DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
-  MANIFEST_FILENAME: btp-manager.yaml
-  SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
   CHANNEL_MAPPING_FILENAME: module-releases.yaml
 
   # needed by gh cli for GitHub enterprise
