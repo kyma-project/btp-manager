@@ -90,7 +90,9 @@ jobs:
         working-directory: module-manifests
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+          GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+          GH_HOST: ${{ vars.GH_TOOLS_HOST }}
+          GH_PROMPT_DISABLED: true
           CHANNEL: ${{ inputs.channel }}
           TAG: ${{ inputs.releaseTag }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"

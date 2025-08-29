@@ -26,9 +26,9 @@ else
   echo "File does not exist, §creating it"
   cat <<EOF | tee ${CHANNEL_MAPPING_FILENAME}
 channels:
- - channel: regular
-   version: ${TAG}
- - channel: fast
-   version: ${TAG}
+  - channel: regular
+    version: ${TAG}
+  - channel: fast
+    version: ${TAG}
 EOF
 fi
