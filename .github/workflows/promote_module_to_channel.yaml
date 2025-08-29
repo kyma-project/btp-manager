@@ -8,27 +8,9 @@ name: Promote module version to channel
 #     MODULE_MANIFESTS_REPO_NAME - repository of modules manifests
 
 env:
-
-  # DO NOT CHANGE THIS VALUE - the change will cause inconsistency on landscapes
-  # since there would be "old-named" and "new-named" modules and LM would switch between those infinitely
-  FULL_MODULE_NAME: kyma-project.io/module/btp-operator
-
-  # GitHub repositories
-  MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
-
-  BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
+  MODULE_MANIFESTS_REPO:  "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
   BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
-
-  # File names
-  TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
-  DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
-  MANIFEST_FILENAME: btp-manager.yaml
-  SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
   CHANNEL_MAPPING_FILENAME: module-releases.yaml
-
-  # needed by gh cli for GitHub enterprise
-  GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-
 on:
   workflow_dispatch:
     inputs:
@@ -46,8 +28,8 @@ on:
 
 jobs:
   promote:
+    name: Promote to ${{ inputs.channel }}
     runs-on: ubuntu-latest
-
     steps:
       - name: Validate required environment variables
         shell: bash
@@ -60,31 +42,39 @@ jobs:
           [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1 
           echo "Validated"
 
-      - name: Set branch name
-        run: echo "BRANCH_NAME=btp-manager-${TAG}-${{ inputs.channel }}" >> $GITHUB_ENV
+      - name: Checkout btp-manager
+        uses: actions/checkout@v5
+        with:
+         path: btp-manager
 
-      - name: Setup git and clone repo
-        run: |
-          git config --global user.email ${{ vars.GIT_USER_EMAIL }}
-          git config --global user.name ${{ vars.GIT_USER_NAME }}
-          git clone ${MODULE_MANIFESTS_WITH_USER}
+      - name: Checkout module-manifests
+        uses: actions/checkout@v5
+        with:
+          github-server-url: https://${{ vars.GH_TOOLS_HOST }}
+          repository: kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}
+          token: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+          path: module-manifests
+
+      - name: Set branch name
+        run: echo "BRANCH_NAME=btp-manager-${{ inputs.releaseTag }}-${{ inputs.channel }}" >> $GITHUB_ENV
+
+      - name: Setup git and sync module-manifests repository
+        working-directory: ./module-manifests
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-
-      - name: Sync Repo and create branch
-        working-directory: module-manifests
         run: |
-          git remote add upstream ${MODULE_MANIFESTS_WITH_USER}
+          git config user.email ${{ vars.GIT_USER_EMAIL }}
+          git config user.name ${{ vars.GIT_USER_NAME }}
+          git remote add upstream ${MODULE_MANIFESTS_REPO}
           git fetch upstream
           git merge upstream/main
           git checkout -B ${BRANCH_NAME}
 
       - name: Modify channel mapping
-        working-directory: module-manifests/modules/btp-operator
         env:
           TAG: ${{ inputs.releaseTag }}
           CHANNEL: ${{ inputs.channel }}
-        run: "./scripts/update_channel_mapping.sh ${CHANNEL_MAPPING_FILENAME}"
+        run: ./btp-manager/scripts/update_channel_mapping.sh ./module-manifests/modules/btp-operator/${CHANNEL_MAPPING_FILENAME}
 
       - name: Commit and push changes
         working-directory: module-manifests
