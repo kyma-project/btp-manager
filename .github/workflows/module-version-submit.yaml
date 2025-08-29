@@ -44,7 +44,7 @@ on:
         type: string
 
 jobs:
-  promote:
+  submit:
     runs-on: ubuntu-latest
 
     steps:
@@ -110,8 +110,8 @@ jobs:
           version: ${TAG}
           repository: https://github.com/kyma-project/btp-manager.git
           repositoryTag: ${TAG}
-          manifest:  https://github.com/kyma-project/btp-manager/releases/download/${TAG}/${MANIFEST_FILENAME}
-          defaultCR: https://github.com/kyma-project/btp-manager/releases/download/${TAG}/${DEFAULT_CR_FILENAME}
+          manifest: ${MANIFEST_FILENAME}
+          defaultCR: ${DEFAULT_CR_FILENAME}
           documentation: ${{ vars.DOC_URL }}
           manager:
             name: btp-manager-controller-manager
