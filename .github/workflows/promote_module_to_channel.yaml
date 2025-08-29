@@ -90,14 +90,14 @@ jobs:
         working-directory: module-manifests
         shell: bash
         env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
           CHANNEL: ${{ inputs.channel }}
           TAG: ${{ inputs.releaseTag }}
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
         run: |
           prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
-
-          if  echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
-              echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
-              exit 0
+          if echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
+            echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
+            exit 0
           fi
-          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
+          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
