@@ -31,7 +31,7 @@ To install the SAP BTP Operator module from the latest release, you must install
  2. To install the SAP BTP service operator, apply the sample BtpOperator CR:
 
     ```bash
-    kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator-default-cr.yaml
+    kubectl apply -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator.yaml
     ```
 
 3. To check the BtpOperator CR status, run the following command:
