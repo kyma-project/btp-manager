@@ -18,7 +18,7 @@ Use SAP BTP Operator to create SAP BTP services in your Kyma cluster. To find ou
 
 To uninstall SAP BTP Operator, run the following commands:
 ```sh
-kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator-default-cr.yaml
+kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-operator.yaml
 kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/download/btp-manager.yaml
 ```
 

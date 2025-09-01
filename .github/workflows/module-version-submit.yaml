@@ -15,15 +15,11 @@ env:
 
   # GitHub repositories
   MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
-
-  BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
   BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
-
   BTP_MANAGER_REPO: "kyma-project/btp-manager"
 
   # File names
-  TEMPLATE_FILENAME: moduletemplate-btp-operator.yaml
-  DEFAULT_CR_FILENAME: btp-operator-default-cr.yaml
+  DEFAULT_CR_FILENAME: btp-operator.yaml
   MANIFEST_FILENAME: btp-manager.yaml
   SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
 
@@ -48,7 +44,7 @@ on:
         type: string
 
 jobs:
-  promote:
+  submit:
     runs-on: ubuntu-latest
 
     steps:
@@ -114,8 +110,8 @@ jobs:
           version: ${TAG}
           repository: https://github.com/kyma-project/btp-manager.git
           repositoryTag: ${TAG}
-          manifest:  https://github.com/kyma-project/btp-manager/releases/download/${TAG}/${MANIFEST_FILENAME}
-          defaultCR: https://github.com/kyma-project/btp-manager/releases/download/${TAG}/${DEFAULT_CR_FILENAME}
+          manifest: ${MANIFEST_FILENAME}
+          defaultCR: ${DEFAULT_CR_FILENAME}
           documentation: ${{ vars.DOC_URL }}
           manager:
             name: btp-manager-controller-manager
