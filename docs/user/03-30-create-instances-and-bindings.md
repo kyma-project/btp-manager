@@ -26,8 +26,10 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 2. Go to **Service Management** -> **Service Instances**, and choose **Create**.
 3. Provide the required service details in **Form**. Alternatively, you can switch to the **YAML** tab and edit or upload your file.
 4. Choose **Create**.<br>
-   You see the status `PROVISIONED`.
+4. Choose **Create**.
 
+   You see the status `PROVISIONED`.
+   
 #### **kubectl**
 
 1.  To create a ServiceInstance custom resource (CR), replace the placeholders and run the following command:
@@ -61,6 +63,7 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
     NAME                      OFFERING                  PLAN                  STATUS    AGE
     {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   Created   44s
     ```
+
 <!-- tabs:end -->
 
 ## Create a Service Binding
@@ -82,7 +85,8 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 2. Go to **Service Management** -> **Service Bindings**, and choose **Create**.
 3. Provide the required details, and choose your service instance name from the dropdown list. Alternatively, you can provide the required details by switching from the **Form** to **YAML** tab, and editing or uploading your file.
 
-4. Choose **Create**.<br>
+4. Choose **Create**.
+
    You see the status `PROVISIONED`.
 
 #### **kubectl**
@@ -122,6 +126,7 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
     kubectl get secrets {SECRET_NAME} -n {NAMESPACE}
     ```
     You see the same Secret name as in the **spec.secretName** field of the ServiceBinding CR.
+
 <!-- tabs:end -->
 
 ### Results
