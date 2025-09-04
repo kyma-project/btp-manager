@@ -25,7 +25,6 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 1. In the navigation area, choose **Namespaces**, and go to the namespace you want to work in.
 2. Go to **Service Management** -> **Service Instances**, and choose **Create**.
 3. Provide the required service details in **Form**. Alternatively, you can switch to the **YAML** tab and edit or upload your file.
-4. Choose **Create**.<br>
 4. Choose **Create**.
 
    You see the status `PROVISIONED`.
