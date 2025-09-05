@@ -27,8 +27,9 @@ To access Kyma dashboard, use the link in the **Kyma Environment** section of yo
 1. In the navigation area, choose **Namespaces**, and go to the namespace with the service instance you want to update.
 2. Go to **Service Management** -> **Service Instances**, and choose the service instance from the list.
 3. Choose **Edit**.
-4. Update the required service details in **Form** and save your changes.<br>Alternatively, you can switch to the **YAML** tab to edit or upload your file, and save your changes.<br>
-You see the message confirming the service instance update.
+4. Update the required service details in **Form** and save your changes.
+   Alternatively, you can switch to the **YAML** tab to edit or upload your file, and save your changes.
+   You see the message confirming the service instance update.
 
 #### **kubectl**
 
@@ -70,4 +71,5 @@ You see the message confirming the service instance update.
     NAME                      OFFERING                  PLAN                  STATUS    AGE
     {SERVICE_INSTANCE_NAME}   {SERVICE_OFFERING_NAME}   {SERVICE_PLAN_NAME}   UPDATED   30m27s
     ```
+
 <!-- tabs:end -->
