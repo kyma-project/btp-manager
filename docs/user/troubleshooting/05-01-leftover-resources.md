@@ -2,7 +2,7 @@
 
 ## Symptom
 
- After your Kyma cluster has become unavailable, some orphaned service instances and service bindings are still present in the SAP Business Technology Platform (BTP).
+After your Kyma cluster has become unavailable, some orphaned service instances and service bindings are still present in the SAP Business Technology Platform (BTP).
 
 ## Cause
 
