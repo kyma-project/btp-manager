@@ -33,7 +33,7 @@ To restore the CR, follow these steps:
     Or
 
     ```bash
-    kubectl get servicebindings {BINDING_NAME} -n {NAMESPACE}
+    kubectl get servicebindings.services.cloud.sap.com {BINDING_NAME} -n {NAMESPACE}
     ```
   
 5. Review the service instance or binding in SAP BTP to confirm it recognizes the re-established connection with the CR in your Kyma cluster.
