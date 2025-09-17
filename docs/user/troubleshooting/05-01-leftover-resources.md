@@ -15,14 +15,15 @@ You cannot access your Kyma cluster where the service instances and bindings wer
 
 1. To access the Service Manager API, perform the following actions:
    
-   1. In the SAP BTP cockpit, create an SAP Service Manager service instance with the `subaccount-admin` plan and its service binding. The `service-operator-access` plan does not have the necessary access level for performing the cleanup operation. See [Create a SAP Service Manager Instance and Binding](https://help.sap.com/docs/service-manager/sap-service-manager/create-sap-service-manager-instance-and-binding).
+   1. In the SAP BTP cockpit, create an SAP Service Manager service instance with the `subaccount-admin` plan and its service binding. The `service-operator-access` plan does not have the necessary access level for performing the cleanup operation.
+   See [Creating Instances in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-instances) and [Creating Service Bindings in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-bindings-in-other-environments).
    2. To get an access token, follow the instructions in [Retrieve an OAuth 2.0 Access Token](https://help.sap.com/docs/service-manager/sap-service-manager/retrieve-oauth2-access-token).
 
 2. To prepare the DELETE request, identify the following parameters:
      - **platformID** - the ID of the platform (the ID of the Service Manager instance with the `service-operator-access` plan).
      - **clusterID** - the ID of your cluster. Retrieve it directly from the service binding. Alternatively, use a GET service instance or binding API call, or the BTP CLI command to extract the ID from the response.
  
-3. Send the request:
+3. Send the following request:
    
    ```bash
    curl -X DELETE '{sm_url}v1/platforms/{platformID}/clusters/{clusterID}' \

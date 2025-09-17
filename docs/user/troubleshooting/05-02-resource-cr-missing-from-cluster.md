@@ -10,7 +10,7 @@ The CR representing an SAP BTP service instance or service binding is absent fro
 
 ## Solution
 
-To address this issue, you can manually recreate the service instance or service binding CR using details from SAP BTP to restore the connection with the existing BTP resource. For successful reconnection, ensure that the new CR matches the name, resides in the same namespace, and is linked to the same cluster ID as the original CR. Since the SAP BTP resource maintains its configuration, matching these attributes allows the new CR to reconnect to the existing BTP resource without provisioning a new one.
+To address this issue, you can manually recreate the service instance CR or service binding CR using details from SAP BTP to restore the connection with the existing BTP resource. For successful reconnection, ensure that the new CR matches the name, resides in the same namespace, and is linked to the same cluster ID as the original CR. Since the SAP BTP resource maintains its configuration, matching these attributes allows the new CR to reconnect to the existing BTP resource without provisioning a new one.
 
 To restore the CR, follow these steps:
 
