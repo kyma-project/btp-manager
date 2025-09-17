@@ -30,7 +30,7 @@ The following ServiceInstance object is an example of a service instance configu
 
 The following table lists the parameters of the given resource with their descriptions:
 
-**Spec:** <!--check if externalName can be longer than 100 characters-->
+**Spec:**
 
 | Parameter             | Type   | Description                                                                                                                                    |
 |-------------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------|
