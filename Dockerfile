@@ -30,9 +30,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 
-RUN apk add --no-cache ca-certificates openssl
-
 WORKDIR /
+COPY --chown=65532:65532 --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/manager .
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-chart ./module-chart
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-resources ./module-resources
