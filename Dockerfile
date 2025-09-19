@@ -18,10 +18,9 @@ COPY . ./
 # the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 ARG TARGETOS TARGETARCH
-ARG GOFIPS140=v1.0.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOFIPS140=$GOFIPS140 go build -a -o manager main.go
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
@@ -32,5 +31,4 @@ COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-chart ./mo
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-resources ./module-resources
 USER 65532:65532
 
-ENV GODEBUG=fips140=only
 ENTRYPOINT ["/manager"]
