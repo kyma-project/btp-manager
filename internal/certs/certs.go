@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -30,6 +31,18 @@ func getRandomInt() *big.Int {
 }
 
 func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error) {
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Generate SubjectKeyId using SHA-256 of the public key (FIPS-compliant)
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&newCertificatePrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	subjectKeyId := sha256.Sum256(pubKeyBytes)
+
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber:          getRandomInt(),
 		DNSNames:              getDns(),
@@ -39,11 +52,7 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
-	}
-
-	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
-	if err != nil {
-		return nil, nil, err
+		SubjectKeyId:          subjectKeyId[:], // FIPS-compliant SKI
 	}
 
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, newCertificateTemplate, &newCertificatePrivateKey.PublicKey, newCertificatePrivateKey)
@@ -71,6 +80,18 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 }
 
 func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePrivateKey []byte) ([]byte, []byte, error) {
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Generate SubjectKeyId using SHA-256 of the public key (FIPS-compliant)
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&newCertificatePrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	subjectKeyId := sha256.Sum256(pubKeyBytes)
+
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber: getRandomInt(),
 		DNSNames:     getDns(),
@@ -78,11 +99,7 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 		NotAfter:     expiration,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}
-
-	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
-	if err != nil {
-		return nil, nil, err
+		SubjectKeyId: subjectKeyId[:], // FIPS-compliant SKI
 	}
 
 	decodedSourceCertificate, err := TryDecodeCertificate(sourceCertificate)
