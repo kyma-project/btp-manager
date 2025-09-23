@@ -17,7 +17,7 @@ You cannot access your Kyma cluster where the service instances and bindings wer
    
    1. In the SAP BTP cockpit, create an SAP Service Manager service instance with the `subaccount-admin` plan and its service binding. The `service-operator-access` plan does not have the necessary access level for performing the cleanup operation.
    See [Creating Instances in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-instances) and [Creating Service Bindings in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-bindings-in-other-environments).
-   2. To get an access token, use the **url**, **clientid**, and **clientsecret** from the Service Manager instance you have created, and run:
+   2. To obtain an access token, run the following command. Replace the placeholders with the **url**, **clientid**, and **clientsecret** from the service binding to the Service Manager instance you have created.
       
       ```bash
       curl '{url}/oauth/token' -X POST \
