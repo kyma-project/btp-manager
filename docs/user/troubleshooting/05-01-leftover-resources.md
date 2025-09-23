@@ -1,4 +1,4 @@
-# Can't Delete Leftover Service Instances and Bindings
+# You Cannot Delete Leftover Service Instances and Bindings
 
 ## Symptom
 
@@ -18,12 +18,12 @@ You cannot access your Kyma cluster where the service instances and bindings wer
    1. In the SAP BTP cockpit, create an SAP Service Manager service instance with the `subaccount-admin` plan and its service binding. The `service-operator-access` plan does not have the necessary access level for performing the cleanup operation.
    See [Creating Instances in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-instances) and [Creating Service Bindings in Other Environments](https://help.sap.com/docs/service-manager/sap-service-manager/creating-service-bindings-in-other-environments).
    2. To get an access token, use the **url**, **clientid**, and **clientsecret** from the Service Manager instance you have created, and run:
-     
-     ```bash
-     curl '{url}/oauth/token' -X POST \
-    -H 'Accept: application/json' \
-    -d 'grant_type=client_credentials&client_id={clientid}&client_secret={clientsecret}'
-    ```
+      
+      ```bash
+      curl '{url}/oauth/token' -X POST \
+         -H 'Accept: application/json' \
+         -d 'grant_type=client_credentials&client_id={clientid}&client_secret={clientsecret}'
+      ```
 
 2. To prepare the DELETE request, identify the following parameters:
      - **platformID** - the ID of the Service Manager instance with the `service-operator-access` plan.
@@ -33,7 +33,7 @@ You cannot access your Kyma cluster where the service instances and bindings wer
    
    ```bash
    curl -X DELETE '{sm_url}v1/platforms/{platformID}/clusters/{clusterID}' \
-   -H 'Authorization: Bearer {ACCESS_TOKEN}'
+      -H 'Authorization: Bearer {ACCESS_TOKEN}'
    ```
 
 4. Monitor the response. You can get one of the following options:
