@@ -27,7 +27,7 @@ You cannot access your Kyma cluster where the service instances and bindings wer
 
 2. To prepare the DELETE request, identify the following parameters:
      - **platformID** - the ID of the Service Manager instance with the `service-operator-access` plan.
-     - **clusterID** - the ID of your cluster. To obtain **clusterID**, go to the **Instances** section in the SAP BTP cockpit, and copy it from the **Scope** column in the row that provides information about the service instance(s) you want to delete.
+     - **clusterID** - the ID of your cluster. To get **clusterID**, go to the **Instances** section in the SAP BTP cockpit, and copy it from the **Scope** column in the row that provides information about the service instance(s) you want to delete.
  
 3. Send the following request:
    
