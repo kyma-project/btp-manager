@@ -56,6 +56,9 @@ In the [`user`](./docs/user) folder, you will find the following documents:
   * [Service Binding Custom Resource](./docs/user/resources/02-30-service-binding-cr.md)
 * [Tutorials](./docs/user/tutorials/README.md)
   * [Create an SAP BTP Service Instance in Your Kyma Cluster](./docs/user/tutorials/04-40-create-service-in-cluster.md)
+* [Troubleshooting](./docs/user/troubleshooting/README.md)
+  * [You Cannot Delete Leftover Service Instances and Bindings](./docs/user/troubleshooting/05-01-leftover-resources.md)
+  * [Resource CR Missing from the Cluster](./docs/user/troubleshooting/05-02-resource-cr-missing-from-cluster.md)
 
 ## Contributing
 <!--- mandatory section - do not change this! --->

@@ -15,8 +15,10 @@ To address this issue, you can manually recreate the service instance CR or serv
 To restore the CR, follow these steps:
 
 1. Retrieve the following CR details from the service instance or binding:
+
    - The CR name
    - The name of the namespace where the CR should reside
+
 2. Create your YAML manifest for the CR, including the exact name and namespace you retrieved from the SAP BTP service instance or binding.
 3. To recreate the CR in your Kyma cluster, run:
    
