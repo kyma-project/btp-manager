@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -30,6 +31,17 @@ func getRandomInt() *big.Int {
 }
 
 func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error) {
+	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&newCertificatePrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	subjectKeyId := sha256.Sum256(pubKeyBytes)
+
 	newCertificateTemplate := &x509.Certificate{
 		SerialNumber:          getRandomInt(),
 		DNSNames:              getDns(),
@@ -39,11 +51,9 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
-	}
-
-	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
-	if err != nil {
-		return nil, nil, err
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		PublicKeyAlgorithm:    x509.RSA,
+		SubjectKeyId:          subjectKeyId[:],
 	}
 
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, newCertificateTemplate, &newCertificatePrivateKey.PublicKey, newCertificatePrivateKey)
@@ -71,18 +81,27 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 }
 
 func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePrivateKey []byte) ([]byte, []byte, error) {
-	newCertificateTemplate := &x509.Certificate{
-		SerialNumber: getRandomInt(),
-		DNSNames:     getDns(),
-		NotBefore:    time.Now().UTC(),
-		NotAfter:     expiration,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}
-
 	newCertificatePrivateKey, err := rsa.GenerateKey(rand.Reader, RsaKeyBits())
 	if err != nil {
 		return nil, nil, err
+	}
+
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&newCertificatePrivateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	subjectKeyId := sha256.Sum256(pubKeyBytes)
+
+	newCertificateTemplate := &x509.Certificate{
+		SerialNumber:       getRandomInt(),
+		DNSNames:           getDns(),
+		NotBefore:          time.Now().UTC(),
+		NotAfter:           expiration,
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		PublicKeyAlgorithm: x509.RSA,
+		SubjectKeyId:       subjectKeyId[:],
 	}
 
 	decodedSourceCertificate, err := TryDecodeCertificate(sourceCertificate)
