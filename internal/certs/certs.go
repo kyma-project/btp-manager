@@ -36,7 +36,6 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		return nil, nil, err
 	}
 
-	// Generate SubjectKeyId using SHA-256 of the public key (FIPS-compliant)
 	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&newCertificatePrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, err
@@ -52,7 +51,9 @@ func GenerateSelfSignedCertificate(expiration time.Time) ([]byte, []byte, error)
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
-		SubjectKeyId:          subjectKeyId[:], // FIPS-compliant SKI
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		PublicKeyAlgorithm:    x509.RSA,
+		SubjectKeyId:          subjectKeyId[:],
 	}
 
 	newCertificate, err := x509.CreateCertificate(rand.Reader, newCertificateTemplate, newCertificateTemplate, &newCertificatePrivateKey.PublicKey, newCertificatePrivateKey)
@@ -85,7 +86,6 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 		return nil, nil, err
 	}
 
-	// Generate SubjectKeyId using SHA-256 of the public key (FIPS-compliant)
 	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&newCertificatePrivateKey.PublicKey)
 	if err != nil {
 		return nil, nil, err
@@ -93,13 +93,15 @@ func GenerateSignedCertificate(expiration time.Time, sourceCertificate, sourcePr
 	subjectKeyId := sha256.Sum256(pubKeyBytes)
 
 	newCertificateTemplate := &x509.Certificate{
-		SerialNumber: getRandomInt(),
-		DNSNames:     getDns(),
-		NotBefore:    time.Now().UTC(),
-		NotAfter:     expiration,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		SubjectKeyId: subjectKeyId[:], // FIPS-compliant SKI
+		SerialNumber:       getRandomInt(),
+		DNSNames:           getDns(),
+		NotBefore:          time.Now().UTC(),
+		NotAfter:           expiration,
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		PublicKeyAlgorithm: x509.RSA,
+		SubjectKeyId:       subjectKeyId[:],
 	}
 
 	decodedSourceCertificate, err := TryDecodeCertificate(sourceCertificate)
