@@ -76,6 +76,58 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 			})
 
+			It("should set EnableLimitedCache to false by default in operator ConfigMap", func() {
+				secret, err := createCorrectSecretFromYaml()
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+
+				operatorConfigMap := getOperatorConfigMap()
+				Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
+			})
+
+			Context("when EnableLimitedCache configuration is modified", func() {
+				var originalValue string
+
+				BeforeEach(func() {
+					originalValue = EnableLimitedCache
+				})
+
+				AfterEach(func() {
+					EnableLimitedCache = originalValue
+				})
+
+				It("should set EnableLimitedCache to true in operator ConfigMap when configured", func() {
+
+					// set via reconciler to exercise production code path
+					cm := initConfig(map[string]string{"EnableLimitedCache": "true"})
+					reconciler.reconcileConfig(context.TODO(), cm)
+
+					secret, err := createCorrectSecretFromYaml()
+					Expect(err).To(BeNil())
+					Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+
+					operatorConfigMap := getOperatorConfigMap()
+					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "true"))
+				})
+
+				It("should set EnableLimitedCache to false in operator ConfigMap when explicitly configured", func() {
+
+					// set via reconciler to exercise production code path
+					cm := initConfig(map[string]string{"EnableLimitedCache": "false"})
+					reconciler.reconcileConfig(context.TODO(), cm)
+
+					secret, err := createCorrectSecretFromYaml()
+					Expect(err).To(BeNil())
+					Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+
+					operatorConfigMap := getOperatorConfigMap()
+					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
+				})
+			})
+
 			Describe("dynamic container image setting in sap-btp-service-operator deployment", func() {
 				const (
 					sapBtpServiceOperatorImage = "test-sap-btp-service-operator:v0.0.1"

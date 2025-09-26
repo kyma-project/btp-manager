@@ -75,6 +75,7 @@ var (
 	StatusUpdateCheckInterval      = time.Millisecond * 500
 	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
+	EnableLimitedCache             = "false"
 )
 
 const (
@@ -84,6 +85,7 @@ const (
 	ReleaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
 	ManagementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
 	InitialClusterIdSecretKey       = "INITIAL_CLUSTER_ID"
+	EnableLimitedCacheConfigMapKey  = "ENABLE_LIMITED_CACHE"
 )
 
 const (
@@ -622,6 +624,11 @@ func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *uns
 	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", ManagementNamespaceConfigMapKey); err != nil {
 		return err
 	}
+
+	if err := unstructured.SetNestedField(u.Object, EnableLimitedCache, "data", EnableLimitedCacheConfigMapKey); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1609,6 +1616,8 @@ func (r *BtpOperatorReconciler) reconcileConfig(ctx context.Context, obj client.
 			if err == nil {
 				certs.SetRsaKeyBits(bits)
 			}
+		case "EnableLimitedCache":
+			EnableLimitedCache = v
 		default:
 			logger.Info("unknown config update key", k, v)
 		}
