@@ -78,6 +78,7 @@ func main() {
 	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
 	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
 	flag.DurationVar(&controllers.DeleteRequestTimeout, "delete-request-timeout", controllers.DeleteRequestTimeout, "Delete request timeout in hard delete.")
+	flag.BoolVar(&controllers.EnableLimitedCache, "enable-limited-cache", controllers.EnableLimitedCache, "Enable limited cache for sap-btp-operator.")
 	opts := zap.Options{
 		Development: false,
 	}
