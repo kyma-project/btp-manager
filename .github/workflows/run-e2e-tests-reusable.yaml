@@ -47,11 +47,14 @@ jobs:
           MATRIX_AS_JSON=$(echo ${VERSIONS[*]} | awk 'END {printf "{\"include\":[";for (i = 1; i < NF; i++) printf "{\"version\":%s},",$i;printf "{\"version\":%s}]}",$i }'|jq -c)
           echo "k3s_versions=${MATRIX_AS_JSON}" >> "${GITHUB_OUTPUT}"
 
-      - name: Wait for artifacts
-        env:
-          IMAGE_REPO: ${{ inputs.image-repo }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.image-tag }}"
+      - name: Wait for image to be ready
+        uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
+        with:
+          delay: '1'
+          retries: '15'
+          polling_interval: '1'
+          checks_include: 'build-image / Build image'
+          verbose: true
 
   run-e2e-matrix:
     runs-on: ubuntu-latest
