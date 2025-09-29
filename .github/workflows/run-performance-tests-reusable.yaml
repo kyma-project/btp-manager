@@ -31,7 +31,7 @@ jobs:
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
-      - name: Wait for images to be ready
+      - name: Wait for image to be ready
         uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
         with:
           delay: '1'
@@ -103,7 +103,7 @@ jobs:
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
-      - name: Wait for images to be ready
+      - name: Wait for image to be ready
         uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
         with:
           delay: '1'
@@ -188,7 +188,7 @@ jobs:
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
-      - name: Wait for images to be ready
+      - name: Wait for image to be ready
         uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
         with:
           delay: '1'
