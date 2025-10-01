@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM --platform=$BUILDPLATFORM golang:1.24.6-alpine3.22 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25.1-alpine3.22 AS builder
 ARG GOFIPS140=v1.0.0
 
 WORKDIR /btp-manager-workspace
