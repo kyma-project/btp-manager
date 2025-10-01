@@ -31,6 +31,7 @@ WORKDIR /
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/manager .
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-chart ./module-chart
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-resources ./module-resources
+COPY --chown=65532:65532 --from=builder /btp-manager-workspace/manager-resources ./manager-resources
 USER 65532:65532
 
 ENV GODEBUG=fips140=only

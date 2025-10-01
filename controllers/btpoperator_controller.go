@@ -76,6 +76,7 @@ var (
 	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
 	EnableLimitedCache             = "false"
+	ManagerResourcesPath           = "./manager-resources"
 )
 
 const (
@@ -459,6 +460,14 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
 }
 
+func (r *BtpOperatorReconciler) getNetworkPoliciesPath() string {
+	return fmt.Sprintf("%s%cnetwork-policies", ManagerResourcesPath, os.PathSeparator)
+}
+
+func (r *BtpOperatorReconciler) loadNetworkPolicies() ([]*unstructured.Unstructured, error) {
+	return r.createUnstructuredObjectsFromManifestsDir(r.getNetworkPoliciesPath())
+}
+
 func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 
@@ -485,19 +494,17 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to apply")
-	allResources, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
+	resourcesToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while creating applicable objects from manifests")
 		return fmt.Errorf("failed to create applicable objects from manifests: %w", err)
 	}
-	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(allResources), r.getResourcesToApplyPath()))
+	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	if err = r.cleanupNetworkPoliciesIfDisabled(ctx, cr, allResources); err != nil {
-		logger.Error(err, "while cleaning up network policies")
-		return fmt.Errorf("failed to cleanup network policies: %w", err)
+	if err = r.reconcileNetworkPolicies(ctx, cr); err != nil {
+		logger.Error(err, "while reconciling network policies")
+		return fmt.Errorf("failed to reconcile network policies: %w", err)
 	}
-
-	resourcesToApply := r.filterNetworkPolicies(cr, allResources)
 
 	logger.Info("preparing module resources to apply")
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
@@ -594,38 +601,6 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	return nil
 }
 
-func (r *BtpOperatorReconciler) filterNetworkPolicies(cr *v1alpha1.BtpOperator, resources []*unstructured.Unstructured) []*unstructured.Unstructured {
-	if cr.Spec.NetworkPoliciesEnabled {
-		return resources
-	}
-	var filteredResources []*unstructured.Unstructured
-	for _, resource := range resources {
-		if resource.GetKind() == "NetworkPolicy" && resource.GetAPIVersion() == "networking.k8s.io/v1" {
-			continue
-		}
-		filteredResources = append(filteredResources, resource)
-	}
-	return filteredResources
-}
-
-func (r *BtpOperatorReconciler) cleanupNetworkPoliciesIfDisabled(ctx context.Context, cr *v1alpha1.BtpOperator, originalResources []*unstructured.Unstructured) error {
-	if cr.Spec.NetworkPoliciesEnabled {
-		return nil
-	}
-	logger := log.FromContext(ctx)
-	var networkPolicyNames []string
-	for _, resource := range originalResources {
-		if resource.GetKind() == "NetworkPolicy" && resource.GetAPIVersion() == "networking.k8s.io/v1" {
-			networkPolicyNames = append(networkPolicyNames, resource.GetName())
-		}
-	}
-	if len(networkPolicyNames) == 0 {
-		return nil
-	}
-	logger.Info("cleaning up existing network policies from cluster", "count", len(networkPolicyNames))
-	return r.cleanupNetworkPoliciesByNames(ctx, networkPolicyNames)
-}
-
 func (r *BtpOperatorReconciler) cleanupNetworkPoliciesByNames(ctx context.Context, policyNames []string) error {
 	logger := log.FromContext(ctx)
 	var errs []string
@@ -655,6 +630,41 @@ func (r *BtpOperatorReconciler) cleanupNetworkPoliciesByNames(ctx context.Contex
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("errors while cleaning up network policies: %s", strings.Join(errs, ", "))
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) reconcileNetworkPolicies(ctx context.Context, cr *v1alpha1.BtpOperator) error {
+	logger := log.FromContext(ctx)
+	if cr.Spec.NetworkPoliciesEnabled {
+		logger.Info("network policies enabled, loading and applying them")
+		networkPolicies, err := r.loadNetworkPolicies()
+		if err != nil {
+			return fmt.Errorf("failed to load network policies: %w", err)
+		}
+		logger.Info(fmt.Sprintf("got %d network policies to apply", len(networkPolicies)))
+		for _, policy := range networkPolicies {
+			policy.SetNamespace(ChartNamespace)
+		}
+		if err := r.applyOrUpdateResources(ctx, networkPolicies); err != nil {
+			return fmt.Errorf("failed to apply network policies: %w", err)
+		}
+	} else {
+		logger.Info("network policies disabled, cleaning up existing ones")
+		networkPolicies, err := r.loadNetworkPolicies()
+		if err != nil {
+			logger.Error(err, "failed to load network policies for cleanup, continuing anyway")
+			return nil
+		}
+		var policyNames []string
+		for _, policy := range networkPolicies {
+			policyNames = append(policyNames, policy.GetName())
+		}
+		if len(policyNames) > 0 {
+			if err := r.cleanupNetworkPoliciesByNames(ctx, policyNames); err != nil {
+				return fmt.Errorf("failed to cleanup network policies: %w", err)
+			}
+		}
 	}
 	return nil
 }
