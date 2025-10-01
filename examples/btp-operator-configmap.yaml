@@ -15,3 +15,4 @@ data:
   ReadyTimeout: 1m
   HardDeleteCheckInterval: 10s
   HardDeleteTimeout: 20m
+  EnableLimitedCache: "false"
