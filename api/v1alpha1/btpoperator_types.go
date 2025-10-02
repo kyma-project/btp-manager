@@ -41,7 +41,11 @@ type BtpOperator struct {
 }
 
 // BtpOperatorSpec defines the desired state of BtpOperator
-type BtpOperatorSpec struct{}
+type BtpOperatorSpec struct {
+	// NetworkPoliciesEnabled determines whether network policies should be deployed
+	// +kubebuilder:default=false
+	NetworkPoliciesEnabled bool `json:"networkPoliciesEnabled"`
+}
 
 type State string
 
