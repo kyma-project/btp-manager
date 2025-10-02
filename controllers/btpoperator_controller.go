@@ -77,7 +77,6 @@ var (
 	ResourcesPath                  = "./module-resources"
 	ManagerResourcesPath           = "./manager-resources"
 	EnableLimitedCache             = "false"
-
 )
 
 const (
