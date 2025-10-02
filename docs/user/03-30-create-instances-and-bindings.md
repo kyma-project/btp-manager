@@ -114,7 +114,7 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 2.  To check your service binding status, run:
 
     ```bash
-    kubectl get servicebindings {BINDING_NAME} -n {NAMESPACE}
+    kubectl get servicebindings.services.cloud.sap.com {BINDING_NAME} -n {NAMESPACE}
     ```
 
     You see the staus `Created`.
