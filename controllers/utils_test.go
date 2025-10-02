@@ -361,6 +361,9 @@ func createBtpOperator(name string) *v1alpha1.BtpOperator {
 			Name:      name,
 			Namespace: kymaNamespace,
 		},
+		Spec: v1alpha1.BtpOperatorSpec{
+			NetworkPoliciesEnabled: false,
+		},
 	}
 }
 
