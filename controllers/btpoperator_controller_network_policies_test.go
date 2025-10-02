@@ -39,6 +39,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 	Context("When testing loadNetworkPolicies function", func() {
 		It("Should load network policies from manager-resources directory", func() {
 			// Given
+			ManagerResourcesPath = "../manager-resources"
 			reconciler := &BtpOperatorReconciler{
 				manifestHandler: &manifest.Handler{Scheme: k8sManager.GetScheme()},
 			}
