@@ -12,7 +12,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 )
 
-// Helper function to create mock network policy
 func createMockNetworkPolicy(name string) *unstructured.Unstructured {
 	policy := &unstructured.Unstructured{}
 	policy.SetAPIVersion("networking.k8s.io/v1")
@@ -20,16 +19,6 @@ func createMockNetworkPolicy(name string) *unstructured.Unstructured {
 	policy.SetName(name)
 	policy.SetNamespace("kyma-system")
 	return policy
-}
-
-// Helper function to create mock deployment
-func createMockDeployment(name string) *unstructured.Unstructured {
-	deployment := &unstructured.Unstructured{}
-	deployment.SetAPIVersion("apps/v1")
-	deployment.SetKind("Deployment")
-	deployment.SetName(name)
-	deployment.SetNamespace("kyma-system")
-	return deployment
 }
 
 var _ = Describe("BTP Operator Network Policies", func() {
