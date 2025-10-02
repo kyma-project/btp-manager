@@ -680,6 +680,16 @@ func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.U
 		labels[chartVersionKey] = chartVer
 		labels[kymaProjectModuleLabelKey] = moduleName
 		u.SetLabels(labels)
+		if u.GetKind() == deploymentKind {
+			tplLabels, found, err := unstructured.NestedStringMap(u.Object, "spec", "template", "metadata", "labels")
+			if err == nil {
+				if !found || tplLabels == nil {
+					tplLabels = make(map[string]string)
+				}
+				tplLabels[kymaProjectModuleLabelKey] = moduleName
+				_ = unstructured.SetNestedStringMap(u.Object, tplLabels, "spec", "template", "metadata", "labels")
+			}
+		}
 	}
 }
 
