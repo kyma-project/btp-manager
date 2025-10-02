@@ -75,8 +75,8 @@ var (
 	StatusUpdateCheckInterval      = time.Millisecond * 500
 	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
-	EnableLimitedCache             = "false"
 	ManagerResourcesPath           = "./manager-resources"
+	EnableLimitedCache             = "false"
 )
 
 const (
