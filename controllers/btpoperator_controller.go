@@ -38,6 +38,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -1487,6 +1488,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchDeploymentPredicates()),
 		).
+		Watches(
+			&networkingv1.NetworkPolicy{},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
+			builder.WithPredicates(r.watchNetworkPolicyPredicates()),
+		).
 		Complete(r)
 }
 
@@ -1583,6 +1589,51 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 				}
 			}
 			return newAvailableConditionStatus != oldAvailableConditionStatus || newProgressingConditionStatus != oldProgressingConditionStatus
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			np, ok := e.Object.(*networkingv1.NetworkPolicy)
+			if !ok {
+				return false
+			}
+			return np.GetNamespace() == ChartNamespace && np.GetLabels()[managedByLabelKey] == operatorName
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			np, ok := e.Object.(*networkingv1.NetworkPolicy)
+			if !ok {
+				return false
+			}
+			return np.GetNamespace() == ChartNamespace && np.GetLabels()[managedByLabelKey] == operatorName
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldObj, ok := e.ObjectOld.(*networkingv1.NetworkPolicy)
+			if !ok {
+				return false
+			}
+			newObj, ok := e.ObjectNew.(*networkingv1.NetworkPolicy)
+			if !ok {
+				return false
+			}
+			if newObj.GetNamespace() != ChartNamespace {
+				return false
+			}
+			if newObj.GetLabels()[managedByLabelKey] != operatorName && oldObj.GetLabels()[managedByLabelKey] != operatorName {
+				return false
+			}
+			if !reflect.DeepEqual(oldObj.Spec, newObj.Spec) {
+				return true
+			}
+			if !reflect.DeepEqual(oldObj.Labels, newObj.Labels) {
+				return true
+			}
+			if !reflect.DeepEqual(oldObj.Annotations, newObj.Annotations) {
+				return true
+			}
+			return false
 		},
 	}
 }
