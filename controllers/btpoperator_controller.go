@@ -646,6 +646,12 @@ func (r *BtpOperatorReconciler) reconcileNetworkPolicies(ctx context.Context, cr
 		logger.Info(fmt.Sprintf("got %d network policies to apply", len(networkPolicies)))
 		for _, policy := range networkPolicies {
 			policy.SetNamespace(ChartNamespace)
+			labels := policy.GetLabels()
+			if labels == nil {
+				labels = make(map[string]string)
+			}
+			labels[managedByLabelKey] = operatorName
+			policy.SetLabels(labels)
 		}
 		if err := r.applyOrUpdateResources(ctx, networkPolicies); err != nil {
 			return fmt.Errorf("failed to apply network policies: %w", err)
@@ -1596,44 +1602,29 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			np, ok := e.Object.(*networkingv1.NetworkPolicy)
-			if !ok {
+			obj := e.Object.(*networkingv1.NetworkPolicy)
+			labels := obj.GetLabels()
+			if labels == nil {
 				return false
 			}
-			return np.GetNamespace() == ChartNamespace && np.GetLabels()[managedByLabelKey] == operatorName
+			return labels[managedByLabelKey] == operatorName || labels[kymaProjectModuleLabelKey] == moduleName
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			np, ok := e.Object.(*networkingv1.NetworkPolicy)
-			if !ok {
+			obj := e.Object.(*networkingv1.NetworkPolicy)
+			labels := obj.GetLabels()
+			if labels == nil {
 				return false
 			}
-			return np.GetNamespace() == ChartNamespace && np.GetLabels()[managedByLabelKey] == operatorName
+			return labels[managedByLabelKey] == operatorName || labels[kymaProjectModuleLabelKey] == moduleName
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldObj, ok := e.ObjectOld.(*networkingv1.NetworkPolicy)
-			if !ok {
-				return false
-			}
-			newObj, ok := e.ObjectNew.(*networkingv1.NetworkPolicy)
-			if !ok {
-				return false
-			}
-			if newObj.GetNamespace() != ChartNamespace {
-				return false
-			}
-			if newObj.GetLabels()[managedByLabelKey] != operatorName && oldObj.GetLabels()[managedByLabelKey] != operatorName {
-				return false
-			}
-			if !reflect.DeepEqual(oldObj.Spec, newObj.Spec) {
-				return true
-			}
-			if !reflect.DeepEqual(oldObj.Labels, newObj.Labels) {
-				return true
-			}
-			if !reflect.DeepEqual(oldObj.Annotations, newObj.Annotations) {
-				return true
-			}
-			return false
+			objOld := e.ObjectOld.(*networkingv1.NetworkPolicy)
+			objNew := e.ObjectNew.(*networkingv1.NetworkPolicy)
+			labelsOld := objOld.GetLabels()
+			labelsNew := objNew.GetLabels()
+			isManagedOld := labelsOld != nil && (labelsOld[managedByLabelKey] == operatorName || labelsOld[kymaProjectModuleLabelKey] == moduleName)
+			isManagedNew := labelsNew != nil && (labelsNew[managedByLabelKey] == operatorName || labelsNew[kymaProjectModuleLabelKey] == moduleName)
+			return isManagedOld || isManagedNew
 		},
 	}
 }
