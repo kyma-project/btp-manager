@@ -71,7 +71,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator.Spec.NetworkPoliciesEnabled = true
 			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
 			Expect(err).NotTo(HaveOccurred())
-			expectedPolicyNames := []string{"allow-btp-operator", "allow-btp-operator-webhook", "allow-btp-operator-metrics"}
+			expectedPolicyNames := []string{"kyma-project.io--btp-operator-allow-to-apiserver", "kyma-project.io--btp-operator-to-dns", "kyma-project.io--allow-btp-operator-metrics"}
 			for _, name := range expectedPolicyNames {
 				policy := &unstructured.Unstructured{}
 				policy.SetAPIVersion("networking.k8s.io/v1")
@@ -85,7 +85,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator.Spec.NetworkPoliciesEnabled = false
 			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
 			Expect(err).NotTo(HaveOccurred())
-			expectedPolicyNames := []string{"allow-btp-operator", "allow-btp-operator-webhook", "allow-btp-operator-metrics"}
+			expectedPolicyNames := []string{"kyma-project.io--btp-operator-allow-to-apiserver", "kyma-project.io--btp-operator-to-dns", "kyma-project.io--allow-btp-operator-metrics"}
 			for _, name := range expectedPolicyNames {
 				policy := &unstructured.Unstructured{}
 				policy.SetAPIVersion("networking.k8s.io/v1")
