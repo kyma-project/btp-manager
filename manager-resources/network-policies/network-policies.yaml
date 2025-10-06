@@ -61,3 +61,23 @@ spec:
           podSelector:
             matchLabels:
               k8s-app: node-local-dns
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: kyma-system
+  name: kyma-project.io--allow-btp-operator-metrics
+spec:
+  podSelector:
+    matchLabels:
+      kyma-project.io/module: btp-operator
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          networking.kyma-project.io/metrics-scraping: allowed
+    ports:
+    - protocol: TCP
+      port: 8080 #8443
