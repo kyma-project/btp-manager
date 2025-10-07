@@ -17,6 +17,7 @@ spec:
         sidecar.istio.io/inject: "false"
       labels:
         app.kubernetes.io/component: btp-manager.kyma-project.io
+        kyma-project.io/module: btp-operator
     spec:
       priorityClassName: "kyma-priority"
       securityContext:
