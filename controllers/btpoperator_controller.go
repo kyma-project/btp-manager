@@ -1599,32 +1599,49 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 	}
 }
 
+func (r *BtpOperatorReconciler) getNetworkPolicyNamesFromManifests() (map[string]struct{}, error) {
+	names := make(map[string]struct{})
+	us, err := r.loadNetworkPolicies()
+	if err != nil {
+		return names, err
+	}
+	for _, u := range us {
+		if n := u.GetName(); n != "" {
+			names[n] = struct{}{}
+		}
+	}
+	return names, nil
+}
+
 func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
+	nameSet, _ := r.getNetworkPolicyNamesFromManifests()
+	isManaged := func(obj *networkingv1.NetworkPolicy) bool {
+		labels := obj.GetLabels()
+		if labels != nil {
+			if labels[managedByLabelKey] == operatorName && labels[kymaProjectModuleLabelKey] == moduleName {
+				return true
+			}
+		}
+		if _, ok := nameSet[obj.GetName()]; ok {
+			return true
+		}
+		return false
+	}
+
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			obj := e.Object.(*networkingv1.NetworkPolicy)
-			labels := obj.GetLabels()
-			if labels == nil {
-				return false
-			}
-			return labels[managedByLabelKey] == operatorName || labels[kymaProjectModuleLabelKey] == moduleName
+			return isManaged(obj)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			obj := e.Object.(*networkingv1.NetworkPolicy)
-			labels := obj.GetLabels()
-			if labels == nil {
-				return false
-			}
-			return labels[managedByLabelKey] == operatorName || labels[kymaProjectModuleLabelKey] == moduleName
+			return isManaged(obj)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			objOld := e.ObjectOld.(*networkingv1.NetworkPolicy)
 			objNew := e.ObjectNew.(*networkingv1.NetworkPolicy)
-			labelsOld := objOld.GetLabels()
-			labelsNew := objNew.GetLabels()
-			isManagedOld := labelsOld != nil && (labelsOld[managedByLabelKey] == operatorName || labelsOld[kymaProjectModuleLabelKey] == moduleName)
-			isManagedNew := labelsNew != nil && (labelsNew[managedByLabelKey] == operatorName || labelsNew[kymaProjectModuleLabelKey] == moduleName)
-			return isManagedOld || isManagedNew
+
+			return isManaged(objOld) || isManaged(objNew)
 		},
 	}
 }
