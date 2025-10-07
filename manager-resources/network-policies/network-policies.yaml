@@ -4,6 +4,8 @@ kind: NetworkPolicy
 metadata:
   namespace: kyma-system
   name: kyma-project.io--btp-operator-allow-to-apiserver
+  labels:
+    kyma-project.io/module: btp-operator
 spec:
   podSelector:
     matchLabels:
@@ -21,6 +23,7 @@ metadata:
   namespace: kyma-system
   name: kyma-project.io--btp-operator-to-dns
   labels:
+    kyma-project.io/module: btp-operator
     purpose: dns
 spec:
   podSelector:
@@ -67,6 +70,8 @@ kind: NetworkPolicy
 metadata:
   namespace: kyma-system
   name: kyma-project.io--allow-btp-operator-metrics
+  labels:
+    kyma-project.io/module: btp-operator
 spec:
   podSelector:
     matchLabels:
@@ -80,4 +85,21 @@ spec:
           networking.kyma-project.io/metrics-scraping: allowed
     ports:
     - protocol: TCP
-      port: 8080 #8443
+      port: 8080
+---
+# This allows communication with Service Manager
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  namespace: kyma-system
+  name: kyma-project.io--btp-operator-allow-egress
+  labels:
+    kyma-project.io/module: btp-operator
+spec:
+  podSelector:
+    matchLabels:
+      kyma-project.io/module: btp-operator
+  policyTypes:
+  - Egress
+  egress:
+    - {}
