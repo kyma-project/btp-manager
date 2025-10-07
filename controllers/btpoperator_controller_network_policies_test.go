@@ -71,7 +71,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator.Spec.NetworkPoliciesEnabled = true
 			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
 			Expect(err).NotTo(HaveOccurred())
-			expectedPolicyNames := []string{"kyma-project.io--btp-operator-allow-to-apiserver", "kyma-project.io--btp-operator-to-dns", "kyma-project.io--allow-btp-operator-metrics", "kyma-project.io--btp-operator-allow-egress"}
+			expectedPolicyNames := []string{"kyma-project.io--btp-operator-allow-to-apiserver", "kyma-project.io--btp-operator-to-dns", "kyma-project.io--allow-btp-operator-metrics", "kyma-project.io--btp-operator-allow-egress-from-sap-btp-operator"}
 			for _, name := range expectedPolicyNames {
 				policy := &unstructured.Unstructured{}
 				policy.SetAPIVersion("networking.k8s.io/v1")
@@ -85,7 +85,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator.Spec.NetworkPoliciesEnabled = false
 			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
 			Expect(err).NotTo(HaveOccurred())
-			expectedPolicyNames := []string{"kyma-project.io--btp-operator-allow-to-apiserver", "kyma-project.io--btp-operator-to-dns", "kyma-project.io--allow-btp-operator-metrics", "kyma-project.io--btp-operator-allow-egress"}
+			expectedPolicyNames := []string{"kyma-project.io--btp-operator-allow-to-apiserver", "kyma-project.io--btp-operator-to-dns", "kyma-project.io--allow-btp-operator-metrics", "kyma-project.io--btp-operator-allow-egress-from-sap-btp-operator"}
 			for _, name := range expectedPolicyNames {
 				policy := &unstructured.Unstructured{}
 				policy.SetAPIVersion("networking.k8s.io/v1")
