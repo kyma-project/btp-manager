@@ -88,18 +88,4 @@ spec:
       port: 8080
 ---
 # This allows communication with Service Manager
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
-metadata:
-  namespace: kyma-system
-  name: kyma-project.io--btp-operator-allow-egress
-  labels:
-    kyma-project.io/module: btp-operator
-spec:
-  podSelector:
-    matchLabels:
-      kyma-project.io/module: btp-operator
-  policyTypes:
-  - Egress
-  egress:
-    - {}
+
