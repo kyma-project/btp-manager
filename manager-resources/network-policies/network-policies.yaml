@@ -146,3 +146,18 @@ spec:
     ports:
     - protocol: TCP
       port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: kyma-system
+  name: allow-all-to-btp-operator
+spec:
+  podSelector:
+    matchLabels:
+      kyma-project.io/module: btp-operator
+      app.kubernetes.io/instance: sap-btp-operator
+  policyTypes:
+  - Ingress
+  ingress:
+  - {}
