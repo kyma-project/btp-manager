@@ -130,8 +130,6 @@ kind: NetworkPolicy
 metadata:
   namespace: kyma-system
   name: kyma-project.io--btp-operator-allow-ingress-to-webhook
-  labels:
-    kyma-project.io/module: btp-operator
 spec:
   podSelector:
     matchLabels:
@@ -140,24 +138,6 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-  - from:
-    - namespaceSelector: {}
-      podSelector: {}
-    ports:
-    - protocol: TCP
-      port: 443
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  namespace: kyma-system
-  name: allow-all-to-btp-operator
-spec:
-  podSelector:
-    matchLabels:
-      kyma-project.io/module: btp-operator
-      app.kubernetes.io/instance: sap-btp-operator
-  policyTypes:
-  - Ingress
-  ingress:
-  - {}
+  - ports:
+      - protocol: TCP
+        port: 9443
