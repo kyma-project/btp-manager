@@ -208,22 +208,14 @@ echo -e "\n=== STEP 2 COMPLETE: Network policies enabled ==="
 # Step 3: Delete BTP manager and SAP BTP operator pods
 echo -e "\n=== STEP 3: Deleting Manager and Operator Pods ==="
 
-echo -e "\n--- Deleting BTP Manager pods"
-kubectl delete pods -l app.kubernetes.io/name=btp-manager -n kyma-system
-
-echo -e "\n--- Deleting SAP BTP Operator pods"
-kubectl delete pods -l app.kubernetes.io/name=sap-btp-operator -n kyma-system
+echo -e "\n--- Deleting BTP Manager and SAP BTP Operator pods"
+kubectl delete pods -l kyma-project.io/module=btp-operator -n kyma-system
 
 echo -e "\n=== STEP 3 COMPLETE: Pods deleted ==="
 
 # Step 4: Wait for pods to be ready
 echo -e "\n=== STEP 4: Waiting for Pods to be Ready ==="
-
-# Wait for BTP Manager pods
-waitForPodsReady "app.kubernetes.io/name=btp-manager"
-
-# Wait for SAP BTP Operator pods  
-waitForPodsReady "app.kubernetes.io/name=sap-btp-operator"
+waitForPodsReady "kyma-project.io/module=btp-operator"
 
 # Verify deployments are ready
 waitForDeploymentReady $BTP_MANAGER_DEPLOYMENT_NAME
