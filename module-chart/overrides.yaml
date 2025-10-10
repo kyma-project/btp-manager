@@ -1,8 +1,6 @@
 manager:
   annotations:
     sidecar.istio.io/inject: "false"
-  labels:
-    sidecar.istio.io/inject: "false"
   memory_limit: 500Mi
   cpu_limit: 1
   req_cpu_limit: 10m
