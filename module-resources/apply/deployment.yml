@@ -25,7 +25,6 @@ spec:
         control-plane: controller-manager
         app.kubernetes.io/instance: sap-btp-operator
         app.kubernetes.io/name: sap-btp-operator
-        sidecar.istio.io/inject: "false"
     spec:
       serviceAccountName: sap-btp-operator
       containers:
