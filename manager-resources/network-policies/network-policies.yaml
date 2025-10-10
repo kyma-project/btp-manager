@@ -91,26 +91,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   namespace: kyma-system
-  name: kyma-project.io--btp-operator-allow-startup-probe
-  labels:
-    kyma-project.io/module: btp-operator
-spec:
-  podSelector:
-    matchLabels:
-      kyma-project.io/module: btp-operator
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector: {}
-      ports:
-        - protocol: TCP
-          port: 15021
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  namespace: kyma-system
   name: kyma-project.io--btp-operator-allow-ingress-to-webhook
 spec:
   podSelector:
