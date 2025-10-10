@@ -1,0 +1,54 @@
+# Call this workflow from other jobs to execute network policies e2e tests
+
+name: Run E2E Network Policies tests on the cluster (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      image-repo:
+        description: Binary image registry reference
+        required: true
+        type: string
+      image-tag:
+        description: Binary image tag
+        required: true
+        type: string
+      credentials-mode:
+        description: real or dummy credentials
+        required: true
+        type: string
+
+jobs:
+  run-e2e-network-policies-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare K3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Wait for image to be ready
+        uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
+        with:
+          delay: '1'
+          retries: '15'
+          polling_interval: '1'
+          checks_include: 'build-image / Build image'
+          verbose: true
+
+      - name: Run Network Policies E2E tests
+        env:
+          SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          SM_URL: ${{ secrets.SM_URL }}
+          SM_TOKEN_URL: ${{ secrets.TOKENURL }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_JOB: network-policies-e2e
+        run: "./scripts/testing/run_e2e_network_policies_tests.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
