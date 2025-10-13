@@ -192,6 +192,20 @@ fi
 # Enable network policies
 echo -e "\n--- Enabling Network Policies"
 
+echo -e "\n--- Applying deny-all NetworkPolicy"
+kubectl apply -f - <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kyma-project.io--deny-all-ingress
+  namespace: kyma-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+EOF
+
 echo -e "\n--- Enabling network policies in BTP Operator CR"
 kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":true}}'
 
@@ -261,3 +275,8 @@ echo -e "\n--- Waiting for network policies to be cleaned up"
 sleep 10
 
 checkNetworkPoliciesDeleted
+
+echo -e "\n--- Removing deny-all NetworkPolicy"
+kubectl delete networkpolicy kyma-project.io--deny-all-ingress -n kyma-system --ignore-not-found=true
+
+echo -e "\n--- Network policies disabled and deny-all policy removed"
