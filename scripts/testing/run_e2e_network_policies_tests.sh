@@ -6,8 +6,7 @@
 # 3. Delete BTP manager and SAP BTP operator pods
 # 4. Wait for pods to be ready
 # 5. Create a service instance
-# 6. Delete the service instance  
-# 7. Disable network policies
+# 6. Disable network policies
 #
 # Arguments:
 #     - link to a binary image (required)
@@ -30,7 +29,6 @@ BTP_MANAGER_DEPLOYMENT_NAME=btp-manager-controller-manager
 [[ -z ${GITHUB_RUN_ID:-} ]] && GITHUB_RUN_ID="local-$(date +%s)"
 [[ -z ${GITHUB_JOB:-} ]] && GITHUB_JOB="network-policies-test"
 
-# Helper functions
 waitForBtpOperatorCrReadiness() {
   echo -e "\n--- Waiting for BtpOperator CR to be ready"
   while true; do
@@ -138,14 +136,14 @@ SB_NAME=${GITHUB_JOB}-${K8S_VER}-${GITHUB_RUN_ID}
 export SI_NAME
 export SB_NAME
 
-echo -e "\n=== Starting Network Policies E2E Test ==="
+echo -e "\n--- Starting Network Policies E2E Test"
 echo -e "Image: $IMAGE_NAME"
 echo -e "Credentials: $CREDENTIALS"
 echo -e "Service Instance: $SI_NAME"
 echo -e "Service Binding: $SB_NAME"
 
-# Step 1: Install the module
-echo -e "\n=== STEP 1: Installing BTP Manager Module ==="
+# Install the module
+echo -e "\n--- Installing BTP Manager Module"
 
 # Install prerequisites
 echo -e "\n--- Installing prerequisites"
@@ -179,7 +177,7 @@ waitForBtpOperatorCrReadiness
 # Wait for SAP BTP Operator deployment
 waitForDeploymentReady $SAP_BTP_OPERATOR_DEPLOYMENT_NAME
 
-echo -e "\n=== STEP 1 COMPLETE: Module installed successfully ==="
+echo -e "\n--- Module installed successfully"
 
 # Verify network policies are NOT present initially (since they're disabled by default)
 echo -e "\n--- Verifying network policies are not present initially"
@@ -191,8 +189,8 @@ else
   exit 1
 fi
 
-# Step 2: Enable network policies
-echo -e "\n=== STEP 2: Enabling Network Policies ==="
+# Enable network policies
+echo -e "\n--- Enabling Network Policies"
 
 echo -e "\n--- Enabling network policies in BTP Operator CR"
 kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":true}}'
@@ -203,18 +201,18 @@ sleep 10
 # Check if network policies exist (they should be created automatically)
 checkNetworkPoliciesExist
 
-echo -e "\n=== STEP 2 COMPLETE: Network policies enabled ==="
+echo -e "\n--- Network policies enabled"
 
-# Step 3: Delete BTP manager and SAP BTP operator pods
-echo -e "\n=== STEP 3: Deleting Manager and Operator Pods ==="
+# Delete BTP manager and SAP BTP operator pods
+echo -e "\n--- Deleting Manager and Operator Pods"
 
 echo -e "\n--- Deleting BTP Manager and SAP BTP Operator pods"
 kubectl delete pods -l kyma-project.io/module=btp-operator -n kyma-system
 
-echo -e "\n=== STEP 3 COMPLETE: Pods deleted ==="
+echo -e "\n--- Pods deleted"
 
-# Step 4: Wait for pods to be ready
-echo -e "\n=== STEP 4: Waiting for Pods to be Ready ==="
+# Wait for pods to be ready
+echo -e "\n--- Waiting for Pods to be Ready"
 waitForPodsReady "kyma-project.io/module=btp-operator"
 
 # Verify deployments are ready
@@ -227,10 +225,10 @@ waitForBtpOperatorCrReadiness
 # Verify network policies still exist after pod restart
 checkNetworkPoliciesExist
 
-echo -e "\n=== STEP 4 COMPLETE: All pods are ready ==="
+echo -e "\n--- All pods are ready"
 
-# Step 5: Create a service instance
-echo -e "\n=== STEP 5: Creating Service Instance ==="
+# Create a service instance
+echo -e "\n--- Creating Service Instance"
 
 echo -e "\n--- Creating service instance: ${SI_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
@@ -252,32 +250,14 @@ else
   echo -e "--- Service instance reached expected state (not ready due to dummy credentials)"
 fi
 
-echo -e "\n=== STEP 5 COMPLETE: Service instance created ==="
+echo -e "\n--- Service instance created"
 
-# Step 6: Delete the service instance
-echo -e "\n=== STEP 6: Deleting Service Instance ==="
-
-echo -e "\n--- Deleting service instance: ${SI_NAME}"
-kubectl delete serviceinstances.services.cloud.sap.com/${SI_NAME} --timeout=60s || echo "Service instance deletion timed out or failed"
-
-echo -e "\n--- Waiting for service instance to be deleted"
-while kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} >/dev/null 2>&1; do
-  echo -e "--- Waiting for service instance to be deleted..."
-  sleep 5
-done
-
-echo -e "\n--- Service instance deleted successfully"
-
-echo -e "\n=== STEP 6 COMPLETE: Service instance deleted ==="
-
-# Step 7: Disable network policies (by disabling them in the CR)
-echo -e "\n=== STEP 7: Disabling Network Policies ==="
+echo -e "\n--- Disabling Network Policies"
 
 echo -e "\n--- Disabling network policies in BTP Operator CR"
 kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":false}}'
 
 echo -e "\n--- Waiting for network policies to be cleaned up"
-# Give some time for cleanup
 sleep 10
 
 checkNetworkPoliciesDeleted

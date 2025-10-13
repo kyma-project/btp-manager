@@ -1,6 +1,3 @@
-#  This GitHub action is designed to run network policies end-to-end (e2e) tests on Kubernetes clusters using the latest k3s distributions.
-#  The action is triggered on pull requests to the main branch when network policies related files are changed.
-
 name: Run E2E Network Policies tests on the cluster
 
 on:
