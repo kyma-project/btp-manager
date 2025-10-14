@@ -502,9 +502,33 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	if err = r.reconcileNetworkPolicies(ctx, cr); err != nil {
-		logger.Error(err, "while reconciling network policies")
-		return fmt.Errorf("failed to reconcile network policies: %w", err)
+	if cr.Spec.NetworkPoliciesEnabled {
+		logger.Info("network policies enabled, loading and adding them to resources")
+		networkPolicies, err := r.loadNetworkPolicies()
+		if err != nil {
+			logger.Error(err, "while loading network policies")
+			return fmt.Errorf("failed to load network policies: %w", err)
+		}
+		logger.Info(fmt.Sprintf("got %d network policies to add", len(networkPolicies)))
+
+		for _, policy := range networkPolicies {
+			policy.SetNamespace(ChartNamespace)
+			labels := policy.GetLabels()
+			if labels == nil {
+				labels = make(map[string]string)
+			}
+			labels[managedByLabelKey] = operatorName
+			policy.SetLabels(labels)
+		}
+
+		resourcesToApply = append(resourcesToApply, networkPolicies...)
+		logger.Info(fmt.Sprintf("added %d network policies to resources to apply", len(networkPolicies)))
+	} else {
+		logger.Info("network policies disabled, cleaning up existing ones")
+		if err := r.cleanupNetworkPolicies(ctx); err != nil {
+			logger.Error(err, "while cleaning up network policies")
+			return fmt.Errorf("failed to cleanup network policies: %w", err)
+		}
 	}
 
 	logger.Info("preparing module resources to apply")
@@ -583,7 +607,10 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 		return fmt.Errorf("failed to get module chart version: %w", err)
 	}
 
-	r.addLabels(chartVer, resourcesToApply...)
+	if err := r.addLabels(chartVer, resourcesToApply...); err != nil {
+		logger.Error(err, "while adding labels to resources")
+		return fmt.Errorf("failed to add labels to resources: %w", err)
+	}
 	r.setNamespace(resourcesToApply...)
 
 	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
@@ -617,37 +644,7 @@ func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) erro
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileNetworkPolicies(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	if cr.Spec.NetworkPoliciesEnabled {
-		logger.Info("network policies enabled, loading and applying them")
-		networkPolicies, err := r.loadNetworkPolicies()
-		if err != nil {
-			return fmt.Errorf("failed to load network policies: %w", err)
-		}
-		logger.Info(fmt.Sprintf("got %d network policies to apply", len(networkPolicies)))
-		for _, policy := range networkPolicies {
-			policy.SetNamespace(ChartNamespace)
-			labels := policy.GetLabels()
-			if labels == nil {
-				labels = make(map[string]string)
-			}
-			labels[managedByLabelKey] = operatorName
-			policy.SetLabels(labels)
-		}
-		if err := r.applyOrUpdateResources(ctx, networkPolicies); err != nil {
-			return fmt.Errorf("failed to apply network policies: %w", err)
-		}
-	} else {
-		logger.Info("network policies disabled, cleaning up existing ones")
-		if err := r.cleanupNetworkPolicies(ctx); err != nil {
-			return fmt.Errorf("failed to cleanup network policies: %w", err)
-		}
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
+func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) error {
 
 	for _, u := range us {
 		labels := u.GetLabels()
@@ -665,10 +662,15 @@ func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.U
 					tplLabels = make(map[string]string)
 				}
 				tplLabels[kymaProjectModuleLabelKey] = moduleName
-				_ = unstructured.SetNestedStringMap(u.Object, tplLabels, "spec", "template", "metadata", "labels")
+				if err := unstructured.SetNestedStringMap(u.Object, tplLabels, "spec", "template", "metadata", "labels"); err != nil {
+					return fmt.Errorf("failed to set pod template labels for deployment %s: %w", u.GetName(), err)
+				}
+			} else {
+				return fmt.Errorf("failed to get pod template labels for deployment %s: %w", u.GetName(), err)
 			}
 		}
 	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
