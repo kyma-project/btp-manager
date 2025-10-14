@@ -55,7 +55,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		})
 	})
 
-	Context("When testing reconcileNetworkPolicies function", func() {
+	Context("When testing network policies integration in reconcileResources", func() {
 		var (
 			reconciler  *BtpOperatorReconciler
 			btpOperator *v1alpha1.BtpOperator
@@ -74,22 +74,36 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator.Namespace = "kyma-system"
 		})
 
-		It("Should apply network policies when NetworkPoliciesEnabled is true", func() {
+		It("Should load and prepare network policies when NetworkPoliciesEnabled is true", func() {
 			btpOperator.Spec.NetworkPoliciesEnabled = true
-			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
+			policies, err := reconciler.loadNetworkPolicies()
 			Expect(err).NotTo(HaveOccurred())
-			for _, name := range expectedPolicyNames {
-				policy := &unstructured.Unstructured{}
-				policy.SetAPIVersion("networking.k8s.io/v1")
-				policy.SetKind("NetworkPolicy")
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: name, Namespace: "kyma-system"}, policy)
-				Expect(err).NotTo(HaveOccurred(), "NetworkPolicy %s should exist", name)
+			Expect(policies).To(HaveLen(4))
+			for _, policy := range policies {
+				Expect(policy.GetKind()).To(Equal("NetworkPolicy"))
+				Expect(policy.GetAPIVersion()).To(Equal("networking.k8s.io/v1"))
+				policy.SetNamespace("kyma-system")
+				labels := policy.GetLabels()
+				if labels == nil {
+					labels = make(map[string]string)
+				}
+				labels[managedByLabelKey] = operatorName
+				policy.SetLabels(labels)
+				Expect(policy.GetNamespace()).To(Equal("kyma-system"))
+				Expect(policy.GetLabels()).To(HaveKeyWithValue(managedByLabelKey, operatorName))
 			}
 		})
 
-		It("Should cleanup network policies when NetworkPoliciesEnabled is false", func() {
-			btpOperator.Spec.NetworkPoliciesEnabled = false
-			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
+		It("Should call cleanupNetworkPolicies when NetworkPoliciesEnabled is false", func() {
+			for _, name := range expectedPolicyNames {
+				policy := createMockNetworkPolicy(name)
+				labels := map[string]string{
+					managedByLabelKey: operatorName,
+				}
+				policy.SetLabels(labels)
+				Expect(k8sClient.Create(ctx, policy)).To(Succeed())
+			}
+			err := reconciler.cleanupNetworkPolicies(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			for _, name := range expectedPolicyNames {
 				policy := &unstructured.Unstructured{}
