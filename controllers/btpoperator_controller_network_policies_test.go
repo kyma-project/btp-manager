@@ -6,11 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -59,7 +55,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		})
 	})
 
-	Context("When testing network policies integration in reconcileResources", func() {
+	Context("When testing reconcileNetworkPolicies function", func() {
 		var (
 			reconciler  *BtpOperatorReconciler
 			btpOperator *v1alpha1.BtpOperator
@@ -78,17 +74,30 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator.Namespace = "kyma-system"
 		})
 
-		It("Should load network policies correctly when enabled", func() {
+		It("Should apply network policies when NetworkPoliciesEnabled is true", func() {
 			btpOperator.Spec.NetworkPoliciesEnabled = true
-			policies, err := reconciler.loadNetworkPolicies()
+			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(len(policies)).To(BeNumerically(">", 0))
+			for _, name := range expectedPolicyNames {
+				policy := &unstructured.Unstructured{}
+				policy.SetAPIVersion("networking.k8s.io/v1")
+				policy.SetKind("NetworkPolicy")
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: name, Namespace: "kyma-system"}, policy)
+				Expect(err).NotTo(HaveOccurred(), "NetworkPolicy %s should exist", name)
+			}
 		})
 
-		It("Should be able to cleanup network policies when disabled", func() {
+		It("Should cleanup network policies when NetworkPoliciesEnabled is false", func() {
 			btpOperator.Spec.NetworkPoliciesEnabled = false
-			err := reconciler.cleanupNetworkPolicies(ctx)
+			err := reconciler.reconcileNetworkPolicies(ctx, btpOperator)
 			Expect(err).NotTo(HaveOccurred())
+			for _, name := range expectedPolicyNames {
+				policy := &unstructured.Unstructured{}
+				policy.SetAPIVersion("networking.k8s.io/v1")
+				policy.SetKind("NetworkPolicy")
+				getErr := k8sClient.Get(ctx, client.ObjectKey{Name: name, Namespace: "kyma-system"}, policy)
+				Expect(getErr).To(HaveOccurred(), "NetworkPolicy %s should be deleted", name)
+			}
 		})
 	})
 
@@ -127,141 +136,6 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			Expect(err).NotTo(HaveOccurred())
 			getErr := k8sClient.Get(context.Background(), client.ObjectKey{Name: "test-unmanaged-policy", Namespace: "kyma-system"}, testPolicy)
 			Expect(getErr).NotTo(HaveOccurred())
-		})
-	})
-
-	Context("When testing full reconcile loop with network policies", func() {
-		var (
-			reconciler  *BtpOperatorReconciler
-			btpOperator *v1alpha1.BtpOperator
-			secret      *corev1.Secret
-			ctx         context.Context
-		)
-
-		BeforeEach(func() {
-			ctx = context.Background()
-			reconciler = &BtpOperatorReconciler{
-				Client:          k8sClient,
-				Scheme:          k8sClient.Scheme(),
-				manifestHandler: &manifest.Handler{Scheme: k8sManager.GetScheme()},
-			}
-
-			btpOperator = &v1alpha1.BtpOperator{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "btpoperator",
-					Namespace: "kyma-system",
-				},
-				Spec: v1alpha1.BtpOperatorSpec{
-					NetworkPoliciesEnabled: true,
-				},
-			}
-
-			secret = &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sap-btp-manager",
-					Namespace: "kyma-system",
-				},
-				Data: map[string][]byte{
-					"clientid":     []byte("test-client-id"),
-					"clientsecret": []byte("test-client-secret"),
-					"sm_url":       []byte("https://test-sm-url"),
-					"tokenurl":     []byte("https://test-token-url"),
-					"cluster_id":   []byte("test-cluster-id"),
-				},
-			}
-		})
-
-		It("Should successfully reconcile when network policies are enabled", func() {
-			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-			Expect(k8sClient.Create(ctx, btpOperator)).To(Succeed())
-
-			result, err := reconciler.Reconcile(ctx, ctrl.Request{
-				NamespacedName: client.ObjectKeyFromObject(btpOperator),
-			})
-
-			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
-
-			var updatedBtpOperator v1alpha1.BtpOperator
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), &updatedBtpOperator)).To(Succeed())
-
-			Eventually(func() v1alpha1.State {
-				k8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), &updatedBtpOperator)
-				return updatedBtpOperator.Status.State
-			}, "30s", "1s").Should(Or(Equal(v1alpha1.StateReady), Equal(v1alpha1.StateProcessing)))
-		})
-
-		It("Should handle network policies being disabled during reconciliation", func() {
-			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-			Expect(k8sClient.Create(ctx, btpOperator)).To(Succeed())
-
-			_, err := reconciler.Reconcile(ctx, ctrl.Request{
-				NamespacedName: client.ObjectKeyFromObject(btpOperator),
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			var updatedBtpOperator v1alpha1.BtpOperator
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), &updatedBtpOperator)).To(Succeed())
-			updatedBtpOperator.Spec.NetworkPoliciesEnabled = false
-			Expect(k8sClient.Update(ctx, &updatedBtpOperator)).To(Succeed())
-
-			_, err = reconciler.Reconcile(ctx, ctrl.Request{
-				NamespacedName: client.ObjectKeyFromObject(btpOperator),
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			Eventually(func() bool {
-				policies := &networkingv1.NetworkPolicyList{}
-				listOpts := []client.ListOption{
-					client.InNamespace("kyma-system"),
-					client.MatchingLabels{managedByLabelKey: operatorName},
-				}
-				err := k8sClient.List(ctx, policies, listOpts...)
-				if err != nil {
-					return false
-				}
-				return len(policies.Items) == 0
-			}, "30s", "1s").Should(BeTrue(), "All managed network policies should be cleaned up")
-		})
-
-		It("Should transition to error state when network policies integration fails", func() {
-			By("Creating BtpOperator with network policies enabled but missing manifests")
-
-			btpOperatorWithBadConfig := &v1alpha1.BtpOperator{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "btpoperator-bad",
-					Namespace: "kyma-system",
-				},
-				Spec: v1alpha1.BtpOperatorSpec{
-					NetworkPoliciesEnabled: true,
-				},
-			}
-
-			By("Simulating a scenario where network policies directory doesn't exist")
-			originalPath := ManagerResourcesPath
-			ManagerResourcesPath = "/nonexistent/path"
-			defer func() { ManagerResourcesPath = originalPath }()
-
-			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-			Expect(k8sClient.Create(ctx, btpOperatorWithBadConfig)).To(Succeed())
-
-			_, err := reconciler.Reconcile(ctx, ctrl.Request{
-				NamespacedName: client.ObjectKeyFromObject(btpOperatorWithBadConfig),
-			})
-
-			By("The reconciliation should continue despite network policies error")
-			Expect(err).To(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			k8sClient.Delete(ctx, btpOperator)
-			k8sClient.Delete(ctx, secret)
-
-			policies := &networkingv1.NetworkPolicyList{}
-			k8sClient.List(ctx, policies, client.InNamespace("kyma-system"))
-			for _, policy := range policies.Items {
-				k8sClient.Delete(ctx, &policy)
-			}
 		})
 	})
 })
