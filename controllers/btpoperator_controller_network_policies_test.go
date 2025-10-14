@@ -101,31 +101,41 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		})
 	})
 
-	Context("When testing cleanupNetworkPoliciesByNames", func() {
-		It("Should handle empty policy names list", func() {
+	Context("When testing cleanupNetworkPolicies", func() {
+		It("Should not fail when no managed network policies exist", func() {
 			reconciler := &BtpOperatorReconciler{
 				Client: k8sClient,
 			}
-			err := reconciler.cleanupNetworkPoliciesByNames(context.Background(), []string{})
+			err := reconciler.cleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("Should not fail when trying to delete non-existent network policies", func() {
-			reconciler := &BtpOperatorReconciler{
-				Client: k8sClient,
-			}
-			err := reconciler.cleanupNetworkPoliciesByNames(context.Background(), []string{"non-existent-policy"})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("Should cleanup existing network policies", func() {
+		It("Should cleanup existing network policies with managed-by btp-manager label", func() {
 			reconciler := &BtpOperatorReconciler{
 				Client: k8sClient,
 			}
 			testPolicy := createMockNetworkPolicy("test-cleanup-policy")
+			labels := map[string]string{
+				managedByLabelKey: operatorName,
+			}
+			testPolicy.SetLabels(labels)
 			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
-			err := reconciler.cleanupNetworkPoliciesByNames(context.Background(), []string{"test-cleanup-policy"})
+			err := reconciler.cleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
+			getErr := k8sClient.Get(context.Background(), client.ObjectKey{Name: "test-cleanup-policy", Namespace: "kyma-system"}, testPolicy)
+			Expect(getErr).To(HaveOccurred())
+		})
+
+		It("Should not cleanup network policies without managed-by btp-manager label", func() {
+			reconciler := &BtpOperatorReconciler{
+				Client: k8sClient,
+			}
+			testPolicy := createMockNetworkPolicy("test-unmanaged-policy")
+			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
+			err := reconciler.cleanupNetworkPolicies(context.Background())
+			Expect(err).NotTo(HaveOccurred())
+			getErr := k8sClient.Get(context.Background(), client.ObjectKey{Name: "test-unmanaged-policy", Namespace: "kyma-system"}, testPolicy)
+			Expect(getErr).NotTo(HaveOccurred())
 		})
 	})
 })

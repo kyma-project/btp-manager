@@ -602,36 +602,18 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	return nil
 }
 
-func (r *BtpOperatorReconciler) cleanupNetworkPoliciesByNames(ctx context.Context, policyNames []string) error {
+func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
 	logger := log.FromContext(ctx)
-	var errs []string
-	for _, name := range policyNames {
-		networkPolicy := &unstructured.Unstructured{}
-		networkPolicy.SetAPIVersion("networking.k8s.io/v1")
-		networkPolicy.SetKind("NetworkPolicy")
-		networkPolicy.SetName(name)
-		networkPolicy.SetNamespace(ChartNamespace)
-		err := r.Get(ctx, client.ObjectKeyFromObject(networkPolicy), networkPolicy)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				logger.Info("network policy not found, skipping deletion", "name", name)
-				continue
-			}
-			errs = append(errs, fmt.Sprintf("failed to get network policy %s: %v", name, err))
-			continue
+	networkPolicy := &unstructured.Unstructured{}
+	networkPolicy.SetAPIVersion("networking.k8s.io/v1")
+	networkPolicy.SetKind("NetworkPolicy")
+	logger.Info("deleting all managed network policies")
+	if err := r.DeleteAllOf(ctx, networkPolicy, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
+		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
+			return fmt.Errorf("failed to delete network policies: %w", err)
 		}
+	}
 
-		if err := r.Delete(ctx, networkPolicy); err != nil {
-			if !k8serrors.IsNotFound(err) {
-				errs = append(errs, fmt.Sprintf("failed to delete network policy %s: %v", name, err))
-			}
-		} else {
-			logger.Info("deleted network policy", "name", name)
-		}
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("errors while cleaning up network policies: %s", strings.Join(errs, ", "))
-	}
 	return nil
 }
 
@@ -658,19 +640,8 @@ func (r *BtpOperatorReconciler) reconcileNetworkPolicies(ctx context.Context, cr
 		}
 	} else {
 		logger.Info("network policies disabled, cleaning up existing ones")
-		networkPolicies, err := r.loadNetworkPolicies()
-		if err != nil {
-			logger.Error(err, "failed to load network policies for cleanup, continuing anyway")
-			return nil
-		}
-		var policyNames []string
-		for _, policy := range networkPolicies {
-			policyNames = append(policyNames, policy.GetName())
-		}
-		if len(policyNames) > 0 {
-			if err := r.cleanupNetworkPoliciesByNames(ctx, policyNames); err != nil {
-				return fmt.Errorf("failed to cleanup network policies: %w", err)
-			}
+		if err := r.cleanupNetworkPolicies(ctx); err != nil {
+			return fmt.Errorf("failed to cleanup network policies: %w", err)
 		}
 	}
 	return nil
