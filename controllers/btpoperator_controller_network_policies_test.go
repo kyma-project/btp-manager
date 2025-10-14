@@ -145,7 +145,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				Scheme:          k8sClient.Scheme(),
 				manifestHandler: &manifest.Handler{Scheme: k8sManager.GetScheme()},
 			}
-			
+
 			btpOperator = &v1alpha1.BtpOperator{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "btpoperator",
@@ -155,7 +155,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 					NetworkPoliciesEnabled: true,
 				},
 			}
-			
+
 			secret = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "sap-btp-manager",
@@ -184,7 +184,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 
 			var updatedBtpOperator v1alpha1.BtpOperator
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), &updatedBtpOperator)).To(Succeed())
-			
+
 			Eventually(func() v1alpha1.State {
 				k8sClient.Get(ctx, client.ObjectKeyFromObject(btpOperator), &updatedBtpOperator)
 				return updatedBtpOperator.Status.State
@@ -226,7 +226,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 
 		It("Should transition to error state when network policies integration fails", func() {
 			By("Creating BtpOperator with network policies enabled but missing manifests")
-			
+
 			btpOperatorWithBadConfig := &v1alpha1.BtpOperator{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "btpoperator-bad",
@@ -236,7 +236,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 					NetworkPoliciesEnabled: true,
 				},
 			}
-			
+
 			By("Simulating a scenario where network policies directory doesn't exist")
 			originalPath := ManagerResourcesPath
 			ManagerResourcesPath = "/nonexistent/path"
@@ -248,7 +248,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			_, err := reconciler.Reconcile(ctx, ctrl.Request{
 				NamespacedName: client.ObjectKeyFromObject(btpOperatorWithBadConfig),
 			})
-			
+
 			By("The reconciliation should continue despite network policies error")
 			Expect(err).To(HaveOccurred())
 		})
@@ -256,7 +256,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		AfterEach(func() {
 			k8sClient.Delete(ctx, btpOperator)
 			k8sClient.Delete(ctx, secret)
-			
+
 			policies := &networkingv1.NetworkPolicyList{}
 			k8sClient.List(ctx, policies, client.InNamespace("kyma-system"))
 			for _, policy := range policies.Items {
