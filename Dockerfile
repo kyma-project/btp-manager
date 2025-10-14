@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM --platform=$BUILDPLATFORM golang:1.24.8-alpine3.22 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25.1-alpine3.22 AS builder
 ARG GOFIPS140=v1.0.0
 
 WORKDIR /btp-manager-workspace
@@ -33,5 +33,5 @@ COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-chart ./mo
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/module-resources ./module-resources
 USER 65532:65532
 
-ENV GODEBUG=fips140=only
+ENV GODEBUG=fips140=only,tlsmlken=0
 ENTRYPOINT ["/manager"]
