@@ -100,7 +100,7 @@ You pass the following parameters from the calling workflow:
 | **image-tag**        | yes      | Binary image tag                |
 | **credentials-mode** | yes      | Specifies whether to use real or dummy credentials |
 
-The workflow:
+The workflow performs the following actions:
 - Prepares the k3s cluster with the Docker registry
 - Waits for the binary image to be ready in the registry
 - Installs the module with network policies disabled by default
