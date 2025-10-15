@@ -20,7 +20,7 @@ kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec"
 
 ## What Each Policy Does
 
-When enabled, these network policies are created for the SAP BTP Operator:
+When enabled, the following network policies are created for the SAP BTP Operator module:
 
 | Policy Name | Description |
 |-------------|----------------|
