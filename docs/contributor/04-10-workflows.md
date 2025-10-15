@@ -106,7 +106,7 @@ The workflow performs the following actions:
 - Installs the module with network policies disabled by default
 - Applies a deny-all NetworkPolicy for additional security testing
 - Enables network policies through BtpOperator CR patch
-- Tests pod deletion and restart scenarios
+- Tests Pod deletion and restart scenarios
 - Creates a service instance to verify network connectivity
 - Disables network policies and verifies cleanup
 - Removes the deny-all NetworkPolicy
