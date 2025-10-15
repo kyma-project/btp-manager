@@ -12,7 +12,7 @@ kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec"
 
 ## Disable Network Policies
 
-To disable network policies:
+To disable network policies, run:
 
 ```bash
 kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":false}}'
