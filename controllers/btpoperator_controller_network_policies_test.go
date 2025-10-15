@@ -6,10 +6,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 )
 
@@ -150,6 +153,136 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			Expect(err).NotTo(HaveOccurred())
 			getErr := k8sClient.Get(context.Background(), client.ObjectKey{Name: "test-unmanaged-policy", Namespace: "kyma-system"}, testPolicy)
 			Expect(getErr).NotTo(HaveOccurred())
+		})
+	})
+
+	Context("When testing full reconcile loop with network policies", func() {
+		var (
+			cr     *v1alpha1.BtpOperator
+			ctx    context.Context
+			secret *corev1.Secret
+		)
+
+		BeforeEach(func() {
+			GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
+			ctx = context.Background()
+			cr = createDefaultBtpOperator()
+			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
+		})
+
+		AfterEach(func() {
+			if cr != nil {
+				if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr); err == nil {
+					Expect(k8sClient.Delete(ctx, cr)).To(Succeed())
+					Eventually(updateCh).Should(Receive(matchDeleted()))
+					Expect(isCrNotFound()).To(BeTrue())
+				}
+			}
+			if secret != nil {
+				if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, secret); err == nil {
+					Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+				}
+			}
+		})
+
+		createCRWithNetworkPoliciesAndWaitForReady := func(networkPoliciesEnabled bool) {
+			cr.Spec.NetworkPoliciesEnabled = networkPoliciesEnabled
+			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+
+			var err error
+			secret, err = createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateProcessing, metav1.ConditionFalse, conditions.Initialized)))
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+		}
+
+		createCRWithNetworkPoliciesEnabledAndWaitForReady := func() {
+			createCRWithNetworkPoliciesAndWaitForReady(true)
+		}
+
+		createCRWithNetworkPoliciesDisabledAndWaitForReady := func() {
+			createCRWithNetworkPoliciesAndWaitForReady(false)
+		}
+
+		updateNetworkPoliciesSettingAndWait := func(enabled bool) {
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			cr.Spec.NetworkPoliciesEnabled = enabled
+			Expect(k8sClient.Update(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+		}
+
+		enableNetworkPoliciesAndWait := func() {
+			updateNetworkPoliciesSettingAndWait(true)
+		}
+
+		disableNetworkPoliciesAndWait := func() {
+			updateNetworkPoliciesSettingAndWait(false)
+		}
+
+		verifyNetworkPoliciesExist := func() {
+			Eventually(func() bool {
+				for _, policyName := range expectedPolicyNames {
+					policy := &unstructured.Unstructured{}
+					policy.SetAPIVersion("networking.k8s.io/v1")
+					policy.SetKind("NetworkPolicy")
+					err := k8sClient.Get(ctx, client.ObjectKey{Name: policyName, Namespace: "kyma-system"}, policy)
+					if err != nil {
+						return false
+					}
+					labels := policy.GetLabels()
+					if labels == nil || labels[managedByLabelKey] != operatorName {
+						return false
+					}
+				}
+				return true
+			}).Should(BeTrue(), "All network policies should exist")
+		}
+
+		verifyNetworkPoliciesDeleted := func() {
+			Eventually(func() bool {
+				for _, policyName := range expectedPolicyNames {
+					policy := &unstructured.Unstructured{}
+					policy.SetAPIVersion("networking.k8s.io/v1")
+					policy.SetKind("NetworkPolicy")
+					err := k8sClient.Get(ctx, client.ObjectKey{Name: policyName, Namespace: "kyma-system"}, policy)
+					if err == nil {
+						return false
+					}
+				}
+				return true
+			}).Should(BeTrue(), "All network policies should be deleted")
+		}
+
+		Context("When NetworkPoliciesEnabled is set to true", func() {
+			It("Should create network policies during provisioning", func() {
+				createCRWithNetworkPoliciesEnabledAndWaitForReady()
+				verifyNetworkPoliciesExist()
+			})
+
+			It("Should handle network policies when updating from disabled to enabled", func() {
+				createCRWithNetworkPoliciesDisabledAndWaitForReady()
+				verifyNetworkPoliciesDeleted()
+
+				enableNetworkPoliciesAndWait()
+				verifyNetworkPoliciesExist()
+			})
+		})
+
+		Context("When NetworkPoliciesEnabled is set to false", func() {
+			It("Should not create network policies during provisioning", func() {
+				createCRWithNetworkPoliciesDisabledAndWaitForReady()
+				verifyNetworkPoliciesDeleted()
+			})
+
+			It("Should clean up existing network policies when updating from enabled to disabled", func() {
+				createCRWithNetworkPoliciesEnabledAndWaitForReady()
+				verifyNetworkPoliciesExist()
+
+				disableNetworkPoliciesAndWait()
+				verifyNetworkPoliciesDeleted()
+			})
 		})
 	})
 })
