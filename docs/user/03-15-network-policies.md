@@ -1,6 +1,6 @@
 # Network Policies
 
-The SAP BTP Operator module can create network policies to control traffic for the SAP BTP service operator pods. Network policies are **disabled by default**.
+The SAP BTP Operator module can create network policies to control traffic for the SAP BTP service operator Pods. By default, network policies are disabled.
 
 ## Enable Network Policies
 
