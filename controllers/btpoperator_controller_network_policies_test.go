@@ -25,6 +25,14 @@ func createMockNetworkPolicy(name string) *unstructured.Unstructured {
 	return policy
 }
 
+func getNetworkPolicy(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error) {
+	policy := &unstructured.Unstructured{}
+	policy.SetAPIVersion("networking.k8s.io/v1")
+	policy.SetKind("NetworkPolicy")
+	err := k8sClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, policy)
+	return policy, err
+}
+
 var expectedPolicyNames = []string{
 	"kyma-project.io--btp-operator-allow-to-apiserver",
 	"kyma-project.io--btp-operator-to-dns",
@@ -109,10 +117,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			err := reconciler.cleanupNetworkPolicies(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			for _, name := range expectedPolicyNames {
-				policy := &unstructured.Unstructured{}
-				policy.SetAPIVersion("networking.k8s.io/v1")
-				policy.SetKind("NetworkPolicy")
-				getErr := k8sClient.Get(ctx, client.ObjectKey{Name: name, Namespace: "kyma-system"}, policy)
+				_, getErr := getNetworkPolicy(ctx, name, "kyma-system")
 				Expect(getErr).To(HaveOccurred(), "NetworkPolicy %s should be deleted", name)
 			}
 		})
@@ -139,7 +144,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
 			err := reconciler.cleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
-			getErr := k8sClient.Get(context.Background(), client.ObjectKey{Name: "test-cleanup-policy", Namespace: "kyma-system"}, testPolicy)
+			_, getErr := getNetworkPolicy(context.Background(), "test-cleanup-policy", "kyma-system")
 			Expect(getErr).To(HaveOccurred())
 		})
 
@@ -151,7 +156,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
 			err := reconciler.cleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
-			getErr := k8sClient.Get(context.Background(), client.ObjectKey{Name: "test-unmanaged-policy", Namespace: "kyma-system"}, testPolicy)
+			_, getErr := getNetworkPolicy(context.Background(), "test-unmanaged-policy", "kyma-system")
 			Expect(getErr).NotTo(HaveOccurred())
 		})
 	})
@@ -224,10 +229,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		verifyNetworkPoliciesExist := func() {
 			Eventually(func() bool {
 				for _, policyName := range expectedPolicyNames {
-					policy := &unstructured.Unstructured{}
-					policy.SetAPIVersion("networking.k8s.io/v1")
-					policy.SetKind("NetworkPolicy")
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: policyName, Namespace: "kyma-system"}, policy)
+					policy, err := getNetworkPolicy(ctx, policyName, "kyma-system")
 					if err != nil {
 						return false
 					}
@@ -243,10 +245,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		verifyNetworkPoliciesDeleted := func() {
 			Eventually(func() bool {
 				for _, policyName := range expectedPolicyNames {
-					policy := &unstructured.Unstructured{}
-					policy.SetAPIVersion("networking.k8s.io/v1")
-					policy.SetKind("NetworkPolicy")
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: policyName, Namespace: "kyma-system"}, policy)
+					_, err := getNetworkPolicy(ctx, policyName, "kyma-system")
 					if err == nil {
 						return false
 					}
