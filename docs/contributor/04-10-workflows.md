@@ -105,7 +105,7 @@ The workflow performs the following actions:
 - Waits for the binary image to be ready in the registry
 - Installs the module with network policies disabled by default
 - Applies a deny-all NetworkPolicy for additional security testing
-- Enables network policies via BtpOperator CR patch
+- Enables network policies through BtpOperator CR patch
 - Tests pod deletion and restart scenarios
 - Creates a service instance to verify network connectivity
 - Disables network policies and verifies cleanup
