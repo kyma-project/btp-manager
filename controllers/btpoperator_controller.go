@@ -469,6 +469,20 @@ func (r *BtpOperatorReconciler) loadNetworkPolicies() ([]*unstructured.Unstructu
 	return r.createUnstructuredObjectsFromManifestsDir(r.getNetworkPoliciesPath())
 }
 
+func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
+	logger.Info("network policies enabled, loading and adding them to resources")
+	networkPolicies, err := r.loadNetworkPolicies()
+	if err != nil {
+		logger.Error(err, "while loading network policies")
+		return fmt.Errorf("failed to load network policies: %w", err)
+	}
+	*resourcesToApply = append(*resourcesToApply, networkPolicies...)
+	logger.Info(fmt.Sprintf("added %d network policies to resources to apply", len(networkPolicies)))
+
+	return nil
+}
+
 func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 
@@ -503,26 +517,9 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
 	if cr.Spec.NetworkPoliciesEnabled {
-		logger.Info("network policies enabled, loading and adding them to resources")
-		networkPolicies, err := r.loadNetworkPolicies()
-		if err != nil {
-			logger.Error(err, "while loading network policies")
-			return fmt.Errorf("failed to load network policies: %w", err)
+		if err := r.addNetworkPoliciesToResources(ctx, &resourcesToApply); err != nil {
+			return err
 		}
-		logger.Info(fmt.Sprintf("got %d network policies to add", len(networkPolicies)))
-
-		for _, policy := range networkPolicies {
-			policy.SetNamespace(ChartNamespace)
-			labels := policy.GetLabels()
-			if labels == nil {
-				labels = make(map[string]string)
-			}
-			labels[managedByLabelKey] = operatorName
-			policy.SetLabels(labels)
-		}
-
-		resourcesToApply = append(resourcesToApply, networkPolicies...)
-		logger.Info(fmt.Sprintf("added %d network policies to resources to apply", len(networkPolicies)))
 	} else {
 		logger.Info("network policies disabled, cleaning up existing ones")
 		if err := r.cleanupNetworkPolicies(ctx); err != nil {
@@ -631,11 +628,8 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 
 func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
 	logger := log.FromContext(ctx)
-	networkPolicy := &unstructured.Unstructured{}
-	networkPolicy.SetAPIVersion("networking.k8s.io/v1")
-	networkPolicy.SetKind("NetworkPolicy")
 	logger.Info("deleting all managed network policies")
-	if err := r.DeleteAllOf(ctx, networkPolicy, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
+	if err := r.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
 		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 			return fmt.Errorf("failed to delete network policies: %w", err)
 		}
@@ -1202,6 +1196,11 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 		return fmt.Errorf("failed to delete module resources: %w", err)
 	}
 
+	if err := r.cleanupNetworkPolicies(ctx); err != nil {
+		logger.Error(err, "while cleaning up network policies during hard delete")
+		return fmt.Errorf("failed to cleanup network policies during hard delete: %w", err)
+	}
+
 	clusterIdSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret))
@@ -1324,6 +1323,10 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
 			return err
 		}
+	}
+
+	if err := r.cleanupNetworkPolicies(ctx); err != nil {
+		return fmt.Errorf("failed to cleanup network policies during soft delete: %w", err)
 	}
 
 	return nil
