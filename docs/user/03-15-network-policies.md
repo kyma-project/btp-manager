@@ -31,7 +31,7 @@ When enabled, the following network policies are created for the SAP BTP Operato
 
 ## Verify Status
 
-Check if network policies are active:
+To check if network policies are active, run:
 
 ```bash
 kubectl get networkpolicies -n kyma-system -l kyma-project.io/managed-by=btp-manager
