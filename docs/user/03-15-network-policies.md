@@ -26,7 +26,7 @@ When enabled, the following network policies are created for the SAP BTP Operato
 |-------------|----------------|
 | `kyma-project.io--btp-operator-allow-to-apiserver` | Egress from BTP operator pods to any destination on TCP port 443 (e.g., Kubernetes API server) |
 | `kyma-project.io--btp-operator-to-dns` | Egress from BTP operator pods to DNS services (UDP/TCP port 53, 8053) for cluster and external DNS resolution |
-| `kyma-project.io--allow-btp-operator-metrics` | Ingress to BTP operator pods on TCP port 8080 from pods labeled `networking.kyma-project.io/metrics-scraping: allowed` (metrics scraping) |
+| `kyma-project.io--allow-btp-operator-metrics` | Ingress to BTP operator Pods on TCP port 8080 from Pods labeled `networking.kyma-project.io/metrics-scraping: allowed` (metrics scraping) |
 | `kyma-project.io--btp-operator-allow-to-webhook` | Ingress to BTP operator pods on TCP port 9443 (webhook server) from any source |
 
 ## Verify Status
