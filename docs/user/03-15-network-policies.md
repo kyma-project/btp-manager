@@ -4,7 +4,7 @@ The SAP BTP Operator module can create network policies to control traffic for t
 
 ## Enable Network Policies
 
-To enable network policies for the SAP BTP Operator:
+To enable network policies for SAP BTP Operator, run:
 
 ```bash
 kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":true}}'
