@@ -29,7 +29,7 @@ This workflow uses the DEV artifact registry, tags the binary image and OCI modu
 
 ## E2E Network Policies Tests Workflow
 
-This workflow runs E2E tests specifically for network policies functionality. It tests enabling/disabling network policies, pod restarts, service instance creation, and cleanup scenarios using the [reusable workflow](/.github/workflows/run-e2e-network-policies-tests-reusable.yaml).
+This workflow runs E2E tests specifically for the network policies functionality. It tests enabling/disabling network policies, Pod restarts, service instance creation, and cleanup scenarios using the [reusable workflow](/.github/workflows/run-e2e-network-policies-tests-reusable.yaml).
 
 ## Unit Tests Workflow
 
