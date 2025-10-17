@@ -68,6 +68,7 @@ const (
 	kymaNamespace                        = "kyma-system"
 	defaultChartPath                     = "./testdata/test-module-chart"
 	defaultResourcesPath                 = "./testdata/test-module-resources"
+	defaultManagerResourcesPath          = "./testdata/test-manager-resources"
 	chartUpdatePath                      = "./testdata/module-chart-update"
 	resourcesUpdatePath                  = "./testdata/module-resources-update"
 )
@@ -129,8 +130,10 @@ var _ = SynchronizedBeforeSuite(func() {
 	// runs only on process #1
 	ChartPath = "../module-chart/chart"
 	ResourcesPath = "../module-resources"
+	ManagerResourcesPath = "../manager-resources"
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, defaultChartPath)).To(Succeed())
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, defaultResourcesPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ManagerResourcesPath, defaultManagerResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
