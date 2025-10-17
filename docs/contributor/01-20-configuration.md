@@ -41,7 +41,7 @@ Usage of ./manager:
   -delete-request-timeout duration
     	Delete request timeout in hard delete. (default 5m)
   -enable-limited-cache string
-      Enable limited cache for SAP BTP Service Operator. When enabled, caches only Secrets and ConfigMaps with the label "services.cloud.sap.com/managed-by-sap-btp-operator: true". (default "false")
+      Enable limited cache for the SAP BTP service operator. When enabled, caches only Secrets and ConfigMaps with the label "services.cloud.sap.com/managed-by-sap-btp-operator: true". (default "false")
   -secret-name string
     	Secret name with input values for sap-btp-operator chart templating. (default "sap-btp-manager")
   -zap-devel
