@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
 
-# This script performs comprehensive E2E testing of the BTP Manager module including:
-# - Module installation and configuration validation
-# - Network policies comprehensive testing (enabled by default):
-#   * Verify policies exist after installation
-#   * Test pod restarts with policies enabled/disabled
-#   * Test disable/enable lifecycle via annotations
-#   * Test persistence through deployment errors/recovery
-# - Service instance and binding creation/management
-# - ConfigMap propagation testing
-# - Deprovisioning and cleanup testing
-#
-# Arguments:
+# This script has the following arguments:
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
