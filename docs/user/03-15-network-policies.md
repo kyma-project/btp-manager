@@ -1,26 +1,26 @@
 # Network Policies
 
-The SAP BTP Operator module can create network policies to control traffic for the SAP BTP service operator Pods. By default, network policies are disabled.
-
-## Enable Network Policies
-
-To enable network policies for SAP BTP Operator, run:
-
-```bash
-kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":true}}'
-```
+The SAP BTP Operator module can create network policies to control traffic for the SAP BTP service operator Pods. By default, network policies are enabled.
 
 ## Disable Network Policies
 
-To disable network policies, run:
+To disable network policies for SAP BTP Operator, add the following annotation to the BtpOperator custom resource:
 
 ```bash
-kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":false}}'
+kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
+```
+
+## Enable Network Policies
+
+To enable network policies remove the annotation:
+
+```bash
+kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies-
 ```
 
 ## What Each Policy Does
 
-When enabled, the following network policies are created for the SAP BTP Operator module:
+By default, the following network policies are created for the SAP BTP Operator module:
 
 | Policy Name | Description |
 |-------------|----------------|

@@ -46,14 +46,6 @@ spec:
           spec:
             description: BtpOperatorSpec defines the desired state of BtpOperator
             nullable: true
-            properties:
-              networkPoliciesEnabled:
-                default: false
-                description: NetworkPoliciesEnabled determines whether network policies
-                  should be deployed
-                type: boolean
-            required:
-            - networkPoliciesEnabled
             type: object
           status:
             description: Status defines the observed state of CustomObject.

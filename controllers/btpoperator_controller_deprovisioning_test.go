@@ -138,7 +138,6 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			Expect(err).To(BeNil())
 			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
 			cr = createDefaultBtpOperator()
-			cr.Spec.NetworkPoliciesEnabled = true
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))

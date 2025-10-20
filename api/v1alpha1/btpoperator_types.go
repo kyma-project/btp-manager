@@ -17,10 +17,13 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const componentName = "btp-operator"
+const DisableNetworkPoliciesAnnotation = "operator.kyma-project.io/btp-operator-disable-network-policies"
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -41,11 +44,7 @@ type BtpOperator struct {
 }
 
 // BtpOperatorSpec defines the desired state of BtpOperator
-type BtpOperatorSpec struct {
-	// NetworkPoliciesEnabled determines whether network policies should be deployed
-	// +kubebuilder:default=false
-	NetworkPoliciesEnabled bool `json:"networkPoliciesEnabled"`
-}
+type BtpOperatorSpec struct{}
 
 type State string
 
@@ -131,6 +130,17 @@ func (o *BtpOperator) IsMsgForGivenReasonEqual(reason, message string) bool {
 		}
 	}
 	return false
+}
+
+func (o *BtpOperator) IsNetworkPoliciesDisabled() bool {
+	if o.Annotations == nil {
+		return false
+	}
+	value, exists := o.Annotations[DisableNetworkPoliciesAnnotation]
+	if !exists {
+		return false
+	}
+	return strings.ToLower(value) == "true"
 }
 
 //+kubebuilder:object:root=true

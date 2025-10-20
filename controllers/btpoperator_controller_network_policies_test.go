@@ -85,8 +85,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator.Namespace = "kyma-system"
 		})
 
-		It("Should load and prepare network policies when NetworkPoliciesEnabled is true", func() {
-			btpOperator.Spec.NetworkPoliciesEnabled = true
+		It("Should load and prepare network policies", func() {
 			policies, err := reconciler.loadNetworkPolicies()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(policies).To(HaveLen(4))
@@ -105,7 +104,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			}
 		})
 
-		It("Should call cleanupNetworkPolicies when NetworkPoliciesEnabled is false", func() {
+		It("Should call cleanupNetworkPolicies", func() {
 			for _, name := range expectedPolicyNames {
 				policy := createMockNetworkPolicy(name)
 				labels := map[string]string{
@@ -120,6 +119,34 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				_, getErr := getNetworkPolicy(ctx, name, "kyma-system")
 				Expect(getErr).To(HaveOccurred(), "NetworkPolicy %s should be deleted", name)
 			}
+		})
+
+		It("Should check annotation correctly for network policies", func() {
+			btpOperator.Annotations = nil
+			Expect(btpOperator.IsNetworkPoliciesDisabled()).To(BeFalse())
+
+			btpOperator.Annotations = map[string]string{}
+			Expect(btpOperator.IsNetworkPoliciesDisabled()).To(BeFalse())
+
+			btpOperator.Annotations = map[string]string{
+				v1alpha1.DisableNetworkPoliciesAnnotation: "false",
+			}
+			Expect(btpOperator.IsNetworkPoliciesDisabled()).To(BeFalse())
+
+			btpOperator.Annotations = map[string]string{
+				v1alpha1.DisableNetworkPoliciesAnnotation: "true",
+			}
+			Expect(btpOperator.IsNetworkPoliciesDisabled()).To(BeTrue())
+
+			btpOperator.Annotations = map[string]string{
+				v1alpha1.DisableNetworkPoliciesAnnotation: "TRUE",
+			}
+			Expect(btpOperator.IsNetworkPoliciesDisabled()).To(BeTrue())
+
+			btpOperator.Annotations = map[string]string{
+				v1alpha1.DisableNetworkPoliciesAnnotation: "random",
+			}
+			Expect(btpOperator.IsNetworkPoliciesDisabled()).To(BeFalse())
 		})
 	})
 
@@ -191,7 +218,17 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		})
 
 		createCRWithNetworkPoliciesAndWaitForReady := func(networkPoliciesEnabled bool) {
-			cr.Spec.NetworkPoliciesEnabled = networkPoliciesEnabled
+			if !networkPoliciesEnabled {
+				if cr.Annotations == nil {
+					cr.Annotations = make(map[string]string)
+				}
+				cr.Annotations[v1alpha1.DisableNetworkPoliciesAnnotation] = "true"
+			} else {
+				if cr.Annotations != nil {
+					delete(cr.Annotations, v1alpha1.DisableNetworkPoliciesAnnotation)
+				}
+			}
+
 			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 
 			var err error
@@ -213,7 +250,14 @@ var _ = Describe("BTP Operator Network Policies", func() {
 
 		updateNetworkPoliciesSettingAndWait := func(enabled bool) {
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
-			cr.Spec.NetworkPoliciesEnabled = enabled
+			if cr.Annotations == nil {
+				cr.Annotations = make(map[string]string)
+			}
+			if enabled {
+				delete(cr.Annotations, v1alpha1.DisableNetworkPoliciesAnnotation)
+			} else {
+				cr.Annotations[v1alpha1.DisableNetworkPoliciesAnnotation] = "true"
+			}
 			Expect(k8sClient.Update(ctx, cr)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 		}
@@ -254,7 +298,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			}).Should(BeTrue(), "All network policies should be deleted")
 		}
 
-		Context("When NetworkPoliciesEnabled is set to true", func() {
+		Context("When network policies are enabled", func() {
 			It("Should create network policies during provisioning", func() {
 				createCRWithNetworkPoliciesEnabledAndWaitForReady()
 				verifyNetworkPoliciesExist()
@@ -269,7 +313,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			})
 		})
 
-		Context("When NetworkPoliciesEnabled is set to false", func() {
+		Context("When network policies are disabled", func() {
 			It("Should not create network policies during provisioning", func() {
 				createCRWithNetworkPoliciesDisabledAndWaitForReady()
 				verifyNetworkPoliciesDeleted()

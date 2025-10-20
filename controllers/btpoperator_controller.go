@@ -471,7 +471,6 @@ func (r *BtpOperatorReconciler) loadNetworkPolicies() ([]*unstructured.Unstructu
 
 func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
-	logger.Info("network policies enabled, loading and adding them to resources")
 	networkPolicies, err := r.loadNetworkPolicies()
 	if err != nil {
 		logger.Error(err, "while loading network policies")
@@ -516,15 +515,16 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	if cr.Spec.NetworkPoliciesEnabled {
-		if err := r.addNetworkPoliciesToResources(ctx, &resourcesToApply); err != nil {
-			return err
-		}
-	} else {
+	if cr.IsNetworkPoliciesDisabled() {
 		logger.Info("network policies disabled, cleaning up existing ones")
 		if err := r.cleanupNetworkPolicies(ctx); err != nil {
 			logger.Error(err, "while cleaning up network policies")
 			return fmt.Errorf("failed to cleanup network policies: %w", err)
+		}
+	} else {
+		logger.Info("network policies enabled, loading and adding them to resources")
+		if err := r.addNetworkPoliciesToResources(ctx, &resourcesToApply); err != nil {
+			return err
 		}
 	}
 
