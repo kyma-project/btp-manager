@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # This script tests the complete network policies lifecycle with BTP Manager:
-# 1. Install the module (with network policies disabled by default)
-# 2. Enable network policies via BtpOperator CR spec
+# 1. Install the module (with network policies enabled by default)
+# 2. Disable network policies via BtpOperator CR annotation
 # 3. Delete BTP manager and SAP BTP operator pods
 # 4. Wait for pods to be ready
 # 5. Create a service instance
-# 6. Disable network policies
+# 6. Re-enable network policies by removing the annotation
 #
 # Arguments:
 #     - link to a binary image (required)
@@ -206,13 +206,10 @@ spec:
     - Egress
 EOF
 
-echo -e "\n--- Enabling network policies in BTP Operator CR"
-kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":true}}'
-
-echo -e "\n--- Waiting for network policies to be created"
+echo -e "\n--- Network policies should be enabled by default, checking if they exist"
 sleep 10
 
-# Check if network policies exist (they should be created automatically)
+# Check if network policies exist (they should be created automatically by default)
 checkNetworkPoliciesExist
 
 echo -e "\n--- Network policies enabled"
@@ -268,13 +265,21 @@ echo -e "\n--- Service instance created"
 
 echo -e "\n--- Disabling Network Policies"
 
-echo -e "\n--- Disabling network policies in BTP Operator CR"
-kubectl patch btpoperators/btpoperator -n kyma-system --type='merge' -p='{"spec":{"networkPoliciesEnabled":false}}'
+echo -e "\n--- Disabling network policies in BTP Operator CR via annotation"
+kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
 
 echo -e "\n--- Waiting for network policies to be cleaned up"
 sleep 10
 
 checkNetworkPoliciesDeleted
+
+echo -e "\n--- Re-enabling network policies by removing the disable annotation"
+kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies-
+
+echo -e "\n--- Waiting for network policies to be recreated"
+sleep 10
+
+checkNetworkPoliciesCreated
 
 echo -e "\n--- Removing deny-all NetworkPolicy"
 kubectl delete networkpolicy kyma-project.io--deny-all-ingress -n kyma-system --ignore-not-found=true
