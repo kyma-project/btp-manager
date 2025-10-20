@@ -27,10 +27,6 @@ See [BTP Manager Release Pipeline](03-10-release.md) to learn more about the rel
 
 This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the [reusable workflow](/.github/workflows/run-e2e-tests-reusable.yaml).
 
-## E2E Network Policies Tests Workflow
-
-This workflow runs E2E tests specifically for the network policies functionality. It tests enabling/disabling network policies, Pod restarts, service instance creation, and cleanup scenarios using the [reusable workflow](/.github/workflows/run-e2e-network-policies-tests-reusable.yaml).
-
 ## Unit Tests Workflow
 
 This workflow calls the [reusable workflow](/.github/workflows/run-unit-tests-reusable.yaml).
@@ -88,29 +84,6 @@ The workflow:
 - Waits for the binary image to be ready in the registry
 - Runs the E2E tests on the clusters
 - Waits for all tests to finish
-
-### E2E Network Policies Tests
-
-This [workflow](/.github/workflows/run-e2e-network-policies-tests-reusable.yaml) runs the E2E network policies tests on the k3s cluster.
-You pass the following parameters from the calling workflow:
-
-| Parameter name       | Required | Description                     |
-|----------------------|----------|---------------------------------|
-| **image-repo**       | yes      | Binary image registry reference |
-| **image-tag**        | yes      | Binary image tag                |
-| **credentials-mode** | yes      | Specifies whether to use real or dummy credentials |
-
-The workflow performs the following actions:
-- Prepares the k3s cluster with the Docker registry
-- Waits for the binary image to be ready in the registry
-- Installs the module with network policies disabled by default
-- Applies a deny-all NetworkPolicy for additional security testing
-- Enables network policies through BtpOperator CR patch
-- Tests Pod deletion and restart scenarios
-- Creates a service instance to verify network connectivity
-- Disables network policies and verifies cleanup
-- Removes the deny-all NetworkPolicy
-
 
 ### Unit Tests
 
