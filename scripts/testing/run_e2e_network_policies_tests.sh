@@ -179,18 +179,18 @@ waitForDeploymentReady $SAP_BTP_OPERATOR_DEPLOYMENT_NAME
 
 echo -e "\n--- Module installed successfully"
 
-# Verify network policies are NOT present initially (since they're disabled by default)
-echo -e "\n--- Verifying network policies are not present initially"
+# Verify network policies ARE present initially (since they're enabled by default)
+echo -e "\n--- Verifying network policies are present initially (enabled by default)"
 sleep 5
-if checkNetworkPoliciesDeleted; then
-  echo -e "--- ✓ Network policies correctly not present initially"
+if checkNetworkPoliciesExist; then
+  echo -e "--- ✓ Network policies correctly present initially"
 else
-  echo -e "--- ✗ ERROR: Network policies should not exist initially but they do"
+  echo -e "--- ✗ ERROR: Network policies should exist initially but they don't"
   exit 1
 fi
 
-# Enable network policies
-echo -e "\n--- Enabling Network Policies"
+# Test network policies lifecycle
+echo -e "\n--- Testing Network Policies Lifecycle"
 
 echo -e "\n--- Applying deny-all NetworkPolicy"
 kubectl apply -f - <<'EOF'
@@ -206,17 +206,9 @@ spec:
     - Egress
 EOF
 
-echo -e "\n--- Network policies should be enabled by default, checking if they exist"
-sleep 10
-
-# Check if network policies exist (they should be created automatically by default)
-checkNetworkPoliciesExist
-
-echo -e "\n--- Network policies enabled"
+echo -e "\n--- Testing network policies with pod restarts"
 
 # Delete BTP manager and SAP BTP operator pods
-echo -e "\n--- Deleting Manager and Operator Pods"
-
 echo -e "\n--- Deleting BTP Manager and SAP BTP Operator pods"
 kubectl delete pods -l kyma-project.io/module=btp-operator -n kyma-system
 
@@ -279,7 +271,7 @@ kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.i
 echo -e "\n--- Waiting for network policies to be recreated"
 sleep 10
 
-checkNetworkPoliciesCreated
+checkNetworkPoliciesExist
 
 echo -e "\n--- Removing deny-all NetworkPolicy"
 kubectl delete networkpolicy kyma-project.io--deny-all-ingress -n kyma-system --ignore-not-found=true
