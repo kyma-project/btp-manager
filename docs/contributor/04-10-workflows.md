@@ -85,7 +85,6 @@ The workflow:
 - Runs the E2E tests on the clusters
 - Waits for all tests to finish
 
-
 ### Unit Tests
 
 This [workflow](/.github/workflows/run-unit-tests-reusable.yaml) runs the unit tests.

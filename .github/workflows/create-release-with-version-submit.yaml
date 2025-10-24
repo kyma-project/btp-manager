@@ -372,8 +372,8 @@ jobs:
           gh release edit ${{ inputs.name }} --draft=false
 
   submit-version:
-    needs: [publish-release]
     name: Submit version
+    needs: [publish-release]
     uses: "./.github/workflows/module-version-submit.yaml"
     with:
       releaseTag: ${{ inputs.name }}
