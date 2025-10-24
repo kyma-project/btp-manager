@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 
-ENV GODEBUG=fips140=only,tlsmlken=0
+ENV GODEBUG=fips140=only,tlsmlkem=0
 
 WORKDIR /
 COPY --chown=65532:65532 --from=builder /btp-manager-workspace/manager .
