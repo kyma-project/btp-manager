@@ -1,4 +1,3 @@
 images:
-  - source: "bitnamisecure/kubectl:latest"
   - source: "ghcr.io/sap/sap-btp-service-operator/controller:v0.9.3"
   - source: "quay.io/brancz/kube-rbac-proxy:v0.20.0"
