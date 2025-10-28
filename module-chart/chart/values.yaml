@@ -16,7 +16,7 @@ manager:
   management_namespace:
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.9.2
+    tag: v0.9.3
     sha: ""
   secret:
     b64encoded: false
@@ -34,7 +34,7 @@ manager:
     image:
       repository: quay.io/brancz/kube-rbac-proxy
       sha: ""
-      tag: v0.19.1
+      tag: v0.20.0
     memory_limit: ""
     cpu_limit: ""
     req_memory_limit: ""
