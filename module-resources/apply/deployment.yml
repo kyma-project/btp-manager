@@ -19,13 +19,12 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 6b4ee8d3ba03a46d473130c2a3bafbdacba219dc2e612b4932315039fcf9118c
+        checksum/config: 22d27dd2237dc0046e38650e75a5fcad8c66d2c7ea03c317a40e9969d0669ade
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
         app.kubernetes.io/instance: sap-btp-operator
         app.kubernetes.io/name: sap-btp-operator
-        sidecar.istio.io/inject: "false"
     spec:
       serviceAccountName: sap-btp-operator
       containers:
