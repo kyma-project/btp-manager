@@ -129,7 +129,7 @@ jobs:
         run: |
           export BRANCH_NAME=${BASE_BRANCH_NAME}-update-resources
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-          PRS=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+          PRS=$(gh pr list -A $GIT_NAME --state all --json headRefName | jq -r '.[] | .headRefName')
           if echo $PRS | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
             echo "UPDATE_RESOURCES=false" >> $GITHUB_ENV
