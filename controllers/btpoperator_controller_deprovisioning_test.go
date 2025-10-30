@@ -123,4 +123,65 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			doChecks()
 		})
 	})
+
+	Describe("Deprovisioning with network policies", func() {
+		var networkPolicyNames = []string{
+			"kyma-project.io--btp-operator-allow-to-apiserver",
+			"kyma-project.io--btp-operator-to-dns",
+			"kyma-project.io--allow-btp-operator-metrics",
+			"kyma-project.io--btp-operator-allow-to-webhook",
+		}
+
+		BeforeEach(func() {
+			GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
+			secret, err := createCorrectSecretFromYaml()
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+			cr = createDefaultBtpOperator()
+			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
+			Expect(k8sClient.Create(ctx, cr)).To(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
+			Eventually(func() bool {
+				for _, policyName := range networkPolicyNames {
+					policy := &unstructured.Unstructured{}
+					policy.SetAPIVersion("networking.k8s.io/v1")
+					policy.SetKind("NetworkPolicy")
+					err := k8sClient.Get(ctx, client.ObjectKey{Name: policyName, Namespace: "kyma-system"}, policy)
+					if err != nil {
+						return false
+					}
+					labels := policy.GetLabels()
+					if labels == nil || labels[managedByLabelKey] != operatorName {
+						return false
+					}
+				}
+				return true
+			}).Should(BeTrue(), "All network policies should exist after provisioning")
+		})
+
+		AfterEach(func() {
+			deleteSecret := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
+		})
+
+		It("Should delete network policies during deprovisioning", func() {
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateDeleting, metav1.ConditionFalse, conditions.HardDeleting)))
+			Eventually(updateCh).Should(Receive(matchDeleted()))
+			Eventually(func() bool {
+				for _, policyName := range networkPolicyNames {
+					policy := &unstructured.Unstructured{}
+					policy.SetAPIVersion("networking.k8s.io/v1")
+					policy.SetKind("NetworkPolicy")
+					err := k8sClient.Get(ctx, client.ObjectKey{Name: policyName, Namespace: "kyma-system"}, policy)
+					if err == nil {
+						return false
+					}
+				}
+				return true
+			}).Should(BeTrue(), "All network policies should be deleted during deprovisioning")
+		})
+	})
 })

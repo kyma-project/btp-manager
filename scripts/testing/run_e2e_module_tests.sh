@@ -29,6 +29,92 @@ waitForBtpOperatorCrReadiness () {
   done
 }
 
+waitForDeploymentReady() {
+  local deployment_name=$1
+  local namespace=${2:-kyma-system}
+  local timeout=${3:-300}
+  
+  echo -e "\n--- Waiting for deployment $deployment_name to be ready"
+  local seconds=0
+  while [[ $seconds -lt $timeout ]]; do
+    local available=$(kubectl get deployment/$deployment_name -n $namespace -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}' 2>/dev/null || echo "False")
+    if [[ "$available" == "True" ]]; then
+      echo -e "--- Deployment $deployment_name is ready"
+      return 0
+    fi
+    echo -e "--- Waiting for deployment $deployment_name to be available (${seconds}s/${timeout}s)"
+    sleep 5
+    seconds=$((seconds + 5))
+  done
+  echo -e "--- ERROR: Deployment $deployment_name did not become ready within ${timeout}s"
+  return 1
+}
+
+waitForPodsReady() {
+  local label_selector=$1
+  local namespace=${2:-kyma-system}
+  local timeout=${3:-300}
+  
+  echo -e "\n--- Waiting for pods with selector '$label_selector' to be ready"
+  local seconds=0
+  while [[ $seconds -lt $timeout ]]; do
+    local ready_pods=$(kubectl get pods -l "$label_selector" -n $namespace --field-selector=status.phase=Running -o name 2>/dev/null | wc -l)
+    local total_pods=$(kubectl get pods -l "$label_selector" -n $namespace -o name 2>/dev/null | wc -l)
+    
+    if [[ $ready_pods -gt 0 && $ready_pods -eq $total_pods ]]; then
+      echo -e "--- All pods ($ready_pods/$total_pods) with selector '$label_selector' are ready"
+      return 0
+    fi
+    echo -e "--- Waiting for pods: $ready_pods/$total_pods ready (${seconds}s/${timeout}s)"
+    sleep 5
+    seconds=$((seconds + 5))
+  done
+  echo -e "--- ERROR: Pods with selector '$label_selector' did not become ready within ${timeout}s"
+  return 1
+}
+
+checkNetworkPoliciesExist() {
+  echo -e "\n--- Checking if network policies exist"
+  local policies=(
+    "kyma-project.io--btp-operator-allow-to-apiserver"
+    "kyma-project.io--btp-operator-to-dns"
+    "kyma-project.io--allow-btp-operator-metrics"
+    "kyma-project.io--btp-operator-allow-to-webhook"
+  )
+  
+  for policy in "${policies[@]}"; do
+    if kubectl get networkpolicy "$policy" -n kyma-system >/dev/null 2>&1; then
+      echo -e "--- Network policy '$policy' exists"
+    else
+      echo -e "--- Network policy '$policy' does not exist"
+      return 1
+    fi
+  done
+  echo -e "--- All network policies exist"
+  return 0
+}
+
+checkNetworkPoliciesDeleted() {
+  echo -e "\n--- Checking if network policies are deleted"
+  local policies=(
+    "kyma-project.io--btp-operator-allow-to-apiserver"
+    "kyma-project.io--btp-operator-to-dns"
+    "kyma-project.io--allow-btp-operator-metrics"
+    "kyma-project.io--btp-operator-allow-to-webhook"
+  )
+  
+  for policy in "${policies[@]}"; do
+    if kubectl get networkpolicy "$policy" -n kyma-system >/dev/null 2>&1; then
+      echo -e "--- Network policy '$policy' still exists"
+      return 1
+    else
+      echo -e "--- Network policy '$policy' does not exist"
+    fi
+  done
+  echo -e "--- All network policies are deleted"
+  return 0
+}
+
 checkContainerImages () {
   echo -e "\n--- Checking SAP BTP service operator container images and BTP Manager environment variables with container images"
   sap_btp_service_operator_images=( $(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system -o json | jq -r '.spec.template.spec.containers[].image') )
@@ -63,6 +149,70 @@ BTP_MANAGER_DEPLOYMENT_NAME=btp-manager-controller-manager
 [[ -z ${GITHUB_RUN_ID} ]] && echo "required variable GITHUB_RUN_ID not set" && exit 1
 
 checkContainerImages
+
+echo -e "\n--- Verifying network policies are present initially"
+if checkNetworkPoliciesExist; then
+  echo -e "--- Network policies correctly present after module installation"
+else
+  echo -e "--- ERROR: Network policies should exist by default but they don't"
+  exit 1
+fi
+
+echo -e "\n--- Applying deny-all NetworkPolicy to test connectivity"
+kubectl apply -f - <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kyma-project.io--deny-all-test
+  namespace: kyma-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+EOF
+
+echo -e "\n--- Testing pod restart with network policies enabled"
+echo -e "\n--- Deleting BTP Manager and SAP BTP Operator pods"
+kubectl delete pods -l kyma-project.io/module=btp-operator -n kyma-system
+
+echo -e "\n--- Waiting for pods to be recreated and ready with network policies enabled"
+waitForPodsReady "kyma-project.io/module=btp-operator"
+
+echo -e "\n--- Waiting for deployments to be ready after pod restart"
+waitForDeploymentReady $BTP_MANAGER_DEPLOYMENT_NAME
+waitForDeploymentReady $SAP_BTP_OPERATOR_DEPLOYMENT_NAME
+
+echo -e "\n--- Waiting for BtpOperator CR to be ready after pod restart"
+waitForBtpOperatorCrReadiness
+
+echo -e "\n--- Testing network policies disable/enable lifecycle"
+
+echo -e "\n--- Disabling network policies via annotation"
+kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
+
+echo -e "\n--- Waiting for network policies to be cleaned up"
+sleep 10
+
+if checkNetworkPoliciesDeleted; then
+  echo -e "--- Network policies correctly deleted after disable annotation"
+else
+  echo -e "--- ERROR: Network policies should be deleted but they still exist"
+  exit 1
+fi
+
+echo -e "\n--- Re-enabling network policies by removing the disable annotation"
+kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies-
+
+echo -e "\n--- Waiting for network policies to be recreated"
+sleep 10
+
+if checkNetworkPoliciesExist; then
+  echo -e "--- Network policies correctly recreated after removing disable annotation"
+else
+  echo -e "--- ERROR: Network policies should be recreated but they don't exist"
+  exit 1
+fi
 
 K8S_VER=$(kubectl version -o json | jq .serverVersion.gitVersion -r | cut -d + -f 1)
 
@@ -140,6 +290,14 @@ until [[ "$(kubectl get deployment ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-s
 done
 
 waitForBtpOperatorCrReadiness
+
+echo -e "\n--- Verifying network policies exist after deployment error/recovery"
+if checkNetworkPoliciesExist; then
+  echo -e "--- Network policies correctly persist through deployment error/recovery"
+else
+  echo -e "--- ERROR: Network policies should persist through deployment error/recovery"
+  exit 1
+fi
 
 echo -e "\n--- Saving lastTransitionTime of BtpOperator CR"
 last_transition_time=$(kubectl get btpoperators/btpoperator -n kyma-system -o json | jq -r '.status.conditions[] | select(.type=="Ready") | .lastTransitionTime')

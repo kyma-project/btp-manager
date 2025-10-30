@@ -38,6 +38,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -75,6 +76,7 @@ var (
 	StatusUpdateCheckInterval      = time.Millisecond * 500
 	ChartPath                      = "./module-chart/chart"
 	ResourcesPath                  = "./module-resources"
+	ManagerResourcesPath           = "./manager-resources"
 	EnableLimitedCache             = "false"
 )
 
@@ -218,6 +220,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs="*"
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="rolebindings",verbs="*"
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
+//+kubebuilder:rbac:groups="networking.k8s.io",resources="networkpolicies",verbs="*"
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.workqueueSize += 1
@@ -341,7 +344,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, requiredSecret); err != nil {
+	if err := r.reconcileResources(ctx, cr, requiredSecret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
 	}
 
@@ -458,6 +461,27 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
 }
 
+func (r *BtpOperatorReconciler) getNetworkPoliciesPath() string {
+	return fmt.Sprintf("%s%cnetwork-policies", ManagerResourcesPath, os.PathSeparator)
+}
+
+func (r *BtpOperatorReconciler) loadNetworkPolicies() ([]*unstructured.Unstructured, error) {
+	return r.createUnstructuredObjectsFromManifestsDir(r.getNetworkPoliciesPath())
+}
+
+func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
+	networkPolicies, err := r.loadNetworkPolicies()
+	if err != nil {
+		logger.Error(err, "while loading network policies")
+		return fmt.Errorf("failed to load network policies: %w", err)
+	}
+	*resourcesToApply = append(*resourcesToApply, networkPolicies...)
+	logger.Info(fmt.Sprintf("added %d network policies to resources to apply", len(networkPolicies)))
+
+	return nil
+}
+
 func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 
@@ -480,7 +504,7 @@ func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstr
 	return nil
 }
 
-func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev1.Secret) error {
+func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to apply")
@@ -490,6 +514,19 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, s *corev
 		return fmt.Errorf("failed to create applicable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
+
+	if cr.IsNetworkPoliciesDisabled() {
+		logger.Info("network policies disabled, cleaning up existing ones")
+		if err := r.cleanupNetworkPolicies(ctx); err != nil {
+			logger.Error(err, "while cleaning up network policies")
+			return fmt.Errorf("failed to cleanup network policies: %w", err)
+		}
+	} else {
+		logger.Info("network policies enabled, loading and adding them to resources")
+		if err := r.addNetworkPoliciesToResources(ctx, &resourcesToApply); err != nil {
+			return err
+		}
+	}
 
 	logger.Info("preparing module resources to apply")
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
@@ -567,7 +604,10 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 		return fmt.Errorf("failed to get module chart version: %w", err)
 	}
 
-	r.addLabels(chartVer, resourcesToApply...)
+	if err := r.addLabels(chartVer, resourcesToApply...); err != nil {
+		logger.Error(err, "while adding labels to resources")
+		return fmt.Errorf("failed to add labels to resources: %w", err)
+	}
 	r.setNamespace(resourcesToApply...)
 
 	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
@@ -586,7 +626,19 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	return nil
 }
 
-func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) {
+func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+	logger.Info("deleting all managed network policies")
+	if err := r.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
+		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
+			return fmt.Errorf("failed to delete network policies: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) error {
 
 	for _, u := range us {
 		labels := u.GetLabels()
@@ -597,7 +649,22 @@ func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.U
 		labels[chartVersionKey] = chartVer
 		labels[kymaProjectModuleLabelKey] = moduleName
 		u.SetLabels(labels)
+		if u.GetKind() == deploymentKind {
+			tplLabels, found, err := unstructured.NestedStringMap(u.Object, "spec", "template", "metadata", "labels")
+			if err == nil {
+				if !found || tplLabels == nil {
+					tplLabels = make(map[string]string)
+				}
+				tplLabels[kymaProjectModuleLabelKey] = moduleName
+				if err := unstructured.SetNestedStringMap(u.Object, tplLabels, "spec", "template", "metadata", "labels"); err != nil {
+					return fmt.Errorf("failed to set pod template labels for deployment %s: %w", u.GetName(), err)
+				}
+			} else {
+				return fmt.Errorf("failed to get pod template labels for deployment %s: %w", u.GetName(), err)
+			}
+		}
 	}
+	return nil
 }
 
 func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
@@ -834,11 +901,11 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 
 	if err = r.handleDeprovisioning(ctx, cr); err != nil {
 		logger.Error(err, "deprovisioning failed. Restoring resources")
-		r.reconcileResourcesWithoutChangingCrState(ctx, &logger)
+		r.reconcileResourcesWithoutChangingCrState(ctx, cr, &logger)
 		return err
 	}
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		r.reconcileResourcesWithoutChangingCrState(ctx, &logger)
+		r.reconcileResourcesWithoutChangingCrState(ctx, cr, &logger)
 
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
@@ -1129,6 +1196,11 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 		return fmt.Errorf("failed to delete module resources: %w", err)
 	}
 
+	if err := r.cleanupNetworkPolicies(ctx); err != nil {
+		logger.Error(err, "while cleaning up network policies during hard delete")
+		return fmt.Errorf("failed to cleanup network policies during hard delete: %w", err)
+	}
+
 	clusterIdSecret, err := r.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", sapBtpServiceOperatorClusterIdSecretName, r.credentialsNamespaceFromSapBtpManagerSecret))
@@ -1253,6 +1325,10 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 		}
 	}
 
+	if err := r.cleanupNetworkPolicies(ctx); err != nil {
+		return fmt.Errorf("failed to cleanup network policies during soft delete: %w", err)
+	}
+
 	return nil
 }
 
@@ -1355,7 +1431,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
-	if err := r.reconcileResources(ctx, requiredSecret); err != nil {
+	if err := r.reconcileResources(ctx, cr, requiredSecret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
@@ -1393,6 +1469,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&appsv1.Deployment{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchDeploymentPredicates()),
+		).
+		Watches(
+			&networkingv1.NetworkPolicy{},
+			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
+			builder.WithPredicates(r.watchNetworkPolicyPredicates()),
 		).
 		Complete(r)
 }
@@ -1490,6 +1571,53 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 				}
 			}
 			return newAvailableConditionStatus != oldAvailableConditionStatus || newProgressingConditionStatus != oldProgressingConditionStatus
+		},
+	}
+}
+
+func (r *BtpOperatorReconciler) getNetworkPolicyNamesFromManifests() (map[string]struct{}, error) {
+	names := make(map[string]struct{})
+	us, err := r.loadNetworkPolicies()
+	if err != nil {
+		return names, err
+	}
+	for _, u := range us {
+		if n := u.GetName(); n != "" {
+			names[n] = struct{}{}
+		}
+	}
+	return names, nil
+}
+
+func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
+	nameSet, _ := r.getNetworkPolicyNamesFromManifests()
+	isManaged := func(obj *networkingv1.NetworkPolicy) bool {
+		labels := obj.GetLabels()
+		if labels != nil {
+			if labels[managedByLabelKey] == operatorName && labels[kymaProjectModuleLabelKey] == moduleName {
+				return true
+			}
+		}
+		if _, ok := nameSet[obj.GetName()]; ok {
+			return true
+		}
+		return false
+	}
+
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			obj := e.Object.(*networkingv1.NetworkPolicy)
+			return isManaged(obj)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			obj := e.Object.(*networkingv1.NetworkPolicy)
+			return isManaged(obj)
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			objOld := e.ObjectOld.(*networkingv1.NetworkPolicy)
+			objNew := e.ObjectNew.(*networkingv1.NetworkPolicy)
+
+			return isManaged(objOld) || isManaged(objNew)
 		},
 	}
 }
@@ -2178,7 +2306,7 @@ func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data m
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, logger *logr.Logger) {
+func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, cr *v1alpha1.BtpOperator, logger *logr.Logger) {
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		logger.Error(errWithReason, "secret verification failed")
@@ -2186,7 +2314,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	if err := r.deleteOutdatedResources(ctx); err != nil {
 		logger.Error(err, "outdated resources deletion failed")
 	}
-	if err := r.reconcileResources(ctx, secret); err != nil {
+	if err := r.reconcileResources(ctx, cr, secret); err != nil {
 		logger.Error(err, "resources reconciliation failed")
 	}
 }
