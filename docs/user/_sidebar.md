@@ -23,6 +23,6 @@
   * [Create an SAP BTP Service in Your Kyma Cluster](/btp-manager/user/tutorials/04-40-create-service-in-cluster.md)
 * [Troubleshooting](/btp-manager/user/troubleshooting/README.md)
   * [You Cannot Delete Leftover Service Instances and Bindings](/btp-manager/user/troubleshooting/05-01-leftover-resources.md)
-  * [Resource CR Missing from the Cluster](btp-manager/user/troubleshooting/05-02-resource-cr-missing-from-cluster.md)
+  * [Resource CR Missing from the Cluster](/btp-manager/user/troubleshooting/05-02-resource-cr-missing-from-cluster.md)
 
 <!-- markdown-link-check-enable -->
