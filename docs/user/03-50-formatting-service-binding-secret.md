@@ -1,4 +1,4 @@
-# Format Service Binding Secrets
+# Formats of Service Binding Secrets
 
 Use different attributes in your ServiceBinding resource to generate different formats of your Secret resources.
 
