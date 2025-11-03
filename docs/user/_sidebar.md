@@ -4,6 +4,7 @@
 * [Create the `sap-btp-manager` Secret](/btp-manager/user/03-00-create-btp-manager-secret.md)
 * [Install the SAP BTP Operator Module](/btp-manager/user/03-05-install-module.md)
 * [Preconfigured Credentials and Access](/btp-manager/user/03-10-preconfigured-secret.md)
+* [Customize the Default Credentials and Access](/btp-manager/user/03-11-customize_secret.md)
 * [Network Policies](/btp-manager/user/03-15-network-policies.md)
 * [Create Service Instances and Service Bindings](/btp-manager/user/03-30-create-instances-and-bindings.md)
 * [Update Service Instances](/btp-manager/user/03-31-update-service-instances.md)
@@ -23,6 +24,6 @@
   * [Create an SAP BTP Service in Your Kyma Cluster](/btp-manager/user/tutorials/04-40-create-service-in-cluster.md)
 * [Troubleshooting](/btp-manager/user/troubleshooting/README.md)
   * [You Cannot Delete Leftover Service Instances and Bindings](/btp-manager/user/troubleshooting/05-01-leftover-resources.md)
-  * [Resource CR Missing from the Cluster](btp-manager/user/troubleshooting/05-02-resource-cr-missing-from-cluster.md)
+  * [Resource CR Missing from the Cluster](/btp-manager/user/troubleshooting/05-02-resource-cr-missing-from-cluster.md)
 
 <!-- markdown-link-check-enable -->

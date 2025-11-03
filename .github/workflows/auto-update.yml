@@ -34,24 +34,24 @@ jobs:
           CURRENT=$(yq '.version' ./module-chart/chart/Chart.yaml)
           if [[ $LATEST == $CURRENT ]]; then
             echo "versions are the same: $LATEST=$CURRENT"
-            echo "CONTINUE_JOB=false" >> $GITHUB_ENV
+            echo "UPDATE_CHART=false" >> $GITHUB_ENV
           else
             echo "version update from $CURRENT to $LATEST"
-            echo "CONTINUE_JOB=true" >> $GITHUB_ENV
-            echo "TAG=${LATEST}" >> $GITHUB_ENV
-            echo "BASE_BRANCH_NAME=chart-${LATEST}" >> $GITHUB_ENV
+            echo "UPDATE_CHART=true" >> $GITHUB_ENV
           fi
+          echo "TAG=${LATEST}" >> $GITHUB_ENV
+          echo "BASE_BRANCH_NAME=chart-${LATEST}" >> $GITHUB_ENV
 
       - name: Update chart
-        if: env.CONTINUE_JOB == 'true'
+        if: env.UPDATE_CHART == 'true'
         run: scripts/update/make-module-chart.sh $TAG
       
       - name: Update external images
-        if: env.CONTINUE_JOB == 'true'
+        if: env.UPDATE_CHART == 'true'
         run: scripts/update/update-external-images.sh
 
       - name: Create PR for image-syncer
-        if: env.CONTINUE_JOB == 'true'
+        if: env.UPDATE_CHART == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
@@ -71,7 +71,7 @@ jobs:
           fi
 
       - name: Merge PR
-        if: env.CONTINUE_JOB == 'true'
+        if: env.UPDATE_CHART == 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
@@ -84,6 +84,7 @@ jobs:
           fi
       
       - name: Await PR merge
+        if: env.UPDATE_CHART == 'true'
         timeout-minutes: 5
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -97,7 +98,7 @@ jobs:
           fi
       
       - name: Wait for sap-btp-service-operator image
-        if: env.CONTINUE_JOB == 'true'
+        if: env.UPDATE_CHART == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -105,7 +106,7 @@ jobs:
           scripts/await_image.sh "${EXTERNAL_IMAGES_REPO}/${EXTERNAL_IMAGE}"
 
       - name: Wait for kube-rbac-proxy image
-        if: env.CONTINUE_JOB == 'true'
+        if: env.UPDATE_CHART == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -113,30 +114,45 @@ jobs:
           scripts/await_image.sh "${EXTERNAL_IMAGES_REPO}/${EXTERNAL_IMAGE}"
 
       - name: Checkout code after chart update and external images sync
+        if: env.UPDATE_CHART == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: git pull
       
-      - name: Update module resources
-        if: env.CONTINUE_JOB == 'true'
-        run: scripts/update/make-module-resources.sh $TAG
+      - name: Pull latest changes
+        if: env.UPDATE_CHART == 'true'
+        run: git pull
 
-      - name: Set images as envs in module deployment
-        if: env.CONTINUE_JOB == 'true'
-        run: scripts/update/add_module_managed_images_envs.sh
-
-      - name: Create PR for resources update
-        if: env.CONTINUE_JOB == 'true'
+      - name: Check if PR with module resources update is required
         env:
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           export BRANCH_NAME=${BASE_BRANCH_NAME}-update-resources
-          export MSG="Update module resources to ${TAG}"
-          PRS=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+          PRS=$(gh pr list -A $GIT_NAME --state all --json headRefName | jq -r '.[] | .headRefName')
           if echo $PRS | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
-          elif [ -z "$(git status --porcelain)" ]; then
+            echo "UPDATE_RESOURCES=false" >> $GITHUB_ENV
+          else
+            echo "No existing PR found, module resources update might be required"
+            echo "UPDATE_RESOURCES=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Update module resources
+        if: env.UPDATE_RESOURCES == 'true'
+        run: scripts/update/make-module-resources.sh $TAG
+
+      - name: Set images as envs in module deployment
+        if: env.UPDATE_RESOURCES == 'true'
+        run: scripts/update/add_module_managed_images_envs.sh
+
+      - name: Create PR for module resources update
+        if: env.UPDATE_RESOURCES == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          export MSG="Update module resources to ${TAG}"
+          if [ -z "$(git status --porcelain)" ]; then
             echo "Nothing changed, no need to create PR"
           else
             scripts/update/create_pr_module_resources.sh

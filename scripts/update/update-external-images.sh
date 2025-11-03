@@ -14,7 +14,7 @@ OUTPUT_FILE="external-images.yaml"
 VALUES_YAML="./module-chart/chart/values.yaml"
 
 # List of images to exclude from the output
-EXCLUDE_IMAGES=("bitnami/kubectl")
+EXCLUDE_IMAGES=("bitnami/kubectl" "bitnamisecure/kubectl")
 
 echo "images:" > "$OUTPUT_FILE"
 
