@@ -32,75 +32,77 @@ jobs:
     name: Promote to ${{ inputs.channel }}
     runs-on: ubuntu-latest
     steps:
-      - name: Validate required environment variables
-        shell: bash
-        run: |
-          [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1 
-          [ -z "${{ vars.GIT_USER_EMAIL }}" ] && echo "GIT_USER_EMAIL is required" && exit 1 
-          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1 
-          [ -z "${{ vars.GH_TOOLS_HOST }}" ] && echo "GH_TOOLS_HOST is required" && exit 1 
-          [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1 
-          [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1 
-          echo "Validated"
-
-      - name: Checkout btp-manager
-        uses: actions/checkout@v5
-        with:
-         path: btp-manager
-
-      - name: Checkout module-manifests
-        uses: actions/checkout@v5
-        with:
-          github-server-url: https://${{ vars.GH_TOOLS_HOST }}
-          repository: kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}
-          token: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-          path: module-manifests
-
-      - name: Set branch name
-        run: echo "BRANCH_NAME=btp-manager-${{ inputs.releaseTag }}-${{ inputs.channel }}" >> $GITHUB_ENV
-
-      - name: Setup git and sync module-manifests repository
-        working-directory: ./module-manifests
-        env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-        run: |
-          git config user.email ${{ vars.GIT_USER_EMAIL }}
-          git config user.name ${{ vars.GIT_USER_NAME }}
-          git remote add upstream ${MODULE_MANIFESTS_REPO}
-          git fetch upstream
-          git merge upstream/main
-          git checkout -B ${BRANCH_NAME}
-
-      - name: Modify channel mapping
-        env:
-          TAG: ${{ inputs.releaseTag }}
-          CHANNEL: ${{ inputs.channel }}
-        run: ./btp-manager/scripts/update_channel_mapping.sh ./module-manifests/modules/btp-operator/${CHANNEL_MAPPING_FILENAME}
-
-      - name: Commit and push changes
-        working-directory: module-manifests
-        env:
-          FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
-        run: |
-          git add .
-          git commit -m "Configuration files update"
-          git remote set-url origin ${FORK_ORIGIN}
-          git push --set-upstream origin ${BRANCH_NAME} -f
-
-      - name: Create PR if needed
-        working-directory: module-manifests
-        shell: bash
-        env:
-          GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-          GH_HOST: ${{ vars.GH_TOOLS_HOST }}
-          GH_PROMPT_DISABLED: true
-          CHANNEL: ${{ inputs.channel }}
-          TAG: ${{ inputs.releaseTag }}
-          MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
-        run: |
-          prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
-          if echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
-            echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
-            exit 0
-          fi
-          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
+      - name: Test
+        run: echo "TEST"
+#      - name: Validate required environment variables
+#        shell: bash
+#        run: |
+#          [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1
+#          [ -z "${{ vars.GIT_USER_EMAIL }}" ] && echo "GIT_USER_EMAIL is required" && exit 1
+#          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1
+#          [ -z "${{ vars.GH_TOOLS_HOST }}" ] && echo "GH_TOOLS_HOST is required" && exit 1
+#          [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1
+#          [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1
+#          echo "Validated"
+#
+#      - name: Checkout btp-manager
+#        uses: actions/checkout@v5
+#        with:
+#         path: btp-manager
+#
+#      - name: Checkout module-manifests
+#        uses: actions/checkout@v5
+#        with:
+#          github-server-url: https://${{ vars.GH_TOOLS_HOST }}
+#          repository: kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}
+#          token: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+#          path: module-manifests
+#
+#      - name: Set branch name
+#        run: echo "BRANCH_NAME=btp-manager-${{ inputs.releaseTag }}-${{ inputs.channel }}" >> $GITHUB_ENV
+#
+#      - name: Setup git and sync module-manifests repository
+#        working-directory: ./module-manifests
+#        env:
+#          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+#        run: |
+#          git config user.email ${{ vars.GIT_USER_EMAIL }}
+#          git config user.name ${{ vars.GIT_USER_NAME }}
+#          git remote add upstream ${MODULE_MANIFESTS_REPO}
+#          git fetch upstream
+#          git merge upstream/main
+#          git checkout -B ${BRANCH_NAME}
+#
+#      - name: Modify channel mapping
+#        env:
+#          TAG: ${{ inputs.releaseTag }}
+#          CHANNEL: ${{ inputs.channel }}
+#        run: ./btp-manager/scripts/update_channel_mapping.sh ./module-manifests/modules/btp-operator/${CHANNEL_MAPPING_FILENAME}
+#
+#      - name: Commit and push changes
+#        working-directory: module-manifests
+#        env:
+#          FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
+#        run: |
+#          git add .
+#          git commit -m "Configuration files update"
+#          git remote set-url origin ${FORK_ORIGIN}
+#          git push --set-upstream origin ${BRANCH_NAME} -f
+#
+#      - name: Create PR if needed
+#        working-directory: module-manifests
+#        shell: bash
+#        env:
+#          GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+#          GH_HOST: ${{ vars.GH_TOOLS_HOST }}
+#          GH_PROMPT_DISABLED: true
+#          CHANNEL: ${{ inputs.channel }}
+#          TAG: ${{ inputs.releaseTag }}
+#          MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
+#        run: |
+#          prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+#          if echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
+#            echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
+#            exit 0
+#          fi
+#          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
