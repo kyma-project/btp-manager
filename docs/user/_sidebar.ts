@@ -4,6 +4,7 @@ export default [
   { text: 'Install the SAP BTP Operator Module', link: './03-05-install-module' },
   { text: 'Preconfigured Credentials and Access', link: './03-10-preconfigured-secret' },
   { text: 'Customize the Default Credentials and Access', link: './03-11-customize-secret' },
+  { text: 'Network Policies', link: './03-15-network-policies' },
   { text: 'Create Service Instances and Service Bindings', link: './03-30-create-instances-and-bindings' },
   { text: 'Update Service Instances', link: './03-31-update-service-instances' },
   { text: 'Delete Service Bindigs and Service Instances', link: './03-32-delete-bindings-and-instances' },
