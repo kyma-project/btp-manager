@@ -1,0 +1,52 @@
+name: Module catalog protection
+
+on:
+  pull_request:
+    branches: [main, sm-integration]
+    paths:
+      - "module-chart/**"
+      - "module-resources/**"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-module-catalog-permissions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR labels
+        id: pr-labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' | tr '\n' ' ')
+          echo "labels=$LABELS" >> $GITHUB_OUTPUT
+
+      - name: Check bot user and override label
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_LABELS: ${{ steps.pr-labels.outputs.labels }}
+        run: |
+          if [[ "$PR_AUTHOR" == "kyma-gopher-bot" ]]; then
+            echo "PR is from kyma-gopher-bot, module catalog changes are allowed"
+            exit 0
+          fi
+          
+          if [[ "$PR_LABELS" == *"module-catalog-override"* ]]; then
+            echo "Override label 'module-catalog-override' is present, module catalog changes are allowed"
+            exit 0
+          fi
+          
+          echo "Changes to module-chart/ and module-resources/ directories are restricted."
+          echo "Only kyma-gopher-bot can modify these directories."
+          echo ""
+          echo "If you need to override this restriction add the 'module-catalog-override' label to this PR"
+          exit 1
