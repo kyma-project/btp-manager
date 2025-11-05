@@ -58,9 +58,9 @@ This [workflow](/.github/workflows/module-catalog-protection.yaml) ensures that 
 
 ### Workflow Behavior
 
-- If the PR author is `kyma-gopher-bot`, the workflow passes
-- If the PR contains the `module-catalog-override` label, the workflow passes
-- If neither condition is met, the workflow fails with a detailed error message explaining how to resolve the issue
+- If the PR author is `kyma-gopher-bot`, the workflow passes.
+- If the PR contains the `module-catalog-override` label, the workflow passes.
+- If neither condition is met, the workflow fails with a detailed error message explaining how to resolve the issue.
 
 ## E2E BTP Manager Secret Customization Test Workflow
 
