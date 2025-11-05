@@ -50,8 +50,6 @@ jobs:
             exit 0
           fi
           
-          echo "Module catalog protection failed:"
-          echo ""
           echo "Changes to module-chart/ and module-resources/ directories are restricted."
           echo "Only kyma-gopher-bot can modify these directories."
           echo ""
