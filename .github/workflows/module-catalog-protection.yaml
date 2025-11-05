@@ -28,9 +28,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' | tr '\n' ' ' | xargs)
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' | tr '\n' ' ')
           echo "labels=$LABELS" >> $GITHUB_OUTPUT
-          echo "Found labels: '$LABELS'"
 
       - name: Check bot user and override label
         env:
