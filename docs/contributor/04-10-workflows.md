@@ -53,8 +53,8 @@ This [workflow](/.github/workflows/module-catalog-protection.yaml) ensures that 
 
 ### Protection Rules
 
-1. Only the `kyma-gopher-bot` user can make changes to these directories
-2. Other users can override the protection by adding the `module-catalog-override` label to their PR
+1. Only the `kyma-gopher-bot` user can make changes to these directories.
+2. Other users can override the protection by adding the `module-catalog-override` label to their PR.
 
 ### Workflow Behavior
 
