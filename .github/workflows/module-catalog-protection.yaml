@@ -47,12 +47,12 @@ jobs:
           PR_LABELS: ${{ steps.pr-labels.outputs.labels }}
         run: |
           if [[ "$PR_AUTHOR" == "kyma-gopher-bot" ]]; then
-            echo "PR is from kyma-gopher-bot - module catalog changes are allowed"
+            echo "PR is from kyma-gopher-bot, module catalog changes are allowed"
             exit 0
           fi
           
           if [[ "$PR_LABELS" == *"module-catalog-override"* ]]; then
-            echo "Override label 'module-catalog-override' is present - module catalog changes are allowed"
+            echo "Override label 'module-catalog-override' is present, module catalog changes are allowed"
             exit 0
           fi
           
