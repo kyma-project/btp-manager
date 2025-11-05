@@ -22,12 +22,6 @@ jobs:
   check-module-catalog-permissions:
     runs-on: ubuntu-latest
     steps:
-      - name: Check if draft
-        if: ${{ github.event.pull_request.draft }}
-        run: |
-          echo "Draft PRs are not checked for module catalog protection"
-          exit 0
-          
       - name: Get PR labels
         id: pr-labels
         env:
