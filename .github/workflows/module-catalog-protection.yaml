@@ -1,7 +1,7 @@
 name: Module catalog protection
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main, sm-integration]
     paths:
       - "module-chart/**"
@@ -17,6 +17,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 
 jobs:
   check-module-catalog-permissions:
