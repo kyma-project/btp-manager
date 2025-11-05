@@ -1,7 +1,7 @@
 name: Module catalog protection
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main, sm-integration]
     paths:
       - "module-chart/**"
@@ -35,6 +35,9 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_LABELS: ${{ steps.pr-labels.outputs.labels }}
         run: |
+          echo "PR Author: '$PR_AUTHOR'"
+          echo "PR Labels: '$PR_LABELS'"
+          
           if [[ "$PR_AUTHOR" == "kyma-gopher-bot" ]]; then
             echo "PR is from kyma-gopher-bot, module catalog changes are allowed"
             exit 0
