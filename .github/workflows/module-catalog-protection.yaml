@@ -1,0 +1,65 @@
+name: Module catalog protection
+
+on:
+  pull_request:
+    branches: [main, sm-integration]
+    paths:
+      - "module-chart/**"
+      - "module-resources/**"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-module-catalog-permissions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if draft
+        if: ${{ github.event.pull_request.draft }}
+        run: |
+          echo "Draft PRs are not checked for module catalog protection"
+          exit 0
+          
+      - name: Get PR labels
+        id: pr-labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          labels=$(curl -sL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}" | \
+            jq -r '.labels[]?.name // empty' | tr '\n' ' ')
+          echo "labels=$labels" >> $GITHUB_OUTPUT
+
+      - name: Check bot user and override label
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_LABELS: ${{ steps.pr-labels.outputs.labels }}
+        run: |
+          if [[ "$PR_AUTHOR" == "kyma-gopher-bot" ]]; then
+            echo "PR is from kyma-gopher-bot - module catalog changes are allowed"
+            exit 0
+          fi
+          
+          if [[ "$PR_LABELS" == *"module-catalog-override"* ]]; then
+            echo "Override label 'module-catalog-override' is present - module catalog changes are allowed"
+            exit 0
+          fi
+          
+          echo "Module catalog protection failed:"
+          echo ""
+          echo "Changes to module-chart/ and module-resources/ directories are restricted."
+          echo "Only kyma-gopher-bot can modify these directories."
+          echo ""
+          echo "If you need to override this restriction add the 'module-catalog-override' label to this PR"
+          exit 1

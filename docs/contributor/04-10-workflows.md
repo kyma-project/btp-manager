@@ -47,6 +47,21 @@ This [workflow](/.github/workflows/auto-merge.yaml) enables the auto-merge funct
 
 This [workflow](/.github/workflows/pr-checks.yaml) checks if all jobs, except those excluded in the workflow configuration, have passed.
 
+## Module Catalog Protection Workflow
+
+This [workflow](/.github/workflows/module-catalog-protection.yaml) ensures that changes to module catalog directories (`module-chart/` and `module-resources/`) are properly restricted. The workflow is triggered when a pull request contains changes to these protected directories.
+
+### Protection Rules
+
+1. Only the `kyma-gopher-bot` user can make changes to these directories
+2. Other users can override the protection by adding the `module-catalog-override` label to their PR
+
+### Workflow Behavior
+
+- If the PR author is `kyma-gopher-bot`, the workflow passes
+- If the PR contains the `module-catalog-override` label, the workflow passes
+- If neither condition is met, the workflow fails with a detailed error message explaining how to resolve the issue
+
 ## E2E BTP Manager Secret Customization Test Workflow
 
 The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) runs the E2E BTP Manager secret customization tests by calling the [reusable workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml).
