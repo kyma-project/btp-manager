@@ -16,7 +16,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   check-module-catalog-permissions:
@@ -29,6 +29,7 @@ jobs:
         run: |
           LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' | tr '\n' ' ')
           echo "labels=$LABELS" >> $GITHUB_OUTPUT
+          echo "PR Labels: $LABELS"
 
       - name: Check bot user and override label
         env:
