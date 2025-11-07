@@ -69,6 +69,30 @@ jobs:
             PR_STATUS=$(scripts/update/create_pr_module_chart.sh)
             echo "CHART_UPDATE_PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV
           fi
+          
+      - name: All checks passed
+        if: env.UPDATE_CHART == 'true'
+        timeout-minutes: 20
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          PR_NUMBER: ${{ env.CHART_UPDATE_PR_NUMBER }}
+        run: |
+          sleep 10
+          while true; do
+            RESULT=$(gh pr checks "$PR_NUMBER" --json bucket,name \
+              --jq '.[] | select(.name == "checks-passed") | .bucket')
+
+            if [[ "$RESULT" == "pass" ]]; then
+              echo "All checks passed"
+              exit 0
+            elif [[ "$RESULT" == "fail" || "$RESULT" == "cancel" ]]; then
+              echo "Checks failed"
+              exit 1
+            fi
+
+            echo "Pending, trying again in 30 seconds..."
+            sleep 30
+          done
 
       - name: Merge PR
         if: env.UPDATE_CHART == 'true'
