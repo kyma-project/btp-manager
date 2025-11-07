@@ -74,8 +74,8 @@ jobs:
         if: env.UPDATE_CHART == 'true'
         timeout-minutes: 20
         env:
-          PR_NUMBER: ${{ env.CHART_UPDATE_PR_NUMBER }}
           GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          PR_NUMBER: ${{ env.CHART_UPDATE_PR_NUMBER }}
         run: |
           sleep 10
           while true; do
@@ -90,7 +90,7 @@ jobs:
               exit 1
             fi
 
-            echo "Still pending, trying again in 30 seconds..."
+            echo "Pending, trying again in 30 seconds..."
             sleep 30
           done
 
