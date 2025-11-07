@@ -171,6 +171,28 @@ var _ = Describe("BTP Operator controller - provisioning", Label("provisioning")
 
 					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.ReconcileFailed)))
 				})
+
+				It("when SKR_IMG_PULL_SECRET env has a value should set imagePullSecrets in the sap-btp-service-operator deployment ", func() {
+					const (
+						skrImgPullSecretEnvName  = "SKR_IMG_PULL_SECRET"
+						skrImgPullSecretEnvValue = "private-images-registry-secret"
+					)
+
+					Expect(os.Setenv(skrImgPullSecretEnvName, skrImgPullSecretEnvValue)).To(Succeed())
+
+					forceReconciliation()
+
+					Eventually(func() bool {
+						btpServiceOperatorDeployment := &appsv1.Deployment{}
+						Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+						for _, c := range btpServiceOperatorDeployment.Spec.Template.Spec.ImagePullSecrets {
+							if c.Name == skrImgPullSecretEnvValue {
+								return true
+							}
+						}
+						return false
+					}).Should(BeTrue())
+				})
 			})
 		})
 
