@@ -67,21 +67,20 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 		})
 
 		When("the required Secret is correct", func() {
-			It("should install chart successfully", func() {
+
+			BeforeEach(func() {
 				secret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
 				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+			})
+
+			It("should install chart successfully", func() {
 				btpServiceOperatorDeployment := &appsv1.Deployment{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 			})
 
 			It("should set EnableLimitedCache to false by default in operator ConfigMap", func() {
-				secret, err := createCorrectSecretFromYaml()
-				Expect(err).To(BeNil())
-				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-
 				operatorConfigMap := getOperatorConfigMap()
 				Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
 			})
@@ -103,11 +102,6 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 					cm := initConfig(map[string]string{"EnableLimitedCache": "true"})
 					reconciler.reconcileConfig(context.TODO(), cm)
 
-					secret, err := createCorrectSecretFromYaml()
-					Expect(err).To(BeNil())
-					Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
-					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-
 					operatorConfigMap := getOperatorConfigMap()
 					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "true"))
 				})
@@ -117,11 +111,6 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 					// set via reconciler to exercise production code path
 					cm := initConfig(map[string]string{"EnableLimitedCache": "false"})
 					reconciler.reconcileConfig(context.TODO(), cm)
-
-					secret, err := createCorrectSecretFromYaml()
-					Expect(err).To(BeNil())
-					Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
-					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 
 					operatorConfigMap := getOperatorConfigMap()
 					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
@@ -152,10 +141,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				It("should set container images from environment variables", func() {
 					Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpServiceOperatorImage)).To(Succeed())
 					Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
-					secret, err := createCorrectSecretFromYaml()
-					Expect(err).To(BeNil())
-					Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
-					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
+
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
 					Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 					for _, c := range btpServiceOperatorDeployment.Spec.Template.Spec.Containers {
@@ -171,9 +157,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				It("should return reconciliation error on missing environment variables", func() {
 					_ = os.Unsetenv(SapBtpServiceOperatorEnv)
 					_ = os.Unsetenv(KubeRbacProxyEnv)
-					secret, err := createCorrectSecretFromYaml()
-					Expect(err).To(BeNil())
-					Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+
 					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.ProvisioningFailed)))
 				})
 			})
