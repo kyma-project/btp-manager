@@ -14,7 +14,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("BTP Operator controller - provisioning", func() {
+const forceReconcileLabelKey = "force-reconcile"
+
+var _ = Describe("BTP Operator controller - provisioning", Label("provisioning"), func() {
 	var cr *v1alpha1.BtpOperator
 
 	BeforeEach(func() {
@@ -85,7 +87,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
 			})
 
-			Context("when EnableLimitedCache configuration is modified", func() {
+			When("EnableLimitedCache configuration is modified", func() {
 				var originalValue string
 
 				BeforeEach(func() {
@@ -97,23 +99,25 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				})
 
 				It("should set EnableLimitedCache to true in operator ConfigMap when configured", func() {
-
 					// set via reconciler to exercise production code path
 					cm := initConfig(map[string]string{"EnableLimitedCache": "true"})
 					reconciler.reconcileConfig(context.TODO(), cm)
 
-					operatorConfigMap := getOperatorConfigMap()
-					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "true"))
+					Eventually(func() bool {
+						operatorConfigMap := getOperatorConfigMap()
+						return operatorConfigMap.Data[EnableLimitedCacheConfigMapKey] == "true"
+					}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 				})
 
 				It("should set EnableLimitedCache to false in operator ConfigMap when explicitly configured", func() {
-
 					// set via reconciler to exercise production code path
 					cm := initConfig(map[string]string{"EnableLimitedCache": "false"})
 					reconciler.reconcileConfig(context.TODO(), cm)
 
-					operatorConfigMap := getOperatorConfigMap()
-					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
+					Eventually(func() bool {
+						operatorConfigMap := getOperatorConfigMap()
+						return operatorConfigMap.Data[EnableLimitedCacheConfigMapKey] == "false"
+					}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(BeTrue())
 				})
 			})
 
@@ -142,23 +146,30 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 					Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpServiceOperatorImage)).To(Succeed())
 					Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
 
-					btpServiceOperatorDeployment := &appsv1.Deployment{}
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, btpServiceOperatorDeployment)).To(Succeed())
-					for _, c := range btpServiceOperatorDeployment.Spec.Template.Spec.Containers {
-						if c.Name == sapBtpServiceOperatorContainerName {
-							Expect(c.Image).To(Equal(sapBtpServiceOperatorImage))
+					forceReconciliation()
+
+					Eventually(func() bool {
+						btpServiceOperatorDeployment := &appsv1.Deployment{}
+						Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+						var actualSapBtpServiceOperatorImage, actualKubeRbacProxyImage string
+						for _, c := range btpServiceOperatorDeployment.Spec.Template.Spec.Containers {
+							if c.Name == sapBtpServiceOperatorContainerName {
+								actualSapBtpServiceOperatorImage = c.Image
+							}
+							if c.Name == kubeRbacProxyContainerName {
+								actualKubeRbacProxyImage = c.Image
+							}
 						}
-						if c.Name == kubeRbacProxyContainerName {
-							Expect(c.Image).To(Equal(kubeRbacProxyImage))
-						}
-					}
+						return (actualSapBtpServiceOperatorImage == sapBtpServiceOperatorImage) &&
+							(actualKubeRbacProxyImage == kubeRbacProxyImage)
+					}).Should(BeTrue())
 				})
 
 				It("should return reconciliation error on missing environment variables", func() {
 					_ = os.Unsetenv(SapBtpServiceOperatorEnv)
 					_ = os.Unsetenv(KubeRbacProxyEnv)
 
-					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.ProvisioningFailed)))
+					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.ReconcileFailed)))
 				})
 			})
 		})
@@ -198,3 +209,10 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 		})
 	})
 })
+
+func forceReconciliation() {
+	cr := &v1alpha1.BtpOperator{}
+	Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
+	cr.SetLabels(map[string]string{forceReconcileLabelKey: "true"})
+	Eventually(func() error { return k8sClient.Update(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+}
