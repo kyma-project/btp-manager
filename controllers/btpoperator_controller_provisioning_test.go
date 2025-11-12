@@ -171,14 +171,18 @@ var _ = Describe("BTP Operator controller - provisioning", Label("provisioning")
 
 					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.ReconcileFailed)))
 				})
+			})
 
-				It("when SKR_IMG_PULL_SECRET env has a value should set imagePullSecrets in the sap-btp-service-operator deployment ", func() {
-					const (
-						skrImgPullSecretEnvName  = "SKR_IMG_PULL_SECRET"
-						skrImgPullSecretEnvValue = "private-images-registry-secret"
-					)
+			Describe("setting imagePullSecrets in sap-btp-service-operator deployment", func() {
 
+				const (
+					skrImgPullSecretEnvName  = "SKR_IMG_PULL_SECRET"
+					skrImgPullSecretEnvValue = "private-images-registry-secret"
+				)
+
+				It("when SKR_IMG_PULL_SECRET env has a value should set imagePullSecrets in the deployment ", func() {
 					Expect(os.Setenv(skrImgPullSecretEnvName, skrImgPullSecretEnvValue)).To(Succeed())
+					defer os.Unsetenv(skrImgPullSecretEnvName)
 
 					forceReconciliation()
 
@@ -194,6 +198,7 @@ var _ = Describe("BTP Operator controller - provisioning", Label("provisioning")
 					}).Should(BeTrue())
 				})
 			})
+
 		})
 
 		When("the btpoperator resource is not in the required namespace", func() {
