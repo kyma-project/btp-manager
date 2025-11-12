@@ -197,8 +197,17 @@ var _ = Describe("BTP Operator controller - provisioning", Label("provisioning")
 						return false
 					}).Should(BeTrue())
 				})
-			})
 
+				It("when SKR_IMG_PULL_SECRET is not set should not set imagePullSecrets in the deployment ", func() {
+					forceReconciliation()
+
+					Eventually(func() bool {
+						btpServiceOperatorDeployment := &appsv1.Deployment{}
+						Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+						return btpServiceOperatorDeployment.Spec.Template.Spec.ImagePullSecrets == nil
+					}).Should(BeTrue())
+				})
+			})
 		})
 
 		When("the btpoperator resource is not in the required namespace", func() {
