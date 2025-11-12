@@ -2,6 +2,7 @@
 * [Back to Kyma Home](/)
 * [SAP BTP Operator Module](/btp-manager/user/README.md)
 * [Create the `sap-btp-manager` Secret](/btp-manager/user/03-00-create-btp-manager-secret.md)
+* [Environment Variables](/btp-manager/user/03-01-environment-variables.md)
 * [Install the SAP BTP Operator Module](/btp-manager/user/03-05-install-module.md)
 * [Preconfigured Credentials and Access](/btp-manager/user/03-10-preconfigured-secret.md)
 * [Customize the Default Credentials and Access](/btp-manager/user/03-11-customize_secret.md)

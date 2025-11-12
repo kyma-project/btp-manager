@@ -39,6 +39,7 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 In the [`user`](./docs/user) folder, you will find the following documents:
 * [SAP BTP Operator Module](./docs/user/README.md)
 * [Create the `sap-btp-manager` Secret](./docs/user/03-00-create-btp-manager-secret.md)
+* [Environment Variables](./docs/user/03-01-environment-variables.md)
 * [Install the SAP BTP Operator Module](./docs/user/03-05-install-module.md)
 * [Preconfigured Credentials and Access](./docs/user/03-10-preconfigured-secret.md)
 * [Working with Multiple Subaccounts](./docs//user/03-20-multitenancy.md)
