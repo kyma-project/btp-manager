@@ -95,6 +95,7 @@ const (
 	SapBtpServiceOperatorEnv                  = "SAP_BTP_SERVICE_OPERATOR"
 	KubeRbacProxyName                         = "kube-rbac-proxy"
 	KubeRbacProxyEnv                          = "KUBE_RBAC_PROXY"
+	SkrImgPullSecretEnv                       = "SKR_IMG_PULL_SECRET"
 	secretKind                                = "Secret"
 	configMapKind                             = "ConfigMap"
 	deploymentKind                            = "Deployment"
@@ -715,11 +716,17 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 func (r *BtpOperatorReconciler) setDeploymentImages(u *unstructured.Unstructured) error {
 	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
 	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
+	imagePullSecret := os.Getenv(SkrImgPullSecretEnv)
 	if err := r.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
 		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
 	}
 	if err := r.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
 		return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
+	}
+	if len(imagePullSecret) > 0 {
+		if err := r.setImagePullSecrets(u, imagePullSecret); err != nil {
+			return fmt.Errorf("failed to set image pull secret for %s: %w", imagePullSecret, err)
+		}
 	}
 
 	return nil
@@ -746,6 +753,48 @@ func (r *BtpOperatorReconciler) setContainerImage(u *unstructured.Unstructured, 
 	}
 
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
+}
+
+func (r *BtpOperatorReconciler) setImagePullSecrets(u *unstructured.Unstructured, secretName string) error {
+	keyPath := []string{"spec", "template", "spec", "imagePullSecrets"}
+	secretNameEntry := map[string]interface{}{"name": secretName}
+
+	secrets, found, err := unstructured.NestedSlice(u.Object, keyPath...)
+	if err != nil {
+		return fmt.Errorf("failed to get imagePullSecrets from %s %s: %w", u.GetKind(), u.GetName(), err)
+	}
+
+	if !found || secrets == nil {
+		return r.createImagePullSecretsField(u, secretNameEntry, keyPath)
+	}
+
+	if r.imagePullSecretRefExists(secrets, secretName) {
+		return nil
+	}
+
+	secrets = append(secrets, secretNameEntry)
+
+	return unstructured.SetNestedSlice(u.Object, secrets, keyPath...)
+}
+
+func (r *BtpOperatorReconciler) createImagePullSecretsField(u *unstructured.Unstructured, secretNameEntry map[string]interface{}, keyPath []string) error {
+	if err := unstructured.SetNestedSlice(u.Object, []interface{}{secretNameEntry}, keyPath...); err != nil {
+		return fmt.Errorf("failed to set imagePullSecrets in %s %s: %w", u.GetKind(), u.GetName(), err)
+	}
+	return nil
+}
+
+func (r *BtpOperatorReconciler) imagePullSecretRefExists(secrets []interface{}, secretName string) bool {
+	for _, s := range secrets {
+		m, ok := s.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if name, ok := m["name"].(string); ok && name == secretName {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
