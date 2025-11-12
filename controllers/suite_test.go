@@ -265,4 +265,5 @@ var _ = SynchronizedAfterSuite(func() {
 	// runs only on process #1
 	Expect(os.RemoveAll(defaultChartPath)).To(Succeed())
 	Expect(os.RemoveAll(defaultResourcesPath)).To(Succeed())
+	Expect(os.RemoveAll(defaultManagerResourcesPath)).To(Succeed())
 })
