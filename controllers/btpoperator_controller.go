@@ -534,7 +534,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
 
-	if err = r.prepareCertificatesReconciliationData(ctx, &resourcesToApply); err != nil {
+	if err = r.prepareCertsManifests(ctx, &resourcesToApply); err != nil {
 		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
 	}
 
@@ -1775,7 +1775,7 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 
 // *[]*unstructured.Unstructured is required because we extend the slice during certificates regeneration adding secrets and webhook configurations,
 // so the result of the function execution is in resourcesToApply slice
-func (r *BtpOperatorReconciler) prepareCertificatesReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) prepareCertsManifests(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("preparation of certificates reconciliation data started")
 
