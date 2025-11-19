@@ -2132,14 +2132,14 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 	logger := log.FromContext(ctx)
 	logger.Info("starting reconciliation of webhooks")
 
-	for _, resource := range *resourcesToApply {
+	for i, resource := range *resourcesToApply {
 		kind := resource.GetKind()
 		if kind == MutatingWebhookConfiguration || kind == ValidatingWebhookConfiguration {
-			// here we change resource structure so in effect resourcesToApply is changed
-			err := r.prepareWebhookReconciliationData(ctx, resource, expectedCa)
+			webhookManifest, err := r.prepareWebhookManifest(ctx, resource, expectedCa)
 			if err != nil {
 				return err
 			}
+			(*resourcesToApply)[i] = webhookManifest
 		}
 	}
 
@@ -2159,46 +2159,43 @@ func (r *BtpOperatorReconciler) getCaCertFromSecret(ctx context.Context) ([]byte
 	return ca, nil
 }
 
-// TODO consider refactoring this function to avoid implicit changes - i.e return webhooks or error as result
-func (r *BtpOperatorReconciler) prepareWebhookReconciliationData(ctx context.Context, webhook *unstructured.Unstructured, expectedCa []byte) error {
+func (r *BtpOperatorReconciler) prepareWebhookManifest(ctx context.Context, webhookManifest *unstructured.Unstructured, caBundle []byte) (*unstructured.Unstructured, error) {
 	const (
 		WebhooksKey     = "webhooks"
 		ClientConfigKey = "clientConfig"
 		CaBundleKey     = "caBundle"
 	)
+	webhookManifestCopy := webhookManifest.DeepCopy()
 
 	logger := log.FromContext(ctx)
-	webhooksValue, ok := webhook.Object[WebhooksKey]
-	if !ok {
-		return fmt.Errorf("while geting webhooks in reconcileCaBundle")
-	}
-	webhooks, ok := webhooksValue.([]interface{})
-	if !ok {
-		return fmt.Errorf("while casting webhooks in reconcileCaBundle")
-	}
-	webhook.SetManagedFields(nil)
+	logger.Info(fmt.Sprintf("setting CA bundle in %s %s", webhookManifestCopy.GetName(), webhookManifestCopy.GetKind()))
 
-	for i, w := range webhooks {
-		webhookAsMap, ok := w.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("could not get webhookAsMap from unstructured")
-		}
-		clientConfigValue, ok := webhookAsMap[ClientConfigKey]
-		if !ok {
-			return fmt.Errorf("while geting client config in reconcileCaBundle")
-		}
-		clientConfigAsMap, ok := clientConfigValue.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("while casting client config in reconcileCaBundle")
-		}
-
-		clientConfigAsMap[CaBundleKey] = expectedCa
-		webhookAsMap[ClientConfigKey] = clientConfigAsMap
-		webhooks[i] = webhookAsMap
-		logger.Info("CA bundle replaced with success")
+	webhooks, exists, err := unstructured.NestedSlice(webhookManifestCopy.Object, WebhooksKey)
+	if err != nil {
+		return nil, fmt.Errorf("while getting webhooks array from the webhook manifest: %w", err)
 	}
-	webhook.Object[WebhooksKey] = webhooks
-	return nil
+	if !exists {
+		return nil, fmt.Errorf("webhooks array does not exist in the webhook manifest")
+	}
+	webhookManifestCopy.SetManagedFields(nil)
+
+	for i, webhook := range webhooks {
+		genericWebhook, ok := webhook.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("while casting webhook object to map[string]interface{}")
+		}
+		genericClientConfig, ok := genericWebhook[ClientConfigKey].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("while casting webhook.clientConfig object to map[string]interface{}")
+		}
+		genericClientConfig[CaBundleKey] = caBundle
+		genericWebhook[ClientConfigKey] = genericClientConfig
+		webhooks[i] = genericWebhook
+	}
+	webhookManifestCopy.Object[WebhooksKey] = webhooks
+
+	logger.Info("CA bundle has been set successfully")
+	return webhookManifestCopy, nil
 }
 
 func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
