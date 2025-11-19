@@ -129,6 +129,9 @@ const (
 	btpOperatorApiVer          = "v1"
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
+
+	mutatingWebhookConfigurationKind   = "MutatingWebhookConfiguration"
+	validatingWebhookConfigurationKind = "ValidatingWebhookConfiguration"
 )
 
 var (
@@ -146,17 +149,15 @@ var (
 )
 
 var (
-	CaSecretName                   = "ca-server-cert"
-	WebhookSecret                  = "webhook-server-cert"
-	CaCertificateExpiration        = time.Hour * 87600 // 10 years
-	WebhookCertificateExpiration   = time.Hour * 8760  // 1 year
-	ExpirationBoundary             = time.Hour * -168  // 1 week
-	CaSecretDataPrefix             = "ca"
-	WebhookSecretDataPrefix        = "tls"
-	CertificatePostfix             = "crt"
-	RsaKeyPostfix                  = "key"
-	MutatingWebhookConfiguration   = "MutatingWebhookConfiguration"
-	ValidatingWebhookConfiguration = "ValidatingWebhookConfiguration"
+	CaSecretName                 = "ca-server-cert"
+	WebhookSecret                = "webhook-server-cert"
+	CaCertificateExpiration      = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration = time.Hour * 8760  // 1 year
+	ExpirationBoundary           = time.Hour * -168  // 1 week
+	CaSecretDataPrefix           = "ca"
+	WebhookSecretDataPrefix      = "tls"
+	CertificatePostfix           = "crt"
+	RsaKeyPostfix                = "key"
 )
 
 type InstanceBindingSerivce interface {
@@ -1829,7 +1830,7 @@ func (r *BtpOperatorReconciler) prepareCertsManifests(ctx context.Context, resou
 		return err
 	}
 
-	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, certFromSecret); err != nil {
+	if err = r.prepareWebhooksManifests(ctx, resourcesToApply, certFromSecret); err != nil {
 		return err
 	}
 
@@ -2016,7 +2017,7 @@ func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Conte
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
 	}
 
-	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourcesToApply, caCertificate); err != nil {
+	if err = r.prepareWebhooksManifests(ctx, resourcesToApply, caCertificate); err != nil {
 		return fmt.Errorf("error while reconciling webhooks. %w", err)
 	}
 
@@ -2038,7 +2039,7 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 		return err
 	}
 
-	if err = r.prepareWebhooksConfigurationsReconciliationData(ctx, resourceToApply, caCertFromSecret); err != nil {
+	if err = r.prepareWebhooksManifests(ctx, resourceToApply, caCertFromSecret); err != nil {
 		return err
 	}
 	logger.Info("partial regeneration succeeded")
@@ -2128,13 +2129,12 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []by
 	}
 }
 
-func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
+func (r *BtpOperatorReconciler) prepareWebhooksManifests(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
 	logger := log.FromContext(ctx)
-	logger.Info("starting reconciliation of webhooks")
+	logger.Info("preparing webhooks manifests")
 
 	for i, resource := range *resourcesToApply {
-		kind := resource.GetKind()
-		if kind == MutatingWebhookConfiguration || kind == ValidatingWebhookConfiguration {
+		if isResourceAdmissionWebhook(resource.GetKind()) {
 			webhookManifest, err := r.prepareWebhookManifest(ctx, resource, expectedCa)
 			if err != nil {
 				return err
@@ -2143,8 +2143,12 @@ func (r *BtpOperatorReconciler) prepareWebhooksConfigurationsReconciliationData(
 		}
 	}
 
-	logger.Info("webhooks cert bundles check success")
+	logger.Info("webhooks manifests have been prepared successfully")
 	return nil
+}
+
+func isResourceAdmissionWebhook(resourceKind string) bool {
+	return resourceKind == mutatingWebhookConfigurationKind || resourceKind == validatingWebhookConfigurationKind
 }
 
 func (r *BtpOperatorReconciler) getCaCertFromSecret(ctx context.Context) ([]byte, error) {
