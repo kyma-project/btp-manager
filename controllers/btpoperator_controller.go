@@ -1855,6 +1855,10 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 		logger.Info("CA cert secret does not exist")
 		return r.regenerateCertificates(ctx, resourcesToApply)
 	}
+	if err := r.validateCaCert(caCertSecret.Data); err != nil {
+		logger.Info(fmt.Sprintf("CA cert is not valid: %s", err))
+		return r.regenerateCertificates(ctx, resourcesToApply)
+	}
 
 	return r.prepareWebhooksManifests(ctx, resourcesToApply, caBundle)
 }
@@ -1878,25 +1882,11 @@ func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, re
 }
 
 func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	caSecretData, err := r.getDataFromSecret(ctx, caCertSecretName)
-	_, err = r.getValueByKey(caCertSecretCertField, caSecretData)
-	caSecretDataIncorrect := err != nil
-
-	_, err = r.getValueByKey(caCertSecretKeyField, caSecretData)
-	caSecretDataIncorrect = caSecretDataIncorrect || err != nil
-
-	if caSecretDataIncorrect {
-		if err := r.regenerateCertificates(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-
 	webhookSecretData, err := r.getDataFromSecret(ctx, webhookCertSecretName)
-	_, err = r.getValueByKey(webhookCertSecretCertField, webhookSecretData)
+	_, err = r.getSecretDataValueByKey(webhookCertSecretCertField, webhookSecretData)
 	webhookSecretDataIncorrect := err != nil
 
-	_, err = r.getValueByKey(webhookCertSecretKeyField, webhookSecretData)
+	_, err = r.getSecretDataValueByKey(webhookCertSecretKeyField, webhookSecretData)
 	webhookSecretDataIncorrect = webhookSecretDataIncorrect || err != nil
 
 	if webhookSecretDataIncorrect {
@@ -2102,12 +2092,12 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expirati
 			return nil, nil, err
 		}
 
-		caCertificate, err = r.getValueByKey(caCertSecretCertField, data)
+		caCertificate, err = r.getSecretDataValueByKey(caCertSecretCertField, data)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		caPrivateKey, err = r.getValueByKey(caCertSecretKeyField, data)
+		caPrivateKey, err = r.getSecretDataValueByKey(caCertSecretKeyField, data)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2271,7 +2261,7 @@ func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, se
 	if err != nil {
 		return nil, err
 	}
-	cert, err := r.getValueByKey(fmt.Sprintf("%s.%s", key, "crt"), data)
+	cert, err := r.getSecretDataValueByKey(fmt.Sprintf("%s.%s", key, "crt"), data)
 	if err != nil {
 		return nil, err
 	}
@@ -2289,13 +2279,13 @@ func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) 
 	}
 }
 
-func (r *BtpOperatorReconciler) getValueByKey(key string, data map[string][]byte) ([]byte, error) {
+func (r *BtpOperatorReconciler) getSecretDataValueByKey(key string, data map[string][]byte) ([]byte, error) {
 	value, ok := data[key]
 	if !ok {
-		return nil, fmt.Errorf("while getting data for key: %s", key)
+		return nil, fmt.Errorf("missing key: %s", key)
 	}
-	if value == nil || len(value) == 0 {
-		return nil, fmt.Errorf("empty data for key: %s", key)
+	if len(value) == 0 {
+		return nil, fmt.Errorf("empty value for key: %s", key)
 	}
 	return value, nil
 }
@@ -2546,4 +2536,19 @@ func (r *BtpOperatorReconciler) getSapBtpServiceOperatorPod(ctx context.Context)
 		}
 	}
 	return pod, nil
+}
+
+func (r *BtpOperatorReconciler) validateCaCert(secretData map[string][]byte) error {
+	cert, err := r.getSecretDataValueByKey(caCertSecretCertField, secretData)
+	if err != nil {
+		return err
+	}
+	key, err := r.getSecretDataValueByKey(caCertSecretKeyField, secretData)
+	if err != nil {
+		return err
+	}
+	_ = cert
+	_ = key
+
+	return nil
 }

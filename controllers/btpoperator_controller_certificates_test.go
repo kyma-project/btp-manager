@@ -160,9 +160,9 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 				currentCa, err := reconciler.getDataFromSecret(ctx, caCertSecretName)
 				Expect(err).To(BeNil())
-				ca, err := reconciler.getValueByKey(caCertSecretCertField, currentCa)
+				ca, err := reconciler.getSecretDataValueByKey(caCertSecretCertField, currentCa)
 				Expect(err).To(BeNil())
-				pk, err := reconciler.getValueByKey(caCertSecretKeyField, currentCa)
+				pk, err := reconciler.getSecretDataValueByKey(caCertSecretKeyField, currentCa)
 				Expect(err).To(BeNil())
 				currentWebhookSecret := getSecret(webhookCertSecretName)
 				originalWebhookSecret := currentWebhookSecret
