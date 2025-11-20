@@ -707,7 +707,7 @@ func checkHowManySecondsToExpiration(name string) float64 {
 	Expect(err).To(BeNil())
 	key, err := reconciler.mapSecretNameToSecretDataKey(name)
 	Expect(err).To(BeNil())
-	value, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(key, CertificatePostfix), data)
+	value, err := reconciler.getValueByKey(fmt.Sprintf("%s.%s", key, "crt"), data)
 	Expect(err).To(BeNil())
 	decoded, _ := pem.Decode(value)
 	cert, err := x509.ParseCertificate(decoded.Bytes)
@@ -718,8 +718,8 @@ func checkHowManySecondsToExpiration(name string) float64 {
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
 	Eventually(func() error {
-		secret := getSecret(CaSecretName)
-		ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+		secret := getSecret(caCertSecretName)
+		ca, ok := secret.Data[caCertSecretCertField]
 		if !ok || ca == nil {
 			return fmt.Errorf("CA bundle not found in secret")
 		}
