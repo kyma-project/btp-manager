@@ -61,10 +61,11 @@ import (
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
 var (
-	ChartNamespace                 = "kyma-system"
-	SecretName                     = "sap-btp-manager"
-	ConfigName                     = "sap-btp-manager"
-	DeploymentName                 = "sap-btp-operator-controller-manager"
+	ChartNamespace = "kyma-system"
+	SecretName     = "sap-btp-manager"
+	ConfigName     = "sap-btp-manager"
+	DeploymentName = "sap-btp-operator-controller-manager"
+
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Minute * 15
 	ReadyTimeout                   = time.Minute * 5
@@ -74,15 +75,22 @@ var (
 	DeleteRequestTimeout           = time.Minute * 5
 	StatusUpdateTimeout            = time.Second * 10
 	StatusUpdateCheckInterval      = time.Millisecond * 500
-	ChartPath                      = "./module-chart/chart"
-	ResourcesPath                  = "./module-resources"
-	ManagerResourcesPath           = "./manager-resources"
-	EnableLimitedCache             = "false"
+
+	CaCertificateExpiration      = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration = time.Hour * 8760  // 1 year
+	ExpirationBoundary           = time.Hour * -168  // 1 week
+
+	ChartPath            = "./module-chart/chart"
+	ResourcesPath        = "./module-resources"
+	ManagerResourcesPath = "./manager-resources"
+
+	EnableLimitedCache = "false"
 )
 
 const (
-	ClusterIdSecretKey              = "cluster_id"
-	CredentialsNamespaceSecretKey   = "credentials_namespace"
+	ClusterIdSecretKey            = "cluster_id"
+	CredentialsNamespaceSecretKey = "credentials_namespace"
+
 	ClusterIdConfigMapKey           = "CLUSTER_ID"
 	ReleaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
 	ManagementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
@@ -91,37 +99,50 @@ const (
 )
 
 const (
-	SapBtpServiceOperatorName                 = "sap-btp-service-operator"
-	SapBtpServiceOperatorEnv                  = "SAP_BTP_SERVICE_OPERATOR"
-	KubeRbacProxyName                         = "kube-rbac-proxy"
-	KubeRbacProxyEnv                          = "KUBE_RBAC_PROXY"
-	secretKind                                = "Secret"
-	configMapKind                             = "ConfigMap"
-	deploymentKind                            = "Deployment"
-	deploymentAvailableConditionType          = "Available"
-	deploymentProgressingConditionType        = "Progressing"
-	operatorName                              = "btp-manager"
-	operandName                               = "sap-btp-operator"
-	moduleName                                = "btp-operator"
-	sapBtpServiceOperatorConfigMapName        = operandName + "-config"
-	sapBtpServiceOperatorClusterIdSecretName  = operandName + "-clusterid"
-	mutatingWebhookName                       = operandName + "-mutating-webhook-configuration"
-	validatingWebhookName                     = operandName + "-validating-webhook-configuration"
-	sapBtpServiceOperatorSecretName           = SapBtpServiceOperatorName
-	sapBtpServiceOperatorContainerName        = "manager"
-	kubeRbacProxyContainerName                = KubeRbacProxyName
+	KubeRbacProxyName         = "kube-rbac-proxy"
+	KubeRbacProxyEnv          = "KUBE_RBAC_PROXY"
+	SapBtpServiceOperatorName = "sap-btp-service-operator"
+	SapBtpServiceOperatorEnv  = "SAP_BTP_SERVICE_OPERATOR"
+
+	moduleName   = "btp-operator"
+	operatorName = "btp-manager"
+	operandName  = "sap-btp-operator"
+
+	btpOperatorCrName       = "btpoperator"
+	kymaSystemNamespaceName = "kyma-system"
+
+	sapBtpServiceOperatorSecretName          = SapBtpServiceOperatorName
+	sapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
+	sapBtpServiceOperatorConfigMapName       = operandName + "-config"
+	mutatingWebhookName                      = operandName + "-mutating-webhook-configuration"
+	validatingWebhookName                    = operandName + "-validating-webhook-configuration"
+
+	kubeRbacProxyContainerName         = KubeRbacProxyName
+	sapBtpServiceOperatorContainerName = "manager"
+
+	forceDeleteLabelKey       = "force-delete"
+	chartVersionLabelKey      = "chart-version"
+	kymaProjectModuleLabelKey = "kyma-project.io/module"
+
 	operatorLabelPrefix                       = "operator.kyma-project.io/"
-	deletionFinalizer                         = operatorLabelPrefix + operatorName
-	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 	previousClusterIdAnnotationKey            = operatorLabelPrefix + "previous-cluster-id"
-	kubernetesAppLabelPrefix                  = "app.kubernetes.io/"
-	managedByLabelKey                         = kubernetesAppLabelPrefix + "managed-by"
-	instanceLabelKey                          = kubernetesAppLabelPrefix + "instance"
-	kymaProjectModuleLabelKey                 = "kyma-project.io/module"
-	chartVersionKey                           = "chart-version"
-	forceDeleteLabelKey                       = "force-delete"
-	btpoperatorCRName                         = "btpoperator"
-	kymaSystemNamespaceName                   = "kyma-system"
+	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
+	deletionFinalizer                         = operatorLabelPrefix + operatorName
+
+	kubernetesAppLabelPrefix = "app.kubernetes.io/"
+	managedByLabelKey        = kubernetesAppLabelPrefix + "managed-by"
+	instanceLabelKey         = kubernetesAppLabelPrefix + "instance"
+)
+
+const (
+	secretKind                         = "Secret"
+	configMapKind                      = "ConfigMap"
+	deploymentKind                     = "Deployment"
+	mutatingWebhookConfigurationKind   = "MutatingWebhookConfiguration"
+	validatingWebhookConfigurationKind = "ValidatingWebhookConfiguration"
+
+	deploymentAvailableConditionType   = "Available"
+	deploymentProgressingConditionType = "Progressing"
 )
 
 const (
@@ -129,9 +150,6 @@ const (
 	btpOperatorApiVer          = "v1"
 	btpOperatorServiceInstance = "ServiceInstance"
 	btpOperatorServiceBinding  = "ServiceBinding"
-
-	mutatingWebhookConfigurationKind   = "MutatingWebhookConfiguration"
-	validatingWebhookConfigurationKind = "ValidatingWebhookConfiguration"
 )
 
 var (
@@ -149,15 +167,12 @@ var (
 )
 
 var (
-	CaSecretName                 = "ca-server-cert"
-	WebhookSecret                = "webhook-server-cert"
-	CaCertificateExpiration      = time.Hour * 87600 // 10 years
-	WebhookCertificateExpiration = time.Hour * 8760  // 1 year
-	ExpirationBoundary           = time.Hour * -168  // 1 week
-	CaSecretDataPrefix           = "ca"
-	WebhookSecretDataPrefix      = "tls"
-	CertificatePostfix           = "crt"
-	RsaKeyPostfix                = "key"
+	CaSecretName            = "ca-server-cert"
+	WebhookSecret           = "webhook-server-cert"
+	CaSecretDataPrefix      = "ca"
+	WebhookSecretDataPrefix = "tls"
+	CertificatePostfix      = "crt"
+	RsaKeyPostfix           = "key"
 )
 
 type InstanceBindingSerivce interface {
@@ -239,7 +254,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	if req.Name != btpoperatorCRName || req.Namespace != kymaSystemNamespaceName {
+	if req.Name != btpOperatorCrName || req.Namespace != kymaSystemNamespaceName {
 		logger.Info(fmt.Sprintf("BtpOperator CR %s/%s is not the one we are looking for. Ignoring it.", req.Namespace, req.Name))
 		return ctrl.Result{}, r.HandleWrongNamespaceOrName(ctx, reconcileCr)
 	}
@@ -647,7 +662,7 @@ func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.U
 			labels = make(map[string]string)
 		}
 		labels[managedByLabelKey] = operatorName
-		labels[chartVersionKey] = chartVer
+		labels[chartVersionLabelKey] = chartVer
 		labels[kymaProjectModuleLabelKey] = moduleName
 		u.SetLabels(labels)
 		if u.GetKind() == deploymentKind {
@@ -1510,7 +1525,7 @@ func (r *BtpOperatorReconciler) reconcileRequestForPrimaryBtpOperator(ctx contex
 }
 
 func (r *BtpOperatorReconciler) enqueuePrimaryBtpOperatorRequest(ctx context.Context) []reconcile.Request {
-	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: btpoperatorCRName, Namespace: kymaSystemNamespaceName}}}
+	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: btpOperatorCrName, Namespace: kymaSystemNamespaceName}}}
 }
 
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate[client.Object] {

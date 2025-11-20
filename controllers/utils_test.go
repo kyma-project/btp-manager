@@ -312,7 +312,7 @@ func countResourcesWithGivenLabel(gvks []schema.GroupVersionKind, labelKey strin
 }
 
 func countResourcesForGivenChartVer(gvks []schema.GroupVersionKind, version string) (int, error) {
-	return countResourcesWithGivenLabel(gvks, chartVersionKey, version)
+	return countResourcesWithGivenLabel(gvks, chartVersionLabelKey, version)
 }
 
 func copyDirRecursively(src, target string) {
