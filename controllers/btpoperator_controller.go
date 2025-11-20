@@ -545,14 +545,14 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 		}
 	}
 
-	logger.Info("preparing module resources to apply")
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
 		logger.Error(err, "while preparing objects to apply")
 		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
 
-	if err = r.prepareCertsManifests(ctx, &resourcesToApply); err != nil {
-		return fmt.Errorf("failed to reconcile webhook certs: %w", err)
+	if err = r.prepareAdmissionWebhooks(ctx, &resourcesToApply); err != nil {
+		logger.Error(err, "while preparing admission webhooks")
+		return fmt.Errorf("failed to prepare admission webhooks: %w", err)
 	}
 
 	r.deleteCreationTimestamp(resourcesToApply...)
@@ -598,6 +598,7 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 
 func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
+	logger.Info("preparing module resources to apply")
 
 	var configMapIndex, secretIndex, deploymentIndex int
 	for i, u := range resourcesToApply {
@@ -1792,9 +1793,9 @@ func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 
 // *[]*unstructured.Unstructured is required because we extend the slice during certificates regeneration adding secrets and webhook configurations,
 // so the result of the function execution is in resourcesToApply slice
-func (r *BtpOperatorReconciler) prepareCertsManifests(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
-	logger.Info("preparation of certificates reconciliation data started")
+	logger.Info("preparing admission webhooks")
 
 	certificatesRegenerationDone, err := r.ensureCertificatesExists(ctx, resourcesToApply)
 	if err != nil {
@@ -1841,32 +1842,25 @@ func (r *BtpOperatorReconciler) prepareCertsManifests(ctx context.Context, resou
 		return nil
 	}
 
-	certFromSecret, err := r.getCaCertFromSecret(ctx)
+	caBundle, err := r.getCaCertFromSecret(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err = r.prepareWebhooksManifests(ctx, resourcesToApply, certFromSecret); err != nil {
+	caCertSecret, err := r.getSecretByNameAndNamespace(ctx, caCertSecretName, ChartNamespace)
+	if err != nil {
 		return err
 	}
+	if caCertSecret == nil {
+		logger.Info("CA cert secret does not exist")
+		return r.regenerateCertificates(ctx, resourcesToApply)
+	}
 
-	return nil
+	return r.prepareWebhooksManifests(ctx, resourcesToApply, caBundle)
 }
 
 func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
-	caSecretExists, err := r.checkIfSecretExists(ctx, caCertSecretName)
-	if err != nil {
-		return false, err
-	}
-	if !caSecretExists {
-		logger.Info("CA secret with cert doesn't exists")
-		if err = r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-	logger.Info("CA secret exists")
 	webhookSecretExists, err := r.checkIfSecretExists(ctx, webhookCertSecretName)
 
 	if err != nil {
@@ -1926,7 +1920,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 	_, err = certs.TryDecodeCertificate(caCertificate)
 	if err != nil {
 		logger.Info("CA cert is structured incorrectly")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err := r.regenerateCertificates(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		logger.Info("full regeneration done due to CA cert being structured incorrectly")
@@ -1960,7 +1954,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx contex
 	}
 	if doCaCertificateExpiresSoon {
 		logger.Error(nil, "CA cert expires soon")
-		if err := r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err := r.regenerateCertificates(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -1990,14 +1984,14 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectSigned(ctx context.C
 
 	if err != nil {
 		logger.Error(err, "while checking if webhook is signed by correct CA")
-		if err = r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err = r.regenerateCertificates(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
 	if !signOk {
 		logger.Error(nil, "webhook cert is not signed by correct CA")
-		if err = r.doFullCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err = r.regenerateCertificates(ctx, resourcesToApply); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -2019,13 +2013,19 @@ func (r *BtpOperatorReconciler) checkIfSecretExists(ctx context.Context, name st
 	return true, nil
 }
 
-func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) regenerateCertificates(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
-	logger.Info("full regeneration of certificates started")
+	logger.Info("regenerating CA and webhook certificates")
 
-	caCertificate, caPrivateKey, err := r.generateSelfSignedCertAndAddToApplyList(ctx, resourcesToApply)
+	caCertificate, caPrivateKey, err := r.generateSelfSignedCert(ctx)
 	if err != nil {
-		return fmt.Errorf("error while generating self signed cert in full regeneration proccess. %w", err)
+		return fmt.Errorf("while generating self signed cert: %w", err)
+	}
+
+	logger.Info("adding secret with regenerated self signed cert to resources to apply")
+	err = r.appendCertificationDataToUnstructured(caCertSecretName, caCertificate, caPrivateKey, caCertSecretCertField, resourcesToApply)
+	if err != nil {
+		return fmt.Errorf("while adding secret with regenerated self signed cert to resources to apply: %w", err)
 	}
 
 	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, caCertificate, caPrivateKey)
@@ -2038,6 +2038,8 @@ func (r *BtpOperatorReconciler) doFullCertificatesRegeneration(ctx context.Conte
 	}
 
 	logger.Info("full regeneration success")
+	r.metrics.IncreaseCertsRegenerationsCounter()
+
 	return nil
 }
 
@@ -2062,19 +2064,13 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 	return nil
 }
 
-func (r *BtpOperatorReconciler) generateSelfSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) ([]byte, []byte, error) {
+func (r *BtpOperatorReconciler) generateSelfSignedCert(ctx context.Context) ([]byte, []byte, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("generation of self signed cert started")
+	logger.Info("generating self signed cert")
 
 	caCertificate, caPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().UTC().Add(CaCertificateExpiration))
 	if err != nil {
 		return nil, nil, fmt.Errorf("while generating self signed cert: %w", err)
-	}
-
-	logger.Info("adding secret with newly generated self signed cert to list of resources to apply")
-	err = r.appendCertificationDataToUnstructured(CaSecretName, caCertificate, caPrivateKey, CaSecretDataPrefix, resourcesToApply)
-	if err != nil {
-		return nil, nil, fmt.Errorf("while adding newly generated self signed cert to list of resources to apply: %w", err)
 	}
 
 	logger.Info("generation of self signed cert succeeded")
@@ -2145,13 +2141,13 @@ func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []by
 	}
 }
 
-func (r *BtpOperatorReconciler) prepareWebhooksManifests(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, expectedCa []byte) error {
+func (r *BtpOperatorReconciler) prepareWebhooksManifests(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, caBundle []byte) error {
 	logger := log.FromContext(ctx)
 	logger.Info("preparing webhooks manifests")
 
 	for i, resource := range *resourcesToApply {
 		if isResourceAdmissionWebhook(resource.GetKind()) {
-			webhookManifest, err := r.prepareWebhookManifest(ctx, resource, expectedCa)
+			webhookManifest, err := r.prepareWebhookManifest(ctx, resource, caBundle)
 			if err != nil {
 				return err
 			}
