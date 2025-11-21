@@ -1797,34 +1797,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	logger := log.FromContext(ctx)
 	logger.Info("preparing admission webhooks")
 
-	certificatesRegenerationDone, err := r.ensureSecretsDataIsSet(ctx, resourcesToApply)
-	if err != nil {
-		return err
-	}
-	if certificatesRegenerationDone {
-		r.metrics.IncreaseCertsRegenerationsCounter()
-		return nil
-	}
-
-	certificatesRegenerationDone, err = r.ensureCertificatesAreCorrectlyStructured(ctx, resourcesToApply)
-	if err != nil {
-		return err
-	}
-	if certificatesRegenerationDone {
-		r.metrics.IncreaseCertsRegenerationsCounter()
-		return nil
-	}
-
-	certificatesRegenerationDone, err = r.ensureCertificatesHaveValidExpiration(ctx, resourcesToApply)
-	if err != nil {
-		return err
-	}
-	if certificatesRegenerationDone {
-		r.metrics.IncreaseCertsRegenerationsCounter()
-		return nil
-	}
-
-	certificatesRegenerationDone, err = r.ensureCertificatesAreCorrectSigned(ctx, resourcesToApply)
+	certificatesRegenerationDone, err := r.ensureCertificatesAreCorrectSigned(ctx, resourcesToApply)
 	if err != nil {
 		return err
 	}
@@ -1865,65 +1838,6 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	}
 
 	return r.prepareWebhooksManifests(ctx, resourcesToApply, caBundle)
-}
-
-func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	webhookSecretData, err := r.getDataFromSecret(ctx, webhookCertSecretName)
-	_, err = r.getSecretDataValueByKey(webhookCertSecretCertField, webhookSecretData)
-	webhookSecretDataIncorrect := err != nil
-
-	_, err = r.getSecretDataValueByKey(webhookCertSecretKeyField, webhookSecretData)
-	webhookSecretDataIncorrect = webhookSecretDataIncorrect || err != nil
-
-	if webhookSecretDataIncorrect {
-		if err := r.regenerateWebhookCertificate(ctx, resourcesToApply, nil); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("checking structure of certificates")
-
-	webhookCertificate, err := r.getCertificateFromSecret(ctx, webhookCertSecretName)
-	if err != nil {
-		return false, err
-	}
-	_, err = certs.DecodeCertificate(webhookCertificate)
-	if err != nil {
-		logger.Info("webhook cert is structured incorrectly")
-		if err := r.regenerateWebhookCertificate(ctx, resourcesToApply, nil); err != nil {
-			return false, err
-		}
-		logger.Info("partial regeneration done due to webhook cert being structured incorrectly")
-		return true, nil
-	}
-
-	logger.Info("checking structure of certificates succeeded. no work need to be done.")
-	return false, nil
-}
-
-func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
-
-	doWebhookCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, webhookCertSecretName)
-	if err != nil {
-		logger.Error(err, "webhook cert is invalid")
-		return false, err
-	}
-	if doWebhookCertificateExpiresSoon {
-		logger.Error(nil, "webhook cert expires soon")
-		if err := r.regenerateWebhookCertificate(ctx, resourcesToApply, nil); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-	logger.Info("webhook certificate is valid")
-	return false, nil
 }
 
 func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectSigned(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
