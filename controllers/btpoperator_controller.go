@@ -1846,7 +1846,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 		logger.Info("CA cert secret does not exist")
 		return r.regenerateCertificates(ctx, resourcesToApply)
 	}
-	if err := r.validateCaCert(caCertSecret.Data); err != nil {
+	if err := r.validateCert(caCertSecret); err != nil {
 		logger.Info(fmt.Sprintf("CA cert is not valid: %s", err))
 		return r.regenerateCertificates(ctx, resourcesToApply)
 	}
@@ -1857,6 +1857,10 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	}
 	if webhookCertSecret == nil {
 		logger.Info("webhook cert secret does not exist")
+		return r.regenerateWebhookCertificate(ctx, resourcesToApply, caCertSecret.Data)
+	}
+	if err := r.validateCert(webhookCertSecret); err != nil {
+		logger.Info(fmt.Sprintf("webhook cert is not valid: %s", err))
 		return r.regenerateWebhookCertificate(ctx, resourcesToApply, caCertSecret.Data)
 	}
 
@@ -2477,12 +2481,14 @@ func (r *BtpOperatorReconciler) getSapBtpServiceOperatorPod(ctx context.Context)
 	return pod, nil
 }
 
-func (r *BtpOperatorReconciler) validateCaCert(secretData map[string][]byte) error {
-	encodedCert, err := r.getSecretDataValueByKey(caCertSecretCertField, secretData)
+func (r *BtpOperatorReconciler) validateCert(secret *corev1.Secret) error {
+	certFieldName := certFieldFromSecretBySecretName(secret.GetName())
+	encodedCert, err := r.getSecretDataValueByKey(certFieldName, secret.Data)
 	if err != nil {
 		return err
 	}
-	_, err = r.getSecretDataValueByKey(caCertSecretKeyField, secretData)
+	privateKeyFieldName := privateKeyFieldFromSecretBySecretName(secret.GetName())
+	_, err = r.getSecretDataValueByKey(privateKeyFieldName, secret.Data)
 	if err != nil {
 		return err
 	}
@@ -2499,4 +2505,24 @@ func (r *BtpOperatorReconciler) validateCaCert(secretData map[string][]byte) err
 	}
 
 	return nil
+}
+
+func certFieldFromSecretBySecretName(secretName string) string {
+	switch secretName {
+	case caCertSecretName:
+		return caCertSecretCertField
+	case webhookCertSecretName:
+		return webhookCertSecretCertField
+	}
+	return fmt.Sprintf("unknown secret %q - cert field undefined", secretName)
+}
+
+func privateKeyFieldFromSecretBySecretName(secretName string) string {
+	switch secretName {
+	case caCertSecretName:
+		return caCertSecretKeyField
+	case webhookCertSecretName:
+		return webhookCertSecretKeyField
+	}
+	return fmt.Sprintf("unknown secret %q - private key field undefined", secretName)
 }
