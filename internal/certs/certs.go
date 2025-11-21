@@ -201,3 +201,8 @@ func DecodeCertificate(cert []byte) (*pem.Block, error) {
 	}
 	return decoded, nil
 }
+
+func CertificateExpires(cert *x509.Certificate, expirationBoundary time.Duration) bool {
+	expirationTriggerBoundary := cert.NotAfter.UTC().Add(expirationBoundary)
+	return time.Now().UTC().After(expirationTriggerBoundary)
+}

@@ -1923,19 +1923,6 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 
 func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
 	logger := log.FromContext(ctx)
-	doCaCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, caCertSecretName)
-	if err != nil {
-		logger.Error(err, "CA cert is invalid")
-		return false, err
-	}
-	if doCaCertificateExpiresSoon {
-		logger.Error(nil, "CA cert expires soon")
-		if err := r.regenerateCertificates(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-	logger.Info("CA certificate is valid")
 
 	doWebhookCertificateExpiresSoon, err := r.doesCertificateExpireSoon(ctx, webhookCertSecretName)
 	if err != nil {
@@ -2525,20 +2512,25 @@ func (r *BtpOperatorReconciler) getSapBtpServiceOperatorPod(ctx context.Context)
 }
 
 func (r *BtpOperatorReconciler) validateCaCert(secretData map[string][]byte) error {
-	cert, err := r.getSecretDataValueByKey(caCertSecretCertField, secretData)
+	encodedCert, err := r.getSecretDataValueByKey(caCertSecretCertField, secretData)
 	if err != nil {
 		return err
 	}
-	key, err := r.getSecretDataValueByKey(caCertSecretKeyField, secretData)
+	_, err = r.getSecretDataValueByKey(caCertSecretKeyField, secretData)
 	if err != nil {
 		return err
 	}
-	pem, err := certs.DecodeCertificate(cert)
+	block, err := certs.DecodeCertificate(encodedCert)
 	if err != nil {
 		return err
 	}
-	_ = key
-	_ = pem
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return err
+	}
+	if certs.CertificateExpires(cert, ExpirationBoundary) {
+		return fmt.Errorf("CA cert expires soon")
+	}
 
 	return nil
 }
