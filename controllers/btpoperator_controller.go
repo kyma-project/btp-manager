@@ -1852,31 +1852,31 @@ func (r *BtpOperatorReconciler) regenerateCertificates(ctx context.Context, reso
 
 	caCertificate, caPrivateKey, err := r.generateSelfSignedCert(ctx)
 	if err != nil {
-		return fmt.Errorf("while generating self signed cert: %w", err)
+		return fmt.Errorf("while generating CA self signed cert: %w", err)
 	}
 
-	logger.Info("adding secret with regenerated self signed cert to resources to apply")
-	err = r.appendCertificationDataToUnstructured(caCertSecretName, caCertificate, caPrivateKey, caCertSecretCertField, resourcesToApply)
+	logger.Info("adding secret with regenerated CA self signed cert to resources to apply")
+	err = r.appendCertificateSecretToUnstructured(caCertSecretName, caCertificate, caPrivateKey, resourcesToApply)
 	if err != nil {
-		return fmt.Errorf("while adding secret with regenerated self signed cert to resources to apply: %w", err)
+		return fmt.Errorf("while adding secret with regenerated CA self signed cert to resources to apply: %w", err)
 	}
 
 	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, caCertificate, caPrivateKey)
 	if err != nil {
-		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
+		return fmt.Errorf("while generating webhook signed cert: %w", err)
 	}
 
-	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
-	err = r.appendCertificationDataToUnstructured(webhookCertSecretName, webhookCertificate, webhookPrivateKey, webhookCertSecretCertField, resourcesToApply)
+	logger.Info("adding secret with regenerated webhook signed cert to resources to apply")
+	err = r.appendCertificateSecretToUnstructured(webhookCertSecretName, webhookCertificate, webhookPrivateKey, resourcesToApply)
 	if err != nil {
-		return fmt.Errorf("while adding newly generated signed webhook certificate to list of resources to apply: %w", err)
+		return fmt.Errorf("while adding regenerated webhook signed cert to resources to apply: %w", err)
 	}
 
 	if err = r.prepareWebhooksManifests(ctx, resourcesToApply, caCertificate); err != nil {
-		return fmt.Errorf("error while reconciling webhooks. %w", err)
+		return fmt.Errorf("while preparing webhooks manifests: %w", err)
 	}
 
-	logger.Info("full regeneration success")
+	logger.Info("certificates regeneration succeeded")
 	r.metrics.IncreaseCertsRegenerationsCounter()
 
 	return nil
@@ -1888,13 +1888,13 @@ func (r *BtpOperatorReconciler) regenerateWebhookCertificate(ctx context.Context
 
 	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, caCertSecretData[caCertSecretCertField], caCertSecretData[caCertSecretKeyField])
 	if err != nil {
-		return fmt.Errorf("error while generating webhook signed cert: %w", err)
+		return fmt.Errorf("while regenerating webhook signed cert: %w", err)
 	}
 
-	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
-	err = r.appendCertificationDataToUnstructured(webhookCertSecretName, webhookCertificate, webhookPrivateKey, webhookCertSecretCertField, resourcesToApply)
+	logger.Info("adding secret with regenerated webhook signed cert to resources to apply")
+	err = r.appendCertificateSecretToUnstructured(webhookCertSecretName, webhookCertificate, webhookPrivateKey, resourcesToApply)
 	if err != nil {
-		return fmt.Errorf("while adding newly generated signed webhook certificate to list of resources to apply: %w", err)
+		return fmt.Errorf("while adding regenerated webhook signed cert to resources to apply: %w", err)
 	}
 
 	if err = r.prepareWebhooksManifests(ctx, resourcesToApply, caCertSecretData[caCertSecretKeyField]); err != nil {
@@ -1933,10 +1933,18 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, caCert, 
 	return webhookCertificate, webhookPrivateKey, nil
 }
 
-func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName string, certificate, privateKey []byte, prefix string, resourcesToApply *[]*unstructured.Unstructured) error {
-	data := r.mapCertToSecretData(certificate, privateKey, fmt.Sprintf("%s.%s", prefix, "crt"), fmt.Sprintf("%s.%s", prefix, "key"))
+func (r *BtpOperatorReconciler) appendCertificateSecretToUnstructured(secretName string, certificate, privateKey []byte, resourcesToApply *[]*unstructured.Unstructured) error {
+	certFieldName, err := certFieldFromSecretBySecretName(secretName)
+	if err != nil {
+		return err
+	}
+	privateKeyFieldName, err := privateKeyFieldFromSecretBySecretName(secretName)
+	if err != nil {
+		return err
+	}
 
-	secret := r.buildSecretWithDataAndLabels(certName, data, map[string]string{managedByLabelKey: operatorName})
+	data := r.mapCertToSecretData(certificate, privateKey, certFieldName, privateKeyFieldName)
+	secret := r.buildSecretWithData(secretName, data)
 
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
 	if err != nil {
@@ -1946,10 +1954,10 @@ func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName s
 	return nil
 }
 
-func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []byte, keyNameForCert, keyNameForPrivateKey string) map[string][]byte {
+func (r *BtpOperatorReconciler) mapCertToSecretData(certificate, privateKey []byte, certFieldName, privateKeyFieldName string) map[string][]byte {
 	return map[string][]byte{
-		keyNameForCert:       certificate,
-		keyNameForPrivateKey: privateKey,
+		certFieldName:       certificate,
+		privateKeyFieldName: privateKey,
 	}
 }
 
@@ -2080,16 +2088,18 @@ func (r *BtpOperatorReconciler) getSecretDataValueByKey(key string, data map[str
 	return value, nil
 }
 
-func (r *BtpOperatorReconciler) buildSecretWithDataAndLabels(name string, data map[string][]byte, labels map[string]string) *corev1.Secret {
+func (r *BtpOperatorReconciler) buildSecretWithData(name string, data map[string][]byte) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
+			Kind:       secretKind,
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: ChartNamespace,
-			Labels:    labels,
+			Labels: map[string]string{
+				managedByLabelKey: operatorName,
+			},
 		},
 		Data: data,
 	}
@@ -2329,12 +2339,18 @@ func (r *BtpOperatorReconciler) getSapBtpServiceOperatorPod(ctx context.Context)
 }
 
 func (r *BtpOperatorReconciler) validateCert(secret *corev1.Secret) error {
-	certFieldName := certFieldFromSecretBySecretName(secret.GetName())
+	certFieldName, err := certFieldFromSecretBySecretName(secret.GetName())
+	if err != nil {
+		return err
+	}
 	encodedCert, err := r.getSecretDataValueByKey(certFieldName, secret.Data)
 	if err != nil {
 		return err
 	}
-	privateKeyFieldName := privateKeyFieldFromSecretBySecretName(secret.GetName())
+	privateKeyFieldName, err := privateKeyFieldFromSecretBySecretName(secret.GetName())
+	if err != nil {
+		return err
+	}
 	_, err = r.getSecretDataValueByKey(privateKeyFieldName, secret.Data)
 	if err != nil {
 		return err
@@ -2354,24 +2370,24 @@ func (r *BtpOperatorReconciler) validateCert(secret *corev1.Secret) error {
 	return nil
 }
 
-func certFieldFromSecretBySecretName(secretName string) string {
+func certFieldFromSecretBySecretName(secretName string) (string, error) {
 	switch secretName {
 	case caCertSecretName:
-		return caCertSecretCertField
+		return caCertSecretCertField, nil
 	case webhookCertSecretName:
-		return webhookCertSecretCertField
+		return webhookCertSecretCertField, nil
 	}
-	return fmt.Sprintf("unknown secret %q - cert field undefined", secretName)
+	return "", fmt.Errorf("unknown secret %q - cert field undefined", secretName)
 }
 
-func privateKeyFieldFromSecretBySecretName(secretName string) string {
+func privateKeyFieldFromSecretBySecretName(secretName string) (string, error) {
 	switch secretName {
 	case caCertSecretName:
-		return caCertSecretKeyField
+		return caCertSecretKeyField, nil
 	case webhookCertSecretName:
-		return webhookCertSecretKeyField
+		return webhookCertSecretKeyField, nil
 	}
-	return fmt.Sprintf("unknown secret %q - private key field undefined", secretName)
+	return "", fmt.Errorf("unknown secret %q - private key field undefined", secretName)
 }
 
 func (r *BtpOperatorReconciler) validateWebhookCert(webhookCertSecret *corev1.Secret, caCert []byte) error {
