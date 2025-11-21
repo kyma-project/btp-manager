@@ -1903,25 +1903,11 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 	logger := log.FromContext(ctx)
 	logger.Info("checking structure of certificates")
 
-	caCertificate, err := r.getCertificateFromSecret(ctx, caCertSecretName)
-	if err != nil {
-		return false, err
-	}
-	_, err = certs.TryDecodeCertificate(caCertificate)
-	if err != nil {
-		logger.Info("CA cert is structured incorrectly")
-		if err := r.regenerateCertificates(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		logger.Info("full regeneration done due to CA cert being structured incorrectly")
-		return true, nil
-	}
-
 	webhookCertificate, err := r.getCertificateFromSecret(ctx, webhookCertSecretName)
 	if err != nil {
 		return false, err
 	}
-	_, err = certs.TryDecodeCertificate(webhookCertificate)
+	_, err = certs.DecodeCertificate(webhookCertificate)
 	if err != nil {
 		logger.Info("webhook cert is structured incorrectly")
 		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
@@ -2230,7 +2216,7 @@ func (r *BtpOperatorReconciler) doesCertificateExpireSoon(ctx context.Context, s
 	if err != nil {
 		return false, err
 	}
-	certificateDecoded, err := certs.TryDecodeCertificate(certificate)
+	certificateDecoded, err := certs.DecodeCertificate(certificate)
 	if err != nil {
 		return true, err
 	}
@@ -2261,7 +2247,7 @@ func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, se
 	if err != nil {
 		return nil, err
 	}
-	cert, err := r.getSecretDataValueByKey(fmt.Sprintf("%s.%s", key, "crt"), data)
+	cert, err := r.getSecretDataValueByKey(key, data)
 	if err != nil {
 		return nil, err
 	}
@@ -2547,8 +2533,12 @@ func (r *BtpOperatorReconciler) validateCaCert(secretData map[string][]byte) err
 	if err != nil {
 		return err
 	}
-	_ = cert
+	pem, err := certs.DecodeCertificate(cert)
+	if err != nil {
+		return err
+	}
 	_ = key
+	_ = pem
 
 	return nil
 }

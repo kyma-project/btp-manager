@@ -707,7 +707,7 @@ func checkHowManySecondsToExpiration(name string) float64 {
 	Expect(err).To(BeNil())
 	key, err := reconciler.mapSecretNameToSecretDataKey(name)
 	Expect(err).To(BeNil())
-	value, err := reconciler.getSecretDataValueByKey(fmt.Sprintf("%s.%s", key, "crt"), data)
+	value, err := reconciler.getSecretDataValueByKey(key, data)
 	Expect(err).To(BeNil())
 	decoded, _ := pem.Decode(value)
 	cert, err := x509.ParseCertificate(decoded.Bytes)
