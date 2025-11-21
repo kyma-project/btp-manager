@@ -1797,6 +1797,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	logger := log.FromContext(ctx)
 	logger.Info("preparing admission webhooks")
 
+	logger.Info("checking CA certificate")
 	caCertSecret, err := r.getSecretByNameAndNamespace(ctx, caCertSecretName, ChartNamespace)
 	if err != nil {
 		return err
@@ -1811,6 +1812,8 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	}
 
 	caBundle := caCertSecret.Data[caCertSecretCertField]
+
+	logger.Info("checking webhook certificate")
 	webhookCertSecret, err := r.getSecretByNameAndNamespace(ctx, webhookCertSecretName, ChartNamespace)
 	if err != nil {
 		return err
@@ -1827,6 +1830,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 		return r.regenerateWebhookCertificate(ctx, resourcesToApply, caCertSecret.Data)
 	}
 
+	logger.Info("certificates for admission webhooks are valid")
 	return r.prepareWebhooksManifests(ctx, resourcesToApply, caBundle)
 }
 
