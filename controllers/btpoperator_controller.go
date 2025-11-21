@@ -1824,7 +1824,8 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	}
 	if err := r.validateWebhookCert(webhookCertSecret, caBundle); err != nil {
 		logger.Info(fmt.Sprintf("webhook cert is not valid: %s", err))
-		if errors.Is(err, CertificateSignError{}) {
+		var certSignErr CertificateSignError
+		if errors.As(err, &certSignErr) {
 			return r.regenerateCertificates(ctx, resourcesToApply)
 		}
 		return r.regenerateWebhookCertificate(ctx, resourcesToApply, caCertSecret.Data)
