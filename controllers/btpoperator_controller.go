@@ -1797,16 +1797,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	logger := log.FromContext(ctx)
 	logger.Info("preparing admission webhooks")
 
-	certificatesRegenerationDone, err := r.ensureCertificatesExists(ctx, resourcesToApply)
-	if err != nil {
-		return err
-	}
-	if certificatesRegenerationDone {
-		r.metrics.IncreaseCertsRegenerationsCounter()
-		return nil
-	}
-
-	certificatesRegenerationDone, err = r.ensureSecretsDataIsSet(ctx, resourcesToApply)
+	certificatesRegenerationDone, err := r.ensureSecretsDataIsSet(ctx, resourcesToApply)
 	if err != nil {
 		return err
 	}
@@ -1860,25 +1851,16 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 		return r.regenerateCertificates(ctx, resourcesToApply)
 	}
 
-	return r.prepareWebhooksManifests(ctx, resourcesToApply, caBundle)
-}
-
-func (r *BtpOperatorReconciler) ensureCertificatesExists(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
-	logger := log.FromContext(ctx)
-	webhookSecretExists, err := r.checkIfSecretExists(ctx, webhookCertSecretName)
-
+	webhookCertSecret, err := r.getSecretByNameAndNamespace(ctx, webhookCertSecretName, ChartNamespace)
 	if err != nil {
-		return false, err
+		return err
 	}
-	if !webhookSecretExists {
-		logger.Info("webhook secret with cert does not exists")
-		if err = r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
-			return false, err
-		}
-		return true, nil
+	if webhookCertSecret == nil {
+		logger.Info("webhook cert secret does not exist")
+		return r.regenerateWebhookCertificate(ctx, resourcesToApply, caCertSecret.Data)
 	}
-	logger.Info("webhook secret exists")
-	return false, nil
+
+	return r.prepareWebhooksManifests(ctx, resourcesToApply, caBundle)
 }
 
 func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) (bool, error) {
@@ -1890,7 +1872,7 @@ func (r *BtpOperatorReconciler) ensureSecretsDataIsSet(ctx context.Context, reso
 	webhookSecretDataIncorrect = webhookSecretDataIncorrect || err != nil
 
 	if webhookSecretDataIncorrect {
-		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err := r.regenerateWebhookCertificate(ctx, resourcesToApply, nil); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -1910,7 +1892,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesAreCorrectlyStructured(ctx con
 	_, err = certs.DecodeCertificate(webhookCertificate)
 	if err != nil {
 		logger.Info("webhook cert is structured incorrectly")
-		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err := r.regenerateWebhookCertificate(ctx, resourcesToApply, nil); err != nil {
 			return false, err
 		}
 		logger.Info("partial regeneration done due to webhook cert being structured incorrectly")
@@ -1931,7 +1913,7 @@ func (r *BtpOperatorReconciler) ensureCertificatesHaveValidExpiration(ctx contex
 	}
 	if doWebhookCertificateExpiresSoon {
 		logger.Error(nil, "webhook cert expires soon")
-		if err := r.doPartialCertificatesRegeneration(ctx, resourcesToApply); err != nil {
+		if err := r.regenerateWebhookCertificate(ctx, resourcesToApply, nil); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -1991,9 +1973,15 @@ func (r *BtpOperatorReconciler) regenerateCertificates(ctx context.Context, reso
 		return fmt.Errorf("while adding secret with regenerated self signed cert to resources to apply: %w", err)
 	}
 
-	err = r.generateSignedCertAndAddToApplyList(ctx, resourcesToApply, caCertificate, caPrivateKey)
+	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, caCertificate, caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("error while generating signed cert in full regeneration proccess. %w", err)
+	}
+
+	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
+	err = r.appendCertificationDataToUnstructured(webhookCertSecretName, webhookCertificate, webhookPrivateKey, webhookCertSecretCertField, resourcesToApply)
+	if err != nil {
+		return fmt.Errorf("while adding newly generated signed webhook certificate to list of resources to apply: %w", err)
 	}
 
 	if err = r.prepareWebhooksManifests(ctx, resourcesToApply, caCertificate); err != nil {
@@ -2006,13 +1994,19 @@ func (r *BtpOperatorReconciler) regenerateCertificates(ctx context.Context, reso
 	return nil
 }
 
-func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Context, resourceToApply *[]*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) regenerateWebhookCertificate(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, caCertSecretData map[string][]byte) error {
 	logger := log.FromContext(ctx)
-	logger.Info("partial regeneration started")
+	logger.Info("regenerating webhook certificate")
 
-	err := r.generateSignedCertAndAddToApplyList(ctx, resourceToApply, nil, nil)
+	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, caCertSecretData[caCertSecretCertField], caCertSecretData[caCertSecretKeyField])
 	if err != nil {
-		return fmt.Errorf("error while generating signed cert in partial regeneration proccess. %w", err)
+		return fmt.Errorf("error while generating webhook signed cert: %w", err)
+	}
+
+	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
+	err = r.appendCertificationDataToUnstructured(webhookCertSecretName, webhookCertificate, webhookPrivateKey, webhookCertSecretCertField, resourcesToApply)
+	if err != nil {
+		return fmt.Errorf("while adding newly generated signed webhook certificate to list of resources to apply: %w", err)
 	}
 
 	caCertFromSecret, err := r.getCaCertFromSecret(ctx)
@@ -2020,10 +2014,13 @@ func (r *BtpOperatorReconciler) doPartialCertificatesRegeneration(ctx context.Co
 		return err
 	}
 
-	if err = r.prepareWebhooksManifests(ctx, resourceToApply, caCertFromSecret); err != nil {
+	if err = r.prepareWebhooksManifests(ctx, resourcesToApply, caCertFromSecret); err != nil {
 		return err
 	}
-	logger.Info("partial regeneration succeeded")
+
+	logger.Info("webhook certificate regeneration succeeded")
+	r.metrics.IncreaseCertsRegenerationsCounter()
+
 	return nil
 }
 
@@ -2040,48 +2037,17 @@ func (r *BtpOperatorReconciler) generateSelfSignedCert(ctx context.Context) ([]b
 	return caCertificate, caPrivateKey, nil
 }
 
-func (r *BtpOperatorReconciler) generateSignedCertAndAddToApplyList(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured, ca, caPrivateKey []byte) error {
+func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, caCert, caPrivateKey []byte) ([]byte, []byte, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("generation of signed webhook certificate started")
+	logger.Info("generating webhook signed cert")
 
-	webhookCertificate, webhookPrivateKey, err := r.generateSignedCert(ctx, time.Now().UTC().Add(WebhookCertificateExpiration), ca, caPrivateKey)
+	webhookCertificate, webhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().UTC().Add(WebhookCertificateExpiration), caCert, caPrivateKey)
 	if err != nil {
-		return fmt.Errorf("while generating signed webhook certificate: %w", err)
+		return nil, nil, fmt.Errorf("while generating webhook signed cert: %w", err)
 	}
 
-	logger.Info("adding secret with newly generated signed webhook certificate to list of resources to apply")
-	err = r.appendCertificationDataToUnstructured(webhookCertSecretName, webhookCertificate, webhookPrivateKey, webhookCertSecretCertField, resourcesToApply)
-	if err != nil {
-		return fmt.Errorf("while adding newly generated signed webhook certificate to list of resources to apply: %w", err)
-	}
-	logger.Info("generation of signed webhook certificate success")
-	return nil
-}
-
-func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, expiration time.Time, caCertificate, caPrivateKey []byte) ([]byte, []byte, error) {
-	if caCertificate == nil || caPrivateKey == nil {
-		data, err := r.getDataFromSecret(ctx, caCertSecretName)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		caCertificate, err = r.getSecretDataValueByKey(caCertSecretCertField, data)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		caPrivateKey, err = r.getSecretDataValueByKey(caCertSecretKeyField, data)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	webhookCertificate, webhookPrivateKey, err := certs.GenerateSignedCertificate(expiration, caCertificate, caPrivateKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return webhookCertificate, webhookPrivateKey, err
+	logger.Info("generation of webhook signed cert succeeded")
+	return webhookCertificate, webhookPrivateKey, nil
 }
 
 func (r *BtpOperatorReconciler) appendCertificationDataToUnstructured(certName string, certificate, privateKey []byte, prefix string, resourcesToApply *[]*unstructured.Unstructured) error {
