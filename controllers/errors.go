@@ -17,3 +17,17 @@ func NewErrorWithReason(reason conditions.Reason, message string) *ErrorWithReas
 func (e *ErrorWithReason) Error() string {
 	return e.message
 }
+
+type CertificateSignError struct {
+	message string
+}
+
+func NewCertificateSignError(message string) CertificateSignError {
+	return CertificateSignError{
+		message: message,
+	}
+}
+
+func (e CertificateSignError) Error() string {
+	return e.message
+}

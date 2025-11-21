@@ -125,7 +125,7 @@ func (r *ServiceInstanceReconciler) deletionPredicate() predicate.Predicate {
 func (r *ServiceInstanceReconciler) getPrimaryBtpOperator(ctx context.Context) (*v1alpha1.BtpOperator, error) {
 	logger := log.FromContext(ctx)
 	btpOperator := &v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: kymaSystemNamespaceName, Name: btpoperatorCRName}, btpOperator); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Namespace: kymaSystemNamespaceName, Name: btpOperatorCrName}, btpOperator); err != nil {
 		logger.Error(err, "unable to get BtpOperator CR")
 		return nil, err
 	}
