@@ -1832,8 +1832,11 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 		logger.Info("webhook cert secret does not exist")
 		return r.regenerateWebhookCertificate(ctx, resourcesToApply, caCertSecret.Data)
 	}
-	if err := r.validateCert(webhookCertSecret); err != nil {
+	if err := r.validateWebhookCert(webhookCertSecret, caCertSecret.Data[caCertSecretCertField]); err != nil {
 		logger.Info(fmt.Sprintf("webhook cert is not valid: %s", err))
+		if errors.Is(err, CertificateSignError{}) {
+			return r.regenerateCertificates(ctx, resourcesToApply)
+		}
 		return r.regenerateWebhookCertificate(ctx, resourcesToApply, caCertSecret.Data)
 	}
 
@@ -2439,4 +2442,19 @@ func privateKeyFieldFromSecretBySecretName(secretName string) string {
 		return webhookCertSecretKeyField
 	}
 	return fmt.Sprintf("unknown secret %q - private key field undefined", secretName)
+}
+
+func (r *BtpOperatorReconciler) validateWebhookCert(webhookCertSecret *corev1.Secret, caCert []byte) error {
+	if err := r.validateCert(webhookCertSecret); err != nil {
+		return err
+	}
+	return r.verifyCASign(caCert, webhookCertSecret.Data[webhookCertSecretCertField])
+}
+
+func (r *BtpOperatorReconciler) verifyCASign(caCert []byte, signedCert []byte) error {
+	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCert, signedCert)
+	if err != nil || !ok {
+		return NewCertificateSignError(err.Error())
+	}
+	return nil
 }
