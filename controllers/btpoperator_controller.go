@@ -1835,18 +1835,6 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	return r.prepareWebhooksManifests(ctx, resourcesToApply, caBundle)
 }
 
-func (r *BtpOperatorReconciler) checkIfSecretExists(ctx context.Context, name string) (bool, error) {
-	secret := &corev1.Secret{}
-	err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret)
-	if k8serrors.IsNotFound(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
 func (r *BtpOperatorReconciler) regenerateCertificates(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	logger.Info("regenerating CA and webhook certificates")
@@ -2023,8 +2011,7 @@ func (r *BtpOperatorReconciler) prepareWebhookManifest(ctx context.Context, webh
 	return webhookManifestCopy, nil
 }
 
-func (r *BtpOperatorReconciler) isWebhookSecretCertSignedByCaSecretCert(ctx context.Context) (bool, error) {
-
+func (r *BtpOperatorReconciler) isWebhookCertSignedBySelfSignedCa(ctx context.Context) (bool, error) {
 	caCertificate, err := r.getCertificateFromSecret(ctx, caCertSecretName)
 	if err != nil {
 		return false, err
@@ -2056,7 +2043,7 @@ func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, se
 	if err != nil {
 		return nil, err
 	}
-	key, err := r.mapSecretNameToSecretDataKey(secretName)
+	key, err := certFieldFromSecretBySecretName(secretName)
 	if err != nil {
 		return nil, err
 	}
@@ -2065,17 +2052,6 @@ func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, se
 		return nil, err
 	}
 	return cert, nil
-}
-
-func (r *BtpOperatorReconciler) mapSecretNameToSecretDataKey(secretName string) (string, error) {
-	switch secretName {
-	case caCertSecretName:
-		return caCertSecretCertField, nil
-	case webhookCertSecretName:
-		return webhookCertSecretCertField, nil
-	default:
-		return "", fmt.Errorf("not found secret data key for secret name: %s", secretName)
-	}
 }
 
 func (r *BtpOperatorReconciler) getSecretDataValueByKey(key string, data map[string][]byte) ([]byte, error) {

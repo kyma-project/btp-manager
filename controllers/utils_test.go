@@ -705,7 +705,7 @@ func getConfigMap(name string) *corev1.ConfigMap {
 func checkHowManySecondsToExpiration(name string) float64 {
 	data, err := reconciler.getDataFromSecret(ctx, name)
 	Expect(err).To(BeNil())
-	key, err := reconciler.mapSecretNameToSecretDataKey(name)
+	key, err := certFieldFromSecretBySecretName(name)
 	Expect(err).To(BeNil())
 	value, err := reconciler.getSecretDataValueByKey(key, data)
 	Expect(err).To(BeNil())

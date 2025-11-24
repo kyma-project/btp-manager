@@ -90,7 +90,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 	ensureCorrectState := func() {
 		ensureReconciliationQueueIsEmpty()
-		ok, err := reconciler.isWebhookSecretCertSignedByCaSecretCert(ctx)
+		ok, err := reconciler.isWebhookCertSignedBySelfSignedCa(ctx)
 		Expect(err).To(BeNil())
 		Expect(ok).To(BeTrue())
 		ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles()
