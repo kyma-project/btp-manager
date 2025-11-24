@@ -120,6 +120,13 @@ jobs:
             version: v1
             kind: Deployment
           security: ${SCAN_CONFIG_FILENAME}
+          associatedResources:
+            - group: services.cloud.sap.com
+              kind: ServiceInstance
+              version: v1
+            - group: services.cloud.sap.com
+              kind: ServiceBinding
+              version: v1
           icons:
             - name: module-icon
               # TODO: provide btp-operator icon
