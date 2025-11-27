@@ -312,7 +312,7 @@ func countResourcesWithGivenLabel(gvks []schema.GroupVersionKind, labelKey strin
 }
 
 func countResourcesForGivenChartVer(gvks []schema.GroupVersionKind, version string) (int, error) {
-	return countResourcesWithGivenLabel(gvks, chartVersionKey, version)
+	return countResourcesWithGivenLabel(gvks, chartVersionLabelKey, version)
 }
 
 func copyDirRecursively(src, target string) {
@@ -705,9 +705,9 @@ func getConfigMap(name string) *corev1.ConfigMap {
 func checkHowManySecondsToExpiration(name string) float64 {
 	data, err := reconciler.getDataFromSecret(ctx, name)
 	Expect(err).To(BeNil())
-	key, err := reconciler.mapSecretNameToSecretDataKey(name)
+	key, err := certFieldFromSecretBySecretName(name)
 	Expect(err).To(BeNil())
-	value, err := reconciler.getValueByKey(reconciler.buildKeyNameWithExtension(key, CertificatePostfix), data)
+	value, err := reconciler.getSecretDataValueByKey(key, data)
 	Expect(err).To(BeNil())
 	decoded, _ := pem.Decode(value)
 	cert, err := x509.ParseCertificate(decoded.Bytes)
@@ -718,8 +718,8 @@ func checkHowManySecondsToExpiration(name string) float64 {
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
 	Eventually(func() error {
-		secret := getSecret(CaSecretName)
-		ca, ok := secret.Data[reconciler.buildKeyNameWithExtension(CaSecretDataPrefix, CertificatePostfix)]
+		secret := getSecret(caCertSecretName)
+		ca, ok := secret.Data[caCertSecretCertField]
 		if !ok || ca == nil {
 			return fmt.Errorf("CA bundle not found in secret")
 		}
