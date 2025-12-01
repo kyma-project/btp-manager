@@ -23,6 +23,10 @@ spec:
       priorityClassName: "kyma-priority"
       securityContext:
         runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 30001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - command:
         - /manager
@@ -38,6 +42,9 @@ spec:
           capabilities:
             drop:
               - "ALL"
+          privileged: false
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
         livenessProbe:
           httpGet:
             path: /healthz
