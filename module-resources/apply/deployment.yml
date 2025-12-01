@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 1ca773bf53b6887541dac4baac8fdfc7609cc73d1f1a908931e7fa0263e72f86
+        checksum/config: 729b3bd52248362501f1ce7a3aaa2e43cbd6c554d6bad9f74622bb1fe24c4cff
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
@@ -28,6 +28,12 @@ spec:
         sidecar.istio.io/inject: "false"
     spec:
       serviceAccountName: sap-btp-operator
+      securityContext:
+        runAsGroup: 30001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - args:
             - --secure-listen-address=0.0.0.0:8443
@@ -35,6 +41,14 @@ spec:
             - --logtostderr=true
             - --v=10
           image: ""
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
           name: kube-rbac-proxy
           resources:
             limits:
@@ -55,6 +69,14 @@ spec:
                 optional: true
           image: ""
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
           name: manager
           ports:
             - containerPort: 9443
