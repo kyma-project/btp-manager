@@ -42,6 +42,12 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - '*'
+- apiGroups:
   - operator.kyma-project.io
   resources:
   - btpoperators
