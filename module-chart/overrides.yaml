@@ -14,3 +14,17 @@ manager:
     enabled: true
   enable_limited_cache: false
   priorityClassName: "btp-manager-kyma-priority"
+  securityContext:
+    privileged: false
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+  podSecurityContext:
+    runAsUser: 10001
+    runAsGroup: 30001
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
