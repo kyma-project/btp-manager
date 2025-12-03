@@ -45,12 +45,13 @@ func (r *ConfigReconciler) predicates() predicate.Funcs {
 }
 
 func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+
 	cm := &corev1.ConfigMap{}
 	if err := r.Get(ctx, req.NamespacedName, cm); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	logger := log.FromContext(ctx, "name", cm.GetName(), "namespace", cm.GetNamespace())
 	logger.Info("reconciling configuration update", "config", cm.Data)
 
 	for k, v := range cm.Data {
