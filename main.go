@@ -120,11 +120,18 @@ func main() {
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), apiServerClient, scheme, cleanupReconciler, metrics)
+	configReconciler := controllers.NewConfigReconciler(mgr.GetClient(), scheme)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
 		os.Exit(1)
 	}
+
+	if err = configReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
