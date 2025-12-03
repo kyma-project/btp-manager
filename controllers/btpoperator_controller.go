@@ -24,17 +24,17 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
+
+	"github.com/go-logr/logr"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1469,11 +1469,6 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(r.watchSecretPredicates()),
 		).
 		Watches(
-			&corev1.ConfigMap{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
-			builder.WithPredicates(r.watchConfigPredicates()),
-		).
-		Watches(
 			&admissionregistrationv1.MutatingWebhookConfiguration{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchMutatingWebhooksPredicates()),
@@ -1523,10 +1518,6 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 }
 
 func (r *BtpOperatorReconciler) reconcileRequestForPrimaryBtpOperator(ctx context.Context, obj client.Object) []reconcile.Request {
-	return r.enqueuePrimaryBtpOperatorRequest(ctx)
-}
-
-func (r *BtpOperatorReconciler) enqueuePrimaryBtpOperatorRequest(ctx context.Context) []reconcile.Request {
 	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: btpOperatorCrName, Namespace: kymaSystemNamespaceName}}}
 }
 
@@ -1711,76 +1702,6 @@ func (r *BtpOperatorReconciler) watchMutatingWebhooksPredicates() predicate.Func
 
 			return false
 		},
-	}
-}
-
-func (r *BtpOperatorReconciler) reconcileConfig(ctx context.Context, obj client.Object) []reconcile.Request {
-	logger := log.FromContext(nil, "name", obj.GetName(), "namespace", obj.GetNamespace())
-	cm, ok := obj.(*corev1.ConfigMap)
-	if !ok {
-		return []reconcile.Request{}
-	}
-	logger.Info("reconciling config update", "config", cm.Data)
-	for k, v := range cm.Data {
-		var err error
-		switch k {
-		case "ChartNamespace":
-			ChartNamespace = v
-		case "ChartPath":
-			ChartPath = v
-		case "SecretName":
-			SecretName = v
-		case "ConfigName":
-			ConfigName = v
-		case "DeploymentName":
-			DeploymentName = v
-		case "ProcessingStateRequeueInterval":
-			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
-		case "ReadyStateRequeueInterval":
-			ReadyStateRequeueInterval, err = time.ParseDuration(v)
-		case "ReadyTimeout":
-			ReadyTimeout, err = time.ParseDuration(v)
-		case "HardDeleteCheckInterval":
-			HardDeleteCheckInterval, err = time.ParseDuration(v)
-		case "HardDeleteTimeout":
-			HardDeleteTimeout, err = time.ParseDuration(v)
-		case "ResourcesPath":
-			ResourcesPath = v
-		case "ReadyCheckInterval":
-			ReadyCheckInterval, err = time.ParseDuration(v)
-		case "DeleteRequestTimeout":
-			DeleteRequestTimeout, err = time.ParseDuration(v)
-		case "CaCertificateExpiration":
-			CaCertificateExpiration, err = time.ParseDuration(v)
-		case "WebhookCertificateExpiration":
-			WebhookCertificateExpiration, err = time.ParseDuration(v)
-		case "ExpirationBoundary":
-			ExpirationBoundary, err = time.ParseDuration(v)
-		case "RsaKeyBits":
-			var bits int
-			bits, err = strconv.Atoi(v)
-			if err == nil {
-				certs.SetRsaKeyBits(bits)
-			}
-		case "EnableLimitedCache":
-			EnableLimitedCache = v
-		default:
-			logger.Info("unknown config update key", k, v)
-		}
-		if err != nil {
-			logger.Info("failed to parse config update", k, err)
-		}
-	}
-
-	return r.enqueuePrimaryBtpOperatorRequest(ctx)
-}
-
-func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
-	nameMatches := func(o client.Object) bool { return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace }
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
-		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
-		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
 	}
 }
 

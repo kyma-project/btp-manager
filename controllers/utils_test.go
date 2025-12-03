@@ -368,6 +368,17 @@ func createDefaultBtpOperator() *v1alpha1.BtpOperator {
 	return createBtpOperator(btpOperatorName)
 }
 
+func createOrUpdateConfigMap(data map[string]string) {
+	cm := initConfig(data)
+	err := k8sClientFromManager.Create(ctx, cm)
+	if err != nil {
+		existing := &corev1.ConfigMap{}
+		Expect(k8sClientFromManager.Get(ctx, client.ObjectKey{Name: cm.Name, Namespace: cm.Namespace}, existing)).To(Succeed())
+		existing.Data = data
+		Expect(k8sClientFromManager.Update(ctx, existing)).To(Succeed())
+	}
+}
+
 func initConfig(data map[string]string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

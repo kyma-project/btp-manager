@@ -100,8 +100,8 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				It("should set EnableLimitedCache to true in operator ConfigMap when configured", func() {
 
 					// set via reconciler to exercise production code path
-					cm := initConfig(map[string]string{"EnableLimitedCache": "true"})
-					reconciler.reconcileConfig(context.TODO(), cm)
+					createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "true"})
+					Eventually(func() string { return EnableLimitedCache }).Should(Equal("true"))
 
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
@@ -115,8 +115,8 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				It("should set EnableLimitedCache to false in operator ConfigMap when explicitly configured", func() {
 
 					// set via reconciler to exercise production code path
-					cm := initConfig(map[string]string{"EnableLimitedCache": "false"})
-					reconciler.reconcileConfig(context.TODO(), cm)
+					createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "false"})
+					Eventually(func() string { return EnableLimitedCache }).Should(Equal("false"))
 
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
