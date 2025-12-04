@@ -107,5 +107,5 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	return r.btpOperatorReconciler.Reconcile(ctx, req)
+	return r.btpOperatorReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorCrName, Namespace: kymaSystemNamespaceName}})
 }
