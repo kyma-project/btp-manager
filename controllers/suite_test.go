@@ -178,7 +178,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sClient, k8sManager.GetScheme(), cleanupReconciler, metrics)
-	configReconciler = NewConfigReconciler(k8sManager.GetClient(), k8sManager.GetScheme())
+	configReconciler = NewConfigReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), reconciler)
 
 	k8sClientFromManager = k8sManager.GetClient()
 
