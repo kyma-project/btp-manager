@@ -18,13 +18,15 @@ import (
 
 type ConfigReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme                *runtime.Scheme
+	btpOperatorReconciler *BtpOperatorReconciler
 }
 
-func NewConfigReconciler(client client.Client, scheme *runtime.Scheme) *ConfigReconciler {
+func NewConfigReconciler(client client.Client, scheme *runtime.Scheme, btpOperatorReconciler *BtpOperatorReconciler) *ConfigReconciler {
 	return &ConfigReconciler{
-		Client: client,
-		Scheme: scheme,
+		Client:                client,
+		Scheme:                scheme,
+		btpOperatorReconciler: btpOperatorReconciler,
 	}
 }
 
@@ -105,5 +107,5 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return r.btpOperatorReconciler.Reconcile(ctx, req)
 }
