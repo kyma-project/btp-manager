@@ -29,6 +29,7 @@ import (
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/manifest"
@@ -86,9 +87,6 @@ const (
 	moduleName   = "btp-operator"
 	operatorName = "btp-manager"
 	operandName  = "sap-btp-operator"
-
-	btpOperatorCrName       = "btpoperator"
-	kymaSystemNamespaceName = "kyma-system"
 
 	sapBtpServiceOperatorSecretName          = SapBtpServiceOperatorName
 	sapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
@@ -234,7 +232,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	if req.Name != btpOperatorCrName || req.Namespace != kymaSystemNamespaceName {
+	if req.Name != internal.BtpOperatorCrName || req.Namespace != internal.KymaSystemNamespaceName {
 		logger.Info(fmt.Sprintf("BtpOperator CR %s/%s is not the one we are looking for. Ignoring it.", req.Namespace, req.Name))
 		return ctrl.Result{}, r.HandleWrongNamespaceOrName(ctx, reconcileCr)
 	}
@@ -1497,7 +1495,7 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 }
 
 func (r *BtpOperatorReconciler) reconcileRequestForPrimaryBtpOperator(ctx context.Context, obj client.Object) []reconcile.Request {
-	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: btpOperatorCrName, Namespace: kymaSystemNamespaceName}}}
+	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: internal.BtpOperatorCrName, Namespace: internal.KymaSystemNamespaceName}}}
 }
 
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate[client.Object] {
