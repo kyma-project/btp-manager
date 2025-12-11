@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -29,9 +31,9 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 	var orgCaCertificateExpiration, orgWebhookCertExpiration, orgExpirationBoundary time.Duration
 
 	restoreOriginalCertificateTimes := func() {
-		CaCertificateExpiration = orgCaCertificateExpiration
-		WebhookCertificateExpiration = orgWebhookCertExpiration
-		ExpirationBoundary = orgExpirationBoundary
+		config.CaCertificateExpiration = orgCaCertificateExpiration
+		config.WebhookCertificateExpiration = orgWebhookCertExpiration
+		config.ExpirationBoundary = orgExpirationBoundary
 	}
 
 	certBeforeEach := func(opts *certificationsTimeOpts) {
@@ -40,23 +42,23 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 		Expect(err).To(BeNil())
 		Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
 
-		orgCaCertificateExpiration = CaCertificateExpiration
-		orgWebhookCertExpiration = WebhookCertificateExpiration
-		orgExpirationBoundary = ExpirationBoundary
+		orgCaCertificateExpiration = config.CaCertificateExpiration
+		orgWebhookCertExpiration = config.WebhookCertificateExpiration
+		orgExpirationBoundary = config.ExpirationBoundary
 
-		ChartPath = "../module-chart/chart"
-		ResourcesPath = "../module-resources"
+		config.ChartPath = "../module-chart/chart"
+		config.ResourcesPath = "../module-resources"
 		chartPathForProcess = fmt.Sprintf("%s%d", defaultChartPath, GinkgoParallelProcess())
 		resourcesPathForProcess = fmt.Sprintf("%s%d", defaultResourcesPath, GinkgoParallelProcess())
-		Expect(createChartOrResourcesCopyWithoutWebhooks(ChartPath, chartPathForProcess)).To(Succeed())
-		Expect(createChartOrResourcesCopyWithoutWebhooks(ResourcesPath, resourcesPathForProcess)).To(Succeed())
-		ChartPath = chartPathForProcess
-		ResourcesPath = resourcesPathForProcess
+		Expect(createChartOrResourcesCopyWithoutWebhooks(config.ChartPath, chartPathForProcess)).To(Succeed())
+		Expect(createChartOrResourcesCopyWithoutWebhooks(config.ResourcesPath, resourcesPathForProcess)).To(Succeed())
+		config.ChartPath = chartPathForProcess
+		config.ResourcesPath = resourcesPathForProcess
 
 		if opts != nil {
-			CaCertificateExpiration = opts.CaCertificateExpiration
-			WebhookCertificateExpiration = opts.WebhookCertExpiration
-			ExpirationBoundary = opts.ExpirationBoundary
+			config.CaCertificateExpiration = opts.CaCertificateExpiration
+			config.WebhookCertificateExpiration = opts.WebhookCertExpiration
+			config.ExpirationBoundary = opts.ExpirationBoundary
 		}
 
 		cr = createDefaultBtpOperator()
@@ -72,7 +74,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 		Expect(isCrNotFound()).To(BeTrue())
 
 		deleteSecret := &corev1.Secret{}
-		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: config.SecretName}, deleteSecret)).To(Succeed())
 		Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
 
 		restoreOriginalCertificateTimes()
@@ -80,8 +82,8 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 		Expect(os.RemoveAll(chartPathForProcess)).To(Succeed())
 		Expect(os.RemoveAll(resourcesPathForProcess)).To(Succeed())
 
-		ChartPath = defaultChartPath
-		ResourcesPath = defaultResourcesPath
+		config.ChartPath = defaultChartPath
+		config.ResourcesPath = defaultResourcesPath
 	}
 
 	ensureReconciliationQueueIsEmpty := func() {
@@ -113,7 +115,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 		When("CA certificate changes", func() {
 			It("should fully regenerate CA certificate and webhook certificate", func() {
-				testGeneratedCaCert, testGeneratedPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				testGeneratedCaCert, testGeneratedPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(config.CaCertificateExpiration))
 				testGeneratedPrivateKeyArray, err := structToByteArray(testGeneratedPrivateKey)
 				Expect(err).To(BeNil())
 
@@ -167,7 +169,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 				currentWebhookSecret := getSecret(webhookCertSecretName)
 				originalWebhookSecret := currentWebhookSecret
 
-				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), ca, pk)
+				newWebhookCertificate, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(config.WebhookCertificateExpiration), ca, pk)
 				Expect(err).To(BeNil())
 				newWebhookPrivateKeyStructured, err := structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
@@ -195,10 +197,10 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 		When("webhook certificate is signed by different CA certificate", func() { //CAVEAT this fails occasionally
 			It("CA certificate and webhook certificate are fully regenerated", func() {
 
-				testGeneratedCaCertificate, testGeneratedPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				testGeneratedCaCertificate, testGeneratedPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().Add(config.CaCertificateExpiration))
 				Expect(err).To(BeNil())
 
-				testGeneratedWebhookCert, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(WebhookCertificateExpiration), testGeneratedCaCertificate, testGeneratedPrivateKey)
+				testGeneratedWebhookCert, newWebhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().Add(config.WebhookCertificateExpiration), testGeneratedCaCertificate, testGeneratedPrivateKey)
 				testGeneratedPrivateKeyArray, err := structToByteArray(newWebhookPrivateKey)
 				Expect(err).To(BeNil())
 
@@ -238,7 +240,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 		When("webhook caBundle modified with new CA certificate", func() {
 			It("should be reconciled to existing CA certificate", func() {
-				newCaCertificate, _, err := certs.GenerateSelfSignedCertificate(time.Now().Add(CaCertificateExpiration))
+				newCaCertificate, _, err := certs.GenerateSelfSignedCertificate(time.Now().Add(config.CaCertificateExpiration))
 				Expect(err).To(BeNil())
 				updated := replaceCaBundleInMutatingWebhooks(newCaCertificate)
 				if !updated {
@@ -273,7 +275,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 		When("webhook certificate expires", func() {
 			BeforeEach(func() {
 				timeOpts := &certificationsTimeOpts{
-					CaCertificateExpiration: CaCertificateExpiration,
+					CaCertificateExpiration: config.CaCertificateExpiration,
 					WebhookCertExpiration:   time.Second * time.Duration(fakeSeconds),
 					ExpirationBoundary:      time.Second * time.Duration(fakeExpiration),
 				}

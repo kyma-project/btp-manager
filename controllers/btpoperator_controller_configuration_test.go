@@ -3,6 +3,8 @@ package controllers
 import (
 	"time"
 
+	"github.com/kyma-project/btp-manager/controllers/config"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -13,11 +15,11 @@ var _ = Describe("Configuration controller", func() {
 		var originalValue string
 
 		BeforeEach(func() {
-			originalValue = EnableLimitedCache
+			originalValue = config.EnableLimitedCache
 		})
 
 		AfterEach(func() {
-			EnableLimitedCache = originalValue
+			config.EnableLimitedCache = originalValue
 		})
 
 		It("should update EnableLimitedCache", func() {
@@ -26,7 +28,7 @@ var _ = Describe("Configuration controller", func() {
 			})
 
 			Eventually(func() string {
-				return EnableLimitedCache
+				return config.EnableLimitedCache
 			}).Should(Equal("true"))
 		})
 	})
@@ -35,11 +37,11 @@ var _ = Describe("Configuration controller", func() {
 		var originalValue time.Duration
 
 		BeforeEach(func() {
-			originalValue = ProcessingStateRequeueInterval
+			originalValue = config.ProcessingStateRequeueInterval
 		})
 
 		AfterEach(func() {
-			ProcessingStateRequeueInterval = originalValue
+			config.ProcessingStateRequeueInterval = originalValue
 		})
 
 		It("should update ProcessingStateRequeueInterval", func() {
@@ -48,7 +50,7 @@ var _ = Describe("Configuration controller", func() {
 			})
 
 			Eventually(func() time.Duration {
-				return ProcessingStateRequeueInterval
+				return config.ProcessingStateRequeueInterval
 			}).Should(Equal(10 * time.Second))
 		})
 	})

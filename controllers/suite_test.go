@@ -24,12 +24,12 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+
+	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
@@ -43,6 +43,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -84,7 +85,7 @@ var (
 	cancel                     context.CancelFunc
 	cancelDeploymentController context.CancelFunc
 	reconciler                 *BtpOperatorReconciler
-	configReconciler           *ConfigReconciler
+	configReconciler           *config.Reconciler
 	updateCh                   chan resourceUpdate = make(chan resourceUpdate, 1000)
 )
 
@@ -129,11 +130,11 @@ func ReconfigureGinkgo(reporterCfg *ginkgotypes.ReporterConfig, suiteCfg *ginkgo
 
 var _ = SynchronizedBeforeSuite(func() {
 	// runs only on process #1
-	ChartPath = "../module-chart/chart"
-	ResourcesPath = "../module-resources"
+	config.ChartPath = "../module-chart/chart"
+	config.ResourcesPath = "../module-resources"
 	ManagerResourcesPath = "../manager-resources"
-	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, defaultChartPath)).To(Succeed())
-	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, defaultResourcesPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(config.ChartPath, defaultChartPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(config.ResourcesPath, defaultResourcesPath)).To(Succeed())
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ManagerResourcesPath, defaultManagerResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
@@ -178,30 +179,30 @@ var _ = SynchronizedBeforeSuite(func() {
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sClient, k8sManager.GetScheme(), cleanupReconciler, metrics)
-	configReconciler = NewConfigReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), reconciler)
+	configReconciler = config.NewReconciler(k8sManager.GetClient(), k8sManager.GetScheme(), reconciler)
 
 	k8sClientFromManager = k8sManager.GetClient()
 
 	if hardDeleteTimeoutFromEnv := os.Getenv("HARD_DELETE_TIMEOUT"); hardDeleteTimeoutFromEnv != "" {
-		HardDeleteTimeout, err = time.ParseDuration(hardDeleteTimeoutFromEnv)
+		config.HardDeleteTimeout, err = time.ParseDuration(hardDeleteTimeoutFromEnv)
 		Expect(err).NotTo(HaveOccurred())
 	} else {
-		HardDeleteTimeout = hardDeleteTimeoutForAllTests
+		config.HardDeleteTimeout = hardDeleteTimeoutForAllTests
 	}
 	if hardDeleteCheckIntervalFromEnv := os.Getenv("HARD_DELETE_CHECK_INTERVAL"); hardDeleteCheckIntervalFromEnv != "" {
-		HardDeleteCheckInterval, err = time.ParseDuration(hardDeleteCheckIntervalFromEnv)
+		config.HardDeleteCheckInterval, err = time.ParseDuration(hardDeleteCheckIntervalFromEnv)
 		Expect(err).NotTo(HaveOccurred())
 	} else {
-		HardDeleteCheckInterval = hardDeleteTimeoutForAllTests / 20
+		config.HardDeleteCheckInterval = hardDeleteTimeoutForAllTests / 20
 	}
 	if deleteRequestTimeoutFromEnv := os.Getenv("DELETE_REQUEST_TIMEOUT"); deleteRequestTimeoutFromEnv != "" {
-		DeleteRequestTimeout, err = time.ParseDuration(deleteRequestTimeoutFromEnv)
+		config.DeleteRequestTimeout, err = time.ParseDuration(deleteRequestTimeoutFromEnv)
 		Expect(err).NotTo(HaveOccurred())
 	} else {
-		DeleteRequestTimeout = deleteRequestTimeoutForAllTests
+		config.DeleteRequestTimeout = deleteRequestTimeoutForAllTests
 	}
-	ChartPath = defaultChartPath
-	ResourcesPath = defaultResourcesPath
+	config.ChartPath = defaultChartPath
+	config.ResourcesPath = defaultResourcesPath
 	certs.SetRsaKeyBits(testRsaKeyBits)
 
 	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")

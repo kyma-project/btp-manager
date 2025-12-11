@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -25,8 +27,8 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 		var serviceBindingName = fmt.Sprintf("testing-binding-%s", rand.String(4))
 
 		BeforeEach(func() {
-			ChartPath = "../module-chart/chart"
-			ResourcesPath = "../module-resources"
+			config.ChartPath = "../module-chart/chart"
+			config.ResourcesPath = "../module-resources"
 			err := createPrereqs()
 			Expect(err).To(BeNil())
 			secret, err := createCorrectSecretFromYaml()
@@ -35,12 +37,12 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 
 			chartPathForProcess = fmt.Sprintf("%s-%d-%d", defaultChartPath, GinkgoParallelProcess(), rand.Intn(999))
 			resourcesPathForProcess = fmt.Sprintf("%s-%d-%d", defaultResourcesPath, GinkgoParallelProcess(), rand.Intn(999))
-			err = createChartOrResourcesCopyWithoutWebhooksByConfig(ChartPath, chartPathForProcess)
+			err = createChartOrResourcesCopyWithoutWebhooksByConfig(config.ChartPath, chartPathForProcess)
 			Expect(err).To(BeNil())
-			err = createChartOrResourcesCopyWithoutWebhooksByConfig(ResourcesPath, resourcesPathForProcess)
+			err = createChartOrResourcesCopyWithoutWebhooksByConfig(config.ResourcesPath, resourcesPathForProcess)
 			Expect(err).To(BeNil())
-			ChartPath = chartPathForProcess
-			ResourcesPath = resourcesPathForProcess
+			config.ChartPath = chartPathForProcess
+			config.ResourcesPath = resourcesPathForProcess
 
 			ctx = context.Background()
 		})
@@ -49,11 +51,11 @@ var _ = Describe("Service Instance and Bindings controller", Ordered, func() {
 			Expect(os.RemoveAll(chartPathForProcess)).To(Succeed())
 			Expect(os.RemoveAll(resourcesPathForProcess)).To(Succeed())
 
-			ChartPath = defaultChartPath
-			ResourcesPath = defaultResourcesPath
+			config.ChartPath = defaultChartPath
+			config.ResourcesPath = defaultResourcesPath
 
 			deleteSecret := &corev1.Secret{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: config.SecretName}, deleteSecret)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
 		})
 

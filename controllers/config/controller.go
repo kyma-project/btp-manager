@@ -1,4 +1,4 @@
-package controllers
+package config
 
 import (
 	"context"
@@ -16,29 +16,64 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-type ConfigReconciler struct {
-	client.Client
-	Scheme                *runtime.Scheme
-	btpOperatorReconciler *BtpOperatorReconciler
+const (
+	btpOperatorCrName       = "btpoperator"
+	kymaSystemNamespaceName = "kyma-system"
+)
+
+// Configuration options that can be overwritten either by CLI parameter or ConfigMap
+var (
+	ChartNamespace = "kyma-system"
+	SecretName     = "sap-btp-manager"
+	ConfigName     = "sap-btp-manager"
+	DeploymentName = "sap-btp-operator-controller-manager"
+
+	ProcessingStateRequeueInterval = time.Minute * 5
+	ReadyStateRequeueInterval      = time.Minute * 15
+	ReadyTimeout                   = time.Minute * 5
+	ReadyCheckInterval             = time.Second * 30
+	HardDeleteTimeout              = time.Minute * 20
+	HardDeleteCheckInterval        = time.Second * 10
+	DeleteRequestTimeout           = time.Minute * 5
+
+	CaCertificateExpiration      = time.Hour * 87600 // 10 years
+	WebhookCertificateExpiration = time.Hour * 8760  // 1 year
+	ExpirationBoundary           = time.Hour * -168  // 1 week
+
+	ChartPath          = "./module-chart/chart"
+	ResourcesPath      = "./module-resources"
+	EnableLimitedCache = "false"
+)
+
+type BtpOperatorReconcilerInterface interface {
+	Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error)
 }
 
-func NewConfigReconciler(client client.Client, scheme *runtime.Scheme, btpOperatorReconciler *BtpOperatorReconciler) *ConfigReconciler {
-	return &ConfigReconciler{
+type Reconciler struct {
+	client.Client
+	Scheme                *runtime.Scheme
+	btpOperatorReconciler BtpOperatorReconcilerInterface
+}
+
+func NewReconciler(client client.Client, scheme *runtime.Scheme, btpOperatorReconciler BtpOperatorReconcilerInterface) *Reconciler {
+	return &Reconciler{
 		Client:                client,
 		Scheme:                scheme,
 		btpOperatorReconciler: btpOperatorReconciler,
 	}
 }
 
-func (r *ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.ConfigMap{}).
 		WithEventFilter(r.predicates()).
 		Complete(r)
 }
 
-func (r *ConfigReconciler) predicates() predicate.Funcs {
-	nameMatches := func(o client.Object) bool { return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace }
+func (r *Reconciler) predicates() predicate.Funcs {
+	nameMatches := func(o client.Object) bool {
+		return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace
+	}
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
 		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
@@ -46,7 +81,7 @@ func (r *ConfigReconciler) predicates() predicate.Funcs {
 	}
 }
 
-func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	cm := &corev1.ConfigMap{}
