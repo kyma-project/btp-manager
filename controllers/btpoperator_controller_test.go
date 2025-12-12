@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -26,8 +28,8 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 	require.NoError(t, v1alpha1.AddToScheme(scheme))
 	btpOperator := createDefaultBtpOperator()
 	require.NoError(t, fakeK8sClient.Create(ctx, btpOperator))
-	StatusUpdateTimeout = statusUpdateTimeout
-	StatusUpdateCheckInterval = statusUpdateCheckInterval
+	config.StatusUpdateTimeout = statusUpdateTimeout
+	config.StatusUpdateCheckInterval = statusUpdateCheckInterval
 
 	t.Run("should return error from client.Get", func(t *testing.T) {
 		// given

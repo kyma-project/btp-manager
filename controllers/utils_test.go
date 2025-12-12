@@ -16,10 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal/conditions"
-
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -211,11 +212,11 @@ func (sw *fakeSubResourceClient) Patch(ctx context.Context, obj client.Object, p
 
 // module-resources paths
 func getApplyPath() string {
-	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
+	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
 }
 
 func getDeletePath() string {
-	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
+	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
 }
 
 func getToDeleteYamlPath() string {
@@ -223,7 +224,7 @@ func getToDeleteYamlPath() string {
 }
 
 func getTempPath() string {
-	return fmt.Sprintf("%s%ctemp", ResourcesPath, os.PathSeparator)
+	return fmt.Sprintf("%s%ctemp", config.ResourcesPath, os.PathSeparator)
 }
 
 func assertResourcesExistence(uns ...*unstructured.Unstructured) {
@@ -368,11 +369,22 @@ func createDefaultBtpOperator() *v1alpha1.BtpOperator {
 	return createBtpOperator(btpOperatorName)
 }
 
+func createOrUpdateConfigMap(data map[string]string) {
+	cm := initConfig(data)
+	err := k8sClientFromManager.Create(ctx, cm)
+	if err != nil {
+		existing := &corev1.ConfigMap{}
+		Expect(k8sClientFromManager.Get(ctx, client.ObjectKey{Name: cm.Name, Namespace: cm.Namespace}, existing)).To(Succeed())
+		existing.Data = data
+		Expect(k8sClientFromManager.Update(ctx, existing)).To(Succeed())
+	}
+}
+
 func initConfig(data map[string]string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ConfigName,
-			Namespace: ChartNamespace,
+			Name:      config.ConfigName,
+			Namespace: config.ChartNamespace,
 			Labels:    map[string]string{managedByLabelKey: operatorName},
 		},
 		Data: data,
@@ -593,13 +605,13 @@ func checkIfNoServiceExists(kind string) {
 
 func checkIfNoBindingSecretExists() {
 	secret := &corev1.Secret{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: ChartNamespace}, secret)
+	err := k8sClient.Get(ctx, client.ObjectKey{Name: bindingName, Namespace: config.ChartNamespace}, secret)
 	Expect(*secret).To(BeEquivalentTo(corev1.Secret{}))
 	Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 }
 
 func checkIfNoBtpResourceExists() {
-	gvks, err := ymlutils.GatherChartGvks(ChartPath)
+	gvks, err := ymlutils.GatherChartGvks(config.ChartPath)
 	Expect(err).To(BeNil())
 
 	found := false
@@ -685,7 +697,7 @@ func getSecretFromNamespace(name, namespace string) *corev1.Secret {
 }
 
 func getSecret(name string) *corev1.Secret {
-	return getSecretFromNamespace(name, ChartNamespace)
+	return getSecretFromNamespace(name, config.ChartNamespace)
 }
 
 func getOperatorSecret() *corev1.Secret {
@@ -697,7 +709,7 @@ func getOperatorConfigMap() *corev1.ConfigMap {
 }
 func getConfigMap(name string) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{}
-	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, configMap)
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: config.ChartNamespace, Name: name}, configMap)
 	Expect(err).To(BeNil())
 	return configMap
 }
@@ -827,7 +839,7 @@ func newDeploymentController(cfg *rest.Config, mgr manager.Manager) controller.C
 	Expect(err).ToNot(HaveOccurred())
 
 	btpOperatorDeploymentReconciler := &deploymentReconciler{
-		DeploymentInterface: appsV1Client.Deployments(ChartNamespace),
+		DeploymentInterface: appsV1Client.Deployments(config.ChartNamespace),
 		Config:              cfg,
 		Scheme:              scheme.Scheme,
 	}
