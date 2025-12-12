@@ -60,12 +60,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var (
-	StatusUpdateTimeout       = time.Second * 10
-	StatusUpdateCheckInterval = time.Millisecond * 500
-	ManagerResourcesPath      = "./manager-resources"
-)
-
 const (
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
@@ -272,7 +266,7 @@ func (r *BtpOperatorReconciler) HandleWrongNamespaceOrName(ctx context.Context, 
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState v1alpha1.State, reason conditions.Reason, message string) error {
 	logger := log.FromContext(ctx)
-	timeout := time.Now().Add(StatusUpdateTimeout)
+	timeout := time.Now().Add(config.StatusUpdateTimeout)
 
 	var err error
 	for now := time.Now(); now.Before(timeout); now = time.Now() {
@@ -280,8 +274,8 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			if k8serrors.IsNotFound(err) {
 				return nil
 			}
-			logger.Error(err, fmt.Sprintf("cannot get the BtpOperator to update the status. Retrying in %s...", StatusUpdateCheckInterval.String()))
-			time.Sleep(StatusUpdateCheckInterval)
+			logger.Error(err, fmt.Sprintf("cannot get the BtpOperator to update the status. Retrying in %s...", config.StatusUpdateCheckInterval.String()))
+			time.Sleep(config.StatusUpdateCheckInterval)
 			continue
 		}
 		if cr.Status.State == newState && cr.IsMsgForGivenReasonEqual(string(reason), message) {
@@ -293,13 +287,13 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
 		}
 		if err = r.Status().Update(ctx, cr); err != nil {
-			logger.Error(err, fmt.Sprintf("cannot update the status of the BtpOperator. Retrying in %s...", StatusUpdateCheckInterval.String()))
-			time.Sleep(StatusUpdateCheckInterval)
+			logger.Error(err, fmt.Sprintf("cannot update the status of the BtpOperator. Retrying in %s...", config.StatusUpdateCheckInterval.String()))
+			time.Sleep(config.StatusUpdateCheckInterval)
 			continue
 		}
-		time.Sleep(StatusUpdateCheckInterval)
+		time.Sleep(config.StatusUpdateCheckInterval)
 	}
-	logger.Error(err, fmt.Sprintf("timed out while waiting %s for the BtpOperator status change.", StatusUpdateTimeout.String()))
+	logger.Error(err, fmt.Sprintf("timed out while waiting %s for the BtpOperator status change.", config.StatusUpdateTimeout.String()))
 
 	return err
 }
@@ -455,7 +449,7 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 }
 
 func (r *BtpOperatorReconciler) getNetworkPoliciesPath() string {
-	return fmt.Sprintf("%s%cnetwork-policies", ManagerResourcesPath, os.PathSeparator)
+	return fmt.Sprintf("%s%cnetwork-policies", config.ManagerResourcesPath, os.PathSeparator)
 }
 
 func (r *BtpOperatorReconciler) loadNetworkPolicies() ([]*unstructured.Unstructured, error) {

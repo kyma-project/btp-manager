@@ -80,6 +80,9 @@ func main() {
 	flag.DurationVar(&config.HardDeleteTimeout, "hard-delete-timeout", config.HardDeleteTimeout, "Hard delete timeout.")
 	flag.DurationVar(&config.DeleteRequestTimeout, "delete-request-timeout", config.DeleteRequestTimeout, "Delete request timeout in hard delete.")
 	flag.StringVar(&config.EnableLimitedCache, "enable-limited-cache", config.EnableLimitedCache, "Enable limited cache for sap-btp-operator.")
+	flag.DurationVar(&config.StatusUpdateTimeout, "status-update-timeout", config.StatusUpdateTimeout, "Status update timeout.")
+	flag.DurationVar(&config.StatusUpdateCheckInterval, "status-update-check-interval", config.StatusUpdateCheckInterval, "Status update retry interval.")
+	flag.StringVar(&config.ManagerResourcesPath, "manager-resources-path", config.ManagerResourcesPath, "Path to the directory with BTP Manager resources.")
 	opts := zap.Options{
 		Development: false,
 	}

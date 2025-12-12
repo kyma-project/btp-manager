@@ -46,7 +46,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		It("Should return correct network policies path", func() {
 			reconciler := &BtpOperatorReconciler{}
 			path := reconciler.getNetworkPoliciesPath()
-			expected := ManagerResourcesPath + string(os.PathSeparator) + "network-policies"
+			expected := config.ManagerResourcesPath + string(os.PathSeparator) + "network-policies"
 			Expect(path).To(Equal(expected))
 		})
 	})

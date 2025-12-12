@@ -132,10 +132,10 @@ var _ = SynchronizedBeforeSuite(func() {
 	// runs only on process #1
 	config.ChartPath = "../module-chart/chart"
 	config.ResourcesPath = "../module-resources"
-	ManagerResourcesPath = "../manager-resources"
+	config.ManagerResourcesPath = "../manager-resources"
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(config.ChartPath, defaultChartPath)).To(Succeed())
 	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(config.ResourcesPath, defaultResourcesPath)).To(Succeed())
-	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(ManagerResourcesPath, defaultManagerResourcesPath)).To(Succeed())
+	Expect(createChartOrResourcesCopyWithoutWebhooksByConfig(config.ManagerResourcesPath, defaultManagerResourcesPath)).To(Succeed())
 }, func() {
 	// runs on all processes
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), func(o *zap.Options) {
@@ -207,8 +207,8 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	useExistingClusterEnv := os.Getenv("USE_EXISTING_CLUSTER")
 	if useExistingClusterEnv != "true" {
-		StatusUpdateTimeout = statusUpdateTimeoutForAllTests
-		StatusUpdateCheckInterval = statusUpdateCheckIntervalForAllTests
+		config.StatusUpdateTimeout = statusUpdateTimeoutForAllTests
+		config.StatusUpdateCheckInterval = statusUpdateCheckIntervalForAllTests
 	}
 
 	if os.Getenv(SapBtpServiceOperatorEnv) == "" {

@@ -35,13 +35,17 @@ var (
 	HardDeleteTimeout              = time.Minute * 20
 	HardDeleteCheckInterval        = time.Second * 10
 	DeleteRequestTimeout           = time.Minute * 5
+	StatusUpdateTimeout            = time.Second * 10
+	StatusUpdateCheckInterval      = time.Millisecond * 500
 
 	CaCertificateExpiration      = time.Hour * 87600 // 10 years
 	WebhookCertificateExpiration = time.Hour * 8760  // 1 year
 	ExpirationBoundary           = time.Hour * -168  // 1 week
 
-	ChartPath          = "./module-chart/chart"
-	ResourcesPath      = "./module-resources"
+	ChartPath            = "./module-chart/chart"
+	ResourcesPath        = "./module-resources"
+	ManagerResourcesPath = "./manager-resources"
+
 	EnableLimitedCache = "false"
 )
 
@@ -134,6 +138,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		case "EnableLimitedCache":
 			EnableLimitedCache = v
+		case "StatusUpdateTimeout":
+			StatusUpdateTimeout, err = time.ParseDuration(v)
+		case "StatusUpdateCheckInterval":
+			StatusUpdateCheckInterval, err = time.ParseDuration(v)
+		case "ManagerResourcesPath":
+			ManagerResourcesPath = v
 		default:
 			logger.Info("unknown configuration update key", k, v)
 		}
