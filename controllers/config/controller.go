@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal"
 	"github.com/kyma-project/btp-manager/internal/certs"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +14,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+)
+
+const (
+	BtpOperatorCrName       = "btpoperator"
+	KymaSystemNamespaceName = "kyma-system"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -138,5 +142,5 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	return r.btpOperatorReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: internal.BtpOperatorCrName, Namespace: internal.KymaSystemNamespaceName}})
+	return r.btpOperatorReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}})
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/kyma-project/btp-manager/internal"
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -125,7 +125,7 @@ func (r *ServiceInstanceReconciler) deletionPredicate() predicate.Predicate {
 func (r *ServiceInstanceReconciler) getPrimaryBtpOperator(ctx context.Context) (*v1alpha1.BtpOperator, error) {
 	logger := log.FromContext(ctx)
 	btpOperator := &v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: internal.KymaSystemNamespaceName, Name: internal.BtpOperatorCrName}, btpOperator); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Namespace: config.KymaSystemNamespaceName, Name: config.BtpOperatorCrName}, btpOperator); err != nil {
 		logger.Error(err, "unable to get BtpOperator CR")
 		return nil, err
 	}
