@@ -229,15 +229,15 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="",resources="secrets",verbs=create;get;list;update;delete
 //+kubebuilder:rbac:groups="",resources="serviceaccounts",verbs=create;update;patch
 //+kubebuilder:rbac:groups="",resources="services",verbs=create;update;patch
-//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="mutatingwebhookconfigurations",verbs=get;create;update;delete
-//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="validatingwebhookconfigurations",verbs=get;create;update;delete
+//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="mutatingwebhookconfigurations",verbs=get;list;create;update;delete
+//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="validatingwebhookconfigurations",verbs=get;list;create;update;delete
 //+kubebuilder:rbac:groups="apiextensions.k8s.io",resources="customresourcedefinitions",verbs=get
 //+kubebuilder:rbac:groups="apps",resources="deployments",verbs=get;delete
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterrolebindings",verbs=create;update;patch
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs=create;update;patch
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="rolebindings",verbs=create;update;patch
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs=create;update;patch
-//+kubebuilder:rbac:groups="networking.k8s.io",resources="networkpolicies",verbs=create;update;patch;delete
+//+kubebuilder:rbac:groups="networking.k8s.io",resources="networkpolicies",verbs=get;list;create;update;patch;delete
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.workqueueSize += 1
