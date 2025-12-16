@@ -37,6 +37,7 @@ rules:
   - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -46,6 +47,7 @@ rules:
   - services
   verbs:
   - create
+  - get
   - patch
   - update
 - apiGroups:
@@ -74,9 +76,12 @@ rules:
   resources:
   - deployments
   verbs:
+  - create
   - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - networking.k8s.io
@@ -112,19 +117,29 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
-  - clusterroles
   - rolebindings
-  - roles
   verbs:
   - create
+  - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  - roles
+  verbs:
+  - '*'
 - apiGroups:
   - services.cloud.sap.com
   resources:
   - servicebindings
   - serviceinstances
   verbs:
+  - create
   - delete
+  - get
   - list
+  - patch
   - update
+  - watch
