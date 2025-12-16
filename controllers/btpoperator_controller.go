@@ -232,7 +232,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		)
 
 		return ctrl.Result{
-			RequeueAfter: 10 * time.Second,
+			Requeue: true,
 		}, nil
 	}
 
