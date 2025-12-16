@@ -16,6 +16,27 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - events
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - namespaces
   verbs:
   - get
@@ -28,18 +49,6 @@ rules:
   verbs:
   - get
   - list
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -83,6 +92,27 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - list
+  - update
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -133,7 +163,6 @@ rules:
   - create
   - delete
   - deletecollection
-  - escalate
   - get
   - list
   - patch
@@ -152,3 +181,16 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - services.cloud.sap.com
+  resources:
+  - servicebindings/status
+  - serviceinstances/status
+  verbs:
+  - get
+  - patch
+  - update
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
