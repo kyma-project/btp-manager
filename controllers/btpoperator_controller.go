@@ -231,7 +231,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="",resources="services",verbs=create;update;patch
 //+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="mutatingwebhookconfigurations",verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="validatingwebhookconfigurations",verbs=get;list;watch;create;update;delete
-//+kubebuilder:rbac:groups="apiextensions.k8s.io",resources="customresourcedefinitions",verbs=get
+//+kubebuilder:rbac:groups="apiextensions.k8s.io",resources="customresourcedefinitions",verbs=get;create;update;patch
 //+kubebuilder:rbac:groups="apps",resources="deployments",verbs=get;list;watch;delete
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterrolebindings",verbs=create;update;patch
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs=create;update;patch
