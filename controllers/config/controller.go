@@ -19,6 +19,8 @@ import (
 const (
 	BtpOperatorCrName       = "btpoperator"
 	KymaSystemNamespaceName = "kyma-system"
+	ReconcilerKey           = "reconciler"
+	configurationReconciler = "configuration"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -152,5 +154,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	return r.btpOperatorReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}})
+	return r.btpOperatorReconciler.Reconcile(
+		context.WithValue(ctx, ReconcilerKey, configurationReconciler),
+		ctrl.Request{NamespacedName: client.ObjectKey{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}},
+	)
 }

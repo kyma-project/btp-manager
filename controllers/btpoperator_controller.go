@@ -105,6 +105,8 @@ const (
 	kubernetesAppLabelPrefix = "app.kubernetes.io/"
 	managedByLabelKey        = kubernetesAppLabelPrefix + "managed-by"
 	instanceLabelKey         = kubernetesAppLabelPrefix + "instance"
+
+	btpOperatorReconciler = "btp-operator"
 )
 
 const (
@@ -214,6 +216,25 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	defer func() { r.workqueueSize -= 1 }()
 
 	logger := log.FromContext(ctx)
+
+	if r.workqueueSize > 1 {
+		sourceReconciler := btpOperatorReconciler
+		if v := ctx.Value(config.ReconcilerKey); v != nil {
+			if s, ok := v.(string); ok {
+				sourceReconciler = s
+			}
+		}
+
+		logger.Info(
+			"Reconciliation already in progress, requeuing request",
+			"queueSize", r.workqueueSize,
+			"sourceReconciler", sourceReconciler,
+		)
+
+		return ctrl.Result{
+			RequeueAfter: 0,
+		}, nil
+	}
 
 	reconcileCr := &v1alpha1.BtpOperator{}
 	if err := r.Get(ctx, req.NamespacedName, reconcileCr); err != nil {
