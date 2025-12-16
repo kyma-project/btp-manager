@@ -9,6 +9,7 @@ rules:
   resources:
   - configmaps
   verbs:
+  - deletecollection
   - get
   - list
   - update
@@ -25,7 +26,6 @@ rules:
   - ""
   resources:
   - events
-  - secrets
   verbs:
   - create
   - delete
@@ -52,10 +52,24 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - serviceaccounts
   - services
   verbs:
   - create
+  - deletecollection
   - get
   - patch
   - update
@@ -67,6 +81,7 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -78,9 +93,12 @@ rules:
   - customresourcedefinitions
   verbs:
   - create
+  - deletecollection
   - get
+  - list
   - patch
   - update
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -88,6 +106,7 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -121,6 +140,7 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -151,6 +171,7 @@ rules:
   - rolebindings
   verbs:
   - create
+  - deletecollection
   - get
   - patch
   - update
