@@ -234,9 +234,9 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="apiextensions.k8s.io",resources="customresourcedefinitions",verbs=get;create;update;patch
 //+kubebuilder:rbac:groups="apps",resources="deployments",verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterrolebindings",verbs=get;create;update;patch
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs="*"
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs=get;list;watch;create;update;patch;delete;deletecollection;bind
 //+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="rolebindings",verbs=get;create;update;patch
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs=get;list;watch;create;update;patch;delete;deletecollection;bind;escalate
 //+kubebuilder:rbac:groups="networking.k8s.io",resources="networkpolicies",verbs=get;list;watch;create;update;patch;delete
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
