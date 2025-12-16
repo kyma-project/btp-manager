@@ -127,19 +127,6 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterroles
-  verbs:
-  - bind
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
   - roles
   verbs:
   - bind
