@@ -124,7 +124,7 @@ func main() {
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), apiServerClient, scheme, cleanupReconciler, metrics)
-	configReconciler := config.NewReconciler(mgr.GetClient(), scheme, reconciler)
+	configReconciler := config.NewReconciler(mgr.GetClient(), scheme)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 
 	corev1 "k8s.io/api/core/v1"
@@ -17,8 +18,9 @@ import (
 )
 
 const (
-	BtpOperatorCrName       = "btpoperator"
-	KymaSystemNamespaceName = "kyma-system"
+	BtpOperatorCrName         = "btpoperator"
+	KymaSystemNamespaceName   = "kyma-system"
+	ConfigReconcileAnnotation = "operator.kyma-project.io/config-reconciled-at"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -49,21 +51,15 @@ var (
 	EnableLimitedCache = "false"
 )
 
-type BtpOperatorReconcilerInterface interface {
-	Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error)
-}
-
 type Reconciler struct {
 	client.Client
-	Scheme                *runtime.Scheme
-	btpOperatorReconciler BtpOperatorReconcilerInterface
+	Scheme *runtime.Scheme
 }
 
-func NewReconciler(client client.Client, scheme *runtime.Scheme, btpOperatorReconciler BtpOperatorReconcilerInterface) *Reconciler {
+func NewReconciler(client client.Client, scheme *runtime.Scheme) *Reconciler {
 	return &Reconciler{
-		Client:                client,
-		Scheme:                scheme,
-		btpOperatorReconciler: btpOperatorReconciler,
+		Client: client,
+		Scheme: scheme,
 	}
 }
 
@@ -152,5 +148,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	return r.btpOperatorReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}})
+	btp := &v1alpha1.BtpOperator{}
+	key := client.ObjectKey{
+		Name:      BtpOperatorCrName,
+		Namespace: KymaSystemNamespaceName,
+	}
+
+	if err := r.Get(ctx, key, btp); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	patch := client.MergeFrom(btp.DeepCopy())
+
+	annotations := btp.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	annotations[ConfigReconcileAnnotation] = time.Now().UTC().Format(time.RFC3339Nano)
+	btp.SetAnnotations(annotations)
+
+	if err := r.Patch(ctx, btp, patch); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
 }
