@@ -2,7 +2,7 @@
 
 # The script requires BTP Manager to be installed and running in the cluster.
 # Run install_module.sh script before running this script.
-
+#t
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
 set -o errexit  # exit immediately when a command fails.
