@@ -5,22 +5,22 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/internal/certs"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const (
-	BtpOperatorCrName         = "btpoperator"
-	KymaSystemNamespaceName   = "kyma-system"
-	ConfigReconcileAnnotation = "operator.kyma-project.io/config-reconciled-at"
+	BtpOperatorCrName       = "btpoperator"
+	KymaSystemNamespaceName = "kyma-system"
 )
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
@@ -65,8 +65,16 @@ func NewReconciler(client client.Client, scheme *runtime.Scheme) *Reconciler {
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.ConfigMap{}).
-		WithEventFilter(r.predicates()).
+		Named("Configuration").
+		Watches(
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
+				return []ctrl.Request{
+					{NamespacedName: client.ObjectKey{Name: obj.GetName(), Namespace: obj.GetNamespace()}},
+					{NamespacedName: client.ObjectKey{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}},
+				}
+			}),
+			builder.WithPredicates(r.predicates())).
 		Complete(r)
 }
 
@@ -146,27 +154,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			logger.Info("failed to parse configuration update", k, err)
 		}
-	}
-
-	btpOperator := &v1alpha1.BtpOperator{}
-	key := client.ObjectKey{
-		Name:      BtpOperatorCrName,
-		Namespace: KymaSystemNamespaceName,
-	}
-
-	if err := r.Get(ctx, key, btpOperator); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	annotations := btpOperator.GetAnnotations()
-	if annotations == nil {
-		annotations = make(map[string]string)
-	}
-	annotations[ConfigReconcileAnnotation] = time.Now().UTC().Format(time.RFC3339Nano)
-	btpOperator.SetAnnotations(annotations)
-
-	if err := r.Update(ctx, btpOperator); err != nil {
-		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
