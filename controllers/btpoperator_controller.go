@@ -1428,7 +1428,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager, configHandler *config.Handler) error {
 	r.Config = mgr.GetConfig()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
@@ -1437,6 +1437,11 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
+		).
+		Watches(
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(configHandler.Reconcile),
+			builder.WithPredicates(configHandler.Predicates()),
 		).
 		Watches(
 			&admissionregistrationv1.MutatingWebhookConfiguration{},
