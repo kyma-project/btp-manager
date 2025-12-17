@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -56,7 +58,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: btpOperatorName}, cr)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
 		Eventually(updateCh).Should(Receive(matchDeleted()))
-		Expect(k8sClient.Get(ctx, client.ObjectKey{Name: SecretName, Namespace: kymaNamespace}, secret)).To(Succeed())
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.SecretName, Namespace: kymaNamespace}, secret)).To(Succeed())
 		Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
 		Expect(isCrNotFound()).To(BeTrue())
 	})
@@ -69,7 +71,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			Expect(k8sClient.Create(ctx, btpManagerSecret)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, kymaNamespace, kymaNamespace)
@@ -92,7 +94,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			Expect(k8sClient.Create(ctx, btpManagerSecret)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), clusterId, kymaNamespace, kymaNamespace)
@@ -114,7 +116,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			Expect(k8sClient.Create(ctx, btpManagerSecret)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
 			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, customCredentialsNamespace), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, customCredentialsNamespace, customCredentialsNamespace)
@@ -138,12 +140,12 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			Expect(k8sClient.Create(ctx, btpManagerSecret)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, kymaNamespace, kymaNamespace)
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: SecretName, Namespace: kymaNamespace}, btpManagerSecret)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.SecretName, Namespace: kymaNamespace}, btpManagerSecret)).To(Succeed())
 			btpManagerSecret.Data[clientIdSecretKey] = []byte(clientId)
 			Expect(k8sClient.Update(ctx, btpManagerSecret)).To(Succeed())
 			Eventually(func() string {
@@ -170,12 +172,12 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			Expect(k8sClient.Create(ctx, btpManagerSecret)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
 			expectSecretToHaveCredentials(getOperatorSecret(), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, kymaNamespace, kymaNamespace)
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: SecretName, Namespace: kymaNamespace}, btpManagerSecret)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.SecretName, Namespace: kymaNamespace}, btpManagerSecret)).To(Succeed())
 			btpManagerSecret.Data[clientIdSecretKey] = []byte(clientId)
 			btpManagerSecret.Data[clusterIdSecretKey] = []byte(clusterId)
 			btpManagerSecret.Data[CredentialsNamespaceSecretKey] = []byte(customCredentialsNamespace)

@@ -39,6 +39,7 @@ import (
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	//+kubebuilder:scaffold:imports
 )
@@ -65,20 +66,23 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&controllers.ChartNamespace, "chart-namespace", controllers.ChartNamespace, "Namespace to install chart resources.")
-	flag.StringVar(&controllers.SecretName, "secret-name", controllers.SecretName, "Secret name with input values for sap-btp-operator chart templating.")
-	flag.StringVar(&controllers.ConfigName, "config-name", controllers.ConfigName, "ConfigMap name with configuration knobs for the btp-manager internals.")
-	flag.StringVar(&controllers.DeploymentName, "deployment-name", controllers.DeploymentName, "Name of the deployment of sap-btp-operator for deprovisioning.")
-	flag.StringVar(&controllers.ChartPath, "chart-path", controllers.ChartPath, "Path to the root directory inside the chart.")
-	flag.StringVar(&controllers.ResourcesPath, "resources-path", controllers.ResourcesPath, "Path to the directory with module resources to apply/delete.")
-	flag.DurationVar(&controllers.ProcessingStateRequeueInterval, "processing-state-requeue-interval", controllers.ProcessingStateRequeueInterval, `Requeue interval for state "processing".`)
-	flag.DurationVar(&controllers.ReadyStateRequeueInterval, "ready-state-requeue-interval", controllers.ReadyStateRequeueInterval, `Requeue interval for state "ready".`)
-	flag.DurationVar(&controllers.ReadyTimeout, "ready-timeout", controllers.ReadyTimeout, "Helm chart timeout.")
-	flag.DurationVar(&controllers.ReadyCheckInterval, "ready-check-interval", controllers.ReadyCheckInterval, "Ready check retry interval.")
-	flag.DurationVar(&controllers.HardDeleteCheckInterval, "hard-delete-check-interval", controllers.HardDeleteCheckInterval, "Hard delete retry interval.")
-	flag.DurationVar(&controllers.HardDeleteTimeout, "hard-delete-timeout", controllers.HardDeleteTimeout, "Hard delete timeout.")
-	flag.DurationVar(&controllers.DeleteRequestTimeout, "delete-request-timeout", controllers.DeleteRequestTimeout, "Delete request timeout in hard delete.")
-	flag.StringVar(&controllers.EnableLimitedCache, "enable-limited-cache", controllers.EnableLimitedCache, "Enable limited cache for sap-btp-operator.")
+	flag.StringVar(&config.ChartNamespace, "chart-namespace", config.ChartNamespace, "Namespace to install chart resources.")
+	flag.StringVar(&config.SecretName, "secret-name", config.SecretName, "Secret name with input values for sap-btp-operator chart templating.")
+	flag.StringVar(&config.ConfigName, "config-name", config.ConfigName, "ConfigMap name with configuration knobs for the btp-manager internals.")
+	flag.StringVar(&config.DeploymentName, "deployment-name", config.DeploymentName, "Name of the deployment of sap-btp-operator for deprovisioning.")
+	flag.StringVar(&config.ChartPath, "chart-path", config.ChartPath, "Path to the root directory inside the chart.")
+	flag.StringVar(&config.ResourcesPath, "resources-path", config.ResourcesPath, "Path to the directory with module resources to apply/delete.")
+	flag.DurationVar(&config.ProcessingStateRequeueInterval, "processing-state-requeue-interval", config.ProcessingStateRequeueInterval, `Requeue interval for state "processing".`)
+	flag.DurationVar(&config.ReadyStateRequeueInterval, "ready-state-requeue-interval", config.ReadyStateRequeueInterval, `Requeue interval for state "ready".`)
+	flag.DurationVar(&config.ReadyTimeout, "ready-timeout", config.ReadyTimeout, "Helm chart timeout.")
+	flag.DurationVar(&config.ReadyCheckInterval, "ready-check-interval", config.ReadyCheckInterval, "Ready check retry interval.")
+	flag.DurationVar(&config.HardDeleteCheckInterval, "hard-delete-check-interval", config.HardDeleteCheckInterval, "Hard delete retry interval.")
+	flag.DurationVar(&config.HardDeleteTimeout, "hard-delete-timeout", config.HardDeleteTimeout, "Hard delete timeout.")
+	flag.DurationVar(&config.DeleteRequestTimeout, "delete-request-timeout", config.DeleteRequestTimeout, "Delete request timeout in hard delete.")
+	flag.StringVar(&config.EnableLimitedCache, "enable-limited-cache", config.EnableLimitedCache, "Enable limited cache for sap-btp-operator.")
+	flag.DurationVar(&config.StatusUpdateTimeout, "status-update-timeout", config.StatusUpdateTimeout, "Status update timeout.")
+	flag.DurationVar(&config.StatusUpdateCheckInterval, "status-update-check-interval", config.StatusUpdateCheckInterval, "Status update retry interval.")
+	flag.StringVar(&config.ManagerResourcesPath, "manager-resources-path", config.ManagerResourcesPath, "Path to the directory with BTP Manager resources.")
 	opts := zap.Options{
 		Development: false,
 	}
@@ -120,11 +124,18 @@ func main() {
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(mgr.GetClient(), apiServerClient, scheme, cleanupReconciler, metrics)
+	configReconciler := config.NewReconciler(mgr.GetClient(), scheme, reconciler)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
 		os.Exit(1)
 	}
+
+	if err = configReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
