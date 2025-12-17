@@ -10,6 +10,6 @@ spec:
         - name: manager
           env:
             - name: SAP_BTP_SERVICE_OPERATOR
-              value: europe-docker.pkg.dev/kyma-project/prod/external/ghcr.io/sap/sap-btp-service-operator/controller:v0.9.4
+              value: europe-docker.pkg.dev/kyma-project/prod/external/ghcr.io/sap/sap-btp-service-operator/controller:v0.9.5
             - name: KUBE_RBAC_PROXY
               value: europe-docker.pkg.dev/kyma-project/prod/external/quay.io/brancz/kube-rbac-proxy:v0.20.0
