@@ -148,26 +148,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	btp := &v1alpha1.BtpOperator{}
+	btpOperator := &v1alpha1.BtpOperator{}
 	key := client.ObjectKey{
 		Name:      BtpOperatorCrName,
 		Namespace: KymaSystemNamespaceName,
 	}
 
-	if err := r.Get(ctx, key, btp); err != nil {
+	if err := r.Get(ctx, key, btpOperator); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	patch := client.MergeFrom(btp.DeepCopy())
-
-	annotations := btp.GetAnnotations()
+	annotations := btpOperator.GetAnnotations()
 	if annotations == nil {
-		annotations = map[string]string{}
+		annotations = make(map[string]string)
 	}
 	annotations[ConfigReconcileAnnotation] = time.Now().UTC().Format(time.RFC3339Nano)
-	btp.SetAnnotations(annotations)
+	btpOperator.SetAnnotations(annotations)
 
-	if err := r.Patch(ctx, btp, patch); err != nil {
+	if err := r.Update(ctx, btpOperator); err != nil {
 		return ctrl.Result{}, err
 	}
 
