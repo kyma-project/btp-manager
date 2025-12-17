@@ -16,7 +16,7 @@ manager:
   management_namespace:
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.9.4
+    tag: v0.9.5
     sha: ""
   secret:
     b64encoded: false
@@ -91,6 +91,9 @@ manager:
   #   runAsNonRoot: true
   #   fsGroup: 1000
   podSecurityContext: {}
+  # Custom CA certificates for HTTPS connections to SAP BTP
+#  customCACerts:
+#    - "" # base64 encoded PEM
   health_service:
     enabled: false
   kubernetesMatchLabels:
