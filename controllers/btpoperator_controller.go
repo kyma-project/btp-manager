@@ -194,7 +194,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources=serviceinstances/status;servicebindings/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups="coordination.k8s.io",resources=leases,verbs=create;get;list;update
 //+kubebuilder:rbac:groups="",resources="namespaces",verbs=get;list;watch
-//+kubebuilder:rbac:groups="",resources="pods",verbs=get;list
+//+kubebuilder:rbac:groups="",resources="pods",verbs=get;list;delete
 //+kubebuilder:rbac:groups="",resources="events",verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups="authentication.k8s.io",resources=tokenreviews,verbs=create
 //+kubebuilder:rbac:groups="authorization.k8s.io",resources=subjectaccessreviews,verbs=create
