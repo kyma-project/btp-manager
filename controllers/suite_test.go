@@ -177,7 +177,16 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	metrics := btpmanagermetrics.NewMetrics()
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
-	reconciler = NewBtpOperatorReconciler(k8sManager.GetClient(), k8sClient, k8sManager.GetScheme(), cleanupReconciler, metrics)
+	reconciler = NewBtpOperatorReconciler(
+		k8sManager.GetClient(),
+		k8sClient,
+		k8sManager.GetScheme(),
+		cleanupReconciler,
+		metrics,
+		[]config.WatchHandler{
+			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme()),
+		},
+	)
 
 	k8sClientFromManager = k8sManager.GetClient()
 
@@ -216,7 +225,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		Expect(os.Setenv(KubeRbacProxyEnv, fakeKubeRbacProxyImage)).To(Succeed())
 	}
 
-	err = reconciler.SetupWithManager(k8sManager, config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme()))
+	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	informer, err := k8sManager.GetCache().GetInformer(ctx, &v1alpha1.BtpOperator{})

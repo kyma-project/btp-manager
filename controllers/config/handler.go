@@ -50,6 +50,12 @@ var (
 	EnableLimitedCache = "false"
 )
 
+type WatchHandler interface {
+	Object() client.Object
+	Predicates() predicate.Funcs
+	Reconcile(ctx context.Context, obj client.Object) []reconcile.Request
+}
+
 type Handler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -60,6 +66,10 @@ func NewHandler(client client.Client, scheme *runtime.Scheme) *Handler {
 		Client: client,
 		Scheme: scheme,
 	}
+}
+
+func (r *Handler) Object() client.Object {
+	return &corev1.ConfigMap{}
 }
 
 func (r *Handler) Predicates() predicate.Funcs {
