@@ -184,7 +184,7 @@ jobs:
 
       - name: Notify slack channel about failure
         if: ${{ !success() && env.SLACK_BOT_TOKEN != ''}}
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           channel-id: 'kyma-gopher-private-alerts'
           slack-message: "Auto-update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
