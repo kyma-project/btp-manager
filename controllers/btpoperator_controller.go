@@ -167,6 +167,7 @@ type BtpOperatorReconciler struct {
 	clusterIdFromSapBtpServiceOperatorClusterIdSecret   string
 	credentialsNamespaceFromSapBtpManagerSecret         string
 	credentialsNamespaceFromSapBtpServiceOperatorSecret string
+	watchHandlers                                       []config.WatchHandler
 }
 
 type ResourceReadiness struct {
@@ -176,7 +177,7 @@ type ResourceReadiness struct {
 	Ready     bool
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics, watchHandlers []config.WatchHandler) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
@@ -184,6 +185,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 		manifestHandler:        &manifest.Handler{Scheme: scheme},
 		instanceBindingService: instanceBindingSerivice,
 		metrics:                metrics,
+		watchHandlers:          watchHandlers,
 	}
 }
 
@@ -1436,7 +1438,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
-	return ctrl.NewControllerManagedBy(mgr).
+	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
@@ -1463,8 +1465,17 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&networkingv1.NetworkPolicy{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchNetworkPolicyPredicates()),
-		).
-		Complete(r)
+		)
+
+	for _, watchHandler := range r.watchHandlers {
+		controllerBuilder.Watches(
+			watchHandler.Object(),
+			handler.EnqueueRequestsFromMapFunc(watchHandler.Reconcile),
+			builder.WithPredicates(watchHandler.Predicates()),
+		)
+	}
+
+	return controllerBuilder.Complete(r)
 }
 
 func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {

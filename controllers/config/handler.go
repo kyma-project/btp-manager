@@ -9,11 +9,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -49,32 +50,29 @@ var (
 	EnableLimitedCache = "false"
 )
 
-type BtpOperatorReconcilerInterface interface {
-	Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error)
+type WatchHandler interface {
+	Object() client.Object
+	Predicates() predicate.Funcs
+	Reconcile(ctx context.Context, obj client.Object) []reconcile.Request
 }
 
-type Reconciler struct {
+type Handler struct {
 	client.Client
-	Scheme                *runtime.Scheme
-	btpOperatorReconciler BtpOperatorReconcilerInterface
+	Scheme *runtime.Scheme
 }
 
-func NewReconciler(client client.Client, scheme *runtime.Scheme, btpOperatorReconciler BtpOperatorReconcilerInterface) *Reconciler {
-	return &Reconciler{
-		Client:                client,
-		Scheme:                scheme,
-		btpOperatorReconciler: btpOperatorReconciler,
+func NewHandler(client client.Client, scheme *runtime.Scheme) *Handler {
+	return &Handler{
+		Client: client,
+		Scheme: scheme,
 	}
 }
 
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.ConfigMap{}).
-		WithEventFilter(r.predicates()).
-		Complete(r)
+func (r *Handler) Object() client.Object {
+	return &corev1.ConfigMap{}
 }
 
-func (r *Reconciler) predicates() predicate.Funcs {
+func (r *Handler) Predicates() predicate.Funcs {
 	nameMatches := func(o client.Object) bool {
 		return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace
 	}
@@ -85,12 +83,12 @@ func (r *Reconciler) predicates() predicate.Funcs {
 	}
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
 
-	cm := &corev1.ConfigMap{}
-	if err := r.Get(ctx, req.NamespacedName, cm); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+	cm, ok := obj.(*corev1.ConfigMap)
+	if !ok {
+		return []reconcile.Request{}
 	}
 
 	logger.Info("reconciling configuration update", "config", cm.Data)
@@ -152,5 +150,5 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	return r.btpOperatorReconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}})
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
 }

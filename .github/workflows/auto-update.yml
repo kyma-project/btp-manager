@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -139,7 +139,7 @@ jobs:
 
       - name: Checkout code after chart update and external images sync
         if: env.UPDATE_CHART == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       
@@ -184,7 +184,7 @@ jobs:
 
       - name: Notify slack channel about failure
         if: ${{ !success() && env.SLACK_BOT_TOKEN != ''}}
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           channel-id: 'kyma-gopher-private-alerts'
           slack-message: "Auto-update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 729b3bd52248362501f1ce7a3aaa2e43cbd6c554d6bad9f74622bb1fe24c4cff
+        checksum/config: f52ef1d9b12bfe1d75aae1ef4525fc8a1a9d137905438a1a0ddd0b63f6b44122
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
@@ -61,6 +61,9 @@ spec:
             - --logger_use_dev_mode=true
           command:
             - /manager
+          env:
+            - name: APP_VERSION
+              value: "v0.9.6"
           envFrom:
             - configMapRef:
                 name: sap-btp-operator-config
