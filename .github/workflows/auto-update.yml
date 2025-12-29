@@ -2,7 +2,6 @@ name: Auto update chart/resources
 
 env:
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
-  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
   GIT_EMAIL: team-gopher+1@sap.com
   GIT_NAME: kyma-gopher-bot
@@ -183,13 +182,14 @@ jobs:
           fi
 
       - name: Notify slack channel about failure
-        if: ${{ !success() && env.SLACK_BOT_TOKEN != ''}}
+        if: ${{ !success() }}
         uses: slackapi/slack-github-action@v2.1.1
         with:
-          channel-id: 'kyma-gopher-private-alerts'
-          slack-message: "Auto-update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: kyma-gopher-private-alerts
+            text: "Auto-update of BTP Manager has failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Notify MS Teams channel about failure
         if: ${{ !success() }}

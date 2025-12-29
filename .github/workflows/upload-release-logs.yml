@@ -63,13 +63,14 @@ jobs:
           done
       
       - name: Notify slack channel about failure
-        if: ${{ !success() && env.SLACK_BOT_TOKEN != ''}}
+        if: ${{ !success() }}
         uses: slackapi/slack-github-action@v2.1.1
         with:
-            channel-id: 'kyma-gopher-private-alerts'
-            slack-message: "Logs uploading to release failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        env:
-            SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: kyma-gopher-private-alerts
+            text: "Logs uploading to release failed. Check the details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Notify MS Teams channel about failure
         if: ${{ !success() }}
