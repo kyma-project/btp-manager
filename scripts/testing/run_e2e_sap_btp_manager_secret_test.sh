@@ -89,7 +89,8 @@ waitForResourceExistence() {
   local resource_type=$1
   local resource_name=$2
   local namespace=${3:-kyma-system}
-  local timeout=${4:-10}
+  local wait_interval=${4:-2}
+  local timeout=${5:-10}
 
   echo -e "\n--- Checking $resource_type/$resource_name existence in $namespace namespace"
   local seconds=0
@@ -100,7 +101,8 @@ waitForResourceExistence() {
       return 0
     fi
     echo -e "--- Waiting for $resource_type/$resource_name existence in $namespace namespace (${seconds}s/${timeout}s)"
-    sleep 2
+    sleep $wait_interval
+    seconds=$((seconds + wait_interval))
   done
   echo -e "--- ERROR: Timed out waiting for $resource_type/$resource_name existence in $namespace namespace"
   return 1
