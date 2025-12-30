@@ -97,15 +97,13 @@ waitForResourceExistence() {
   while [[ $seconds -lt $timeout ]]; do
     local exists="$(kubectl get -n $namespace $resource_type/$resource_name 2>&1)"
     if [[ $exists != *"Error from server (NotFound)"* ]]; then
-      echo -e "--- $resource_type/$resource_name exists in $namespace namespace"
-      return 0
+      echo "$resource_type/$resource_name exists in $namespace namespace" && return 0
     fi
-    echo -e "--- Waiting for $resource_type/$resource_name existence in $namespace namespace (${seconds}s/${timeout}s)"
+    echo "Waiting for $resource_type/$resource_name existence in $namespace namespace (${seconds}s/${timeout}s)"
     sleep $wait_interval
     seconds=$((seconds + wait_interval))
   done
-  echo -e "--- ERROR: Timed out waiting for $resource_type/$resource_name existence in $namespace namespace"
-  return 1
+  echo "Timed out waiting for $resource_type/$resource_name existence in $namespace namespace" && return 1
 }
 
 # Set environment variables
