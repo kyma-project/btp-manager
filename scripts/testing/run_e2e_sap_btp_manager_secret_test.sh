@@ -85,10 +85,31 @@ checkPodEnvs() {
   fi
 }
 
-echo -e "\n--- BTP Manager secret customization test ---\n"
+waitForResourceExistence() {
+  local resource_type=$1
+  local resource_name=$2
+  local namespace=${3:-kyma-system}
+  local timeout=${4:-10}
+
+  echo -e "\n--- Checking $resource_type/$resource_name existence in $namespace namespace"
+  local seconds=0
+  while [[ $seconds -lt $timeout ]]; do
+    local exists="$(kubectl get -n $namespace $resource_type/$resource_name 2>&1)"
+    if [[ $exists != *"Error from server (NotFound)"* ]]; then
+      echo -e "--- $resource_type/$resource_name exists in $namespace namespace"
+      return 0
+    fi
+    echo -e "--- Waiting for $resource_type/$resource_name existence in $namespace namespace (${seconds}s/${timeout}s)"
+    sleep 2
+  done
+  echo -e "--- ERROR: Timed out waiting for $resource_type/$resource_name existence in $namespace namespace"
+  return 1
+}
 
 # Set environment variables
 YAML_DIR="scripts/testing/yaml"
+SECRET_RESOURCE=secret
+CONFIGMAP_RESOURCE=configmap
 
 ## Resources names
 KYMA_NAMESPACE=kyma-system
@@ -112,20 +133,16 @@ ENCODED_CLUSTER_ID=$(echo -n ${CLUSTER_ID} | base64)
 ENCODED_CREDENTIALS_NAMESPACE=$(echo -n ${CREDENTIALS_NAMESPACE} | base64)
 ENCODED_KYMA_NAMESPACE=$(echo -n ${KYMA_NAMESPACE} | base64)
 
+echo -e "\n--- BTP Manager secret customization test ---\n"
+
 ## Check SAP BTP service operator secret existence
-echo -e "\n--- Checking ${SAP_BTP_OPERATOR_SECRET_NAME} existence"
-(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
-(echo "could not get ${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
+waitForResourceExistence $SECRET_RESOURCE $SAP_BTP_OPERATOR_SECRET_NAME
 
 ## Check SAP BTP service operator configmap existence
-echo -e "\n--- Checking ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} existence"
-(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} && echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace exists") || \
-(echo "could not get ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
+waitForResourceExistence $CONFIGMAP_RESOURCE $SAP_BTP_OPERATOR_CONFIGMAP_NAME
 
 ## Check SAP BTP service operator cluster ID secret existence
-echo -e "\n--- Checking ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} existence"
-(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
-(echo "could not get ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
+waitForResourceExistence $SECRET_RESOURCE $SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME
 
 # Create credentials namespace if required
 echo -e "\n--- Creating ${CREDENTIALS_NAMESPACE} if required"
