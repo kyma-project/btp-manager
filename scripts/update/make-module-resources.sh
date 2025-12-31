@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
