@@ -85,10 +85,31 @@ checkPodEnvs() {
   fi
 }
 
-echo -e "\n--- BTP Manager secret customization test ---\n"
+waitForResourceExistence() {
+  local resource_type=$1
+  local resource_name=$2
+  local namespace=${3:-kyma-system}
+  local wait_interval=${4:-2}
+  local timeout=${5:-10}
+
+  echo -e "\n--- Checking $resource_type/$resource_name existence in $namespace namespace"
+  local seconds=0
+  while [[ $seconds -lt $timeout ]]; do
+    local exists="$(kubectl get -n $namespace $resource_type/$resource_name 2>&1)"
+    if [[ $exists != *"Error from server (NotFound)"* ]]; then
+      echo "$resource_type/$resource_name exists in $namespace namespace" && return 0
+    fi
+    echo "Waiting for $resource_type/$resource_name existence in $namespace namespace (${seconds}s/${timeout}s)"
+    sleep $wait_interval
+    seconds=$((seconds + wait_interval))
+  done
+  echo "Timed out waiting for $resource_type/$resource_name existence in $namespace namespace" && return 1
+}
 
 # Set environment variables
 YAML_DIR="scripts/testing/yaml"
+SECRET_RESOURCE=secret
+CONFIGMAP_RESOURCE=configmap
 
 ## Resources names
 KYMA_NAMESPACE=kyma-system
@@ -112,20 +133,16 @@ ENCODED_CLUSTER_ID=$(echo -n ${CLUSTER_ID} | base64)
 ENCODED_CREDENTIALS_NAMESPACE=$(echo -n ${CREDENTIALS_NAMESPACE} | base64)
 ENCODED_KYMA_NAMESPACE=$(echo -n ${KYMA_NAMESPACE} | base64)
 
+echo -e "\n--- BTP Manager secret customization test ---\n"
+
 ## Check SAP BTP service operator secret existence
-echo -e "\n--- Checking ${SAP_BTP_OPERATOR_SECRET_NAME} existence"
-(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
-(echo "could not get ${SAP_BTP_OPERATOR_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
+waitForResourceExistence $SECRET_RESOURCE $SAP_BTP_OPERATOR_SECRET_NAME
 
 ## Check SAP BTP service operator configmap existence
-echo -e "\n--- Checking ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} existence"
-(kubectl get configmap -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} && echo "${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace exists") || \
-(echo "could not get ${SAP_BTP_OPERATOR_CONFIGMAP_NAME} ConfigMap in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
+waitForResourceExistence $CONFIGMAP_RESOURCE $SAP_BTP_OPERATOR_CONFIGMAP_NAME
 
 ## Check SAP BTP service operator cluster ID secret existence
-echo -e "\n--- Checking ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} existence"
-(kubectl get secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} && echo "${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace exists") || \
-(echo "could not get ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
+waitForResourceExistence $SECRET_RESOURCE $SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME
 
 # Create credentials namespace if required
 echo -e "\n--- Creating ${CREDENTIALS_NAMESPACE} if required"
@@ -187,10 +204,6 @@ echo -e "\n-- Changing INITIAL_CLUSTER_ID in ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRE
 kubectl patch secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -p "{\"data\":{\"INITIAL_CLUSTER_ID\":\"$(echo -n 'different-cluster-id' | base64)\"}}" || \
 (echo "could not patch ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
 
-echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
-kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
-
 SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
 echo -e "\n-- Deleting ${SAP_BTP_OPERATOR_POD_NAME} pod to enforce CrashLoopBackOff due to invalid cluster ID"
 kubectl delete pod -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} || \
@@ -207,9 +220,12 @@ done
 # Wait until the pod is in CrashLoopBackOff state
 until [[ "$(kubectl get pod -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -o json | jq -r '.status.containerStatuses[] | select(.state.waiting.reason == "CrashLoopBackOff") | .state.waiting.reason')" == "CrashLoopBackOff" ]]; do
   echo -e "\n-- Waiting for ${SAP_BTP_OPERATOR_POD_NAME} pod to be in the CrashLoopBackOff state..."
-  SAP_BTP_OPERATOR_POD_NAME=$(kubectl get pod -n ${KYMA_NAMESPACE} -l app.kubernetes.io/name=sap-btp-operator -o jsonpath="{.items[*].metadata.name}")
   sleep 1
 done
+
+echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
 # Wait until resources are reconciled
 echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"

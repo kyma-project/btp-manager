@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DEFAULT_K3S_VERSION="v1.26.6+k3s1"
+DEFAULT_K3S_VERSION="v1.33.5+k3s1"
 
 if [ "${1}" == "--wait" ]
 then
