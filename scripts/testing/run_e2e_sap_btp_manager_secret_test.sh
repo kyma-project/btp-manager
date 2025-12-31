@@ -200,10 +200,6 @@ checkPodEnvs ${CLUSTER_ID} ${KYMA_NAMESPACE}
 while [[ $(kubectl get btpoperators/btpoperator -n kyma-system -ojson| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
 do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
 
-echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
-kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
-
 echo -e "\n-- Changing INITIAL_CLUSTER_ID in ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret"
 kubectl patch secret -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} -p "{\"data\":{\"INITIAL_CLUSTER_ID\":\"$(echo -n 'different-cluster-id' | base64)\"}}" || \
 (echo "could not patch ${SAP_BTP_OPERATOR_CLUSTER_ID_SECRET_NAME} secret in ${KYMA_NAMESPACE} namespace, command return code: $?" && exit 1)
@@ -227,8 +223,9 @@ until [[ "$(kubectl get pod -n ${KYMA_NAMESPACE} ${SAP_BTP_OPERATOR_POD_NAME} -o
   sleep 1
 done
 
-echo -e "\n--- Patching sap-btp-manager configmap with ReadyTimeout 20s to enforce reconcile"
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"20s"}}'
+echo -e "\n--- Creating sap-btp-manager configmap with ReadyTimeout 10s"
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyTimeout":"10s"}}'
 
 # Wait until resources are reconciled
 echo -e "\n--- Waiting for SAP BTP service operator secrets and configmap changes"
