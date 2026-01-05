@@ -32,7 +32,7 @@ jobs:
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@f423b273f5fdf73582e41f8f6f0f204d69c27379
+        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
         with:
           delay: '1'
           retries: '15'
@@ -104,7 +104,7 @@ jobs:
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@f423b273f5fdf73582e41f8f6f0f204d69c27379
+        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
         with:
           delay: '1'
           retries: '15'
@@ -189,7 +189,7 @@ jobs:
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@f423b273f5fdf73582e41f8f6f0f204d69c27379
+        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
         with:
           delay: '1'
           retries: '15'
@@ -208,7 +208,12 @@ jobs:
 
       - name: Scale down btp-manager-controller-manager 
         run: |
-          kubectl scale deployment btp-manager-controller-manager --replicas 0 -n kyma-system
+          BTP_MANAGER_POD_NAME=$(kubectl get pod -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io -o jsonpath="{.items[*].metadata.name}")
+          kubectl scale deployment -n kyma-system btp-manager-controller-manager --replicas 0
+          echo -e "Waiting for $BTP_MANAGER_POD_NAME removal..."
+          until [[ "$(kubectl get pod -n kyma-system $BTP_MANAGER_POD_NAME 2>&1)" == *"Error from server (NotFound)"* ]]; do
+            sleep 2
+          done
           
       - name: Delete secrets and configmaps managed by BTP Manager
         run: |
@@ -262,7 +267,7 @@ jobs:
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@f423b273f5fdf73582e41f8f6f0f204d69c27379
+        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
         with:
           delay: '1'
           retries: '15'
