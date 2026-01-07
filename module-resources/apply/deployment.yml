@@ -65,7 +65,7 @@ spec:
             - name: APP_VERSION
               value: "v0.9.8"
             - name: GODEBUG
-              value: "fips140=only"
+              value: "fips140=only,tlsmlkem=0"
           envFrom:
             - configMapRef:
                 name: sap-btp-operator-config
