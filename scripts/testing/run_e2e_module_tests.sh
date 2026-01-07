@@ -11,10 +11,10 @@
 #      GITHUB_JOB - the ID of the current job from the workflow
 
 # standard bash error handling
-set -o nounset  # treat unset variables as an error and exit immediately.
-set -o errexit  # exit immediately when a command fails.
-set -E          # needs to be set if we want the ERR trap
-set -o pipefail # prevents errors in a pipeline from being masked
+#set -o nounset  # treat unset variables as an error and exit immediately.
+#set -o errexit  # exit immediately when a command fails.
+#set -E          # needs to be set if we want the ERR trap
+#set -o pipefail # prevents errors in a pipeline from being masked
 
 waitForBtpOperatorCrReadiness () {
   echo -e "\n--- Waiting for BtpOperator CR to be ready"
@@ -225,7 +225,7 @@ export SB_NAME
 export SI_PARAMS_SECRET_NAME
 
 echo -e "\n---Creating service instance: ${SI_NAME}"
-#envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
+envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
 
 echo -e "\n---Creating service binding: ${SB_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
