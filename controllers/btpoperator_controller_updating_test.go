@@ -206,7 +206,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(actualNumOfOldResources).To(Equal(0))
 			actualNumOfNewResources, err := countResourcesForGivenChartVer(gvks, newChartVersion)
 			Expect(err).To(BeNil())
-			Expect(actualNumOfNewResources).To(Equal(len(expectedApplyObjs)))
+			// expectedApplyObjs + 1 Busola extension ConfigMap from manager-resources
+			Expect(actualNumOfNewResources).To(Equal(len(expectedApplyObjs) + 1))
 			assertResourcesExistence(expectedUns...)
 			assertResourcesRemoval(unexpectedUns...)
 		})
