@@ -225,7 +225,7 @@ export SB_NAME
 export SI_PARAMS_SECRET_NAME
 
 echo -e "\n---Creating service instance: ${SI_NAME}"
-envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
+#envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
 
 echo -e "\n---Creating service binding: ${SB_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
