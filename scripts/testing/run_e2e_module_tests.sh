@@ -227,8 +227,7 @@ export SI_PARAMS_SECRET_NAME
 echo -e "\n---Creating service instance: ${SI_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
 
-set -x
-kubectl logs ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system
+kubectl logs deployments/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -n kyma-system
 
 echo -e "\n---Creating service binding: ${SB_NAME}"
 envsubst <${YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
