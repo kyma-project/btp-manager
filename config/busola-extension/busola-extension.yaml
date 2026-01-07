@@ -1,16 +1,15 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: btpoperator-module
-  namespace: {{ .Release.Namespace }}
+  name: btpoperator-busola-extension
+  namespace: kyma-system
   labels:
-    app.kubernetes.io/managed-by: kyma
+    app.kubernetes.io/managed-by: btp-manager
     app.kubernetes.io/name: btp-manager
-    app.kubernetes.io/part-of: Kyma
+    app.kubernetes.io/part-of: btp-manager
     busola.io/extension: resource
     busola.io/extension-version: '0.5'
     kyma-project.io/module: btp-operator
-    operator.kyma-project.io/managed-by: kyma
 data:
   general: |-
     resource:
