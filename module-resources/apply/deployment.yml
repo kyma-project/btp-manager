@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 76617be24abbc53f78030979a78ffef6bfd32dfb6f90cd7b2e66849163c4202c
+        checksum/config: 8f43ca2ed6e599a2f5f667ca6cdcb32dc0bd981f1540c5763ae392fde28d51c6
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
@@ -65,7 +65,7 @@ spec:
             - name: APP_VERSION
               value: "v0.9.8"
             - name: GODEBUG
-              value: "fips140=only"
+              value: "fips140=only,tlsmlkem=0"
           envFrom:
             - configMapRef:
                 name: sap-btp-operator-config
