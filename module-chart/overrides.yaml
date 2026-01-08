@@ -28,3 +28,4 @@ manager:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
+  fips: "fips140=only,tlsmlkem=0"
