@@ -489,6 +489,27 @@ func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Contex
 	return nil
 }
 
+func (r *BtpOperatorReconciler) getBusolaExtensionPath() string {
+	return fmt.Sprintf("%s%cbusola-extension", config.ManagerResourcesPath, os.PathSeparator)
+}
+
+func (r *BtpOperatorReconciler) loadBusolaExtension() ([]*unstructured.Unstructured, error) {
+	return r.createUnstructuredObjectsFromManifestsDir(r.getBusolaExtensionPath())
+}
+
+func (r *BtpOperatorReconciler) addBusolaExtensionToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+	logger := log.FromContext(ctx)
+	busolaExtension, err := r.loadBusolaExtension()
+	if err != nil {
+		logger.Error(err, "while loading busola extension")
+		return fmt.Errorf("failed to load busola extension: %w", err)
+	}
+	*resourcesToApply = append(*resourcesToApply, busolaExtension...)
+	logger.Info(fmt.Sprintf("added %d busola extension resources to apply", len(busolaExtension)))
+
+	return nil
+}
+
 func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 
@@ -533,6 +554,11 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 		if err := r.addNetworkPoliciesToResources(ctx, &resourcesToApply); err != nil {
 			return err
 		}
+	}
+
+	logger.Info("loading and adding busola extension to resources")
+	if err := r.addBusolaExtensionToResources(ctx, &resourcesToApply); err != nil {
+		return err
 	}
 
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
