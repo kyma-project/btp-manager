@@ -148,9 +148,19 @@ data:
           - name: Secret Fields
             source: "'clientid, clientsecret, cluster_id, sm_url, tokenurl'"
             widget: Text
-          - name: View Secret Command
+          - name: View Secret (kubectl)
             source: "'kubectl get secret sap-btp-manager -n kyma-system -o yaml'"
             widget: Text
+      
+      - name: SAP BTP Manager Secret Data
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        children:
+          - widget: CodeViewer
+            source: '$btpSecret()'
+            language: yaml
       
       - name: SAP BTP Service Instances
         widget: Panel
@@ -206,6 +216,7 @@ data:
         - source: relatedPods
         - source: relatedServiceInstances
         - source: relatedServiceBindings
+        - source: btpSecret
   
   dataSources: |-
     relatedDeployments:
@@ -234,3 +245,9 @@ data:
         kind: ServiceBinding
         version: v1
         group: services.cloud.sap.com
+    btpSecret:
+      resource:
+        kind: Secret
+        version: v1
+        namespace: kyma-system
+        name: sap-btp-manager
