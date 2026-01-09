@@ -162,6 +162,24 @@ data:
             source: '$btpSecret()'
             language: yaml
       
+      - name: SAP BTP Manager Secret - Decoded Data
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        source: '$base64decode($btpSecret().data.clientid)'
+        children:
+          - name: Client ID
+            source: '$base64decode($btpSecret().data.clientid)'
+          - name: Client Secret
+            source: '$base64decode($btpSecret().data.clientsecret)'
+          - name: Cluster ID
+            source: '$base64decode($btpSecret().data.cluster_id)'
+          - name: Service Manager URL
+            source: '$base64decode($btpSecret().data.sm_url)'
+          - name: Token URL
+            source: '$base64decode($btpSecret().data.tokenurl)'
+      
       - name: SAP BTP Service Instances
         widget: Panel
         children:
