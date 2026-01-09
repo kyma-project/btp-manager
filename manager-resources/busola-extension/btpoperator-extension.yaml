@@ -115,6 +115,54 @@ data:
             source: "'sap-btp-operator-controller-manager'"
           - name: BTP Manager Controller
             source: "'btp-manager-controller-manager'"
+          - name: Management Mode
+            source: >-
+              ($exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+               metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma' ? 'Managed' : 'Open Source')
+            widget: Badge
+            highlights:
+              informative:
+                - 'Managed'
+              positive:
+                - 'Open Source'
+      
+      - name: SAP BTP Credentials (sap-btp-manager Secret)
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        children:
+          - name: Info
+            source: >-
+              'This module is managed by Kyma Control Plane. The sap-btp-manager Secret contains BTP service operator credentials.'
+            widget: Text
+          - name: Secret Name
+            source: "'sap-btp-manager'"
+            widget: Text
+          - name: Namespace  
+            source: "'kyma-system'"
+            widget: Text
+          - name: Managed By
+            source: "'kcp-kyma-environment-broker'"
+            widget: Text
+          - name: Secret Fields
+            source: "'clientid, clientsecret, cluster_id, sm_url, tokenurl'"
+            widget: Text
+          - name: View Secret Command
+            source: "'kubectl get secret sap-btp-manager -n kyma-system -o yaml'"
+            widget: Text
+      
+      - name: SAP BTP Service Instances
+        widget: Panel
+        children:
+          - widget: ResourceList
+            source: '$relatedServiceInstances()'
+      
+      - name: SAP BTP Service Bindings
+        widget: Panel
+        children:
+          - widget: ResourceList
+            source: '$relatedServiceBindings()'
       
       - name: Status Details
         widget: Panel
@@ -156,6 +204,8 @@ data:
         - source: relatedDeployments
         - source: relatedServices
         - source: relatedPods
+        - source: relatedServiceInstances
+        - source: relatedServiceBindings
   
   dataSources: |-
     relatedDeployments:
@@ -174,3 +224,13 @@ data:
         kind: Pod
         version: v1
       filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedServiceInstances:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+    relatedServiceBindings:
+      resource:
+        kind: ServiceBinding
+        version: v1
+        group: services.cloud.sap.com
