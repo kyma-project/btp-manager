@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 )
@@ -45,7 +46,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		It("Should return correct network policies path", func() {
 			reconciler := &BtpOperatorReconciler{}
 			path := reconciler.getNetworkPoliciesPath()
-			expected := ManagerResourcesPath + string(os.PathSeparator) + "network-policies"
+			expected := config.ManagerResourcesPath + string(os.PathSeparator) + "network-policies"
 			Expect(path).To(Equal(expected))
 		})
 	})
@@ -211,7 +212,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				}
 			}
 			if secret != nil {
-				if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, secret); err == nil {
+				if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: config.SecretName}, secret); err == nil {
 					Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
 				}
 			}

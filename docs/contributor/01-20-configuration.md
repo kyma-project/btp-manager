@@ -45,6 +45,12 @@ Usage of ./manager:
       Enable limited cache for the SAP BTP service operator. When enabled, caches only Secrets and ConfigMaps with the label "services.cloud.sap.com/managed-by-sap-btp-operator: true". (default "false")
   -secret-name string
     	Secret name with input values for sap-btp-operator chart templating. (default "sap-btp-manager")
+  -status-update-check-interval duration
+        Status update retry interval. (default 500ms)
+  -status-update-timeout duration
+        Status update timeout. (default 10s)
+  -manager-resources-path string
+        Path to the directory with BTP Manager resources. (default "./manager-resources")
   -zap-devel
     	Development Mode defaults(encoder=consoleEncoder,logLevel=Debug,stackTraceLevel=Warn). Production Mode defaults(encoder=jsonEncoder,logLevel=Info,stackTraceLevel=Error) (default true)
   -zap-encoder value

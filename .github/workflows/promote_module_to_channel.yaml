@@ -44,12 +44,12 @@ jobs:
           echo "Validated"
 
       - name: Checkout btp-manager
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
          path: btp-manager
 
       - name: Checkout module-manifests
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           github-server-url: https://${{ vars.GH_TOOLS_HOST }}
           repository: kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}

@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 )
@@ -50,7 +51,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		Expect(k8sClient.Create(ctx, cr)).To(Succeed())
 		Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
-		initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+		initChartVersion, err = ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
 		Expect(err).To(BeNil())
 		_ = initChartVersion
 
@@ -64,11 +65,11 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 		chartUpdatePathForProcess = fmt.Sprintf("%s%d", chartUpdatePath, GinkgoParallelProcess())
 		resourcesUpdatePathForProcess = fmt.Sprintf("%s%d", resourcesUpdatePath, GinkgoParallelProcess())
-		copyDirRecursively(ChartPath, chartUpdatePathForProcess)
-		copyDirRecursively(ResourcesPath, resourcesUpdatePathForProcess)
-		ChartPath = chartUpdatePathForProcess
-		ResourcesPath = resourcesUpdatePathForProcess
-		defaultDeploymentName = DeploymentName
+		copyDirRecursively(config.ChartPath, chartUpdatePathForProcess)
+		copyDirRecursively(config.ResourcesPath, resourcesUpdatePathForProcess)
+		config.ChartPath = chartUpdatePathForProcess
+		config.ResourcesPath = resourcesUpdatePathForProcess
+		defaultDeploymentName = config.DeploymentName
 	})
 
 	AfterEach(func() {
@@ -80,15 +81,15 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		Expect(isCrNotFound()).To(BeTrue())
 
 		deleteSecret := &corev1.Secret{}
-		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: config.SecretName}, deleteSecret)).To(Succeed())
 		Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
 
 		Expect(os.RemoveAll(chartUpdatePathForProcess)).To(Succeed())
 		Expect(os.RemoveAll(resourcesUpdatePathForProcess)).To(Succeed())
 
-		ChartPath = defaultChartPath
-		ResourcesPath = defaultResourcesPath
-		DeploymentName = defaultDeploymentName
+		config.ChartPath = defaultChartPath
+		config.ResourcesPath = defaultResourcesPath
+		config.DeploymentName = defaultDeploymentName
 	})
 
 	When("update all resources names and bump chart version", Label("test-update"), func() {
@@ -99,7 +100,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix)
 			Expect(err).To(BeNil())
 
-			DeploymentName = defaultDeploymentName + suffix
+			config.DeploymentName = defaultDeploymentName + suffix
 
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
@@ -137,7 +138,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix)
 			Expect(err).To(BeNil())
 
-			DeploymentName = defaultDeploymentName + suffix
+			config.DeploymentName = defaultDeploymentName + suffix
 
 			err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
 			Expect(err).To(BeNil())

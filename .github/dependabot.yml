@@ -1,11 +1,9 @@
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
 version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
     labels:
-      - "skip-review"
+      - "go"
       - "area/dependency"
       - "kind/enhancement"
     schedule:
@@ -16,10 +14,22 @@ updates:
   - package-ecosystem: "docker"
     directory: "/"
     labels:
+      - "docker"
       - "area/dependency"
       - "kind/enhancement"
     schedule:
       interval: "daily"
     commit-message:
       prefix: "docker"
+      include: "scope"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    labels:
+      - "github-actions"
+      - "area/dependency"
+      - "kind/enhancement"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "github-actions"
       include: "scope"

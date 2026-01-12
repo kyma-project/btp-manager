@@ -24,17 +24,18 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
+
+	"github.com/go-logr/logr"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -59,34 +60,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Configuration options that can be overwritten either by CLI parameter or ConfigMap
-var (
-	ChartNamespace = "kyma-system"
-	SecretName     = "sap-btp-manager"
-	ConfigName     = "sap-btp-manager"
-	DeploymentName = "sap-btp-operator-controller-manager"
-
-	ProcessingStateRequeueInterval = time.Minute * 5
-	ReadyStateRequeueInterval      = time.Minute * 15
-	ReadyTimeout                   = time.Minute * 5
-	ReadyCheckInterval             = time.Second * 30
-	HardDeleteTimeout              = time.Minute * 20
-	HardDeleteCheckInterval        = time.Second * 10
-	DeleteRequestTimeout           = time.Minute * 5
-	StatusUpdateTimeout            = time.Second * 10
-	StatusUpdateCheckInterval      = time.Millisecond * 500
-
-	CaCertificateExpiration      = time.Hour * 87600 // 10 years
-	WebhookCertificateExpiration = time.Hour * 8760  // 1 year
-	ExpirationBoundary           = time.Hour * -168  // 1 week
-
-	ChartPath            = "./module-chart/chart"
-	ResourcesPath        = "./module-resources"
-	ManagerResourcesPath = "./manager-resources"
-
-	EnableLimitedCache = "false"
-)
-
 const (
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
@@ -107,9 +80,6 @@ const (
 	moduleName   = "btp-operator"
 	operatorName = "btp-manager"
 	operandName  = "sap-btp-operator"
-
-	btpOperatorCrName       = "btpoperator"
-	kymaSystemNamespaceName = "kyma-system"
 
 	sapBtpServiceOperatorSecretName          = SapBtpServiceOperatorName
 	sapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
@@ -197,6 +167,7 @@ type BtpOperatorReconciler struct {
 	clusterIdFromSapBtpServiceOperatorClusterIdSecret   string
 	credentialsNamespaceFromSapBtpManagerSecret         string
 	credentialsNamespaceFromSapBtpServiceOperatorSecret string
+	watchHandlers                                       []config.WatchHandler
 }
 
 type ResourceReadiness struct {
@@ -206,7 +177,7 @@ type ResourceReadiness struct {
 	Ready     bool
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics, watchHandlers []config.WatchHandler) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
@@ -214,30 +185,49 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 		manifestHandler:        &manifest.Handler{Scheme: scheme},
 		instanceBindingService: instanceBindingSerivice,
 		metrics:                metrics,
+		watchHandlers:          watchHandlers,
 	}
 }
 
 // RBAC neccessary for the operator itself
-//+kubebuilder:rbac:groups="operator.kyma-project.io",resources="btpoperators",verbs="*"
-//+kubebuilder:rbac:groups="operator.kyma-project.io",resources="btpoperators/status",verbs="*"
-//+kubebuilder:rbac:groups="services.cloud.sap.com",resources=serviceinstances;servicebindings,verbs="*"
+//+kubebuilder:rbac:groups="operator.kyma-project.io",resources="btpoperators",verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups="operator.kyma-project.io",resources="btpoperators/status",verbs=get;update;patch
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources=serviceinstances;servicebindings,verbs=create;get;list;watch;update;patch;delete
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources=serviceinstances/status;servicebindings/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups="coordination.k8s.io",resources=leases,verbs=create;get;list;update
 //+kubebuilder:rbac:groups="",resources="namespaces",verbs=get;list;watch
-//+kubebuilder:rbac:groups="",resources="pods",verbs="*"
+//+kubebuilder:rbac:groups="",resources="pods",verbs=get;list;delete
+//+kubebuilder:rbac:groups="",resources="events",verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="authentication.k8s.io",resources=tokenreviews,verbs=create
+//+kubebuilder:rbac:groups="authorization.k8s.io",resources=subjectaccessreviews,verbs=create
+//+kubebuilder:rbac:groups="networking.k8s.io",resources="networkpolicies",verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="",resources="serviceaccounts",verbs=get;create;update;patch;deletecollection
+//+kubebuilder:rbac:groups="",resources="services",verbs=get;create;update;patch;deletecollection
+//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="mutatingwebhookconfigurations",verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="validatingwebhookconfigurations",verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="apiextensions.k8s.io",resources="customresourcedefinitions",verbs=get;list;watch;create;update;patch;deletecollection
+//+kubebuilder:rbac:groups="apps",resources="deployments",verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterrolebindings",verbs=get;create;update;patch;deletecollection
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs=get;list;watch;create;update;patch;delete;deletecollection;bind
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="rolebindings",verbs=get;create;update;patch;deletecollection
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs=get;list;watch;create;update;patch;delete;deletecollection;bind
+//+kubebuilder:rbac:groups="",resources="configmaps",verbs=deletecollection
+//+kubebuilder:rbac:groups="",resources="secrets",verbs=deletecollection
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings",verbs=deletecollection
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources="serviceinstances",verbs=deletecollection
 
 // Autogenerated RBAC from the btp-operator chart
-//+kubebuilder:rbac:groups="",resources="configmaps",verbs="*"
-//+kubebuilder:rbac:groups="",resources="secrets",verbs="*"
-//+kubebuilder:rbac:groups="",resources="serviceaccounts",verbs="*"
-//+kubebuilder:rbac:groups="",resources="services",verbs="*"
-//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="mutatingwebhookconfigurations",verbs="*"
-//+kubebuilder:rbac:groups="admissionregistration.k8s.io",resources="validatingwebhookconfigurations",verbs="*"
-//+kubebuilder:rbac:groups="apiextensions.k8s.io",resources="customresourcedefinitions",verbs="*"
-//+kubebuilder:rbac:groups="apps",resources="deployments",verbs="*"
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterrolebindings",verbs="*"
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs="*"
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="rolebindings",verbs="*"
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="roles",verbs="*"
-//+kubebuilder:rbac:groups="networking.k8s.io",resources="networkpolicies",verbs="*"
+//+kubebuilder:rbac:groups="",resources="configmaps",verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="",resources="configmaps/status",verbs=get;patch;update
+//+kubebuilder:rbac:groups="",resources="events",verbs=create
+//+kubebuilder:rbac:groups="",resources="secrets",verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="authentication.k8s.io",resources="tokenreviews",verbs=create
+//+kubebuilder:rbac:groups="authorization.k8s.io",resources="subjectaccessreviews",verbs=create
+//+kubebuilder:rbac:groups="coordination.k8s.io",resources="leases",verbs=create;get;list;update
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings",verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings/status",verbs=get;patch;update
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources="serviceinstances",verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="services.cloud.sap.com",resources="serviceinstances/status",verbs=get;patch;update
 
 func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.workqueueSize += 1
@@ -255,7 +245,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	if req.Name != btpOperatorCrName || req.Namespace != kymaSystemNamespaceName {
+	if req.Name != config.BtpOperatorCrName || req.Namespace != config.KymaSystemNamespaceName {
 		logger.Info(fmt.Sprintf("BtpOperator CR %s/%s is not the one we are looking for. Ignoring it.", req.Namespace, req.Name))
 		return ctrl.Result{}, r.HandleWrongNamespaceOrName(ctx, reconcileCr)
 	}
@@ -272,7 +262,7 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "":
 		return ctrl.Result{}, r.HandleInitialState(ctx, reconcileCr)
 	case v1alpha1.StateProcessing:
-		return ctrl.Result{RequeueAfter: ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, reconcileCr)
+		return ctrl.Result{RequeueAfter: config.ProcessingStateRequeueInterval}, r.HandleProcessingState(ctx, reconcileCr)
 	case v1alpha1.StateWarning:
 		return r.HandleWarningState(ctx, reconcileCr)
 	case v1alpha1.StateError:
@@ -280,11 +270,11 @@ func (r *BtpOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case v1alpha1.StateDeleting:
 		err := r.HandleDeletingState(ctx, reconcileCr)
 		if reconcileCr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
+			return ctrl.Result{RequeueAfter: config.ReadyStateRequeueInterval}, err
 		}
 		return ctrl.Result{}, err
 	case v1alpha1.StateReady:
-		return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, r.HandleReadyState(ctx, reconcileCr)
+		return ctrl.Result{RequeueAfter: config.ReadyStateRequeueInterval}, r.HandleReadyState(ctx, reconcileCr)
 	}
 
 	return ctrl.Result{}, nil
@@ -296,7 +286,7 @@ func (r *BtpOperatorReconciler) HandleWrongNamespaceOrName(ctx context.Context, 
 
 func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr *v1alpha1.BtpOperator, newState v1alpha1.State, reason conditions.Reason, message string) error {
 	logger := log.FromContext(ctx)
-	timeout := time.Now().Add(StatusUpdateTimeout)
+	timeout := time.Now().Add(config.StatusUpdateTimeout)
 
 	var err error
 	for now := time.Now(); now.Before(timeout); now = time.Now() {
@@ -304,8 +294,8 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			if k8serrors.IsNotFound(err) {
 				return nil
 			}
-			logger.Error(err, fmt.Sprintf("cannot get the BtpOperator to update the status. Retrying in %s...", StatusUpdateCheckInterval.String()))
-			time.Sleep(StatusUpdateCheckInterval)
+			logger.Error(err, fmt.Sprintf("cannot get the BtpOperator to update the status. Retrying in %s...", config.StatusUpdateCheckInterval.String()))
+			time.Sleep(config.StatusUpdateCheckInterval)
 			continue
 		}
 		if cr.Status.State == newState && cr.IsMsgForGivenReasonEqual(string(reason), message) {
@@ -317,13 +307,13 @@ func (r *BtpOperatorReconciler) UpdateBtpOperatorStatus(ctx context.Context, cr 
 			conditions.SetStatusCondition(&cr.Status.Conditions, *newCondition)
 		}
 		if err = r.Status().Update(ctx, cr); err != nil {
-			logger.Error(err, fmt.Sprintf("cannot update the status of the BtpOperator. Retrying in %s...", StatusUpdateCheckInterval.String()))
-			time.Sleep(StatusUpdateCheckInterval)
+			logger.Error(err, fmt.Sprintf("cannot update the status of the BtpOperator. Retrying in %s...", config.StatusUpdateCheckInterval.String()))
+			time.Sleep(config.StatusUpdateCheckInterval)
 			continue
 		}
-		time.Sleep(StatusUpdateCheckInterval)
+		time.Sleep(config.StatusUpdateCheckInterval)
 	}
-	logger.Error(err, fmt.Sprintf("timed out while waiting %s for the BtpOperator status change.", StatusUpdateTimeout.String()))
+	logger.Error(err, fmt.Sprintf("timed out while waiting %s for the BtpOperator status change.", config.StatusUpdateTimeout.String()))
 
 	return err
 }
@@ -401,10 +391,10 @@ func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) 
 
 func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: ChartNamespace, Name: SecretName}
+	objKey := client.ObjectKey{Namespace: config.ChartNamespace, Name: config.SecretName}
 	if err := r.Get(ctx, objKey, secret); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return nil, fmt.Errorf("%s Secret in %s namespace not found", SecretName, ChartNamespace)
+			return nil, fmt.Errorf("%s Secret in %s namespace not found", config.SecretName, config.ChartNamespace)
 		}
 		return nil, fmt.Errorf("unable to get Secret: %w", err)
 	}
@@ -475,11 +465,11 @@ func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(manife
 }
 
 func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
-	return fmt.Sprintf("%s%cdelete", ResourcesPath, os.PathSeparator)
+	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
 }
 
 func (r *BtpOperatorReconciler) getNetworkPoliciesPath() string {
-	return fmt.Sprintf("%s%cnetwork-policies", ManagerResourcesPath, os.PathSeparator)
+	return fmt.Sprintf("%s%cnetwork-policies", config.ManagerResourcesPath, os.PathSeparator)
 }
 
 func (r *BtpOperatorReconciler) loadNetworkPolicies() ([]*unstructured.Unstructured, error) {
@@ -593,7 +583,7 @@ func (r *BtpOperatorReconciler) restartSapBtpServiceOperatorPodIfNotReady(ctx co
 }
 
 func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
-	return fmt.Sprintf("%s%capply", ResourcesPath, os.PathSeparator)
+	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
 }
 
 func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
@@ -610,13 +600,13 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 			secretIndex = i
 			continue
 		}
-		if u.GetName() == DeploymentName && u.GetKind() == deploymentKind {
+		if u.GetName() == config.DeploymentName && u.GetKind() == deploymentKind {
 			deploymentIndex = i
 			continue
 		}
 	}
 
-	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", ChartPath), "version")
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
 	if err != nil {
 		logger.Error(err, "while getting module chart version")
 		return fmt.Errorf("failed to get module chart version: %w", err)
@@ -647,7 +637,7 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 	logger.Info("deleting all managed network policies")
-	if err := r.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
+	if err := r.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, client.InNamespace(config.ChartNamespace), managedByLabelFilter); err != nil {
 		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 			return fmt.Errorf("failed to delete network policies: %w", err)
 		}
@@ -687,7 +677,7 @@ func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.U
 
 func (r *BtpOperatorReconciler) setNamespace(us ...*unstructured.Unstructured) {
 	for _, u := range us {
-		u.SetNamespace(ChartNamespace)
+		u.SetNamespace(config.ChartNamespace)
 	}
 }
 
@@ -710,7 +700,7 @@ func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *uns
 		return err
 	}
 
-	if err := unstructured.SetNestedField(u.Object, EnableLimitedCache, "data", EnableLimitedCacheConfigMapKey); err != nil {
+	if err := unstructured.SetNestedField(u.Object, config.EnableLimitedCache, "data", EnableLimitedCacheConfigMapKey); err != nil {
 		return err
 	}
 
@@ -811,7 +801,7 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 
 func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
 	defer cancel()
 
 	var err error
@@ -819,7 +809,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 	got := &appsv1.Deployment{}
 	now := time.Now()
 	for {
-		if time.Since(now) >= ReadyTimeout {
+		if time.Since(now) >= config.ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
 			c <- ResourceReadiness{
 				Name:      u.GetName(),
@@ -847,7 +837,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 
 func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, ReadyCheckInterval)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
 	defer cancel()
 
 	var err error
@@ -855,7 +845,7 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 	got := &unstructured.Unstructured{}
 	got.SetGroupVersionKind(u.GroupVersionKind())
 	for {
-		if time.Since(now) >= ReadyTimeout {
+		if time.Since(now) >= config.ReadyTimeout {
 			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
 			c <- ResourceReadiness{
 				Name:      u.GetName(),
@@ -879,7 +869,7 @@ func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1al
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 		err := r.handleDeleting(ctx, cr)
 		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-			return ctrl.Result{RequeueAfter: ReadyStateRequeueInterval}, err
+			return ctrl.Result{RequeueAfter: config.ReadyStateRequeueInterval}, err
 		}
 		return ctrl.Result{}, err
 	}
@@ -904,9 +894,9 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1.BtpOperator) error {
 	logger := log.FromContext(ctx)
 
-	requiredSecret, err := r.getSecretByNameAndNamespace(ctx, SecretName, ChartNamespace)
+	requiredSecret, err := r.getSecretByNameAndNamespace(ctx, config.SecretName, config.ChartNamespace)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", SecretName, ChartNamespace))
+		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", config.SecretName, config.ChartNamespace))
 		return fmt.Errorf("failed to get the required secret: %w", err)
 	}
 
@@ -1023,8 +1013,8 @@ func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1
 				return err
 			}
 		}
-	case <-time.After(HardDeleteTimeout):
-		logger.Info("hard delete timeout reached", "duration", HardDeleteTimeout)
+	case <-time.After(config.HardDeleteTimeout):
+		logger.Info("hard delete timeout reached", "duration", config.HardDeleteTimeout)
 		hardDeleteTimeoutReachedCh <- true
 		if err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
 			logger.Error(err, "failed to update status")
@@ -1110,7 +1100,7 @@ func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces
 			return
 		}
 
-		time.Sleep(HardDeleteCheckInterval)
+		time.Sleep(config.HardDeleteCheckInterval)
 	}
 }
 
@@ -1131,7 +1121,7 @@ func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupV
 func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(gvk)
-	deleteCtx, cancel := context.WithTimeout(ctx, DeleteRequestTimeout)
+	deleteCtx, cancel := context.WithTimeout(ctx, config.DeleteRequestTimeout)
 	defer cancel()
 
 	for _, namespace := range namespaces.Items {
@@ -1242,8 +1232,8 @@ func (r *BtpOperatorReconciler) deleteAllOfResourcesTypes(ctx context.Context, r
 			continue
 		}
 		logger.Info(fmt.Sprintf("deleting all of %s/%s module resources in %s namespace",
-			u.GroupVersionKind().GroupVersion(), u.GetKind(), ChartNamespace))
-		if err := r.DeleteAllOf(ctx, u, client.InNamespace(ChartNamespace), managedByLabelFilter); err != nil {
+			u.GroupVersionKind().GroupVersion(), u.GetKind(), config.ChartNamespace))
+		if err := r.DeleteAllOf(ctx, u, client.InNamespace(config.ChartNamespace), managedByLabelFilter); err != nil {
 			if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 				return err
 			}
@@ -1311,7 +1301,7 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 
 func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
 	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, deployment); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: config.ChartNamespace}, deployment); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
@@ -1322,7 +1312,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	}
 
 	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: ChartNamespace}, mutatingWebhook); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: config.ChartNamespace}, mutatingWebhook); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
@@ -1333,7 +1323,7 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 	}
 
 	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: ChartNamespace}, validatingWebhook); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: config.ChartNamespace}, validatingWebhook); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
@@ -1460,18 +1450,13 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Config = mgr.GetConfig()
-	return ctrl.NewControllerManagedBy(mgr).
+	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
 			builder.WithPredicates(r.watchBtpOperatorUpdatePredicate())).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchSecretPredicates()),
-		).
-		Watches(
-			&corev1.ConfigMap{},
-			handler.EnqueueRequestsFromMapFunc(r.reconcileConfig),
-			builder.WithPredicates(r.watchConfigPredicates()),
 		).
 		Watches(
 			&admissionregistrationv1.MutatingWebhookConfiguration{},
@@ -1492,8 +1477,17 @@ func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&networkingv1.NetworkPolicy{},
 			handler.EnqueueRequestsFromMapFunc(r.reconcileRequestForPrimaryBtpOperator),
 			builder.WithPredicates(r.watchNetworkPolicyPredicates()),
-		).
-		Complete(r)
+		)
+
+	for _, watchHandler := range r.watchHandlers {
+		controllerBuilder.Watches(
+			watchHandler.Object(),
+			handler.EnqueueRequestsFromMapFunc(watchHandler.Reconcile),
+			builder.WithPredicates(watchHandler.Predicates()),
+		)
+	}
+
+	return controllerBuilder.Complete(r)
 }
 
 func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Funcs {
@@ -1523,11 +1517,7 @@ func (r *BtpOperatorReconciler) watchBtpOperatorUpdatePredicate() predicate.Func
 }
 
 func (r *BtpOperatorReconciler) reconcileRequestForPrimaryBtpOperator(ctx context.Context, obj client.Object) []reconcile.Request {
-	return r.enqueuePrimaryBtpOperatorRequest(ctx)
-}
-
-func (r *BtpOperatorReconciler) enqueuePrimaryBtpOperatorRequest(ctx context.Context) []reconcile.Request {
-	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: btpOperatorCrName, Namespace: kymaSystemNamespaceName}}}
+	return []reconcile.Request{{NamespacedName: k8sgenerictypes.NamespacedName{Name: config.BtpOperatorCrName, Namespace: config.KymaSystemNamespaceName}}}
 }
 
 func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate[client.Object] {
@@ -1560,16 +1550,16 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			obj := e.Object.(*appsv1.Deployment)
-			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+			return obj.Name == config.DeploymentName && obj.Namespace == config.ChartNamespace
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			obj := e.Object.(*appsv1.Deployment)
-			return obj.Name == DeploymentName && obj.Namespace == ChartNamespace
+			return obj.Name == config.DeploymentName && obj.Namespace == config.ChartNamespace
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			newObj := e.ObjectNew.(*appsv1.Deployment)
 			oldObj := e.ObjectOld.(*appsv1.Deployment)
-			if !(newObj.Name == DeploymentName && newObj.Namespace == ChartNamespace) {
+			if !(newObj.Name == config.DeploymentName && newObj.Namespace == config.ChartNamespace) {
 				return false
 			}
 			var newAvailableConditionStatus, newProgressingConditionStatus string
@@ -1714,76 +1704,6 @@ func (r *BtpOperatorReconciler) watchMutatingWebhooksPredicates() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) reconcileConfig(ctx context.Context, obj client.Object) []reconcile.Request {
-	logger := log.FromContext(nil, "name", obj.GetName(), "namespace", obj.GetNamespace())
-	cm, ok := obj.(*corev1.ConfigMap)
-	if !ok {
-		return []reconcile.Request{}
-	}
-	logger.Info("reconciling config update", "config", cm.Data)
-	for k, v := range cm.Data {
-		var err error
-		switch k {
-		case "ChartNamespace":
-			ChartNamespace = v
-		case "ChartPath":
-			ChartPath = v
-		case "SecretName":
-			SecretName = v
-		case "ConfigName":
-			ConfigName = v
-		case "DeploymentName":
-			DeploymentName = v
-		case "ProcessingStateRequeueInterval":
-			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
-		case "ReadyStateRequeueInterval":
-			ReadyStateRequeueInterval, err = time.ParseDuration(v)
-		case "ReadyTimeout":
-			ReadyTimeout, err = time.ParseDuration(v)
-		case "HardDeleteCheckInterval":
-			HardDeleteCheckInterval, err = time.ParseDuration(v)
-		case "HardDeleteTimeout":
-			HardDeleteTimeout, err = time.ParseDuration(v)
-		case "ResourcesPath":
-			ResourcesPath = v
-		case "ReadyCheckInterval":
-			ReadyCheckInterval, err = time.ParseDuration(v)
-		case "DeleteRequestTimeout":
-			DeleteRequestTimeout, err = time.ParseDuration(v)
-		case "CaCertificateExpiration":
-			CaCertificateExpiration, err = time.ParseDuration(v)
-		case "WebhookCertificateExpiration":
-			WebhookCertificateExpiration, err = time.ParseDuration(v)
-		case "ExpirationBoundary":
-			ExpirationBoundary, err = time.ParseDuration(v)
-		case "RsaKeyBits":
-			var bits int
-			bits, err = strconv.Atoi(v)
-			if err == nil {
-				certs.SetRsaKeyBits(bits)
-			}
-		case "EnableLimitedCache":
-			EnableLimitedCache = v
-		default:
-			logger.Info("unknown config update key", k, v)
-		}
-		if err != nil {
-			logger.Info("failed to parse config update", k, err)
-		}
-	}
-
-	return r.enqueuePrimaryBtpOperatorRequest(ctx)
-}
-
-func (r *BtpOperatorReconciler) watchConfigPredicates() predicate.Funcs {
-	nameMatches := func(o client.Object) bool { return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace }
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
-		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
-		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
-	}
-}
-
 func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
 	if _, exists := cr.Labels[forceDeleteLabelKey]; !exists {
 		return false
@@ -1798,7 +1718,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	logger.Info("preparing admission webhooks")
 
 	logger.Info("checking CA certificate")
-	caCertSecret, err := r.getSecretByNameAndNamespace(ctx, caCertSecretName, ChartNamespace)
+	caCertSecret, err := r.getSecretByNameAndNamespace(ctx, caCertSecretName, config.ChartNamespace)
 	if err != nil {
 		return err
 	}
@@ -1814,7 +1734,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	caBundle := caCertSecret.Data[caCertSecretCertField]
 
 	logger.Info("checking webhook certificate")
-	webhookCertSecret, err := r.getSecretByNameAndNamespace(ctx, webhookCertSecretName, ChartNamespace)
+	webhookCertSecret, err := r.getSecretByNameAndNamespace(ctx, webhookCertSecretName, config.ChartNamespace)
 	if err != nil {
 		return err
 	}
@@ -1900,7 +1820,7 @@ func (r *BtpOperatorReconciler) generateSelfSignedCert(ctx context.Context) ([]b
 	logger := log.FromContext(ctx)
 	logger.Info("generating self signed cert")
 
-	caCertificate, caPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().UTC().Add(CaCertificateExpiration))
+	caCertificate, caPrivateKey, err := certs.GenerateSelfSignedCertificate(time.Now().UTC().Add(config.CaCertificateExpiration))
 	if err != nil {
 		return nil, nil, fmt.Errorf("while generating self signed cert: %w", err)
 	}
@@ -1913,7 +1833,7 @@ func (r *BtpOperatorReconciler) generateSignedCert(ctx context.Context, caCert, 
 	logger := log.FromContext(ctx)
 	logger.Info("generating webhook signed cert")
 
-	webhookCertificate, webhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().UTC().Add(WebhookCertificateExpiration), caCert, caPrivateKey)
+	webhookCertificate, webhookPrivateKey, err := certs.GenerateSignedCertificate(time.Now().UTC().Add(config.WebhookCertificateExpiration), caCert, caPrivateKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("while generating webhook signed cert: %w", err)
 	}
@@ -2032,7 +1952,7 @@ func (r *BtpOperatorReconciler) isWebhookCertSignedBySelfSignedCa(ctx context.Co
 
 func (r *BtpOperatorReconciler) getDataFromSecret(ctx context.Context, name string) (map[string][]byte, error) {
 	secret := &corev1.Secret{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: name}, secret); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Namespace: config.ChartNamespace, Name: name}, secret); err != nil {
 		return nil, err
 	}
 	return secret.Data, nil
@@ -2073,7 +1993,7 @@ func (r *BtpOperatorReconciler) buildSecretWithData(name string, data map[string
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: ChartNamespace,
+			Namespace: config.ChartNamespace,
 			Labels: map[string]string{
 				managedByLabelKey: operatorName,
 			},
@@ -2100,15 +2020,15 @@ func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
 }
 
 func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
-	return s.Namespace == ChartNamespace && s.Name == SecretName
+	return s.Namespace == config.ChartNamespace && s.Name == config.SecretName
 }
 
 func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
-	return s.Namespace == ChartNamespace && (s.Name == caCertSecretName || s.Name == webhookCertSecretName)
+	return s.Namespace == config.ChartNamespace && (s.Name == caCertSecretName || s.Name == webhookCertSecretName)
 }
 
 func (r *BtpOperatorReconciler) setCredentialsNamespacesAndClusterId(s *corev1.Secret) {
-	credentialsNamespace := ChartNamespace
+	credentialsNamespace := config.ChartNamespace
 	if s != nil {
 		if v, ok := s.Data[CredentialsNamespaceSecretKey]; ok && len(v) > 0 {
 			credentialsNamespace = string(v)
@@ -2130,7 +2050,7 @@ func (r *BtpOperatorReconciler) checkDefaultCredentialsSecretNamespace(ctx conte
 	if defaultCredentialsSecret != nil {
 		r.credentialsNamespaceFromSapBtpServiceOperatorSecret = defaultCredentialsSecret.Namespace
 		if r.credentialsNamespaceFromSapBtpManagerSecret != r.credentialsNamespaceFromSapBtpServiceOperatorSecret {
-			logger.Info(fmt.Sprintf("credentials namespaces between %s secret and %s secret don't match", SecretName, sapBtpServiceOperatorSecretName))
+			logger.Info(fmt.Sprintf("credentials namespaces between %s secret and %s secret don't match", config.SecretName, sapBtpServiceOperatorSecretName))
 			if err := r.annotateSecret(ctx, requiredSecret, previousCredentialsNamespaceAnnotationKey, r.credentialsNamespaceFromSapBtpServiceOperatorSecret); err != nil {
 				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
@@ -2151,7 +2071,7 @@ func (r *BtpOperatorReconciler) checkSapBtpServiceOperatorClusterIdConfigMap(ctx
 		r.clusterIdFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
 		r.clusterIdFromSapBtpServiceOperatorClusterIdSecret = r.clusterIdFromSapBtpServiceOperatorConfigMap //default value in case of missing cluster ID secret
 		if r.clusterIdFromSapBtpManagerSecret != r.clusterIdFromSapBtpServiceOperatorConfigMap {
-			logger.Info(fmt.Sprintf("cluster IDs between %s secret and %s configmap don't match", SecretName, sapBtpServiceOperatorConfigMapName))
+			logger.Info(fmt.Sprintf("cluster IDs between %s secret and %s configmap don't match", config.SecretName, sapBtpServiceOperatorConfigMapName))
 			if err := r.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, r.clusterIdFromSapBtpServiceOperatorConfigMap); err != nil {
 				return NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
@@ -2227,7 +2147,7 @@ func (r *BtpOperatorReconciler) annotateSecret(ctx context.Context, s *corev1.Se
 
 func (r *BtpOperatorReconciler) getSapBtpServiceOperatorConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
 	cm := &corev1.ConfigMap{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: ChartNamespace, Name: sapBtpServiceOperatorConfigMapName}, cm); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Namespace: config.ChartNamespace, Name: sapBtpServiceOperatorConfigMapName}, cm); err != nil {
 		if k8serrors.IsNotFound(err) {
 			return nil, nil
 		}
@@ -2307,7 +2227,7 @@ func (r *BtpOperatorReconciler) getSapBtpServiceOperatorPod(ctx context.Context)
 		return nil, nil
 	}
 	for i, p := range pods.Items {
-		if strings.HasPrefix(p.Name, operandName) && p.Namespace == ChartNamespace {
+		if strings.HasPrefix(p.Name, operandName) && p.Namespace == config.ChartNamespace {
 			pod = &pods.Items[i]
 			break
 		}
@@ -2340,7 +2260,7 @@ func (r *BtpOperatorReconciler) validateCert(secret *corev1.Secret) error {
 	if err != nil {
 		return err
 	}
-	if certs.CertificateExpires(cert, ExpirationBoundary) {
+	if certs.CertificateExpires(cert, config.ExpirationBoundary) {
 		return fmt.Errorf("CA cert expires soon")
 	}
 

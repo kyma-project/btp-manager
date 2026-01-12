@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -26,13 +28,13 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 	require.NoError(t, v1alpha1.AddToScheme(scheme))
 	btpOperator := createDefaultBtpOperator()
 	require.NoError(t, fakeK8sClient.Create(ctx, btpOperator))
-	StatusUpdateTimeout = statusUpdateTimeout
-	StatusUpdateCheckInterval = statusUpdateCheckInterval
+	config.StatusUpdateTimeout = statusUpdateTimeout
+	config.StatusUpdateCheckInterval = statusUpdateCheckInterval
 
 	t.Run("should return error from client.Get", func(t *testing.T) {
 		// given
 		retryK8sClient := newLazyK8sClient(fakeK8sClient, 3)
-		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil)
+		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil, []config.WatchHandler{})
 		retryK8sClient.EnableErrorOnGet()
 
 		// when
@@ -55,7 +57,7 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 	t.Run("should return error from client.Update", func(t *testing.T) {
 		// given
 		retryK8sClient := newLazyK8sClient(fakeK8sClient, 3)
-		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil)
+		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil, []config.WatchHandler{})
 		retryK8sClient.EnableErrorOnUpdate()
 
 		// when
@@ -78,7 +80,7 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 	t.Run("should time out", func(t *testing.T) {
 		// given
 		disabledUpdatek8sClient := newLazyK8sClient(fakeK8sClient, 3)
-		btpOperatorReconciler := NewBtpOperatorReconciler(disabledUpdatek8sClient, fakeK8sClient, scheme, nil, nil)
+		btpOperatorReconciler := NewBtpOperatorReconciler(disabledUpdatek8sClient, fakeK8sClient, scheme, nil, nil, []config.WatchHandler{})
 		disabledUpdatek8sClient.DisableUpdate()
 
 		// when
@@ -100,7 +102,7 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 	t.Run("should update BtpOperator status after a few retries", func(t *testing.T) {
 		// given
 		retryK8sClient := newLazyK8sClient(fakeK8sClient, 3)
-		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil)
+		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil, []config.WatchHandler{})
 
 		// when
 		err := btpOperatorReconciler.UpdateBtpOperatorStatus(ctx, btpOperator, v1alpha1.StateProcessing, conditions.Initialized, "test")
@@ -122,7 +124,7 @@ func TestBtpOperatorReconciler_UpdateBtpOperatorStatus(t *testing.T) {
 	t.Run("should update BtpOperator status three times", func(t *testing.T) {
 		// given
 		retryK8sClient := newLazyK8sClient(fakeK8sClient, 3)
-		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil)
+		btpOperatorReconciler := NewBtpOperatorReconciler(retryK8sClient, fakeK8sClient, scheme, nil, nil, []config.WatchHandler{})
 		conditionMsg1 := "test1"
 		conditionMsg2 := "test2"
 		conditionMsg3 := "test3"

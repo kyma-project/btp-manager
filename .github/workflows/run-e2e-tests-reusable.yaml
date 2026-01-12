@@ -31,7 +31,7 @@ jobs:
       versions: ${{ steps.get-versions.outputs.k3s_versions }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - id: get-versions
         name: Get K3s versions
@@ -48,7 +48,7 @@ jobs:
           echo "k3s_versions=${MATRIX_AS_JSON}" >> "${GITHUB_OUTPUT}"
 
       - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@2e5e8bbc775f5680ed5d02e3a22e2fc7219792ac
+        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
         with:
           delay: '1'
           retries: '15'
@@ -64,7 +64,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare K3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
