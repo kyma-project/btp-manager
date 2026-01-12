@@ -2,9 +2,9 @@
 
 ## Overview
 
-BTP Manager maintains two Secrets, `ca-server-cert` and `webhook-server-cert`. They are used for communication within the SAP BTP service operator's webhooks and for the creation of resources like ServiceInstances and ServiceBindings. The [reconciliation mechanism](#reconciliation-mechanism) synchronizes the two Secrets and their CA Bundles, which means that whenever the user manually changes them, they are automatically regenerated.
+BTP Manager maintains two Secrets, `ca-server-cert` and `webhook-server-cert`. They are used for communication within the SAP BTP service operator's webhooks and for creating resources, such as ServiceInstances and ServiceBindings. The [reconciliation mechanism](#reconciliation-mechanism) synchronizes the two Secrets and their CA Bundles, which means that whenever the user manually changes them, they are automatically regenerated.
 
-BTP Manager maintains the resources by creating, deleting, and updating them during the reconciliation. The goal is to keep `ca-server-cert`, `webhook-server-cert`, and the webhooks' CA Bundles synchronized all the time. The reconciliation also checks the certificates’ expiration dates. If it detects that a certificate expires soon, it regenerates it in advance so that the processes run smoothly.
+BTP Manager maintains the resources by creating, deleting, and updating them during the reconciliation. The goal is to keep `ca-server-cert`, `webhook-server-cert`, and the webhooks' CA Bundles synchronized at all times. The reconciliation also checks the certificates’ expiration dates. If it detects that a certificate is about to expire, it regenerates it in advance to ensure the processes run smoothly.
 
 ## Reconciliation Mechanism
 

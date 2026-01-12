@@ -2,7 +2,13 @@
 
 ## Auto Update Chart and Resources
 
-The goal of the workflow is to update the chart (`module-chart/chart`) to the newest version, upload the operand's container images to the Kyma container images repository (`europe-docker.pkg.dev/kyma-project/prod`), render the resource templates from the newest chart, and create a PR with the changes. The created pull request requires a manual approval. All GitHub checks are triggered on the pull request. The workflow works on the following four shell scripts:
+The workflow performs the following actions:
+- Updates the chart (`module-chart/chart`) to the latest version
+- Uploads the operand's container images to the Kyma container images repository (`europe-docker.pkg.dev/kyma-project/prod`)
+- Renders the resource templates from the newest chart
+- Creates a PR with the changes.
+ 
+The created pull request requires a manual approval. All GitHub checks are triggered on the pull request. The workflow works on the following shell scripts:
 
 - `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator), from the release tagged as `latest` and places it in the `module-chart/chart`. 
 
@@ -49,7 +55,7 @@ The [`pr-checks`](/.github/workflows/pr-checks.yaml) workflow checks if all jobs
 
 ## Module Catalog Protection Workflow
 
-This [`module-catalog-protection`](/.github/workflows/module-catalog-protection.yaml) workflow ensures that changes to module catalog directories (`module-chart/` and `module-resources/`) are properly restricted. The workflow is triggered when a pull request contains changes to these protected directories.
+The [`module-catalog-protection`](/.github/workflows/module-catalog-protection.yaml) workflow ensures that changes to module catalog directories (`module-chart/` and `module-resources/`) are properly restricted. The workflow is triggered when a pull request contains changes to these protected directories.
 
 ### Protection Rules
 
@@ -79,7 +85,7 @@ The workflow performs the following steps:
 
 ## Reusable Workflows
 
-There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
+To call any of the existing reusable workflows, you must have access to them.
 
 ### E2E Tests
 
