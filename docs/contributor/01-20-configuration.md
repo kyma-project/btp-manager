@@ -1,8 +1,9 @@
 # Configuration
 
-You can configure BTP Manager using CLI arguments or `ConfigMap`.
+You can configure BTP Manager using CLI arguments or ConfigMap.
 
 To configure the BTP Manager internal settings using CLI arguments, choose the parameters you need, and use them with corresponding custom values:
+
 ```
 $ manager --help
 Usage of ./manager:
@@ -56,8 +57,10 @@ Usage of ./manager:
     	Zap time encoding (one of 'epoch', 'millis', 'nano', 'iso8601', 'rfc3339' or 'rfc3339nano'). Defaults to 'epoch'.
 ```
 
-To configure BTP Manager with a `ConfigMap`, follow this [example](../../examples/btp-operator-configmap.yaml).  
+To configure BTP Manager with a ConfigMap, follow the example in [`btp-operator-configmap.yaml`](../../examples/btp-operator-configmap.yaml).
+
 You should get a result similar to this one:
+
 ```yaml
 apiVersion: v1
 kind: ConfigMap

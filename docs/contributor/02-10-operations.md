@@ -12,7 +12,7 @@ BTP Manager performs the following operations:
 
 ### Prerequisites
 
-* Namespace `kyma-system`
+* The `kyma-system` namespace
 * The `sap-btp-manager` Secret with data for the SAP BTP service operator
 
 The `kyma-system` namespace is created during SAP BTP, Kyma runtime installation. The Secret is injected into the cluster by Kyma Environment Broker (KEB).
@@ -39,20 +39,20 @@ The provisioning process is part of a module reconciliation.
 2. The BtpOperator reconciler picks up the created CR and determines whether the CR should be responsible for representing the module status.
 3. The BtpOperator CR reflects the status of the SAP BTP service operator only when it is in the `kyma-system` namespace and has the required name. Otherwise, it is set to the `Warning` state with the condition reason `WrongNamespaceOrName` (3a).
 4. For the only valid CR present in the cluster, a finalizer is added, the CR is set to the `Processing` state, and reconciliation continues.
-5. In the `kyma-system` namespace, the reconciler looks for the `sap-btp-manager` Secret with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the SAP Service Manager credentials for the SAP BTP service operator and should be delivered to the cluster by KEB. If the Secret is missing, an error is thrown (5a). The reconciler sets the `Warning` state (reason `MissingSecret`) in the CR, and stops reconciliation. New reconciliation is queued and processed after some time, or is triggered by changing the Secret.
+5. In the `kyma-system` namespace, the reconciler looks for the `sap-btp-manager` Secret with the label `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. This Secret contains the SAP Service Manager credentials for the SAP BTP service operator and is delivered to the cluster by KEB. If the Secret is missing, an error is thrown (5a). The reconciler sets the `Warning` state (reason `MissingSecret`) in the CR, and stops reconciliation. New reconciliation is queued and processed after some time, or is triggered by changing the Secret.
 6. If the Secret exists in the cluster, the reconciler checks for the following required data: **clientid**, **clientsecret**, **sm_url**, **tokenurl**, **cluster_id**. All the keys must have values.
    If any required data is missing, the reconciler throws an error (6a) and sets the CR to `Error` (reason `InvalidSecret`) until the required Secret is updated.
 7. The reconciler performs the apply and delete operations of the [module resources](https://github.com/kyma-project/btp-manager/tree/main/module-resources).
-   One of GitHub Actions creates the `module-resources` directory, which contains manifests for applying and deleting operations. For more details, see [workflows](https://github.com/kyma-project/btp-manager/blob/main/docs/contributor/04-10-workflows.md#auto-update-chart-and-resources). The reconciler deletes outdated module resources stored as manifests in [to-delete.yml](https://github.com/kyma-project/btp-manager/blob/main/module-resources/delete/to-delete.yml).
+   One of GitHub Actions creates the `module-resources` directory, which contains manifests for applying and deleting operations. For more details, see the [Auto Update Chart and Resources](https://github.com/kyma-project/btp-manager/blob/main/docs/contributor/04-10-workflows.md#auto-update-chart-and-resources) workflow. The reconciler deletes outdated module resources stored as manifests in [to-delete.yml](https://github.com/kyma-project/btp-manager/blob/main/module-resources/delete/to-delete.yml).
 8. After outdated resources are deleted, the reconciler prepares current resources from manifests in the [apply](https://github.com/kyma-project/btp-manager/tree/main/module-resources/apply) directory.
    The reconciler prepares certificates (regenerated if needed) and webhook configurations, and adds them to the list of current resources.
-   Preparation of the current resources continues by adding the `app.kubernetes.io/managed-by: btp-manager`, `chart-version: {CHART_VER}` labels to all module resources, setting the `kyma-system` namespace in all resources, setting the module Secret and ConfigMap based on the data read from the required Secret. The reconciler also sets the SAP BTP service operator's Deployment images by reading the images from the **SAP_BTP_SERVICE_OPERATOR** and **KUBE_RBAC_PROXY** environment variables, and setting appropriate **image** fields in the Deployment's `spec`.
+   Preparation of the current resources continues by adding the `app.kubernetes.io/managed-by: btp-manager` and `chart-version: {CHART_VER}` labels to all module resources, setting the `kyma-system` namespace in all resources, setting the module Secret and ConfigMap based on the data read from the required Secret. The reconciler also sets the SAP BTP service operator's Deployment images by reading the images from the **SAP_BTP_SERVICE_OPERATOR** and **KUBE_RBAC_PROXY** environment variables, and setting appropriate **image** fields in the Deployment's `spec`.
 9. When the resources are prepared, the reconciler starts applying or updating them to the cluster.
-   The missing resources are created using server-side apply to create a given resource and the existent ones are updated.
-10. The reconciler waits a specified time for all module resources to exist in the cluster.
+   The missing resources are created using server-side apply to create a given resource and the existing ones are updated.
+10. The reconciler waits a specified period for all module resources to exist in the cluster.
    If the timeout is reached, the CR is set to `Error`, and resources are rechecked in the next reconciliation.
    The reconciler has a fixed set of [timeouts](https://github.com/kyma-project/btp-manager/blob/main/controllers/btpoperator_controller.go) defined as `consts`, which limit the processing time for performed operations.
-11. Provisioning is successful when all module resources exist in the cluster. This is the condition that allows the reconciler to set the CR in the `Ready` state.
+11. When all module resources exist in the cluster, provisioning is successful, and the reconciler can set the CR in the `Ready` state.
 
 ## Deprovisioning
 
@@ -83,7 +83,7 @@ The provisioning process is part of a module reconciliation.
 8. The reconciler removes finalizers from service instances.
 9. The last step in soft-delete mode is checking for any leftover service instances.
 10. If any soft-delete step fails because of an error or unsuccessful resource deletion, the process throws a respective error, and the reconciliation starts again.
-11. Regardless of the mode, all SAP BTP service operator resources marked with the `app.kubernetes.io/managed-by:btp-manager` label are deleted. Deletion of module resources is based on resources GVKs (GroupVersionKinds) found in [manifests](../../module-resources). If the process succeeds, the finalizer on the BtpOperator CR is removed, and the resource is deleted. If an error occurs during deprovisioning (11a), the BtpOperator CR is set to `Error`.
+11. Regardless of the mode, all SAP BTP service operator resources marked with the `app.kubernetes.io/managed-by:btp-manager` label are deleted. Deletion of module resources is based on resources GVKs (GroupVersionKinds) in [manifests](../../module-resources). If the process succeeds, the finalizer on the BtpOperator CR is removed, and the resource is deleted. If an error occurs during deprovisioning (11a), the BtpOperator CR is set to `Error`.
 
 ## Conditions
 The state of the SAP BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/declarative/v2/object.go#L23),

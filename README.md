@@ -26,15 +26,15 @@ kubectl delete -f https://github.com/kyma-project/btp-manager/releases/latest/do
 
 If you want to provide new features for BTP Manager, visit the [`contributor`](./docs/contributor) folder. You will find detailed information on BTP Manager's:
 
-* [configuration](./docs/contributor/01-20-configuration.md)
-* [operations](./docs/contributor/02-10-operations.md)
-* [release pipeline](./docs/contributor/03-10-release.md)
+* [Configuration](./docs/contributor/01-20-configuration.md)
+* [Operations](./docs/contributor/02-10-operations.md)
+* [Release pipeline](./docs/contributor/03-10-release.md)
 * [GitHub Actions workflows](./docs/contributor/04-10-workflows.md)
-* [unit tests](./docs/contributor/05-10-testing.md)
+* [Unit tests](./docs/contributor/05-10-testing.md)
 * [E2E tests](./docs/contributor/05-20-e2e_tests.md)
-* [certification management](./docs/contributor/06-10-certs.md)
-* [informer's cache](./docs/contributor/07-10-informer-cache.md)
-* [metrics](./docs/contributor/08-10-metrics.md)
+* [Certification management](./docs/contributor/06-10-certs.md)
+* [Informer's cache](./docs/contributor/07-10-informer-cache.md)
+* [Metrics](./docs/contributor/08-10-metrics.md)
 
 In the [`user`](./docs/user) folder, you will find the following documents:
 * [SAP BTP Operator Module](./docs/user/README.md)
