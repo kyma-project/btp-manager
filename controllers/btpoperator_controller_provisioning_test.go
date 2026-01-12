@@ -5,7 +5,9 @@ import (
 	"os"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -43,7 +45,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 	Describe("The required Secret exists", func() {
 		AfterEach(func() {
 			deleteSecret := &corev1.Secret{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: SecretName}, deleteSecret)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: kymaNamespace, Name: config.SecretName}, deleteSecret)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, deleteSecret)).To(Succeed())
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.MissingSecret)))
 		})
@@ -73,7 +75,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 				btpServiceOperatorDeployment := &appsv1.Deployment{}
-				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 			})
 
 			It("should set EnableLimitedCache to false by default in operator ConfigMap", func() {
@@ -90,18 +92,18 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				var originalValue string
 
 				BeforeEach(func() {
-					originalValue = EnableLimitedCache
+					originalValue = config.EnableLimitedCache
 				})
 
 				AfterEach(func() {
-					EnableLimitedCache = originalValue
+					config.EnableLimitedCache = originalValue
 				})
 
 				It("should set EnableLimitedCache to true in operator ConfigMap when configured", func() {
 
 					// set via reconciler to exercise production code path
-					cm := initConfig(map[string]string{"EnableLimitedCache": "true"})
-					reconciler.reconcileConfig(context.TODO(), cm)
+					createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "true"})
+					Eventually(func() string { return config.EnableLimitedCache }).Should(Equal("true"))
 
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
@@ -115,8 +117,8 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				It("should set EnableLimitedCache to false in operator ConfigMap when explicitly configured", func() {
 
 					// set via reconciler to exercise production code path
-					cm := initConfig(map[string]string{"EnableLimitedCache": "false"})
-					reconciler.reconcileConfig(context.TODO(), cm)
+					createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "false"})
+					Eventually(func() string { return config.EnableLimitedCache }).Should(Equal("false"))
 
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
@@ -157,7 +159,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 					Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
 					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 					btpServiceOperatorDeployment := &appsv1.Deployment{}
-					Expect(k8sClient.Get(ctx, client.ObjectKey{Name: DeploymentName, Namespace: ChartNamespace}, btpServiceOperatorDeployment)).To(Succeed())
+					Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: config.ChartNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 					for _, c := range btpServiceOperatorDeployment.Spec.Template.Spec.Containers {
 						if c.Name == sapBtpServiceOperatorContainerName {
 							Expect(c.Image).To(Equal(sapBtpServiceOperatorImage))

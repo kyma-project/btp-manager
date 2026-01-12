@@ -4,24 +4,24 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/client-go/util/workqueue"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
+	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // ServiceInstanceReconciler reconciles a BtpOperator object in case of service instance changes
@@ -125,7 +125,7 @@ func (r *ServiceInstanceReconciler) deletionPredicate() predicate.Predicate {
 func (r *ServiceInstanceReconciler) getPrimaryBtpOperator(ctx context.Context) (*v1alpha1.BtpOperator, error) {
 	logger := log.FromContext(ctx)
 	btpOperator := &v1alpha1.BtpOperator{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: kymaSystemNamespaceName, Name: btpOperatorCrName}, btpOperator); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Namespace: config.KymaSystemNamespaceName, Name: config.BtpOperatorCrName}, btpOperator); err != nil {
 		logger.Error(err, "unable to get BtpOperator CR")
 		return nil, err
 	}
