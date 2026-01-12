@@ -17,7 +17,7 @@ manager:
   fips: "fips140=on"
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.9.8
+    tag: v0.10.0
     sha: ""
   secret:
     b64encoded: false
