@@ -2,13 +2,19 @@
 
 ## Auto Update Chart and Resources
 
-The goal of the workflow is to update the chart (`module-chart/chart`) to the newest version, upload the operand's container images to the Kyma container images repository (`europe-docker.pkg.dev/kyma-project/prod`), render the resource templates from the newest chart, and create a PR with the changes. The created pull request requires a manual approval. All GitHub checks are triggered on the pull request. The workflow works on four shell scripts:
+The workflow performs the following actions:
+- Updates the chart (`module-chart/chart`) to the latest version
+- Uploads the operand's container images to the Kyma container images repository (`europe-docker.pkg.dev/kyma-project/prod`)
+- Renders the resource templates from the newest chart
+- Creates a PR with the changes.
+ 
+The created pull request requires a manual approval. All GitHub checks are triggered on the pull request. The workflow works on the following shell scripts:
 
 - `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator), from the release tagged as `latest` and places it in the `module-chart/chart`. 
 
 - `update-external-images.sh` - updates `external-images.yaml`, which lists the operand's container images for uploading to the Kyma container images repository. The script extracts images from `module-chart/chart/values.yaml` by searching for the **repository** and **tag** fields.
 
-After both scripts run, the workflow creates a pull request, which is auto-merged into the `main` branch. Only a limited subset of GitHub checks is executed. The merge commit triggers the [sync-external-images](../../.github/workflows/sync-external-images.yaml) workflow, which runs the [image-syncer](https://github.com/kyma-project/test-infra/tree/main/cmd/image-syncer) tool to upload the operand's container images into the Kyma container images repository.
+After both scripts run, the workflow creates a pull request that is auto-merged into the `main` branch. Only a limited subset of GitHub checks is executed. The merge commit triggers the [sync-external-images](../../.github/workflows/sync-external-images.yaml) workflow, which runs the [image-syncer](https://github.com/kyma-project/test-infra/tree/main/cmd/image-syncer) tool to upload the operand's container images into the Kyma container images repository.
 	
 - `make-module-resources.sh` - uses Helm to render Kubernetes resources templates. As a base, it takes a chart from the `module-chart/chart` and values to [override](../../module-chart/overrides.yaml). After Helm finishes templating with the applied overrides, the generated resources are put into `module-resources/apply`. The script removes all container images for the operator from the chart's [deployment manifest](../../module-resources/apply/deployment.yml). The operator sets the container images dynamically by reading [environment variables with container images](../../config/manager/set_external_images.yaml). The resources used in the previous version but not used in the new version are placed under `module-resource/delete`.
 During the process of iterating over the `sap-btp-service-operator` resources, the script also keeps track of the GVKs to generate RBAC rules in [`btpoperator_controller.go`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/controllers/btpoperator_controller.go#L135-L146), which feeds into RBAC **ClusterRole** in the [`role.yaml`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/config/rbac/role.yaml#L1) resource kept in sync with `make manifests` just like any standard [kubebuilder operator](https://book-v2.book.kubebuilder.io/reference/markers/rbac.html). The script excludes all resources with a Helm hook "pre-delete" as it is not necessary to apply it. Additionally, all excluded resources are added to the `module-resources/excluded` folder, where you can see what was excluded.
@@ -25,31 +31,31 @@ See [BTP Manager Release Pipeline](03-10-release.md) to learn more about the rel
 
 ## E2E Tests Workflow 
 
-This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the [reusable workflow](/.github/workflows/run-e2e-tests-reusable.yaml).
+This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the [`run-e2e-tests-reusable`](/.github/workflows/run-e2e-tests-reusable.yaml) workflow.
 
 ## Unit Tests Workflow
 
-This workflow calls the [reusable workflow](/.github/workflows/run-unit-tests-reusable.yaml).
+This workflow calls the [`run-e2e-tests-reusable`](/.github/workflows/run-unit-tests-reusable.yaml) workflow.
 
 ## Markdown Links Check Workflow
 
-This [workflow](/.github/workflows/markdown-link-check.yaml) is triggered daily at midnight and by each PR on the `main` branch. It checks for dead links in the repository.
+The [`markdown-link-check`](/.github/workflows/markdown-link-check.yaml) workflow is triggered daily at midnight and by each PR on the `main` branch. It checks for dead links in the repository.
 
 ## Govulncheck Workflow
 
-This [workflow](/.github/workflows/run-govulncheck.yaml) runs the Govulncheck.
+The [`run-govulncheck`](/.github/workflows/run-govulncheck.yaml) workflow runs the Govulncheck.
 
 ## Auto Merge Workflow
 
-This [workflow](/.github/workflows/auto-merge.yaml) enables the auto-merge functionality on a PR that is not a draft.
+The [`auto-merge`](/.github/workflows/auto-merge.yaml) workflow enables the auto-merge functionality on a PR that is not a draft.
 
 ## All Checks Passed Workflow
 
-This [workflow](/.github/workflows/pr-checks.yaml) checks if all jobs, except those excluded in the workflow configuration, have passed.
+The [`pr-checks`](/.github/workflows/pr-checks.yaml) workflow checks if all jobs, except those excluded in the workflow configuration, have passed.
 
 ## Module Catalog Protection Workflow
 
-This [workflow](/.github/workflows/module-catalog-protection.yaml) ensures that changes to module catalog directories (`module-chart/` and `module-resources/`) are properly restricted. The workflow is triggered when a pull request contains changes to these protected directories.
+The [`module-catalog-protection`](/.github/workflows/module-catalog-protection.yaml) workflow ensures that changes to module catalog directories (`module-chart/` and `module-resources/`) are properly restricted. The workflow is triggered when a pull request contains changes to these protected directories.
 
 ### Protection Rules
 
@@ -64,11 +70,11 @@ This [workflow](/.github/workflows/module-catalog-protection.yaml) ensures that 
 
 ## E2E BTP Manager Secret Customization Test Workflow
 
-The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) runs the E2E BTP Manager secret customization tests by calling the [reusable workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml).
+The [`run-e2e-sap-btp-manager-secret-customization-test`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) workflow runs the E2E BTP Manager secret customization tests by calling the [`run-e2e-sap-btp-manager-secret-customization-test-reusable`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) workflow.
 
 ## Upload Release Logs as Assets Workflow
 
-This [workflow](/.github/workflows/upload-release-logs.yml) uploads the logs from the release workflow as assets to the corresponding GitHub release. It is triggered on every published release event.
+The [`upload-release-logs`](/.github/workflows/upload-release-logs.yml) workflow uploads the logs from the release workflow as assets to the corresponding GitHub release. It is triggered on every published release event.
 
 The workflow performs the following steps:
 
@@ -79,11 +85,11 @@ The workflow performs the following steps:
 
 ## Reusable Workflows
 
-There are reusable workflows created. Anyone with access to a reusable workflow can call it from another workflow.
+To call any of the existing reusable workflows, you must have access to them.
 
 ### E2E Tests
 
-This [workflow](/.github/workflows/run-e2e-tests-reusable.yaml) runs the E2E tests on the k3s cluster. 
+The [`run-e2e-tests-reusable`](/.github/workflows/run-e2e-tests-reusable.yaml) workflow runs the E2E tests on the k3s cluster. 
 You pass the following parameters from the calling workflow:
 
 | Parameter name        | Required | Description                                                            |
@@ -93,7 +99,7 @@ You pass the following parameters from the calling workflow:
 | **last-k3s-versions** | no       | Number of most recent k3s versions to be used for tests, default = `1` |
 
 
-The workflow:
+The workflow performs the following actions:
 - Fetches the **last-k3s-versions** tag versions of k3s releases 
 - Prepares the **last-k3s-versions** k3s clusters with the Docker registries using the list of versions from the previous step
 - Waits for the binary image to be ready in the registry
@@ -102,17 +108,17 @@ The workflow:
 
 ### Unit Tests
 
-This [workflow](/.github/workflows/run-unit-tests-reusable.yaml) runs the unit tests.
+The [`run-unit-tests-reusable`](/.github/workflows/run-unit-tests-reusable.yaml) workflow runs the unit tests.
 No parameters are passed from the calling workflow (callee).
 
-The workflow:
+The workflow performs the following actions:
 - Checks out code and sets up the cache
 - Sets up the Go environment
 - Invokes `make test`
 
 ### E2E BTP Manager Secret Customization Test
 
-The [workflow](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) runs the E2E BTP Manager secret customization test on the k3s cluster.
+The [`run-e2e-sap-btp-manager-secret-customization-test-reusable`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) workflow runs the E2E BTP Manager secret customization test on the k3s cluster.
 The following parameters are required from the calling workflow:
 
 | Parameter name     | Required | Description                     |
@@ -128,7 +134,7 @@ The workflow performs the following actions:
 
 ### Performance Tests
 
-The [workflow](/.github/workflows/run-performance-tests-reusable.yaml) runs performance tests on the k3s cluster. The following parameters are required from the calling workflow:
+The [`run-performance-tests-reusable`](/.github/workflows/run-performance-tests-reusable.yaml) workflow runs performance tests on the k3s cluster. The following parameters are required from the calling workflow:
 
 | Parameter name       | Required | Description                     |
 |----------------------|----------|---------------------------------|
