@@ -146,7 +146,7 @@ The workflow performs the following actions for all jobs:
 - Prepares the k3s cluster with the Docker registry
 - Waits for the binary image to be ready in the registry
 - Installs the module
-<!--Why the change in formatting below?-->
+
 <details>
 <summary>Frequent Secret Update Test</summary>
 
