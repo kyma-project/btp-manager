@@ -4,7 +4,7 @@ Learn about the network policies for the SAP BTP Operator module and how to mana
 
 ## Default Network Policies
 
-To increase security, the SAP BTP Operator module creates the following network policies that control traffic to and from the SAP BTP Operator module Pods.
+To increase security, the SAP BTP Operator module creates the following network policies that control traffic to and from its Pods:
 
 - `kyma-project.io--btp-operator-allow-to-apiserver`: Allows egress from the SAP BTP Operator module Pods to any destination on TCP port 443 (for example, Kubernetes API server)
 - `kyma-project.io--btp-operator-to-dns`: Allows egress from the SAP BTP Operator module Pods to DNS services (UDP/TCP port 53, 8053) for cluster and external DNS resolution
@@ -19,7 +19,7 @@ To disable network policies for SAP BTP Operator, add the following annotation t
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
 ```
 > [!WARNING]
-> If you disable the network policies, you allow all ingress/egress traffic to and from the module Pods.
+> If you disable the network policies, you allow all ingress and egress traffic to and from the module's Pods.
 
 ## Enable Network Policies
 
