@@ -2,7 +2,8 @@
 
 <!--this content is for OS users only-->
 To create the `sap-btp-manager` Secret, follow these steps:
-1. To obtain the access credentials to the SAP BTP service operator instance, create its service binding. For details, see [Installation and Setup: Obtain the access credentials for the SAP BTP service operator](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md#installation-and-setup).
+
+1. To obtain the access credentials to the SAP BTP service operator instance, create its service binding. For details, see [Installation and Setup: Obtain access credentials](https://github.com/SAP/sap-btp-service-operator/blob/main/README.md#installation-and-setup).
 2. Copy and save the access credentials into your `creds.json` file in your working directory. 
 3. In the same directory, run the following script to create the Secret:
    
@@ -28,6 +29,7 @@ To create the `sap-btp-manager` Secret, follow these steps:
       tokenurl: {AUTH_URL}
       cluster_id: {CLUSTER_ID}
     ```
+
 4. To create the Secret, run:
 
     ```
