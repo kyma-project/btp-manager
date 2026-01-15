@@ -18,6 +18,7 @@ jobs:
   run-performance-tests:
     uses: "./.github/workflows/run-performance-tests-reusable.yaml"
     with:
+      release: "false"
       image-tag: PR-${{ github.event.number }}
-      image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
+      image-repo: localhost:5000
       credentials-mode: dummy

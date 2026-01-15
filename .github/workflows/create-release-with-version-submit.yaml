@@ -94,6 +94,7 @@ jobs:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     secrets: inherit
     with:
+      release: "true"
       image-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       credentials-mode: ${{ github.event.inputs.credentials }}
@@ -146,6 +147,7 @@ jobs:
     uses: "./.github/workflows/run-performance-tests-reusable.yaml"
     secrets: inherit
     with:
+      release: "true"
       image-tag: ${{ github.event.inputs.name }}
       image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       credentials-mode: real
@@ -166,6 +168,7 @@ jobs:
     secrets: inherit
     uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
     with:
+      release: "true"
       image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       image-tag: ${{ github.event.inputs.name }}
 
@@ -175,6 +178,7 @@ jobs:
     secrets: inherit
     uses: "./.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml"
     with:
+      release: "true"
       image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       image-tag: ${{ github.event.inputs.name }}
 

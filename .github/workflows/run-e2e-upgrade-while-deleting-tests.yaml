@@ -20,6 +20,6 @@ jobs:
     secrets: inherit
     uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
     with:
-      image-registry: europe-docker.pkg.dev/kyma-project/dev/btp-manager
-      image-tag: PR-${{ github.event.number }}
       release: "false"
+      image-registry: localhost:5000
+      image-tag: PR-${{ github.event.number }}
