@@ -1,8 +1,12 @@
-name: Run performancestress tests (reusable)
+name: Run performance tests (reusable)
 
 on:
   workflow_call:
     inputs:
+      release:
+        description: Determines if the workflow is called from release
+        default: false
+        type: string
       image-repo:
         description: Binary image registry reference
         required: true
@@ -30,15 +34,10 @@ jobs:
 
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
-
-      - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
-        with:
-          delay: '1'
-          retries: '15'
-          polling_interval: '1'
-          checks_include: 'build-image / Build image'
-          verbose: true
+        
+      - name: Build and push BTP Manager image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
       - name: Install BTP Manager and SAP BTP Operator
         env:
@@ -103,14 +102,9 @@ jobs:
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
-      - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
-        with:
-          delay: '1'
-          retries: '15'
-          polling_interval: '1'
-          checks_include: 'build-image / Build image'
-          verbose: true
+      - name: Build and push BTP Manager image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
       - name: Install BTP Manager and SAP BTP Operator
         env:
@@ -188,14 +182,9 @@ jobs:
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
-      - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
-        with:
-          delay: '1'
-          retries: '15'
-          polling_interval: '1'
-          checks_include: 'build-image / Build image'
-          verbose: true
+      - name: Build and push BTP Manager image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
       - name: Install BTP Manager and SAP BTP Operator
         env:
@@ -266,14 +255,9 @@ jobs:
       - name: Prepare k3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh --wait"
 
-      - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
-        with:
-          delay: '1'
-          retries: '15'
-          polling_interval: '1'
-          checks_include: 'build-image / Build image'
-          verbose: true
+      - name: Build and push BTP Manager image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
       - name: Install prerequisites
         run: |

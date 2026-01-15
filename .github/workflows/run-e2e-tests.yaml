@@ -22,7 +22,8 @@ jobs:
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     if: ${{ !github.event.pull_request.draft }}
     with:
+      release: "false"
       image-tag: PR-${{ github.event.number }}
-      image-repo: europe-docker.pkg.dev/kyma-project/dev/btp-manager
+      image-repo: localhost:5000/btp-manager
       credentials-mode: dummy
       last-k3s-versions: 3
