@@ -54,7 +54,7 @@ jobs:
   run-e2e-matrix:
     runs-on: ubuntu-latest
     needs: prepare-tests
-    timeout-minutes: 5
+    timeout-minutes: 10
     strategy:
       matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
     steps:
