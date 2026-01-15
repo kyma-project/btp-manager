@@ -1,0 +1,354 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sap-btp-operator-extension
+  namespace: kyma-system
+  labels:
+    app.kubernetes.io/managed-by: kyma
+    app.kubernetes.io/name: btp-manager
+    app.kubernetes.io/part-of: Kyma
+    busola.io/extension: resource
+    busola.io/extension-version: '0.5'
+    kyma-project.io/module: btp-operator
+    operator.kyma-project.io/managed-by: kyma
+data:
+  general: |-
+    resource:
+      kind: BtpOperator
+      group: operator.kyma-project.io
+      version: v1alpha1
+    name: SAP BTP Operator
+    category: Kyma
+    urlPath: sap-btp-operator
+    scope: namespace
+    description: >-
+      SAP BTP Service Operator enables consumption of SAP BTP services in your Kubernetes cluster.
+      Monitor service instances, bindings, secrets, and cluster configuration.
+    icon: sap-icon://business-network
+    features:
+      actions:
+        disableCreate: true
+        disableDelete: true
+    navigation:
+      - category: Kyma
+        icon: sap-icon://business-network
+        label: SAP BTP Operator
+
+  list: |-
+    - name: Cluster Status
+      source: status.state
+      widget: Badge
+      highlights:
+        positive:
+          - Ready
+        negative:
+          - Error
+          - Deleting
+        critical:
+          - Warning
+        informative:
+          - Processing
+    - name: Service Instances
+      source: $count($relatedServiceInstances())
+      widget: Badge
+    - name: Service Bindings  
+      source: $count($relatedServiceBindings())
+      widget: Badge
+    - name: Age
+      source: metadata.creationTimestamp
+      sort: true
+      widget: Age
+
+  details: |-
+    header:
+      - name: Cluster ID
+        source: $base64decode($btpManagerSecret().data.cluster_id)
+        widget: Text
+        visibility: $exists($btpManagerSecret().data.cluster_id)
+        description: SAP BTP Cluster Identifier
+      - name: Operator Status
+        source: status.state
+        widget: Badge
+        highlights:
+          positive:
+            - Ready
+          negative:
+            - Error
+            - Deleting
+          critical:
+            - Warning
+          informative:
+            - Processing
+      - name: Service Instances
+        source: $count($relatedServiceInstances())
+        widget: Badge
+        description: Total Service Instances in cluster
+      - name: Service Bindings
+        source: $count($relatedServiceBindings())
+        widget: Badge
+        description: Total Service Bindings in cluster
+
+    body:
+      - name: Cluster Configuration
+        widget: Panel
+        children:
+          - name: Cluster ID
+            source: $base64decode($btpManagerSecret().data.cluster_id)
+            widget: Text
+            visibility: $exists($btpManagerSecret().data.cluster_id)
+            description: Unique identifier for this Kubernetes cluster in SAP BTP
+            copyButton: true
+          - name: Edit Cluster ID
+            widget: PlainText
+            source: "'Use kubectl to edit: kubectl edit secret sap-btp-manager -n kyma-system'"
+          - name: Service Manager URL
+            source: $base64decode($btpManagerSecret().data.sm_url)
+            widget: Text
+            visibility: $exists($btpManagerSecret().data.sm_url)
+            copyButton: true
+          - name: Token URL
+            source: $base64decode($btpManagerSecret().data.tokenurl)
+            widget: Text
+            visibility: $exists($btpManagerSecret().data.tokenurl)
+            copyButton: true
+          - name: Credentials Namespace
+            source: $base64decode($btpManagerSecret().data.credentials_namespace)
+            widget: Text
+            visibility: $exists($btpManagerSecret().data.credentials_namespace)
+            description: Default namespace for BTP credentials
+
+      - name: Default Secret - btp-manager
+        widget: Panel
+        visibility: $exists($btpManagerSecret())
+        children:
+          - name: Secret Status
+            source: >-
+              ($exists($btpManagerSecret()) ? '✅ Active' : '❌ Not Found')
+            widget: Badge
+            highlights:
+              positive:
+                - '✅ Active'
+              negative:
+                - '❌ Not Found'
+          - name: Secret Name
+            source: "'sap-btp-manager'"
+          - name: Namespace
+            source: "'kyma-system'"
+          - name: Managed By
+            source: "'Kyma Control Plane'"
+          - name: Available Fields
+            source: >-
+              ($secret := $btpManagerSecret();
+               $exists($secret) ? $join($keys($secret.data), ', ') : 'None')
+          - name: Service Manager URL
+            source: $base64decode($btpManagerSecret().data.sm_url)
+            visibility: $exists($btpManagerSecret().data.sm_url)
+            copyButton: true
+          - name: Token URL  
+            source: $base64decode($btpManagerSecret().data.tokenurl)
+            visibility: $exists($btpManagerSecret().data.tokenurl)
+            copyButton: true
+          - name: Credentials Namespace
+            source: $base64decode($btpManagerSecret().data.credentials_namespace)
+            visibility: $exists($btpManagerSecret().data.credentials_namespace)
+            copyButton: true
+          - name: Documentation
+            source: "'https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access'"
+            widget: Text
+
+      - name: Monitored Secrets
+        widget: Panel
+        children:
+          - name: Default Cluster Secret
+            source: "'sap-btp-service-operator (all namespaces)'"
+            widget: Text
+            description: Default secret used by SAP BTP Service Operator for all namespaces
+          - name: Namespaced Secrets
+            widget: ResourceList
+            source: '$namespacedBtpSecrets()'
+            description: Namespace-specific secrets with pattern *sap-btp-service-operator
+          - name: Referenced Secrets
+            widget: ResourceList  
+            source: '$referencedSecrets()'
+            description: Secrets referenced in ServiceInstance spec.instances.secret_ref
+          - name: Secret Discovery Documentation
+            source: "'See SAP BTP Service Operator documentation for secret discovery logic'"
+            widget: Text
+
+      - name: Service Instances Summary
+        widget: Panel
+        children:
+          - name: Total Count
+            source: $count($relatedServiceInstances())
+            widget: Badge
+            highlights:
+              informative:
+                - '*'
+          - name: By Status
+            widget: Table
+            source: >-
+              ($instances := $relatedServiceInstances();
+               $grouped := $instances.$groupBy($.status.conditions[type='Ready'].status);
+               $keys($grouped).$map(function($status) {
+                 {
+                   'status': $status ? $status : 'Unknown',
+                   'count': $count($grouped[$status])
+                 }
+               }))
+            columns:
+              - name: Status
+                source: status
+              - name: Count
+                source: count
+          - name: View All Service Instances
+            source: "'Navigate to Service Instances CRD view for detailed information'"
+            widget: Text
+          - name: See Details Link
+            source: "'/resources/services.cloud.sap.com/v1/serviceinstances'"
+            widget: Text
+            copyButton: true
+
+      - name: Service Bindings Summary  
+        widget: Panel
+        children:
+          - name: Total Count
+            source: $count($relatedServiceBindings())
+            widget: Badge
+            highlights:
+              informative:
+                - '*'
+          - name: By Status
+            widget: Table
+            source: >-
+              ($bindings := $relatedServiceBindings();
+               $grouped := $bindings.$groupBy($.status.conditions[type='Ready'].status);
+               $keys($grouped).$map(function($status) {
+                 {
+                   'status': $status ? $status : 'Unknown', 
+                   'count': $count($grouped[$status])
+                 }
+               }))
+            columns:
+              - name: Status
+                source: status
+              - name: Count
+                source: count
+          - name: View All Service Bindings
+            source: "'Navigate to Service Bindings CRD view for detailed information'"
+            widget: Text
+          - name: See Details Link
+            source: "'/resources/services.cloud.sap.com/v1/servicebindings'"
+            widget: Text
+            copyButton: true
+
+      - name: Operator Components
+        widget: Panel
+        children:
+          - name: BTP Manager Controller
+            source: "'btp-manager-controller-manager'"
+            widget: Text
+          - name: SAP BTP Operator Controller
+            source: "'sap-btp-operator-controller-manager'"
+            widget: Text
+          - name: Management Mode
+            source: >-
+              ($exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+               metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma' ? 'Kyma Managed' : 'Open Source')
+            widget: Badge
+            highlights:
+              informative:
+                - 'Kyma Managed'
+              positive:
+                - 'Open Source'
+
+      - name: Status Details
+        widget: Panel
+        children:
+          - name: Current State
+            source: status.state
+            widget: Badge
+            highlights:
+              positive:
+                - Ready
+              negative:
+                - Error
+              informative:
+                - Processing
+          - name: Conditions
+            source: status.conditions
+            widget: ConditionList
+          - name: Observed Generation
+            source: status.observedGeneration
+            visibility: $exists(status.observedGeneration)
+
+      - name: Related Resources
+        widget: Panel
+        children:
+          - name: Deployments
+            widget: ResourceList
+            source: '$relatedDeployments()'
+          - name: Services
+            widget: ResourceList
+            source: '$relatedServices()'
+          - name: Pods
+            widget: ResourceList
+            source: '$relatedPods()'
+
+    resourceGraph:
+      colorVariant: 1
+      dataSources:
+        - source: relatedDeployments
+        - source: relatedServices
+        - source: relatedPods
+        - source: relatedServiceInstances
+        - source: relatedServiceBindings
+        - source: btpManagerSecret
+        - source: namespacedBtpSecrets
+        - source: referencedSecrets
+
+  dataSources: |-
+    relatedDeployments:
+      resource:
+        kind: Deployment
+        version: v1
+        group: apps
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedServices:
+      resource:
+        kind: Service
+        version: v1
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedPods:
+      resource:
+        kind: Pod
+        version: v1
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedServiceInstances:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+    relatedServiceBindings:
+      resource:
+        kind: ServiceBinding
+        version: v1
+        group: services.cloud.sap.com
+    btpManagerSecret:
+      resource:
+        kind: Secret
+        version: v1
+        namespace: kyma-system
+        name: sap-btp-manager
+    namespacedBtpSecrets:
+      resource:
+        kind: Secret
+        version: v1
+      filter: $contains($item.metadata.name, "sap-btp-service-operator")
+    referencedSecrets:
+      resource:
+        kind: Secret
+        version: v1
+      filter: >-
+        $serviceInstances := $.relatedServiceInstances();
+        $referencedSecretNames := $serviceInstances.spec.instances[].secret_ref;
+        $item.metadata.name in $referencedSecretNames
