@@ -24,6 +24,6 @@ jobs:
     with:
       release: "false"
       image-tag: PR-${{ github.event.number }}
-      image-repo: localhost:5000
+      image-repo: localhost:5000/btp-manager
       credentials-mode: dummy
       last-k3s-versions: 3
