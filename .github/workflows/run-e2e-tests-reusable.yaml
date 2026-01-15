@@ -66,7 +66,7 @@ jobs:
         
       - name: Build and push BTP Manager image to k3s registry
         if: ${{ inputs.release == 'false' }}
-        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-tag }}
+        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
       - name: Set up go environment
         uses: actions/setup-go@v6

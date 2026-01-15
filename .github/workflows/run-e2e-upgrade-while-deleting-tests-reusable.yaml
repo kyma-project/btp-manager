@@ -33,7 +33,7 @@ jobs:
 
       - name: Build and push BTP Manager image to k3s registry
         if: ${{ inputs.release == 'false' }}
-        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-tag }}
+        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-registry }}:${{ inputs.image-tag }}
 
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_upgrade_during_deletion_tests.sh ${{ inputs.image-registry }}:${{ inputs.image-tag }}"
