@@ -1,4 +1,4 @@
-package resources
+package moduleresource
 
 import (
 	"context"
@@ -50,7 +50,7 @@ type ModuleResource struct {
 	Name string
 }
 
-type ModuleResourceManager struct {
+type Manager struct {
 	client          client.Client
 	scheme          *runtime.Scheme
 	manifestHandler *manifest.Handler
@@ -76,8 +76,8 @@ type State struct {
 	CredentialsNamespace string
 }
 
-func NewModuleResourceManager(client client.Client, scheme *runtime.Scheme, config Config) *ModuleResourceManager {
-	return &ModuleResourceManager{
+func NewModuleResourceManager(client client.Client, scheme *runtime.Scheme, config Config) *Manager {
+	return &Manager{
 		client:          client,
 		scheme:          scheme,
 		manifestHandler: &manifest.Handler{Scheme: scheme},
@@ -86,12 +86,12 @@ func NewModuleResourceManager(client client.Client, scheme *runtime.Scheme, conf
 	}
 }
 
-func (m *ModuleResourceManager) UpdateState(state State) {
+func (m *Manager) UpdateState(state State) {
 	m.clusterID = state.ClusterID
 	m.credentialsNamespace = state.CredentialsNamespace
 }
 
-func (m *ModuleResourceManager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
+func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
 	objects, err := m.manifestHandler.CollectObjectsFromDir(manifestsDir)
 	if err != nil {
 		return nil, fmt.Errorf("while collecting objects from directory %s: %w", manifestsDir, err)
@@ -113,7 +113,7 @@ func (m *ModuleResourceManager) createUnstructuredObjectsFromManifestsDir(manife
 	return unstructuredObjects, nil
 }
 
-func (m *ModuleResourceManager) addLabels(chartVersion string, us ...*unstructured.Unstructured) error {
+func (m *Manager) addLabels(chartVersion string, us ...*unstructured.Unstructured) error {
 	for _, u := range us {
 		labels := u.GetLabels()
 		if len(labels) == 0 {
@@ -133,7 +133,7 @@ func (m *ModuleResourceManager) addLabels(chartVersion string, us ...*unstructur
 	return nil
 }
 
-func (m *ModuleResourceManager) addLabelsInPodTemplate(u *unstructured.Unstructured) error {
+func (m *Manager) addLabelsInPodTemplate(u *unstructured.Unstructured) error {
 	tplLabels, found, err := unstructured.NestedStringMap(u.Object, "spec", "template", "metadata", "labels")
 	if err != nil {
 		return fmt.Errorf("failed to get pod template labels for deployment %s: %w", u.GetName(), err)
@@ -148,13 +148,13 @@ func (m *ModuleResourceManager) addLabelsInPodTemplate(u *unstructured.Unstructu
 	return nil
 }
 
-func (m *ModuleResourceManager) setNamespace(us []*unstructured.Unstructured) {
+func (m *Manager) setNamespace(us []*unstructured.Unstructured) {
 	for _, u := range us {
 		u.SetNamespace(m.config.ChartNamespace)
 	}
 }
 
-func (m *ModuleResourceManager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	if err := unstructured.SetNestedField(u.Object, string(secret.Data[clusterIdSecretKey]), "data", clusterIdConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set cluster_id: %w", err)
 	}
@@ -174,7 +174,7 @@ func (m *ModuleResourceManager) setConfigMapValues(secret *corev1.Secret, u *uns
 	return nil
 }
 
-func (m *ModuleResourceManager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	u.SetNamespace(m.credentialsNamespace)
 
 	for k := range secret.Data {
@@ -189,7 +189,7 @@ func (m *ModuleResourceManager) setSecretValues(secret *corev1.Secret, u *unstru
 	return nil
 }
 
-func (m *ModuleResourceManager) setDeploymentImages(u *unstructured.Unstructured) error {
+func (m *Manager) setDeploymentImages(u *unstructured.Unstructured) error {
 	if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, m.config.SapBtpOperatorImage); err != nil {
 		return fmt.Errorf("failed to set container image for sap-btp-service-operator: %w", err)
 	}
@@ -201,7 +201,7 @@ func (m *ModuleResourceManager) setDeploymentImages(u *unstructured.Unstructured
 	return nil
 }
 
-func (m *ModuleResourceManager) setContainerImage(u *unstructured.Unstructured, containerName, image string) error {
+func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName, image string) error {
 	containers, found, err := unstructured.NestedSlice(u.Object, "spec", "template", "spec", "containers")
 	if err != nil {
 		return fmt.Errorf("failed to get containers from %s %s: %w", u.GetKind(), u.GetName(), err)
@@ -231,7 +231,7 @@ func (m *ModuleResourceManager) setContainerImage(u *unstructured.Unstructured, 
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
 }
 
-func (m *ModuleResourceManager) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (m *Manager) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	for _, u := range us {
 		preExistingResource := &unstructured.Unstructured{}
 		preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
@@ -255,7 +255,7 @@ func (m *ModuleResourceManager) applyOrUpdateResources(ctx context.Context, us [
 	return nil
 }
 
-func (m *ModuleResourceManager) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	for _, u := range us {
 		if err := m.client.Delete(ctx, u); err != nil {
 			if !k8serrors.IsNotFound(err) {
@@ -266,7 +266,7 @@ func (m *ModuleResourceManager) deleteResources(ctx context.Context, us []*unstr
 	return nil
 }
 
-func (m *ModuleResourceManager) DeleteOutdatedResources(ctx context.Context) error {
+func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
 	deletePath := m.config.ResourcesPath + "/delete"
 	objects, err := m.createUnstructuredObjectsFromManifestsDir(deletePath)
 	if err != nil {
@@ -276,7 +276,7 @@ func (m *ModuleResourceManager) DeleteOutdatedResources(ctx context.Context) err
 	return m.deleteResources(ctx, objects)
 }
 
-func (m *ModuleResourceManager) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured, timeout time.Duration) error {
+func (m *Manager) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -297,7 +297,7 @@ func (m *ModuleResourceManager) waitForResourcesReadiness(ctx context.Context, u
 	return nil
 }
 
-func (m *ModuleResourceManager) waitForResourceReady(ctx context.Context, u *unstructured.Unstructured) error {
+func (m *Manager) waitForResourceReady(ctx context.Context, u *unstructured.Unstructured) error {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -323,7 +323,7 @@ func (m *ModuleResourceManager) waitForResourceReady(ctx context.Context, u *uns
 	}
 }
 
-func (m *ModuleResourceManager) isResourceReady(u *unstructured.Unstructured) bool {
+func (m *Manager) isResourceReady(u *unstructured.Unstructured) bool {
 	kind := u.GetKind()
 
 	switch kind {
@@ -334,7 +334,7 @@ func (m *ModuleResourceManager) isResourceReady(u *unstructured.Unstructured) bo
 	}
 }
 
-func (m *ModuleResourceManager) isDeploymentReady(u *unstructured.Unstructured) bool {
+func (m *Manager) isDeploymentReady(u *unstructured.Unstructured) bool {
 	replicas, _, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
 	readyReplicas, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
 	return replicas == readyReplicas && replicas > 0

@@ -1,4 +1,4 @@
-package resources
+package moduleresource
 
 import (
 	"context"
@@ -42,9 +42,9 @@ var _ = BeforeSuite(func() {
 		Build()
 })
 
-var _ = Describe("ModuleResourceManager", func() {
+var _ = Describe("Manager", func() {
 	var (
-		manager *ModuleResourceManager
+		manager *Manager
 	)
 
 	BeforeEach(func() {
@@ -134,10 +134,10 @@ var _ = Describe("ModuleResourceManager", func() {
 					Name:      "test-secret",
 					Namespace: "test-namespace",
 				},
-				StringData: map[string]string{
-					"cluster_id":            "test-cluster-123",
-					"credentials_namespace": "test-creds-ns",
-					"clientid":              "test-client",
+				Data: map[string][]byte{
+					"cluster_id":            []byte("test-cluster-123"),
+					"credentials_namespace": []byte("test-creds-ns"),
+					"clientid":              []byte("test-client"),
 				},
 			}
 
