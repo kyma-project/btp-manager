@@ -16,20 +16,16 @@ import (
 )
 
 const (
-	ManagedByLabelKey         = "app.kubernetes.io/managed-by"
-	InstanceLabelKey          = "app.kubernetes.io/instance"
-	ChartVersionLabelKey      = "chart-version"
-	KymaProjectModuleLabelKey = "kyma-project.io/module"
-)
+	OperatorName = "btp-manager"
+	ModuleName   = "btp-operator"
 
-const (
-	clusterIdSecretKey            = "cluster_id"
-	credentialsNamespaceSecretKey = "credentials_namespace"
-)
+	ManagedByLabelKey             = "app.kubernetes.io/managed-by"
+	ChartVersionLabelKey          = "chart-version"
+	KymaProjectModuleLabelKey     = "kyma-project.io/module"
+	ClusterIdSecretKey            = "cluster_id"
+	CredentialsNamespaceSecretKey = "credentials_namespace"
 
-const (
-	sapBtpServiceOperatorContainerName = "manager"
-	kubeRbacProxyContainerName         = "kube-rbac-proxy"
+	DeploymentKind = "Deployment"
 )
 
 const (
@@ -37,12 +33,9 @@ const (
 	releaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
 	managementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
 	enableLimitedCacheConfigMapKey  = "ENABLE_LIMITED_CACHE"
-)
 
-const (
-	OperatorName   = "btp-manager"
-	ModuleName     = "btp-operator"
-	DeploymentKind = "Deployment"
+	sapBtpServiceOperatorContainerName = "manager"
+	kubeRbacProxyContainerName         = "kube-rbac-proxy"
 )
 
 type ModuleResource struct {
@@ -155,7 +148,7 @@ func (m *Manager) setNamespace(us []*unstructured.Unstructured) {
 }
 
 func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	if err := unstructured.SetNestedField(u.Object, string(secret.Data[clusterIdSecretKey]), "data", clusterIdConfigMapKey); err != nil {
+	if err := unstructured.SetNestedField(u.Object, string(secret.Data[ClusterIdSecretKey]), "data", clusterIdConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set cluster_id: %w", err)
 	}
 
@@ -178,7 +171,7 @@ func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstruc
 	u.SetNamespace(m.credentialsNamespace)
 
 	for k := range secret.Data {
-		if k == clusterIdSecretKey || k == credentialsNamespaceSecretKey {
+		if k == ClusterIdSecretKey || k == CredentialsNamespaceSecretKey {
 			continue
 		}
 		if err := unstructured.SetNestedField(u.Object, base64.StdEncoding.EncodeToString(secret.Data[k]), "data", k); err != nil {

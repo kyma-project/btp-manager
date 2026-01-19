@@ -22,6 +22,20 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 )
 
+const (
+	testNamespace = "test-namespace"
+	kymaNamespace = "kyma-system"
+
+	configmapKind = "ConfigMap"
+	secretKind    = "Secret"
+
+	configmapName  = "test-configmap"
+	secretName     = "test-secret"
+	deploymentName = "test-deployment"
+
+	moduleResourcesPath = "./testdata"
+)
+
 var (
 	fakeClient client.Client
 	scheme     *runtime.Scheme
@@ -51,33 +65,33 @@ var _ = Describe("Module Resource Manager", func() {
 			Build()
 
 		manager = NewManager(fakeClient, scheme, Config{
-			ChartNamespace:       "kyma-system",
-			ResourcesPath:        "./testdata",
-			ManagerResourcesPath: "./testdata",
+			ChartNamespace:       kymaNamespace,
+			ResourcesPath:        moduleResourcesPath,
+			ManagerResourcesPath: moduleResourcesPath,
 		})
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
 		It("should load and convert manifests to unstructured objects", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
 			Expect(manager.resourceIndices).To(HaveLen(3))
 
-			configMapIndex := manager.resourceIndices[ModuleResource{Kind: "ConfigMap", Name: "test-configmap"}]
-			Expect(objects[configMapIndex].GetKind()).To(Equal("ConfigMap"))
-			Expect(objects[configMapIndex].GetName()).To(Equal("test-configmap"))
-			Expect(objects[configMapIndex].GetNamespace()).To(Equal("test-namespace"))
+			configMapIndex := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
+			Expect(objects[configMapIndex].GetKind()).To(Equal(configmapKind))
+			Expect(objects[configMapIndex].GetName()).To(Equal(configmapName))
+			Expect(objects[configMapIndex].GetNamespace()).To(Equal(testNamespace))
 
-			deploymentIndex := manager.resourceIndices[ModuleResource{Kind: "Deployment", Name: "test-deployment"}]
-			Expect(objects[deploymentIndex].GetKind()).To(Equal("Deployment"))
-			Expect(objects[deploymentIndex].GetName()).To(Equal("test-deployment"))
-			Expect(objects[deploymentIndex].GetNamespace()).To(Equal("test-namespace"))
+			deploymentIndex := manager.resourceIndices[ModuleResource{Kind: DeploymentKind, Name: deploymentName}]
+			Expect(objects[deploymentIndex].GetKind()).To(Equal(DeploymentKind))
+			Expect(objects[deploymentIndex].GetName()).To(Equal(deploymentName))
+			Expect(objects[deploymentIndex].GetNamespace()).To(Equal(testNamespace))
 
-			secretIndex := manager.resourceIndices[ModuleResource{Kind: "Secret", Name: "test-secret"}]
-			Expect(objects[secretIndex].GetKind()).To(Equal("Secret"))
-			Expect(objects[secretIndex].GetName()).To(Equal("test-secret"))
+			secretIndex := manager.resourceIndices[ModuleResource{Kind: secretKind, Name: secretName}]
+			Expect(objects[secretIndex].GetKind()).To(Equal(secretKind))
+			Expect(objects[secretIndex].GetName()).To(Equal(secretName))
 		})
 
 		It("should return error for non-existent directory", func() {
@@ -89,7 +103,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("add labels", func() {
 		It("should add managed-by, chart version, and module labels to all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
 			chartVersion := "0.0.1"
@@ -103,7 +117,7 @@ var _ = Describe("Module Resource Manager", func() {
 				Expect(labels[ChartVersionLabelKey]).To(Equal(chartVersion))
 			}
 
-			deployIdx := manager.resourceIndices[ModuleResource{Kind: "Deployment", Name: "test-deployment"}]
+			deployIdx := manager.resourceIndices[ModuleResource{Kind: DeploymentKind, Name: deploymentName}]
 			spec, found, err := unstructured.NestedMap(objects[deployIdx].Object, "spec", "template", "metadata", "labels")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
@@ -113,13 +127,13 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("set namespace", func() {
 		It("should set namespace in all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
 			manager.setNamespace(objects)
 
 			for _, obj := range objects {
-				Expect(obj.GetNamespace()).To(Equal("kyma-system"))
+				Expect(obj.GetNamespace()).To(Equal(kymaNamespace))
 			}
 		})
 	})
@@ -128,13 +142,13 @@ var _ = Describe("Module Resource Manager", func() {
 		It("should set ConfigMap values from secret", func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: "test-namespace",
+					Name:      secretName,
+					Namespace: testNamespace,
 				},
 				Data: map[string][]byte{
-					"cluster_id":            []byte("test-cluster-123"),
-					"credentials_namespace": []byte("test-creds-ns"),
-					"clientid":              []byte("test-client"),
+					ClusterIdSecretKey:            []byte("test-cluster-123"),
+					CredentialsNamespaceSecretKey: []byte("test-creds-ns"),
+					"clientid":                    []byte("test-client"),
 				},
 			}
 
@@ -144,10 +158,10 @@ var _ = Describe("Module Resource Manager", func() {
 				CredentialsNamespace: "test-creds-ns",
 			})
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
-			configMapIndex, found := manager.resourceIndices[ModuleResource{Kind: "ConfigMap", Name: "test-configmap"}]
+			configMapIndex, found := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
 			Expect(found).To(BeTrue())
 			configMap := objects[configMapIndex]
 
@@ -168,15 +182,15 @@ var _ = Describe("Module Resource Manager", func() {
 		It("should copy secret data with base64 encoding excluding cluster_id and credentials_namespace", func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: "test-namespace",
+					Name:      secretName,
+					Namespace: testNamespace,
 				},
 				Data: map[string][]byte{
-					"cluster_id":            []byte("test-cluster-123"),
-					"credentials_namespace": []byte("test-creds-ns"),
-					"clientid":              []byte("test-client"),
-					"clientsecret":          []byte("test-secret"),
-					"sm_url":                []byte("https://test.url"),
+					ClusterIdSecretKey:            []byte("test-cluster-123"),
+					CredentialsNamespaceSecretKey: []byte("test-creds-ns"),
+					"clientid":                    []byte("test-client"),
+					"clientsecret":                []byte(secretName),
+					"sm_url":                      []byte("https://test.url"),
 				},
 			}
 
@@ -186,7 +200,7 @@ var _ = Describe("Module Resource Manager", func() {
 			})
 
 			secretObj := &unstructured.Unstructured{}
-			secretObj.SetKind("Secret")
+			secretObj.SetKind(secretKind)
 			secretObj.SetName("sap-btp-service-operator")
 			secretObj.SetNamespace("default")
 
@@ -202,8 +216,8 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(data).To(HaveKey("clientid"))
 			Expect(data).To(HaveKey("clientsecret"))
 			Expect(data).To(HaveKey("sm_url"))
-			Expect(data).NotTo(HaveKey("cluster_id"))
-			Expect(data).NotTo(HaveKey("credentials_namespace"))
+			Expect(data).NotTo(HaveKey(ClusterIdSecretKey))
+			Expect(data).NotTo(HaveKey(CredentialsNamespaceSecretKey))
 
 			decoded, err := base64.StdEncoding.DecodeString(data["clientid"])
 			Expect(err).NotTo(HaveOccurred())
@@ -220,10 +234,10 @@ var _ = Describe("Module Resource Manager", func() {
 			manager.config.SapBtpOperatorImage = sapBtpOperatorImage
 			manager.config.KubeRbacProxyImage = kubeRbacProxyImage
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
-			deploymentIndex, found := manager.resourceIndices[ModuleResource{Kind: "Deployment", Name: "test-deployment"}]
+			deploymentIndex, found := manager.resourceIndices[ModuleResource{Kind: DeploymentKind, Name: deploymentName}]
 			Expect(found).To(BeTrue())
 			deployment := objects[deploymentIndex]
 
@@ -251,8 +265,8 @@ var _ = Describe("Module Resource Manager", func() {
 			manager.config.SapBtpOperatorImage = "test-image"
 
 			deployment := &unstructured.Unstructured{}
-			deployment.SetKind("Deployment")
-			deployment.SetName("test-deployment")
+			deployment.SetKind(DeploymentKind)
+			deployment.SetName(deploymentName)
 			deployment.Object["spec"] = map[string]interface{}{
 				"template": map[string]interface{}{
 					"spec": map[string]interface{}{
@@ -281,21 +295,21 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should create new resources using Server-Side Apply", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = manager.applyOrUpdateResources(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 
-			configMapIndex := manager.resourceIndices[ModuleResource{Kind: "ConfigMap", Name: "test-configmap"}]
+			configMapIndex := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
 			configMap := &unstructured.Unstructured{}
 			configMap.SetGroupVersionKind(objects[configMapIndex].GroupVersionKind())
 			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      "test-configmap",
-				Namespace: "test-namespace",
+				Name:      configmapName,
+				Namespace: testNamespace,
 			}, configMap)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(configMap.GetName()).To(Equal("test-configmap"))
+			Expect(configMap.GetName()).To(Equal(configmapName))
 		})
 
 		It("should update existing resources", func() {
@@ -303,16 +317,16 @@ var _ = Describe("Module Resource Manager", func() {
 			configMap.SetGroupVersionKind(schema.GroupVersionKind{
 				Group:   "",
 				Version: "v1",
-				Kind:    "ConfigMap",
+				Kind:    configmapKind,
 			})
-			configMap.SetName("test-configmap")
-			configMap.SetNamespace("test-namespace")
+			configMap.SetName(configmapName)
+			configMap.SetNamespace(testNamespace)
 			unstructured.SetNestedField(configMap.Object, "old-value", "data", "key")
 
 			err := fakeClient.Create(ctx, configMap)
 			Expect(err).NotTo(HaveOccurred())
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = manager.applyOrUpdateResources(ctx, objects)
@@ -322,11 +336,11 @@ var _ = Describe("Module Resource Manager", func() {
 			updated.SetGroupVersionKind(schema.GroupVersionKind{
 				Group:   "",
 				Version: "v1",
-				Kind:    "ConfigMap",
+				Kind:    configmapKind,
 			})
 			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      "test-configmap",
-				Namespace: "test-namespace",
+				Name:      configmapName,
+				Namespace: testNamespace,
 			}, updated)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -351,36 +365,36 @@ var _ = Describe("Module Resource Manager", func() {
 			configMap.SetGroupVersionKind(schema.GroupVersionKind{
 				Group:   "",
 				Version: "v1",
-				Kind:    "ConfigMap",
+				Kind:    configmapKind,
 			})
-			configMap.SetName("test-configmap")
-			configMap.SetNamespace("test-namespace")
+			configMap.SetName(configmapName)
+			configMap.SetNamespace(testNamespace)
 
 			err := fakeClient.Create(ctx, configMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      "test-configmap",
-				Namespace: "test-namespace",
+				Name:      configmapName,
+				Namespace: testNamespace,
 			}, configMap)
 			Expect(err).NotTo(HaveOccurred())
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
-			configMapIndex := manager.resourceIndices[ModuleResource{Kind: "ConfigMap", Name: "test-configmap"}]
+			configMapIndex := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
 			err = manager.deleteResources(ctx, []*unstructured.Unstructured{objects[configMapIndex]})
 			Expect(err).NotTo(HaveOccurred())
 
 			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      "test-configmap",
-				Namespace: "test-namespace",
+				Name:      configmapName,
+				Namespace: testNamespace,
 			}, configMap)
 			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 		})
 
 		It("should not error when deleting non-existent resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir("./testdata")
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = manager.deleteResources(ctx, objects)
@@ -394,10 +408,10 @@ var _ = Describe("Module Resource Manager", func() {
 			deployment := &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
+					"kind":       DeploymentKind,
 					"metadata": map[string]interface{}{
-						"name":      "test-deployment",
-						"namespace": "test-namespace",
+						"name":      deploymentName,
+						"namespace": testNamespace,
 					},
 					"spec": map[string]interface{}{
 						"replicas": 2,
@@ -422,10 +436,10 @@ var _ = Describe("Module Resource Manager", func() {
 			deployment := &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
+					"kind":       DeploymentKind,
 					"metadata": map[string]interface{}{
-						"name":      "test-deployment",
-						"namespace": "test-namespace",
+						"name":      deploymentName,
+						"namespace": testNamespace,
 					},
 					"spec": map[string]interface{}{
 						"replicas": 2,
@@ -451,10 +465,10 @@ var _ = Describe("Module Resource Manager", func() {
 			configMap := &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "v1",
-					"kind":       "ConfigMap",
+					"kind":       configmapKind,
 					"metadata": map[string]interface{}{
-						"name":      "test-configmap",
-						"namespace": "test-namespace",
+						"name":      configmapName,
+						"namespace": testNamespace,
 					},
 				},
 			}
@@ -472,10 +486,10 @@ var _ = Describe("Module Resource Manager", func() {
 			deployment := &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "apps/v1",
-					"kind":       "Deployment",
+					"kind":       DeploymentKind,
 					"metadata": map[string]interface{}{
-						"name":      "test-deployment",
-						"namespace": "test-namespace",
+						"name":      deploymentName,
+						"namespace": testNamespace,
 					},
 					"spec": map[string]interface{}{
 						"replicas": 1,
@@ -490,10 +504,10 @@ var _ = Describe("Module Resource Manager", func() {
 			configMap := &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "v1",
-					"kind":       "ConfigMap",
+					"kind":       configmapKind,
 					"metadata": map[string]interface{}{
-						"name":      "test-configmap",
-						"namespace": "test-namespace",
+						"name":      configmapName,
+						"namespace": testNamespace,
 					},
 				},
 			}
