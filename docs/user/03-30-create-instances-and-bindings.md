@@ -10,7 +10,7 @@ To use an SAP BTP service in your Kyma cluster, create its service instance and 
   For more information, see [Configure Entitlements and Quotas for Subaccounts](https://help.sap.com/docs/btp/sap-business-technology-platform/configure-entitlements-and-quotas-for-subaccounts?&version=Cloud).
 * You know the service offering name and service plan name for the SAP BTP service you want to connect to your Kyma cluster.
   
-  > ### Tip:
+  > [!TIP]
   > To find the service and service plan names, in the SAP BTP cockpit, go to **Services**->**Service Marketplace**. Click on the service tile and find its **name** and **Plan**.
 
 ## Create a Service Instance
