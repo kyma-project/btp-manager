@@ -95,6 +95,12 @@ func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string)
 		return nil, fmt.Errorf("while converting to unstructured: %w", err)
 	}
 
+	m.indexModuleResources(unstructuredObjects)
+
+	return unstructuredObjects, nil
+}
+
+func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
 	for i, u := range unstructuredObjects {
 		resource := ModuleResource{
 			Kind: u.GetKind(),
@@ -102,8 +108,6 @@ func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string)
 		}
 		m.resourceIndices[resource] = i
 	}
-
-	return unstructuredObjects, nil
 }
 
 func (m *Manager) addLabels(chartVersion string, us ...*unstructured.Unstructured) error {
