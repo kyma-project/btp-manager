@@ -76,7 +76,7 @@ type State struct {
 	CredentialsNamespace string
 }
 
-func NewModuleResourceManager(client client.Client, scheme *runtime.Scheme, config Config) *Manager {
+func NewManager(client client.Client, scheme *runtime.Scheme, config Config) *Manager {
 	return &Manager{
 		client:          client,
 		scheme:          scheme,

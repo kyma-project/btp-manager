@@ -29,7 +29,7 @@ var (
 
 func TestResources(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Resources Suite")
+	RunSpecs(t, "Module Resource Suite")
 }
 
 var _ = BeforeSuite(func() {
@@ -42,18 +42,15 @@ var _ = BeforeSuite(func() {
 		Build()
 })
 
-var _ = Describe("Manager", func() {
-	var (
-		manager *Manager
-	)
+var _ = Describe("Module Resource Manager", func() {
+	var manager *Manager
 
 	BeforeEach(func() {
-		// Rebuild fake client for each test to avoid state pollution
 		fakeClient = fake.NewClientBuilder().
 			WithScheme(scheme).
 			Build()
 
-		manager = NewModuleResourceManager(fakeClient, scheme, Config{
+		manager = NewManager(fakeClient, scheme, Config{
 			ChartNamespace:       "kyma-system",
 			ResourcesPath:        "./testdata",
 			ManagerResourcesPath: "./testdata",
