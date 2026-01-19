@@ -8,7 +8,10 @@ To use an SAP BTP service in your Kyma cluster, create its service instance and 
 * For CLI interactions: [kubectl](https://kubernetes.io/docs/tasks/tools/) configured to communicate with your Kyma instance. See [Access a Kyma Instance Using kubectl](https://help.sap.com/docs/btp/sap-business-technology-platform/access-kyma-instance-using-kubectl?version=Cloud).
 * For an enterprise account, you have added quotas to the services you purchased in your subaccount. Otherwise, only default free-of-charge services are listed in the service marketplace. Quotas are automatically assigned to the resources available in trial accounts.
   For more information, see [Configure Entitlements and Quotas for Subaccounts](https://help.sap.com/docs/btp/sap-business-technology-platform/configure-entitlements-and-quotas-for-subaccounts?&version=Cloud).
-* You know the service offering name and service plan name for the SAP BTP service you want to connect to your Kyma cluster<sup>[1](#footnote1)</sup>.
+* You know the service offering name and service plan name for the SAP BTP service you want to connect to your Kyma cluster.
+  
+  > ### Tip:
+  > To find the service and service plan names, in the SAP BTP cockpit, go to **Services**->**Service Marketplace**. Click on the service tile and find its **name** and **Plan**.
 
 ## Create a Service Instance
 
@@ -22,14 +25,14 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 1. In the navigation area, choose **Namespaces**, and go to the namespace you want to work in.
 2. Go to **Service Management** -> **Service Instances**, and choose **Create**.
-3. Provide the required service details<sup>[1](#footnote1)</sup> in **Form**. Alternatively, you can switch to the **YAML** tab and edit or upload your file.
+3. Provide the required service details in the **Form**. Alternatively, you can switch to the **YAML** tab and edit or upload your file.
 4. Choose **Create**.
 
    You see the status `PROVISIONED`.
    
 #### **kubectl**
 
-1.  To create a ServiceInstance custom resource (CR), replace the placeholders<sup>[1](#footnote1)</sup> and run the following command:
+1.  To create a ServiceInstance custom resource (CR), replace the placeholders and run the following command:
 
     ```yaml
     kubectl create -f - <<EOF 
@@ -129,6 +132,3 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 ### Results
 
 You can use a given service in your Kyma cluster.
-
-<a name="footnote1"></a>
-<sup>1</sup>To find the service and service plan names, in the SAP BTP cockpit, go to **Services**->**Service Marketplace**. Click on the service tile and find its **name** and **Plan**.
