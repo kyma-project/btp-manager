@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/kyma-project/btp-manager/internal/manifest"
 )
 
 const (
@@ -43,10 +42,10 @@ const (
 	enableLimitedCacheConfigMapKey  = "ENABLE_LIMITED_CACHE"
 
 	sapBtpServiceOperatorContainerName = "manager"
-	kubeRbacProxyContainerName         = "kube-rbac-proxy"
+	kubeRbacProxyContainerName         = KubeRbacProxyName
 )
 
-type ModuleResource struct {
+type Metadata struct {
 	Kind string
 	Name string
 }
@@ -56,7 +55,7 @@ type Manager struct {
 	scheme          *runtime.Scheme
 	manifestHandler *manifest.Handler
 
-	resourceIndices map[ModuleResource]int
+	resourceIndices map[Metadata]int
 
 	clusterID            string
 	credentialsNamespace string
@@ -72,7 +71,7 @@ func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
 		client:          client,
 		scheme:          scheme,
 		manifestHandler: &manifest.Handler{Scheme: scheme},
-		resourceIndices: make(map[ModuleResource]int),
+		resourceIndices: make(map[Metadata]int),
 	}
 }
 
@@ -99,7 +98,7 @@ func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string)
 
 func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
 	for i, u := range unstructuredObjects {
-		resource := ModuleResource{
+		resource := Metadata{
 			Kind: u.GetKind(),
 			Name: u.GetName(),
 		}

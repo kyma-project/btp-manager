@@ -80,19 +80,19 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(objects).To(HaveLen(3))
 			Expect(manager.resourceIndices).To(HaveLen(3))
 
-			configmapIndex := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
+			configmapIndex := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
 			configmap := objects[configmapIndex]
 			Expect(configmap.GetKind()).To(Equal(configmapKind))
 			Expect(configmap.GetName()).To(Equal(configmapName))
 			Expect(configmap.GetNamespace()).To(Equal(testNamespace))
 
-			deploymentIndex := manager.resourceIndices[ModuleResource{Kind: DeploymentKind, Name: deploymentName}]
+			deploymentIndex := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
 			deployment := objects[deploymentIndex]
 			Expect(deployment.GetKind()).To(Equal(DeploymentKind))
 			Expect(deployment.GetName()).To(Equal(deploymentName))
 			Expect(deployment.GetNamespace()).To(Equal(testNamespace))
 
-			secretIndex := manager.resourceIndices[ModuleResource{Kind: secretKind, Name: secretName}]
+			secretIndex := manager.resourceIndices[Metadata{Kind: secretKind, Name: secretName}]
 			secret := objects[secretIndex]
 			Expect(secret.GetKind()).To(Equal(secretKind))
 			Expect(secret.GetName()).To(Equal(secretName))
@@ -122,7 +122,7 @@ var _ = Describe("Module Resource Manager", func() {
 				Expect(labels[ChartVersionLabelKey]).To(Equal(chartVersion))
 			}
 
-			deploymentIndex := manager.resourceIndices[ModuleResource{Kind: DeploymentKind, Name: deploymentName}]
+			deploymentIndex := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
 			spec, found, err := unstructured.NestedMap(objects[deploymentIndex].Object, "spec", "template", "metadata", "labels")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
@@ -171,7 +171,7 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
-			configmapIndex, found := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
+			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
 			Expect(found).To(BeTrue())
 			configmap := objects[configmapIndex]
 
@@ -255,7 +255,7 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
-			deploymentIndex, found := manager.resourceIndices[ModuleResource{Kind: DeploymentKind, Name: deploymentName}]
+			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
 			Expect(found).To(BeTrue())
 			deployment := objects[deploymentIndex]
 
@@ -314,7 +314,7 @@ var _ = Describe("Module Resource Manager", func() {
 			err = manager.applyOrUpdateResources(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 
-			configmapIndex := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
+			configmapIndex := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
 			configmap := &unstructured.Unstructured{}
 			configmap.SetGroupVersionKind(objects[configmapIndex].GroupVersionKind())
 			err = fakeClient.Get(ctx, client.ObjectKey{
@@ -390,7 +390,7 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
-			configmapIndex := manager.resourceIndices[ModuleResource{Kind: configmapKind, Name: configmapName}]
+			configmapIndex := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
 			err = manager.deleteResources(ctx, []*unstructured.Unstructured{objects[configmapIndex]})
 			Expect(err).NotTo(HaveOccurred())
 
