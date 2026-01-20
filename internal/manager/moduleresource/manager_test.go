@@ -3,9 +3,11 @@ package moduleresource
 import (
 	"context"
 	"encoding/base64"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/kyma-project/btp-manager/controllers/config"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -67,11 +69,7 @@ var _ = Describe("Module Resource Manager", func() {
 			WithScheme(scheme).
 			Build()
 
-		manager = NewManager(fakeClient, scheme, Config{
-			ChartNamespace:       kymaNamespace,
-			ResourcesPath:        moduleResourcesPath,
-			ManagerResourcesPath: moduleResourcesPath,
-		})
+		manager = NewManager(fakeClient, scheme)
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
@@ -159,7 +157,12 @@ var _ = Describe("Module Resource Manager", func() {
 				},
 			}
 
-			manager.config.EnableLimitedCache = "true"
+			restoreEnableLimitedCache := config.EnableLimitedCache
+			config.EnableLimitedCache = "true"
+			defer func() {
+				config.EnableLimitedCache = restoreEnableLimitedCache
+			}()
+
 			manager.UpdateState(State{
 				ClusterID:            "test-cluster-123",
 				CredentialsNamespace: "test-creds-ns",
@@ -233,14 +236,22 @@ var _ = Describe("Module Resource Manager", func() {
 	})
 
 	Describe("set Deployment images", func() {
-		It("should set container images for manager and kube-rbac-proxy", func() {
-			const (
-				sapBtpOperatorImage = "local.test/kyma-project/sap-btp-operator:v0.0.1"
-				kubeRbacProxyImage  = "local.test/kyma-project/kube-rbac-proxy:v0.0.1"
-			)
-			manager.config.SapBtpOperatorImage = sapBtpOperatorImage
-			manager.config.KubeRbacProxyImage = kubeRbacProxyImage
+		const (
+			sapBtpOperatorImage = "local.test/kyma-project/sap-btp-operator:v0.0.1"
+			kubeRbacProxyImage  = "local.test/kyma-project/kube-rbac-proxy:v0.0.1"
+		)
 
+		BeforeEach(func() {
+			Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
+			Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpOperatorImage)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			Expect(os.Unsetenv(KubeRbacProxyEnv)).To(Succeed())
+			Expect(os.Unsetenv(SapBtpServiceOperatorEnv)).To(Succeed())
+		})
+
+		It("should set container images for manager and kube-rbac-proxy", func() {
 			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -268,8 +279,6 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should return error if container not found", func() {
-			manager.config.SapBtpOperatorImage = "test-image"
-
 			deployment := &unstructured.Unstructured{}
 			deployment.SetKind(DeploymentKind)
 			deployment.SetName(deploymentName)

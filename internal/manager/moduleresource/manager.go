@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/kyma-project/btp-manager/controllers/config"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -22,8 +24,14 @@ const (
 	ManagedByLabelKey             = "app.kubernetes.io/managed-by"
 	ChartVersionLabelKey          = "chart-version"
 	KymaProjectModuleLabelKey     = "kyma-project.io/module"
+
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
+
+	KubeRbacProxyName         = "kube-rbac-proxy"
+	KubeRbacProxyEnv          = "KUBE_RBAC_PROXY"
+	SapBtpServiceOperatorName = "sap-btp-service-operator"
+	SapBtpServiceOperatorEnv  = "SAP_BTP_SERVICE_OPERATOR"
 
 	DeploymentKind = "Deployment"
 )
@@ -47,7 +55,6 @@ type Manager struct {
 	client          client.Client
 	scheme          *runtime.Scheme
 	manifestHandler *manifest.Handler
-	config          Config
 
 	resourceIndices map[ModuleResource]int
 
@@ -55,26 +62,16 @@ type Manager struct {
 	credentialsNamespace string
 }
 
-type Config struct {
-	ChartNamespace       string
-	ResourcesPath        string
-	ManagerResourcesPath string
-	SapBtpOperatorImage  string
-	KubeRbacProxyImage   string
-	EnableLimitedCache   string
-}
-
 type State struct {
 	ClusterID            string
 	CredentialsNamespace string
 }
 
-func NewManager(client client.Client, scheme *runtime.Scheme, config Config) *Manager {
+func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
 	return &Manager{
 		client:          client,
 		scheme:          scheme,
 		manifestHandler: &manifest.Handler{Scheme: scheme},
-		config:          config,
 		resourceIndices: make(map[ModuleResource]int),
 	}
 }
@@ -147,7 +144,7 @@ func (m *Manager) addLabelsInPodTemplate(u *unstructured.Unstructured) error {
 
 func (m *Manager) setNamespace(us []*unstructured.Unstructured) {
 	for _, u := range us {
-		u.SetNamespace(m.config.ChartNamespace)
+		u.SetNamespace(config.ChartNamespace)
 	}
 }
 
@@ -164,7 +161,7 @@ func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unst
 		return fmt.Errorf("failed to set management namespace: %w", err)
 	}
 
-	if err := unstructured.SetNestedField(u.Object, m.config.EnableLimitedCache, "data", enableLimitedCacheConfigMapKey); err != nil {
+	if err := unstructured.SetNestedField(u.Object, config.EnableLimitedCache, "data", enableLimitedCacheConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set enable limited cache: %w", err)
 	}
 
@@ -187,12 +184,13 @@ func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstruc
 }
 
 func (m *Manager) setDeploymentImages(u *unstructured.Unstructured) error {
-	if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, m.config.SapBtpOperatorImage); err != nil {
-		return fmt.Errorf("failed to set container image for sap-btp-service-operator: %w", err)
+	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
+	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
+	if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
+		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
 	}
-
-	if err := m.setContainerImage(u, kubeRbacProxyContainerName, m.config.KubeRbacProxyImage); err != nil {
-		return fmt.Errorf("failed to set container image for kube-rbac-proxy: %w", err)
+	if err := m.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
+		return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
 	}
 
 	return nil
@@ -264,7 +262,7 @@ func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstru
 }
 
 func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
-	deletePath := m.config.ResourcesPath + "/delete"
+	deletePath := config.ResourcesPath + "/delete"
 	objects, err := m.createUnstructuredObjectsFromManifestsDir(deletePath)
 	if err != nil {
 		return nil
