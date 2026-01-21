@@ -83,6 +83,15 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(secret).To(BeNil())
 		})
 
+		It("should get required secret", func() {
+			Expect(createRequiredSecret(fakeClient)).To(Succeed())
+			secret, err := manager.getRequiredSecret(context.Background())
+
+			Expect(err).To(BeNil())
+			Expect(secret.Name).To(Equal(requiredSecretName))
+			Expect(secret.Namespace).To(Equal(requiredSecretNamespace))
+		})
+
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
@@ -534,3 +543,20 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 	})
 })
+
+func createRequiredSecret(k8sClient client.Client) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      requiredSecretName,
+			Namespace: requiredSecretNamespace,
+		},
+		Data: map[string][]byte{
+			clientIdSecretKey:  []byte("dGVzdF9jbGllbnRpZA=="),
+			clientSecretKey:    []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
+			smUrlSecretKey:     []byte("dGVzdF9zbV91cmw="),
+			tokenUrlSecretKey:  []byte("dGVzdF90b2tlbnVybA=="),
+			ClusterIdSecretKey: []byte("dGVzdF9jbHVzdGVyX2lk"),
+		},
+	}
+	return k8sClient.Create(context.Background(), secret)
+}
