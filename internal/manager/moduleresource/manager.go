@@ -49,6 +49,9 @@ const (
 
 	sapBtpServiceOperatorContainerName = "manager"
 	kubeRbacProxyContainerName         = KubeRbacProxyName
+
+	operatorLabelPrefix                       = "operator.kyma-project.io/"
+	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 )
 
 type Metadata struct {
@@ -122,6 +125,17 @@ func (m *Manager) verifySecret(secret *corev1.Secret) error {
 		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
 	return nil
+}
+
+func (m *Manager) setCredentialsNamespace(s *corev1.Secret) {
+	credentialsNamespace := config.ChartNamespace
+	if s != nil {
+		if v, ok := s.Data[CredentialsNamespaceSecretKey]; ok && len(v) > 0 {
+			credentialsNamespace = string(v)
+		}
+		m.credentialsContext.previousCredentialsNamespace = s.Annotations[previousCredentialsNamespaceAnnotationKey]
+	}
+	m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret = credentialsNamespace
 }
 
 func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
