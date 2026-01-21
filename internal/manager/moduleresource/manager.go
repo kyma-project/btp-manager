@@ -26,10 +26,10 @@ const (
 	ChartVersionLabelKey      = "chart-version"
 	KymaProjectModuleLabelKey = "kyma-project.io/module"
 
-	ClientIdSecretKey = "clientid"
-	ClientSecretKey = "clientsecret"
-	SmUrlSecretKey = "sm_url"
-	TokenUrlSecretKey = "tokenurl"
+	ClientIdSecretKey             = "clientid"
+	ClientSecretKey               = "clientsecret"
+	SmUrlSecretKey                = "sm_url"
+	TokenUrlSecretKey             = "tokenurl"
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
 

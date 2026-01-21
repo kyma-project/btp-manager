@@ -36,11 +36,6 @@ const (
 
 	moduleResourcesPath = "./testdata"
 
-	clientIdSecretKey = "clientid"
-	clientSecretKey   = "clientsecret"
-	smUrlSecretKey    = "sm_url"
-	tokenUrlSecretKey = "tokenurl"
-
 	requiredSecretName      = "sap-btp-manager"
 	requiredSecretNamespace = "kyma-system"
 )
@@ -203,9 +198,9 @@ var _ = Describe("Module Resource Manager", func() {
 					Namespace: testNamespace,
 				},
 				Data: map[string][]byte{
+					ClientIdSecretKey:             []byte("test-client"),
 					ClusterIdSecretKey:            []byte("test-cluster-123"),
 					CredentialsNamespaceSecretKey: []byte("test-creds-ns"),
-					clientIdSecretKey:             []byte("test-client"),
 				},
 			}
 
@@ -243,11 +238,11 @@ var _ = Describe("Module Resource Manager", func() {
 					Namespace: testNamespace,
 				},
 				Data: map[string][]byte{
+					ClientIdSecretKey:             []byte("test-client"),
+					ClientSecretKey:               []byte("test-client-secret"),
+					SmUrlSecretKey:                []byte("https://test.url"),
 					ClusterIdSecretKey:            []byte("test-cluster-123"),
 					CredentialsNamespaceSecretKey: []byte("test-creds-ns"),
-					clientIdSecretKey:             []byte("test-client"),
-					clientSecretKey:               []byte("test-client-secret"),
-					smUrlSecretKey:                []byte("https://test.url"),
 				},
 			}
 
@@ -265,13 +260,13 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			Expect(data).To(HaveKey(clientIdSecretKey))
-			Expect(data).To(HaveKey(clientSecretKey))
-			Expect(data).To(HaveKey(smUrlSecretKey))
+			Expect(data).To(HaveKey(ClientIdSecretKey))
+			Expect(data).To(HaveKey(ClientSecretKey))
+			Expect(data).To(HaveKey(SmUrlSecretKey))
 			Expect(data).NotTo(HaveKey(ClusterIdSecretKey))
 			Expect(data).NotTo(HaveKey(CredentialsNamespaceSecretKey))
 
-			decoded, err := base64.StdEncoding.DecodeString(data[clientIdSecretKey])
+			decoded, err := base64.StdEncoding.DecodeString(data[ClientIdSecretKey])
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(decoded)).To(Equal("test-client"))
 		})
@@ -581,10 +576,10 @@ func createRequiredSecret(k8sClient client.Client) error {
 			Namespace: requiredSecretNamespace,
 		},
 		Data: map[string][]byte{
-			clientIdSecretKey:  []byte("dGVzdF9jbGllbnRpZA=="),
-			clientSecretKey:    []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
-			smUrlSecretKey:     []byte("dGVzdF9zbV91cmw="),
-			tokenUrlSecretKey:  []byte("dGVzdF90b2tlbnVybA=="),
+			ClientIdSecretKey:  []byte("dGVzdF9jbGllbnRpZA=="),
+			ClientSecretKey:    []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
+			SmUrlSecretKey:     []byte("dGVzdF9zbV91cmw="),
+			TokenUrlSecretKey:  []byte("dGVzdF90b2tlbnVybA=="),
 			ClusterIdSecretKey: []byte("dGVzdF9jbHVzdGVyX2lk"),
 		},
 	}
