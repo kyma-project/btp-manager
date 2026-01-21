@@ -92,6 +92,14 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(secret.Namespace).To(Equal(requiredSecretNamespace))
 		})
 
+		It("should successfully verify required secret", func() {
+			Expect(createRequiredSecret(fakeClient)).To(Succeed())
+			secret, err := manager.getRequiredSecret(context.Background())
+			Expect(err).To(BeNil())
+
+			Expect(manager.verifySecret(secret)).To(Succeed())
+		})
+
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {

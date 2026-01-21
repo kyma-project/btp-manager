@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kyma-project/btp-manager/controllers/config"
@@ -25,6 +26,10 @@ const (
 	ChartVersionLabelKey      = "chart-version"
 	KymaProjectModuleLabelKey = "kyma-project.io/module"
 
+	ClientIdSecretKey = "clientid"
+	ClientSecretKey = "clientsecret"
+	SmUrlSecretKey = "sm_url"
+	TokenUrlSecretKey = "tokenurl"
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
 
@@ -88,6 +93,35 @@ func (m *Manager) getRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 	}
 
 	return secret, nil
+}
+
+func (m *Manager) verifySecret(secret *corev1.Secret) error {
+	missingKeys := make([]string, 0)
+	missingValues := make([]string, 0)
+	errs := make([]string, 0)
+	requiredKeys := []string{ClientIdSecretKey, ClientSecretKey, SmUrlSecretKey, TokenUrlSecretKey, ClusterIdSecretKey}
+	for _, key := range requiredKeys {
+		value, exists := secret.Data[key]
+		if !exists {
+			missingKeys = append(missingKeys, key)
+			continue
+		}
+		if len(value) == 0 {
+			missingValues = append(missingValues, key)
+		}
+	}
+	if len(missingKeys) > 0 {
+		missingKeysMsg := fmt.Sprintf("key(s) %s not found", strings.Join(missingKeys, ", "))
+		errs = append(errs, missingKeysMsg)
+	}
+	if len(missingValues) > 0 {
+		missingValuesMsg := fmt.Sprintf("missing value(s) for %s key(s)", strings.Join(missingValues, ", "))
+		errs = append(errs, missingValuesMsg)
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, ", "))
+	}
+	return nil
 }
 
 func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
