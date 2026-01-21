@@ -138,6 +138,10 @@ func (m *Manager) setCredentialsNamespace(s *corev1.Secret) {
 	m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret = credentialsNamespace
 }
 
+func (m *Manager) setClusterID(secret *corev1.Secret) {
+	m.credentialsContext.clusterIdFromSapBtpManagerSecret = string(secret.Data[ClusterIdSecretKey])
+}
+
 func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
 	objects, err := m.manifestHandler.CollectObjectsFromDir(manifestsDir)
 	if err != nil {
