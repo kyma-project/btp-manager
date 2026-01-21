@@ -116,7 +116,15 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring(ClientSecretKey))
 		})
+	})
 
+	Describe("setup credentials context", func() {
+		It("should set default credentials namespace when required secret does not contain credentials_namespace", func() {
+			secret := requiredSecret()
+			manager.setCredentialsNamespace(secret)
+
+			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(kymaNamespace))
+		})
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
@@ -570,6 +578,10 @@ var _ = Describe("Module Resource Manager", func() {
 })
 
 func createRequiredSecret(k8sClient client.Client) error {
+	return k8sClient.Create(context.Background(), requiredSecret())
+}
+
+func requiredSecret() *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      requiredSecretName,
@@ -583,5 +595,5 @@ func createRequiredSecret(k8sClient client.Client) error {
 			ClusterIdSecretKey: []byte("dGVzdF9jbHVzdGVyX2lk"),
 		},
 	}
-	return k8sClient.Create(context.Background(), secret)
+	return secret
 }
