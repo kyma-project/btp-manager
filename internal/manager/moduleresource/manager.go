@@ -20,9 +20,9 @@ const (
 	OperatorName = "btp-manager"
 	ModuleName   = "btp-operator"
 
-	ManagedByLabelKey             = "app.kubernetes.io/managed-by"
-	ChartVersionLabelKey          = "chart-version"
-	KymaProjectModuleLabelKey     = "kyma-project.io/module"
+	ManagedByLabelKey         = "app.kubernetes.io/managed-by"
+	ChartVersionLabelKey      = "chart-version"
+	KymaProjectModuleLabelKey = "kyma-project.io/module"
 
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
@@ -50,20 +50,21 @@ type Metadata struct {
 	Name string
 }
 
-type Manager struct {
-	client          client.Client
-	scheme          *runtime.Scheme
-	manifestHandler *manifest.Handler
-
-	resourceIndices map[Metadata]int
-
-	clusterID            string
-	credentialsNamespace string
+type credentialsContext struct {
+	previousCredentialsNamespace                        string
+	clusterIdFromSapBtpManagerSecret                    string
+	clusterIdFromSapBtpServiceOperatorConfigMap         string
+	clusterIdFromSapBtpServiceOperatorClusterIdSecret   string
+	credentialsNamespaceFromSapBtpManagerSecret         string
+	credentialsNamespaceFromSapBtpServiceOperatorSecret string
 }
 
-type State struct {
-	ClusterID            string
-	CredentialsNamespace string
+type Manager struct {
+	client             client.Client
+	scheme             *runtime.Scheme
+	manifestHandler    *manifest.Handler
+	resourceIndices    map[Metadata]int
+	credentialsContext credentialsContext
 }
 
 func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
@@ -73,11 +74,6 @@ func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
 		manifestHandler: &manifest.Handler{Scheme: scheme},
 		resourceIndices: make(map[Metadata]int),
 	}
-}
-
-func (m *Manager) UpdateState(state State) {
-	m.clusterID = state.ClusterID
-	m.credentialsNamespace = state.CredentialsNamespace
 }
 
 func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
@@ -152,11 +148,11 @@ func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unst
 		return fmt.Errorf("failed to set cluster_id: %w", err)
 	}
 
-	if err := unstructured.SetNestedField(u.Object, m.credentialsNamespace, "data", releaseNamespaceConfigMapKey); err != nil {
+	if err := unstructured.SetNestedField(u.Object, m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret, "data", releaseNamespaceConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set release namespace: %w", err)
 	}
 
-	if err := unstructured.SetNestedField(u.Object, m.credentialsNamespace, "data", managementNamespaceConfigMapKey); err != nil {
+	if err := unstructured.SetNestedField(u.Object, m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret, "data", managementNamespaceConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set management namespace: %w", err)
 	}
 
@@ -168,7 +164,7 @@ func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unst
 }
 
 func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	u.SetNamespace(m.credentialsNamespace)
+	u.SetNamespace(m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret)
 
 	for k := range secret.Data {
 		if k == ClusterIdSecretKey || k == CredentialsNamespaceSecretKey {
