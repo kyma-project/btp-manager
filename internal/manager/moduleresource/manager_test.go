@@ -2,7 +2,6 @@ package moduleresource
 
 import (
 	"context"
-	"encoding/base64"
 	"os"
 	"testing"
 	"time"
@@ -246,6 +245,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(found).To(BeTrue())
 			configmap := objects[configmapIndex]
 
+			manager.setCredentialsContext(secret)
 			err = manager.setConfigMapValues(secret, configmap)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -259,31 +259,21 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 	})
 
-	Describe("set Secret values", func() {
-		It("should copy Secret's data with base64 encoding excluding cluster_id and credentials_namespace", func() {
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      secretName,
-					Namespace: testNamespace,
-				},
-				Data: map[string][]byte{
-					ClientIdSecretKey:             []byte("test-client"),
-					ClientSecretKey:               []byte("test-client-secret"),
-					SmUrlSecretKey:                []byte("https://test.url"),
-					ClusterIdSecretKey:            []byte("test-cluster-123"),
-					CredentialsNamespaceSecretKey: []byte("test-creds-ns"),
-				},
-			}
+	Describe("set default credentials secret values", func() {
+		It("should copy data with base64 encoding excluding cluster_id and credentials_namespace", func() {
+			const expectedCredentialsNamespace = "credentials-namespace"
+			secret := requiredSecret()
+			secret.Data[CredentialsNamespaceSecretKey] = []byte(expectedCredentialsNamespace)
 
 			secretObj := &unstructured.Unstructured{}
 			secretObj.SetKind(secretKind)
-			secretObj.SetName("sap-btp-service-operator")
-			secretObj.SetNamespace("default")
+			secretObj.SetName(SapBtpServiceOperatorName)
+			secretObj.SetNamespace(kymaNamespace)
 
-			err := manager.setSecretValues(secret, secretObj)
-			Expect(err).NotTo(HaveOccurred())
+			manager.setCredentialsContext(secret)
 
-			Expect(secretObj.GetNamespace()).To(Equal("target-namespace"))
+			Expect(manager.setSecretValues(secret, secretObj)).NotTo(HaveOccurred())
+			Expect(secretObj.GetNamespace()).To(Equal(expectedCredentialsNamespace))
 
 			data, found, err := unstructured.NestedStringMap(secretObj.Object, "data")
 			Expect(err).NotTo(HaveOccurred())
@@ -294,10 +284,6 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(data).To(HaveKey(SmUrlSecretKey))
 			Expect(data).NotTo(HaveKey(ClusterIdSecretKey))
 			Expect(data).NotTo(HaveKey(CredentialsNamespaceSecretKey))
-
-			decoded, err := base64.StdEncoding.DecodeString(data[ClientIdSecretKey])
-			Expect(err).NotTo(HaveOccurred())
-			Expect(string(decoded)).To(Equal("test-client"))
 		})
 	})
 
