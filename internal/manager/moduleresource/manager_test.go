@@ -78,7 +78,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("read required secret", func() {
 		It("should return error when required secret does not exist", func() {
-			secret, err := m.getRequiredSecret()
+			secret, err := manager.getRequiredSecret(context.Background())
 			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 			Expect(secret).To(BeNil())
 		})

@@ -3,6 +3,7 @@ package moduleresource
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -74,6 +75,19 @@ func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
 		manifestHandler: &manifest.Handler{Scheme: scheme},
 		resourceIndices: make(map[Metadata]int),
 	}
+}
+
+func (m *Manager) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	objKey := client.ObjectKey{Namespace: config.ChartNamespace, Name: config.SecretName}
+	if err := m.client.Get(ctx, objKey, secret); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil, errors.Join(err, fmt.Errorf("%s Secret in %s namespace not found", config.SecretName, config.ChartNamespace))
+		}
+		return nil, fmt.Errorf("unable to get Secret: %w", err)
+	}
+
+	return secret, nil
 }
 
 func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
