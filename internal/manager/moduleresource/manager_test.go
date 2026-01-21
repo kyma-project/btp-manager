@@ -100,6 +100,28 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(manager.verifySecret(secret)).To(Succeed())
 		})
 
+		It("should return error when required secret does not contain required key", func() {
+			Expect(createRequiredSecret(fakeClient)).To(Succeed())
+			secret, err := manager.getRequiredSecret(context.Background())
+			Expect(err).To(BeNil())
+
+			delete(secret.Data, ClientIdSecretKey)
+			err = manager.verifySecret(secret)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(ClientIdSecretKey))
+		})
+
+		It("should return error when one of keys in required secret does not contain value", func() {
+			Expect(createRequiredSecret(fakeClient)).To(Succeed())
+			secret, err := manager.getRequiredSecret(context.Background())
+			Expect(err).To(BeNil())
+
+			secret.Data[ClientSecretKey] = []byte{}
+			err = manager.verifySecret(secret)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(ClientSecretKey))
+		})
+
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
