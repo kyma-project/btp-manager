@@ -39,6 +39,10 @@ const (
 	clientIdSecretKey = "clientid"
 	clientSecretKey   = "clientsecret"
 	smUrlSecretKey    = "sm_url"
+	tokenUrlSecretKey = "tokenurl"
+
+	requiredSecretName      = "sap-btp-manager"
+	requiredSecretNamespace = "kyma-system"
 )
 
 var (
@@ -70,6 +74,15 @@ var _ = Describe("Module Resource Manager", func() {
 			Build()
 
 		manager = NewManager(fakeClient, scheme)
+	})
+
+	Describe("read required secret", func() {
+		It("should return error when required secret does not exist", func() {
+			secret, err := m.getRequiredSecret()
+			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
+			Expect(secret).To(BeNil())
+		})
+
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
@@ -163,11 +176,6 @@ var _ = Describe("Module Resource Manager", func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
 
-			manager.UpdateState(State{
-				ClusterID:            "test-cluster-123",
-				CredentialsNamespace: "test-creds-ns",
-			})
-
 			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -203,11 +211,6 @@ var _ = Describe("Module Resource Manager", func() {
 					smUrlSecretKey:                []byte("https://test.url"),
 				},
 			}
-
-			manager.UpdateState(State{
-				ClusterID:            "test-cluster-123",
-				CredentialsNamespace: "target-namespace",
-			})
 
 			secretObj := &unstructured.Unstructured{}
 			secretObj.SetKind(secretKind)
