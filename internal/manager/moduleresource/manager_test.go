@@ -119,11 +119,24 @@ var _ = Describe("Module Resource Manager", func() {
 	})
 
 	Describe("setup credentials context", func() {
+		var secret *corev1.Secret
+
+		BeforeEach(func() {
+			secret = requiredSecret()
+		})
+
 		It("should set default credentials namespace when required secret does not contain credentials_namespace", func() {
-			secret := requiredSecret()
 			manager.setCredentialsNamespace(secret)
 
 			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(kymaNamespace))
+		})
+
+		It("should set credentials namespace from required secret", func() {
+			const expectedCredentialsNamespace = "new-credentials-namespace"
+			secret.Data[CredentialsNamespaceSecretKey] = []byte(expectedCredentialsNamespace)
+			manager.setCredentialsNamespace(secret)
+
+			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(expectedCredentialsNamespace))
 		})
 	})
 
