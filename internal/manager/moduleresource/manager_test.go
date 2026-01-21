@@ -138,6 +138,14 @@ var _ = Describe("Module Resource Manager", func() {
 
 			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(expectedCredentialsNamespace))
 		})
+
+		It("should set credentials ID from required secret", func() {
+			const expectedClusterID = "new-credentials-id"
+			secret.Data[ClusterIdSecretKey] = []byte(expectedClusterID)
+			manager.setClusterID(secret)
+
+			Expect(manager.credentialsContext.clusterIdFromSapBtpManagerSecret).To(Equal(expectedClusterID))
+		})
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
