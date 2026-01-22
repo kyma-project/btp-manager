@@ -339,9 +339,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should return error if container not found", func() {
-			deployment := &unstructured.Unstructured{}
-			deployment.SetKind(DeploymentKind)
-			deployment.SetName(deploymentName)
+			deployment := unstructuredDeployment(0, 0)
 			deployment.Object["spec"] = map[string]interface{}{
 				"template": map[string]interface{}{
 					"spec": map[string]interface{}{
@@ -501,23 +499,7 @@ var _ = Describe("Module Resource Manager", func() {
 	Describe("wait for resources readiness", func() {
 		It("should successfully wait for Deployment readiness", func() {
 			ctx := context.Background()
-			deployment := &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       DeploymentKind,
-					"metadata": map[string]interface{}{
-						"name":      deploymentName,
-						"namespace": testNamespace,
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-					"status": map[string]interface{}{
-						"replicas":      2,
-						"readyReplicas": 2,
-					},
-				},
-			}
+			deployment := unstructuredDeployment(2, 2)
 
 			err := fakeClient.Create(ctx, deployment)
 			Expect(err).NotTo(HaveOccurred())
@@ -529,23 +511,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 		It("should timeout when Deployment is not ready", func() {
 			ctx := context.Background()
-			deployment := &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       DeploymentKind,
-					"metadata": map[string]interface{}{
-						"name":      deploymentName,
-						"namespace": testNamespace,
-					},
-					"spec": map[string]interface{}{
-						"replicas": 2,
-					},
-					"status": map[string]interface{}{
-						"replicas":      2,
-						"readyReplicas": 1,
-					},
-				},
-			}
+			deployment := unstructuredDeployment(2, 1)
 
 			err := fakeClient.Create(ctx, deployment)
 			Expect(err).NotTo(HaveOccurred())
@@ -558,16 +524,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 		It("should consider ConfigMap as immediately ready", func() {
 			ctx := context.Background()
-			configmap := &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "v1",
-					"kind":       configmapKind,
-					"metadata": map[string]interface{}{
-						"name":      configmapName,
-						"namespace": testNamespace,
-					},
-				},
-			}
+			configmap := unstructuredConfigmap()
 
 			err := fakeClient.Create(ctx, configmap)
 			Expect(err).NotTo(HaveOccurred())
@@ -579,34 +536,8 @@ var _ = Describe("Module Resource Manager", func() {
 
 		It("should handle multiple resources concurrently", func() {
 			ctx := context.Background()
-			deployment := &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "apps/v1",
-					"kind":       DeploymentKind,
-					"metadata": map[string]interface{}{
-						"name":      deploymentName,
-						"namespace": testNamespace,
-					},
-					"spec": map[string]interface{}{
-						"replicas": 1,
-					},
-					"status": map[string]interface{}{
-						"replicas":      1,
-						"readyReplicas": 1,
-					},
-				},
-			}
-
-			configmap := &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "v1",
-					"kind":       configmapKind,
-					"metadata": map[string]interface{}{
-						"name":      configmapName,
-						"namespace": testNamespace,
-					},
-				},
-			}
+			deployment := unstructuredDeployment(1, 1)
+			configmap := unstructuredConfigmap()
 
 			err := fakeClient.Create(ctx, deployment)
 			Expect(err).NotTo(HaveOccurred())
@@ -647,4 +578,37 @@ type errorOnDeleteClient struct {
 
 func (e *errorOnDeleteClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
 	return fmt.Errorf("expected delete error")
+}
+
+func unstructuredDeployment(replicas, readyReplicas int) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apps/v1",
+			"kind":       DeploymentKind,
+			"metadata": map[string]interface{}{
+				"name":      deploymentName,
+				"namespace": testNamespace,
+			},
+			"spec": map[string]interface{}{
+				"replicas": replicas,
+			},
+			"status": map[string]interface{}{
+				"replicas":      replicas,
+				"readyReplicas": readyReplicas,
+			},
+		},
+	}
+}
+
+func unstructuredConfigmap() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       configmapKind,
+			"metadata": map[string]interface{}{
+				"name":      configmapName,
+				"namespace": testNamespace,
+			},
+		},
+	}
 }
