@@ -484,8 +484,10 @@ var _ = Describe("Module Resource Manager", func() {
 
 			err := manager.deleteResources(ctx, objects)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("failed to delete %s %s", expectedName1, configmapKind)))
-			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("failed to delete %s %s", expectedName2, configmapKind)))
+
+			const errorFormat = "failed to delete %s %s"
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName1, configmapKind)))
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName2, configmapKind)))
 		})
 	})
 

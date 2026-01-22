@@ -316,25 +316,32 @@ func (m *Manager) applyOrUpdateResources(ctx context.Context, us []*unstructured
 	return nil
 }
 
-func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	for _, u := range us {
-		if err := m.client.Delete(ctx, u); err != nil {
-			if !k8serrors.IsNotFound(err) {
-				return fmt.Errorf("while deleting %s %s: %w", u.GetKind(), u.GetName(), err)
-			}
-		}
-	}
-	return nil
-}
-
 func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
-	deletePath := config.ResourcesPath + "/delete"
-	objects, err := m.createUnstructuredObjectsFromManifestsDir(deletePath)
+	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
 	if err != nil {
 		return nil
 	}
 
 	return m.deleteResources(ctx, objects)
+}
+
+func resourcesToDeletePath() string {
+	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
+}
+
+func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
+	var errs []string
+	for _, u := range us {
+		if err := m.client.Delete(ctx, u); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				errs = append(errs, fmt.Sprintf("failed to delete %s %s: %s", u.GetName(), u.GetKind(), err))
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, ", "))
+	}
+	return nil
 }
 
 func (m *Manager) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured, timeout time.Duration) error {
