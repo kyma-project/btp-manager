@@ -296,27 +296,24 @@ func (m *Manager) applyOrUpdateResources(ctx context.Context, us []*unstructured
 	for _, u := range us {
 		preExistingResource := &unstructured.Unstructured{}
 		preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
-
-		err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, preExistingResource)
-		if err != nil {
+		if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, preExistingResource); err != nil {
 			if !k8serrors.IsNotFound(err) {
-				return fmt.Errorf("while trying to get %s %s: %w", u.GetKind(), u.GetName(), err)
+				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 			if err := m.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(OperatorName)); err != nil {
-				return fmt.Errorf("while applying %s %s: %w", u.GetKind(), u.GetName(), err)
+				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
-			// Resource exists, update it using Server-Side Apply
 			u.SetResourceVersion(preExistingResource.GetResourceVersion())
 			if err := m.client.Update(ctx, u, client.FieldOwner(OperatorName)); err != nil {
-				return fmt.Errorf("while updating %s %s: %w", u.GetKind(), u.GetName(), err)
+				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		}
 	}
 	return nil
 }
 
-func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
+func (m *Manager) deleteOutdatedResources(ctx context.Context) error {
 	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
 	if err != nil {
 		return nil
