@@ -497,6 +497,19 @@ var _ = Describe("Module Resource Manager", func() {
 	})
 
 	Describe("wait for resources readiness", func() {
+		var savedReadyTimeout, savedReadyCheckInterval time.Duration
+
+		BeforeEach(func() {
+			savedReadyTimeout, savedReadyCheckInterval = config.ReadyTimeout, config.ReadyCheckInterval
+			config.ReadyTimeout = 1 * time.Second
+			config.ReadyCheckInterval = 100 * time.Millisecond
+		})
+
+		AfterEach(func() {
+			config.ReadyTimeout = savedReadyTimeout
+			config.ReadyCheckInterval = savedReadyCheckInterval
+		})
+
 		It("should successfully wait for Deployment readiness", func() {
 			ctx := context.Background()
 			deployment := unstructuredDeployment(2, 2)
@@ -505,7 +518,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment}
-			err = manager.waitForResourcesReadiness(ctx, objects, 5*time.Second)
+			err = manager.waitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -517,7 +530,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment}
-			err = manager.waitForResourcesReadiness(ctx, objects, 1*time.Second)
+			err = manager.waitForResourcesReadiness(ctx, objects)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("timeout"))
 		})
@@ -530,7 +543,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{configmap}
-			err = manager.waitForResourcesReadiness(ctx, objects, 5*time.Second)
+			err = manager.waitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -545,7 +558,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment, configmap}
-			err = manager.waitForResourcesReadiness(ctx, objects, 5*time.Second)
+			err = manager.waitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
