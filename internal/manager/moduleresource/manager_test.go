@@ -2,6 +2,7 @@ package moduleresource
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -44,7 +45,7 @@ var (
 	scheme     *runtime.Scheme
 )
 
-func TestResources(t *testing.T) {
+func TestModuleResource(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Module Resource Suite")
 }
@@ -460,6 +461,32 @@ var _ = Describe("Module Resource Manager", func() {
 			err = manager.deleteResources(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("should return error when unable to delete resources", func() {
+			const (
+				expectedName1 = "configmap1"
+				expectedName2 = "configmap2"
+			)
+			client := &errorOnDeleteClient{fakeClient}
+			manager = NewManager(client, scheme)
+
+			us1 := &unstructured.Unstructured{}
+			us1.SetKind(configmapKind)
+			us1.SetName(expectedName1)
+			us1.SetNamespace(testNamespace)
+
+			us2 := &unstructured.Unstructured{}
+			us2.SetKind(configmapKind)
+			us2.SetName(expectedName2)
+			us2.SetNamespace(testNamespace)
+
+			objects := []*unstructured.Unstructured{us1, us2}
+
+			err := manager.deleteResources(ctx, objects)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("failed to delete %s %s", expectedName1, configmapKind)))
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("failed to delete %s %s", expectedName2, configmapKind)))
+		})
 	})
 
 	Describe("wait for resources readiness", func() {
@@ -603,4 +630,12 @@ func requiredSecret() *corev1.Secret {
 		},
 	}
 	return secret
+}
+
+type errorOnDeleteClient struct {
+	client.Client
+}
+
+func (e *errorOnDeleteClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	return fmt.Errorf("expected delete error")
 }
