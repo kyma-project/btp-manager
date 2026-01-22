@@ -341,15 +341,15 @@ func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstru
 	return nil
 }
 
-func (m *Manager) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+func (m *Manager) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
+	ctx, cancel := context.WithTimeout(ctx, config.ReadyTimeout)
 	defer cancel()
 
 	errChan := make(chan error, len(us))
 
 	for _, u := range us {
 		go func(resource *unstructured.Unstructured) {
-			errChan <- m.waitForResourceReady(ctx, resource)
+			errChan <- m.waitForResource(ctx, resource)
 		}(u)
 	}
 
@@ -362,14 +362,14 @@ func (m *Manager) waitForResourcesReadiness(ctx context.Context, us []*unstructu
 	return nil
 }
 
-func (m *Manager) waitForResourceReady(ctx context.Context, u *unstructured.Unstructured) error {
-	ticker := time.NewTicker(500 * time.Millisecond)
+func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructured) error {
+	ticker := time.NewTicker(config.ReadyCheckInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetKind(), u.GetName())
+			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
 		case <-ticker.C:
 			current := &unstructured.Unstructured{}
 			current.SetGroupVersionKind(u.GroupVersionKind())
@@ -378,7 +378,7 @@ func (m *Manager) waitForResourceReady(ctx context.Context, u *unstructured.Unst
 				if k8serrors.IsNotFound(err) {
 					continue
 				}
-				return fmt.Errorf("while checking readiness of %s %s: %w", u.GetKind(), u.GetName(), err)
+				return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 
 			if m.isResourceReady(current) {
