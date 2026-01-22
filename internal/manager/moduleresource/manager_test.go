@@ -221,20 +221,27 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("set ConfigMap values", func() {
 		It("should set ConfigMap values from Secret", func() {
+			const (
+				expectedClientId                = "test-client"
+				expectedClusterId               = "test-cluster-123"
+				expectedCredentialsNamespace    = "test-creds-ns"
+				expectedEnableLimitedCacheValue = "true"
+			)
+
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      secretName,
 					Namespace: testNamespace,
 				},
 				Data: map[string][]byte{
-					ClientIdSecretKey:             []byte("test-client"),
-					ClusterIdSecretKey:            []byte("test-cluster-123"),
-					CredentialsNamespaceSecretKey: []byte("test-creds-ns"),
+					ClientIdSecretKey:             []byte(expectedClientId),
+					ClusterIdSecretKey:            []byte(expectedClusterId),
+					CredentialsNamespaceSecretKey: []byte(expectedCredentialsNamespace),
 				},
 			}
 
 			restoreEnableLimitedCache := config.EnableLimitedCache
-			config.EnableLimitedCache = "true"
+			config.EnableLimitedCache = expectedEnableLimitedCacheValue
 			defer func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
@@ -253,10 +260,10 @@ var _ = Describe("Module Resource Manager", func() {
 			data, found, err := unstructured.NestedStringMap(configmap.Object, "data")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
-			Expect(data["CLUSTER_ID"]).To(Equal("test-cluster-123"))
-			Expect(data["RELEASE_NAMESPACE"]).To(Equal("test-creds-ns"))
-			Expect(data["MANAGEMENT_NAMESPACE"]).To(Equal("test-creds-ns"))
-			Expect(data["ENABLE_LIMITED_CACHE"]).To(Equal("true"))
+			Expect(data[clusterIdConfigMapKey]).To(Equal(expectedClusterId))
+			Expect(data[releaseNamespaceConfigMapKey]).To(Equal(expectedCredentialsNamespace))
+			Expect(data[managementNamespaceConfigMapKey]).To(Equal(expectedCredentialsNamespace))
+			Expect(data[enableLimitedCacheConfigMapKey]).To(Equal(expectedEnableLimitedCacheValue))
 		})
 	})
 
