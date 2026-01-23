@@ -294,21 +294,36 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 
 func (m *Manager) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	for _, u := range us {
-		preExistingResource := &unstructured.Unstructured{}
-		preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
-		if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, preExistingResource); err != nil {
-			if !k8serrors.IsNotFound(err) {
-				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
-			}
-			if err := m.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(OperatorName)); err != nil {
-				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
-			}
-		} else {
-			u.SetResourceVersion(preExistingResource.GetResourceVersion())
-			if err := m.client.Update(ctx, u, client.FieldOwner(OperatorName)); err != nil {
-				return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
-			}
+		if err := m.applyOrUpdateResource(ctx, u); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func (m *Manager) applyOrUpdateResource(ctx context.Context, u *unstructured.Unstructured) error {
+	preExistingResource := &unstructured.Unstructured{}
+	preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
+	if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, preExistingResource); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return m.applyResource(ctx, u)
+		}
+		return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
+	}
+	u.SetResourceVersion(preExistingResource.GetResourceVersion())
+	return m.updateResource(ctx, u)
+}
+
+func (m *Manager) applyResource(ctx context.Context, u *unstructured.Unstructured) error {
+	if err := m.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(OperatorName)); err != nil {
+		return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+	}
+	return nil
+}
+
+func (m *Manager) updateResource(ctx context.Context, u *unstructured.Unstructured) error {
+	if err := m.client.Update(ctx, u, client.FieldOwner(OperatorName)); err != nil {
+		return fmt.Errorf("while updating %s %s: %w", u.GetName(), u.GetKind(), err)
 	}
 	return nil
 }
