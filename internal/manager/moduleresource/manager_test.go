@@ -7,9 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +19,8 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/kyma-project/btp-manager/api/v1alpha1"
 )
 
 const (
@@ -152,7 +152,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("create unstructured objects from manifests directory", func() {
 		It("should load and convert manifests to unstructured objects", func() {
-			objects, err := manager.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
@@ -178,7 +178,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should return error for non-existent directory", func() {
-			_, err := manager.manifestHandler.CreateUnstructuredObjectsFromManifestsDir("./non-existent")
+			_, err := manager.createUnstructuredObjectsFromManifestsDir("./non-existent")
 
 			Expect(err).To(HaveOccurred())
 		})
@@ -186,7 +186,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("add labels", func() {
 		It("should add managed-by, chart version, and module labels to all resources", func() {
-			objects, err := manager.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			chartVersion := "0.0.1"
@@ -210,7 +210,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("set namespace", func() {
 		It("should set namespace in all resources", func() {
-			objects, err := manager.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			manager.setNamespace(objects)
@@ -248,7 +248,7 @@ var _ = Describe("Module Resource Manager", func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
 
-			objects, err := manager.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
@@ -314,7 +314,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should set container images for manager and kube-rbac-proxy", func() {
-			objects, err := manager.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]

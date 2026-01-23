@@ -11,7 +11,6 @@ import (
 
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/manifest"
-
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -148,6 +147,22 @@ func (m *Manager) setClusterID(s *corev1.Secret) {
 	m.credentialsContext.clusterIdFromSapBtpManagerSecret = string(s.Data[ClusterIdSecretKey])
 }
 
+func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
+	objects, err := m.manifestHandler.CollectObjectsFromDir(manifestsDir)
+	if err != nil {
+		return nil, fmt.Errorf("while collecting objects from directory %s: %w", manifestsDir, err)
+	}
+
+	unstructuredObjects, err := m.manifestHandler.ObjectsToUnstructured(objects)
+	if err != nil {
+		return nil, fmt.Errorf("while converting to unstructured: %w", err)
+	}
+
+	m.indexModuleResources(unstructuredObjects)
+
+	return unstructuredObjects, nil
+}
+
 func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
 	for i, u := range unstructuredObjects {
 		resource := Metadata{
@@ -278,12 +293,10 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 }
 
 func (m *Manager) applyModuleResources(ctx context.Context) error {
-	objects, err := m.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
+	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
 	if err != nil {
 		return nil
 	}
-
-	m.indexModuleResources(objects)
 
 	return m.applyOrUpdateResources(ctx, objects)
 }
@@ -329,12 +342,10 @@ func (m *Manager) updateResource(ctx context.Context, u *unstructured.Unstructur
 }
 
 func (m *Manager) deleteOutdatedResources(ctx context.Context) error {
-	objects, err := m.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
+	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
 	if err != nil {
 		return nil
 	}
-
-	m.indexModuleResources(objects)
 
 	return m.deleteResources(ctx, objects)
 }
