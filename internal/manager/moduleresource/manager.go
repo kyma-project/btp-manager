@@ -292,6 +292,19 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
 }
 
+func (m *Manager) applyModuleResources(ctx context.Context) error {
+	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
+	if err != nil {
+		return nil
+	}
+
+	return m.applyOrUpdateResources(ctx, objects)
+}
+
+func resourcesToApplyPath() string {
+	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
+}
+
 func (m *Manager) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	for _, u := range us {
 		if err := m.applyOrUpdateResource(ctx, u); err != nil {
