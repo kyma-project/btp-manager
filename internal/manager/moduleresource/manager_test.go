@@ -34,7 +34,9 @@ const (
 	secretName     = "test-secret"
 	deploymentName = "test-deployment"
 
-	moduleResourcesPath = "./testdata"
+	moduleResourcesPath         = "./testdata"
+	moduleResourcesPathToApply  = moduleResourcesPath + "/apply"
+	moduleResourcesPathToDelete = moduleResourcesPath + "/delete"
 
 	requiredSecretName      = "sap-btp-manager"
 	requiredSecretNamespace = "kyma-system"
@@ -150,7 +152,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("create unstructured objects from manifests directory", func() {
 		It("should load and convert manifests to unstructured objects", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
@@ -184,7 +186,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("add labels", func() {
 		It("should add managed-by, chart version, and module labels to all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			chartVersion := "0.0.1"
@@ -208,7 +210,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("set namespace", func() {
 		It("should set namespace in all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			manager.setNamespace(objects)
@@ -246,7 +248,7 @@ var _ = Describe("Module Resource Manager", func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
@@ -312,7 +314,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should set container images for manager and kube-rbac-proxy", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
+			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
@@ -358,141 +360,134 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 	})
 
-	Describe("apply or update resources", func() {
+	Describe("module resources management", func() {
 		var ctx context.Context
+		var savedModuleResourcesPath string
 
 		BeforeEach(func() {
 			ctx = context.Background()
+			savedModuleResourcesPath = config.ResourcesPath
+			config.ResourcesPath = moduleResourcesPath
 		})
 
-		It("should create new resources using Server-Side Apply", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = manager.applyOrUpdateResources(ctx, objects)
-			Expect(err).NotTo(HaveOccurred())
-
-			configmapIndex := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
-			configmap := &unstructured.Unstructured{}
-			configmap.SetGroupVersionKind(objects[configmapIndex].GroupVersionKind())
-			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      configmapName,
-				Namespace: testNamespace,
-			}, configmap)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(configmap.GetName()).To(Equal(configmapName))
+		AfterEach(func() {
+			config.ResourcesPath = savedModuleResourcesPath
 		})
 
-		It("should update existing resources", func() {
-			const (
-				expectedKey = "key"
-				expectedVal = "value"
-			)
-			configmap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
+		Describe("apply or update resources", func() {
+
+			It("should create new resources using Server-Side Apply", func() {
+				err := manager.applyModuleResources(ctx)
+				Expect(err).NotTo(HaveOccurred())
+
+				configmap := &corev1.ConfigMap{}
+				err = fakeClient.Get(ctx, client.ObjectKey{
 					Name:      configmapName,
 					Namespace: testNamespace,
-				},
-				Data: map[string]string{
-					"old-key": "old-value",
-				},
-			}
+				}, configmap)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(configmap.GetName()).To(Equal(configmapName))
+			})
 
-			err := fakeClient.Create(ctx, configmap)
-			Expect(err).NotTo(HaveOccurred())
+			It("should update existing resources", func() {
+				const (
+					expectedKey = "key"
+					expectedVal = "value"
+				)
+				configmap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configmapName,
+						Namespace: testNamespace,
+					},
+					Data: map[string]string{
+						"old-key": "old-value",
+					},
+				}
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
-			Expect(err).NotTo(HaveOccurred())
+				err := fakeClient.Create(ctx, configmap)
+				Expect(err).NotTo(HaveOccurred())
 
-			err = manager.applyOrUpdateResources(ctx, objects)
-			Expect(err).NotTo(HaveOccurred())
+				err = manager.applyModuleResources(ctx)
+				Expect(err).NotTo(HaveOccurred())
 
-			updated := &corev1.ConfigMap{}
-			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      configmapName,
-				Namespace: testNamespace,
-			}, updated)
-
-			Expect(err).NotTo(HaveOccurred())
-			Expect(updated.Data[expectedKey]).To(Equal(expectedVal))
-		})
-	})
-
-	Describe("delete resources", func() {
-		var ctx context.Context
-
-		BeforeEach(func() {
-			ctx = context.Background()
-		})
-
-		It("should delete existing resources", func() {
-			configmap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
+				updated := &corev1.ConfigMap{}
+				err = fakeClient.Get(ctx, client.ObjectKey{
 					Name:      configmapName,
 					Namespace: testNamespace,
-				},
-				Data: map[string]string{
-					"foo": "bar",
-				},
-			}
+				}, updated)
 
-			err := fakeClient.Create(ctx, configmap)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      configmapName,
-				Namespace: testNamespace,
-			}, configmap)
-			Expect(err).NotTo(HaveOccurred())
-
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
-			Expect(err).NotTo(HaveOccurred())
-
-			configmapIndex := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
-			err = manager.deleteResources(ctx, []*unstructured.Unstructured{objects[configmapIndex]})
-			Expect(err).NotTo(HaveOccurred())
-
-			err = fakeClient.Get(ctx, client.ObjectKey{
-				Name:      configmapName,
-				Namespace: testNamespace,
-			}, configmap)
-			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
+				Expect(err).NotTo(HaveOccurred())
+				Expect(updated.Data[expectedKey]).To(Equal(expectedVal))
+			})
 		})
 
-		It("should not error when deleting non-existent resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPath)
-			Expect(err).NotTo(HaveOccurred())
+		Describe("delete resources", func() {
+			var ctx context.Context
 
-			err = manager.deleteResources(ctx, objects)
-			Expect(err).NotTo(HaveOccurred())
-		})
+			BeforeEach(func() {
+				ctx = context.Background()
+			})
 
-		It("should return error when unable to delete resources", func() {
-			const (
-				expectedName1 = "configmap1"
-				expectedName2 = "configmap2"
-			)
-			client := &errorOnDeleteClient{fakeClient}
-			manager = NewManager(client, scheme)
+			It("should delete existing resources", func() {
+				configmap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configmapName,
+						Namespace: testNamespace,
+					},
+					Data: map[string]string{
+						"foo": "bar",
+					},
+				}
 
-			us1 := &unstructured.Unstructured{}
-			us1.SetKind(configmapKind)
-			us1.SetName(expectedName1)
-			us1.SetNamespace(testNamespace)
+				err := fakeClient.Create(ctx, configmap)
+				Expect(err).NotTo(HaveOccurred())
 
-			us2 := &unstructured.Unstructured{}
-			us2.SetKind(configmapKind)
-			us2.SetName(expectedName2)
-			us2.SetNamespace(testNamespace)
+				err = fakeClient.Get(ctx, client.ObjectKey{
+					Name:      configmapName,
+					Namespace: testNamespace,
+				}, configmap)
+				Expect(err).NotTo(HaveOccurred())
 
-			objects := []*unstructured.Unstructured{us1, us2}
+				Expect(manager.deleteOutdatedResources(context.Background())).Should(Succeed())
 
-			err := manager.deleteResources(ctx, objects)
-			Expect(err).To(HaveOccurred())
+				err = fakeClient.Get(ctx, client.ObjectKey{
+					Name:      configmapName,
+					Namespace: testNamespace,
+				}, configmap)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
+			})
 
-			const errorFormat = "failed to delete %s %s"
-			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName1, configmapKind)))
-			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName2, configmapKind)))
+			It("should not error when deleting non-existent resources", func() {
+				Expect(manager.deleteOutdatedResources(context.Background())).Should(Succeed())
+			})
+
+			It("should return error when unable to delete resources", func() {
+				const (
+					expectedName1 = "configmap1"
+					expectedName2 = "configmap2"
+				)
+				client := &errorOnDeleteClient{fakeClient}
+				manager = NewManager(client, scheme)
+
+				us1 := &unstructured.Unstructured{}
+				us1.SetKind(configmapKind)
+				us1.SetName(expectedName1)
+				us1.SetNamespace(testNamespace)
+
+				us2 := &unstructured.Unstructured{}
+				us2.SetKind(configmapKind)
+				us2.SetName(expectedName2)
+				us2.SetNamespace(testNamespace)
+
+				objects := []*unstructured.Unstructured{us1, us2}
+
+				err := manager.deleteResources(ctx, objects)
+				Expect(err).To(HaveOccurred())
+
+				const errorFormat = "failed to delete %s %s"
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName1, configmapKind)))
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName2, configmapKind)))
+			})
 		})
 	})
 

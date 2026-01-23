@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: delete-configmap
+  name: test-configmap
   namespace: test-namespace
 data:
   key: "value"
