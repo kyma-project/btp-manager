@@ -42,10 +42,6 @@ data:
           - Warning
         informative:
           - Processing
-    - name: Age
-      source: metadata.creationTimestamp
-      sort: true
-      widget: Age
   
   details: |-
     header:
@@ -72,7 +68,33 @@ data:
       - name: Generation
         source: metadata.generation
     
-    body:    
+    body:
+      - name: SAP BTP Manager Secret - Decoded Data
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        source: '$base64decode($btpSecret().data.clientid)'
+        children:
+          - name: Cluster ID
+            source: '$base64decode($btpSecret().data.cluster_id)'
+          - name: Service Manager URL
+            source: '$base64decode($btpSecret().data.sm_url)'
+          - name: Token URL
+            source: '$base64decode($btpSecret().data.tokenurl)'
+          - name: Credentials Namespace
+            source: >-
+              ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system')
+            widget: Text
+
+      - name: Service Instances and Bindings Summary
+        widget: Panel
+        children:
+          - name: Total Service Instances
+            source: '$count($relatedServiceInstances())'
+          - name: Total Service Bindings
+            source: '$count($relatedServiceBindings())'
+
       - name: SAP BTP Service Operator Components
         widget: Panel
         children:
@@ -144,7 +166,7 @@ data:
             source: '$base64decode($btpSecret().data.sm_url)'
           - name: Token URL
             source: '$base64decode($btpSecret().data.tokenurl)'
-      
+
       - name: SAP BTP Service Instances
         widget: Panel
         children:
