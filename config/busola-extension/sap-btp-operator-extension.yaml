@@ -1,0 +1,258 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: btpoperator-module
+  namespace: kyma-system
+  labels:
+    app.kubernetes.io/managed-by: kyma
+    app.kubernetes.io/name: btp-manager
+    app.kubernetes.io/part-of: Kyma
+    busola.io/extension: resource
+    busola.io/extension-version: '0.5'
+    kyma-project.io/module: btp-operator
+    operator.kyma-project.io/managed-by: kyma
+data:
+  general: |-
+    resource:
+      kind: BtpOperator
+      group: operator.kyma-project.io
+      version: v1alpha1
+    name: BTP Operators
+    category: Kyma
+    urlPath: btpoperators
+    scope: namespace
+    description: >-
+      BTP Operator enables consumption of SAP BTP services in your Kubernetes cluster.
+    features:
+      actions:
+        disableCreate: true
+        disableDelete: true
+  
+  list: |-
+    - name: State
+      source: status.state
+      widget: Badge
+      highlights:
+        positive:
+          - Ready
+        negative:
+          - Error
+          - Deleting
+        critical:
+          - Warning
+        informative:
+          - Processing
+  
+  details: |-
+    header:
+      - name: Cluster ID
+        source: $base64decode($btpSecret().data.cluster_id)
+        widget: Text
+        visibility: $exists($btpSecret().data.cluster_id)
+        description: SAP BTP Cluster Identifier
+      - name: Module Status
+        source: status.state
+        widget: Badge
+        highlights:
+          positive:
+            - Ready
+          negative:
+            - Error
+            - Deleting
+          critical:
+            - Warning
+          informative:
+            - Processing
+      - name: Namespace
+        source: metadata.namespace
+      - name: Generation
+        source: metadata.generation
+    
+    body:
+      - name: SAP BTP Manager Secret - Decoded Data
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        source: '$base64decode($btpSecret().data.clientid)'
+        children:
+          - name: Cluster ID
+            source: '$base64decode($btpSecret().data.cluster_id)'
+          - name: Service Manager URL
+            source: '$base64decode($btpSecret().data.sm_url)'
+          - name: Token URL
+            source: '$base64decode($btpSecret().data.tokenurl)'
+          - name: Credentials Namespace
+            source: >-
+              ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system')
+            widget: Text
+
+      - name: Service Instances and Bindings Summary
+        widget: Panel
+        children:
+          - name: Total Service Instances
+            source: '$count($relatedServiceInstances())'
+          - name: Total Service Bindings
+            source: '$count($relatedServiceBindings())'
+
+      - name: SAP BTP Service Operator Components
+        widget: Panel
+        children:
+          - name: SAP BTP Operator Controller
+            source: "'sap-btp-operator-controller-manager'"
+          - name: BTP Manager Controller
+            source: "'btp-manager-controller-manager'"
+          - name: Management Mode
+            source: >-
+              ($exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+               metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma' ? 'Managed' : 'Open Source')
+            widget: Badge
+            highlights:
+              informative:
+                - 'Managed'
+              positive:
+                - 'Open Source'
+      
+      - name: SAP BTP Credentials (sap-btp-manager Secret)
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        children:
+          - name: Info
+            source: >-
+              'This module is managed by Kyma Control Plane. The sap-btp-manager Secret contains BTP service operator credentials.'
+            widget: Text
+          - name: Secret Name
+            source: "'sap-btp-manager'"
+            widget: Text
+          - name: Namespace  
+            source: "'kyma-system'"
+            widget: Text
+          - name: Managed By
+            source: "'kcp-kyma-environment-broker'"
+            widget: Text
+          - name: Secret Fields
+            source: "'clientid, clientsecret, cluster_id, sm_url, tokenurl'"
+            widget: Text
+          - name: View Secret (kubectl)
+            source: "'kubectl get secret sap-btp-manager -n kyma-system -o yaml'"
+            widget: Text
+      
+      - name: SAP BTP Manager Secret Data
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        children:
+          - widget: CodeViewer
+            source: '$btpSecret()'
+            language: yaml
+      
+      - name: SAP BTP Manager Secret - Decoded Data
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        source: '$base64decode($btpSecret().data.clientid)'
+        children:
+          - name: Client ID
+            source: '$base64decode($btpSecret().data.clientid)'
+          - name: Client Secret
+            source: '$base64decode($btpSecret().data.clientsecret)'
+          - name: Cluster ID
+            source: '$base64decode($btpSecret().data.cluster_id)'
+          - name: Service Manager URL
+            source: '$base64decode($btpSecret().data.sm_url)'
+          - name: Token URL
+            source: '$base64decode($btpSecret().data.tokenurl)'
+
+      - name: SAP BTP Service Instances
+        widget: Panel
+        children:
+          - widget: ResourceList
+            source: '$relatedServiceInstances()'
+      
+      - name: SAP BTP Service Bindings
+        widget: Panel
+        children:
+          - widget: ResourceList
+            source: '$relatedServiceBindings()'
+      
+      - name: Status Details
+        widget: Panel
+        children:
+          - name: State
+            source: status.state
+          - name: Conditions
+            source: status.conditions
+            widget: ConditionList
+          - name: Observed Generation
+            source: status.observedGeneration
+            visibility: $exists(status.observedGeneration)
+      
+      - name: Metadata
+        widget: Panel
+        children:
+          - name: Labels
+            source: metadata.labels
+            widget: Labels
+          - name: Annotations
+            source: metadata.annotations
+            widget: Labels
+            visibility: $exists(metadata.annotations)
+          - name: Finalizers
+            source: metadata.finalizers
+            visibility: $exists(metadata.finalizers)
+      
+      - name: Specification
+        widget: Panel
+        children:
+          - name: Spec
+            source: spec
+            widget: CodeViewer
+            language: yaml
+    
+    resourceGraph:
+      colorVariant: 1
+      dataSources:
+        - source: relatedDeployments
+        - source: relatedServices
+        - source: relatedPods
+        - source: relatedServiceInstances
+        - source: relatedServiceBindings
+        - source: btpSecret
+  
+  dataSources: |-
+    relatedDeployments:
+      resource:
+        kind: Deployment
+        version: v1
+        group: apps
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedServices:
+      resource:
+        kind: Service
+        version: v1
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedPods:
+      resource:
+        kind: Pod
+        version: v1
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedServiceInstances:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+    relatedServiceBindings:
+      resource:
+        kind: ServiceBinding
+        version: v1
+        group: services.cloud.sap.com
+    btpSecret:
+      resource:
+        kind: Secret
+        version: v1
+        namespace: kyma-system
+        name: sap-btp-manager
