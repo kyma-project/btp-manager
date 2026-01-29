@@ -187,6 +187,10 @@ type fakeSubResourceClient struct {
 	client.Client
 }
 
+func (sw *fakeSubResourceClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+	panic("fakeSubResourceClient does not support apply")
+}
+
 func (sw *fakeSubResourceClient) Get(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceGetOption) error {
 	panic("fakeSubResourceClient does not support get")
 }
