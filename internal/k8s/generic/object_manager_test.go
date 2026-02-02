@@ -74,6 +74,23 @@ var _ = Describe("Object Manager", func() {
 					Expect(got).To(Equal(configmap))
 				})
 			})
+
+			Context("when the ConfigMap exists", func() {
+				It("should return error while creating the ConfigMap", func() {
+					existingConfigmap := &corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      configmapName,
+							Namespace: namespace,
+						},
+					}
+					configmap := existingConfigmap.DeepCopy()
+					Expect(fakeClient.Create(context.Background(), existingConfigmap)).To(Succeed())
+
+					err := configmapManager.Create(context.Background(), configmap)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("already exists"))
+				})
+			})
 		})
 
 	})

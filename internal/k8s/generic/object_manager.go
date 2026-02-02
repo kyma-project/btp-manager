@@ -19,7 +19,7 @@ func NewObjectManager[T client.Object](k8sClient client.Client) *ObjectManager[T
 
 func (m *ObjectManager[T]) Create(ctx context.Context, object T, opts ...client.CreateOption) error {
 	if err := m.client.Create(ctx, object, opts...); err != nil {
-		return fmt.Errorf("while creating %s %s: %w", object.GetObjectKind().GroupVersionKind().Kind, object.GetName(), err)
+		return fmt.Errorf("while creating %q: %w", object.GetName(), err)
 	}
 	return nil
 }
