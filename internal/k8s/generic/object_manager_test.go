@@ -141,6 +141,34 @@ var _ = Describe("Object Manager", func() {
 			})
 		})
 
+		Describe("Update ConfigMap", func() {
+			Context("when the ConfigMap exists", func() {
+				It("should update the ConfigMap", func() {
+					existingConfigmap := configmap()
+					Expect(fakeClient.Create(context.Background(), existingConfigmap)).To(Succeed())
+
+					updatedConfigmap := existingConfigmap.DeepCopy()
+					updatedConfigmap.Data = map[string]string{"key1": "updatedValue"}
+
+					Expect(configmapManager.Update(context.Background(), updatedConfigmap)).To(Succeed())
+
+					got := &corev1.ConfigMap{}
+					Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existingConfigmap), got)).To(Succeed())
+					Expect(got.Data).To(Equal(updatedConfigmap.Data))
+				})
+			})
+
+			Context("when the ConfigMap does not exist", func() {
+				It("should return error while updating the ConfigMap", func() {
+					configmap := configmap()
+
+					err := configmapManager.Update(context.Background(), configmap)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+			})
+		})
+
 		Describe("Delete ConfigMap", func() {
 			Context("when the ConfigMap exists", func() {
 				It("should delete the ConfigMap", func() {
