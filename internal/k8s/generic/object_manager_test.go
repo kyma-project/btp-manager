@@ -545,10 +545,10 @@ var _ = Describe("Object Manager", func() {
 })
 
 func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
-	name, namespace := configmapName, namespace
+	name, ns := configmapName, namespace
 	if len(nameAndNamespace) > 0 {
 		name = nameAndNamespace[0]
-		namespace = nameAndNamespace[1]
+		ns = nameAndNamespace[1]
 	}
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -557,7 +557,7 @@ func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: ns,
 		},
 		Data: map[string]string{
 			"key1": "value1",
@@ -566,10 +566,10 @@ func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
 }
 
 func secret(nameAndNamespace ...string) *corev1.Secret {
-	name, namespace := secretName, namespace
+	name, ns := secretName, namespace
 	if len(nameAndNamespace) > 0 {
 		name = nameAndNamespace[0]
-		namespace = nameAndNamespace[1]
+		ns = nameAndNamespace[1]
 	}
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -578,7 +578,7 @@ func secret(nameAndNamespace ...string) *corev1.Secret {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: ns,
 		},
 		Data: map[string][]byte{
 			"key1": []byte("value1"),
