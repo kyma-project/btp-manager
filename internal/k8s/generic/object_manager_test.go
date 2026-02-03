@@ -141,6 +141,32 @@ var _ = Describe("Object Manager", func() {
 			})
 		})
 
+		Describe("Delete ConfigMap", func() {
+			Context("when the ConfigMap exists", func() {
+				It("should delete the ConfigMap", func() {
+					existingConfigmap := configmap()
+					Expect(fakeClient.Create(context.Background(), existingConfigmap)).To(Succeed())
+
+					Expect(configmapManager.Delete(context.Background(), existingConfigmap)).To(Succeed())
+
+					got := &corev1.ConfigMap{}
+					err := fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existingConfigmap), got)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+			})
+
+			Context("when the ConfigMap does not exist", func() {
+				It("should return error while deleting the ConfigMap", func() {
+					configmap := configmap()
+
+					err := configmapManager.Delete(context.Background(), configmap)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+			})
+		})
+
 	})
 })
 
