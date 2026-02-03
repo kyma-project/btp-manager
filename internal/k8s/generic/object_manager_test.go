@@ -20,6 +20,7 @@ import (
 const (
 	namespace     = "kyma-system"
 	configmapName = "test-configmap"
+	secretName    = "test-secret"
 )
 
 var (
@@ -295,6 +296,252 @@ var _ = Describe("Object Manager", func() {
 		})
 
 	})
+
+	Describe("for Secrets", func() {
+		var (
+			secretManager *generic.ObjectManager[*corev1.Secret]
+		)
+
+		BeforeEach(func() {
+			secretManager = generic.NewObjectManager[*corev1.Secret](fakeClient)
+		})
+
+		Describe("Create Secret", func() {
+			Context("when the Secret does not exist", func() {
+				It("should create the Secret", func() {
+					secret := secret()
+
+					Expect(secretManager.Create(context.Background(), secret)).To(Succeed())
+
+					got := &corev1.Secret{}
+					Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(secret), got)).To(Succeed())
+					Expect(got).To(Equal(secret))
+				})
+			})
+
+			Context("when the Secret already exists", func() {
+				It("should return error while creating the Secret", func() {
+					existingSecret := secret()
+					secret := existingSecret.DeepCopy()
+					Expect(fakeClient.Create(context.Background(), existingSecret)).To(Succeed())
+
+					err := secretManager.Create(context.Background(), secret)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("already exists"))
+				})
+
+				It("should preserve AlreadyExists error type for client differentiation", func() {
+					existingSecret := secret()
+					secret := existingSecret.DeepCopy()
+					Expect(fakeClient.Create(context.Background(), existingSecret)).To(Succeed())
+
+					err := secretManager.Create(context.Background(), secret)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsAlreadyExists(err)).To(BeTrue(), "error should be identifiable as AlreadyExists")
+				})
+			})
+		})
+
+		Describe("Apply Secret", func() {
+			const fieldOwner = "object-manager-test"
+
+			Context("when the Secret does not exist", func() {
+				It("should apply the Secret", func() {
+					secret := secret()
+
+					Expect(secretManager.Apply(context.Background(), secret, client.FieldOwner(fieldOwner))).To(Succeed())
+
+					got := &corev1.Secret{}
+					Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(secret), got)).To(Succeed())
+					Expect(got).To(Equal(secret))
+				})
+			})
+
+			Context("when the Secret already exists", func() {
+				It("should apply the Secret", func() {
+					expectedData := map[string][]byte{"key2": []byte("value2")}
+					existingSecret, applySecret := secret(), secret()
+					applySecret.Data = expectedData
+
+					Expect(fakeClient.Create(context.Background(), existingSecret)).To(Succeed())
+
+					Expect(secretManager.Apply(context.Background(), applySecret, client.FieldOwner(fieldOwner), client.ForceOwnership)).To(Succeed())
+
+					got := &corev1.Secret{}
+					Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existingSecret), got)).To(Succeed())
+					Expect(got).To(Equal(applySecret))
+				})
+			})
+		})
+
+		Describe("Get Secret", func() {
+			Context("when the Secret exists", func() {
+				It("should get the Secret", func() {
+					existingSecret := secret()
+					Expect(fakeClient.Create(context.Background(), existingSecret)).To(Succeed())
+
+					got := &corev1.Secret{}
+					Expect(secretManager.Get(context.Background(), client.ObjectKeyFromObject(existingSecret), got)).To(Succeed())
+					Expect(got.Name).To(Equal(existingSecret.Name))
+					Expect(got.Namespace).To(Equal(existingSecret.Namespace))
+					Expect(got.Data).To(Equal(existingSecret.Data))
+				})
+			})
+
+			Context("when the Secret does not exist", func() {
+				It("should return error while getting the Secret", func() {
+					secret := secret()
+
+					got := &corev1.Secret{}
+					err := secretManager.Get(context.Background(), client.ObjectKeyFromObject(secret), got)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+
+				It("should preserve NotFound error type for client differentiation", func() {
+					secret := secret()
+
+					got := &corev1.Secret{}
+					err := secretManager.Get(context.Background(), client.ObjectKeyFromObject(secret), got)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsNotFound(err)).To(BeTrue(), "error should be identifiable as NotFound")
+				})
+			})
+		})
+
+		Describe("Update Secret", func() {
+			Context("when the Secret exists", func() {
+				It("should update the Secret", func() {
+					existingSecret := secret()
+					Expect(fakeClient.Create(context.Background(), existingSecret)).To(Succeed())
+
+					updatedSecret := existingSecret.DeepCopy()
+					updatedSecret.Data = map[string][]byte{"key2": []byte("value2")}
+
+					Expect(secretManager.Update(context.Background(), updatedSecret)).To(Succeed())
+
+					got := &corev1.Secret{}
+					Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existingSecret), got)).To(Succeed())
+					Expect(got.Data).To(Equal(updatedSecret.Data))
+				})
+			})
+
+			Context("when the Secret does not exist", func() {
+				It("should return error while updating the Secret", func() {
+					secret := secret()
+
+					err := secretManager.Update(context.Background(), secret)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+
+				It("should preserve NotFound error type for client differentiation", func() {
+					secret := secret()
+
+					err := secretManager.Update(context.Background(), secret)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsNotFound(err)).To(BeTrue(), "error should be identifiable as NotFound")
+				})
+			})
+		})
+
+		Describe("List Secrets", func() {
+			const (
+				otherSecretName = "test-secret-2"
+				otherNamespace  = "test-namespace-2"
+			)
+
+			Context("when Secrets exist", func() {
+				It("should list all Secrets", func() {
+					secret1 := secret()
+					secret2 := secret(otherSecretName, otherNamespace)
+					Expect(fakeClient.Create(context.Background(), secret1)).To(Succeed())
+					Expect(fakeClient.Create(context.Background(), secret2)).To(Succeed())
+
+					list := &corev1.SecretList{}
+					Expect(secretManager.List(context.Background(), list)).To(Succeed())
+
+					Expect(list.Items).To(HaveLen(2))
+					Expect(list.Items[0].Name).To(Or(Equal(secret1.Name), Equal(secret2.Name)))
+					Expect(list.Items[1].Name).To(Or(Equal(secret1.Name), Equal(secret2.Name)))
+				})
+
+				It("should list Secrets in a specific namespace", func() {
+					secretInNamespace := secret()
+					secretInOtherNamespace := secret(otherSecretName, otherNamespace)
+					Expect(fakeClient.Create(context.Background(), secretInNamespace)).To(Succeed())
+					Expect(fakeClient.Create(context.Background(), secretInOtherNamespace)).To(Succeed())
+
+					list := &corev1.SecretList{}
+					Expect(secretManager.List(context.Background(), list, client.InNamespace(namespace))).To(Succeed())
+
+					Expect(list.Items).To(HaveLen(1))
+					Expect(list.Items[0].Name).To(Equal(secretInNamespace.Name))
+					Expect(list.Items[0].Namespace).To(Equal(namespace))
+				})
+
+				It("should list Secrets with matching labels", func() {
+					expectedLabels := map[string]string{"app": "test"}
+					secretWithLabel := secret()
+					secretWithLabel.Labels = expectedLabels
+					secretWithoutLabels := secret(otherSecretName, otherNamespace)
+
+					Expect(fakeClient.Create(context.Background(), secretWithLabel)).To(Succeed())
+					Expect(fakeClient.Create(context.Background(), secretWithoutLabels)).To(Succeed())
+
+					list := &corev1.SecretList{}
+					Expect(secretManager.List(context.Background(), list, client.MatchingLabels(expectedLabels))).To(Succeed())
+
+					Expect(list.Items).To(HaveLen(1))
+					Expect(list.Items[0].Name).To(Equal(secretWithLabel.Name))
+					Expect(list.Items[0].Labels).To(Equal(secretWithLabel.Labels))
+				})
+			})
+
+			Context("when no Secrets exist", func() {
+				It("should return an empty list", func() {
+					list := &corev1.SecretList{}
+					Expect(secretManager.List(context.Background(), list)).To(Succeed())
+
+					Expect(list.Items).To(BeEmpty())
+				})
+			})
+		})
+
+		Describe("Delete Secret", func() {
+			Context("when the Secret exists", func() {
+				It("should delete the Secret", func() {
+					existingSecret := secret()
+					Expect(fakeClient.Create(context.Background(), existingSecret)).To(Succeed())
+
+					Expect(secretManager.Delete(context.Background(), existingSecret)).To(Succeed())
+
+					got := &corev1.Secret{}
+					err := fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existingSecret), got)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+			})
+
+			Context("when the Secret does not exist", func() {
+				It("should return error while deleting the Secret", func() {
+					secret := secret()
+
+					err := secretManager.Delete(context.Background(), secret)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+
+				It("should preserve NotFound error type for client differentiation", func() {
+					secret := secret()
+
+					err := secretManager.Delete(context.Background(), secret)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsNotFound(err)).To(BeTrue(), "error should be identifiable as NotFound")
+				})
+			})
+		})
+	})
 })
 
 func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
@@ -314,6 +561,27 @@ func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
 		},
 		Data: map[string]string{
 			"key1": "value1",
+		},
+	}
+}
+
+func secret(nameAndNamespace ...string) *corev1.Secret {
+	name, namespace := secretName, namespace
+	if len(nameAndNamespace) > 0 {
+		name = nameAndNamespace[0]
+		namespace = nameAndNamespace[1]
+	}
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"key1": []byte("value1"),
 		},
 	}
 }
