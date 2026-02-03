@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -80,6 +81,16 @@ var _ = Describe("Object Manager", func() {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("already exists"))
 				})
+
+				It("should preserve AlreadyExists error type for client differentiation", func() {
+					existingConfigmap := configmap()
+					configmap := existingConfigmap.DeepCopy()
+					Expect(fakeClient.Create(context.Background(), existingConfigmap)).To(Succeed())
+
+					err := configmapManager.Create(context.Background(), configmap)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsAlreadyExists(err)).To(BeTrue(), "error should be identifiable as AlreadyExists")
+				})
 			})
 		})
 
@@ -138,6 +149,15 @@ var _ = Describe("Object Manager", func() {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("not found"))
 				})
+
+				It("should preserve NotFound error type for client differentiation", func() {
+					configmap := configmap()
+
+					got := &corev1.ConfigMap{}
+					err := configmapManager.Get(context.Background(), client.ObjectKeyFromObject(configmap), got)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsNotFound(err)).To(BeTrue(), "error should be identifiable as NotFound")
+				})
 			})
 		})
 
@@ -165,6 +185,14 @@ var _ = Describe("Object Manager", func() {
 					err := configmapManager.Update(context.Background(), configmap)
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+
+				It("should preserve NotFound error type for client differentiation", func() {
+					configmap := configmap()
+
+					err := configmapManager.Update(context.Background(), configmap)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsNotFound(err)).To(BeTrue(), "error should be identifiable as NotFound")
 				})
 			})
 		})
@@ -254,6 +282,14 @@ var _ = Describe("Object Manager", func() {
 					err := configmapManager.Delete(context.Background(), configmap)
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+
+				It("should preserve NotFound error type for client differentiation", func() {
+					configmap := configmap()
+
+					err := configmapManager.Delete(context.Background(), configmap)
+					Expect(err).To(HaveOccurred())
+					Expect(apierrors.IsNotFound(err)).To(BeTrue(), "error should be identifiable as NotFound")
 				})
 			})
 		})
