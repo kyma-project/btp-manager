@@ -114,6 +114,33 @@ var _ = Describe("Object Manager", func() {
 				})
 			})
 		})
+
+		Describe("Get ConfigMap", func() {
+			Context("when the ConfigMap exists", func() {
+				It("should get the ConfigMap", func() {
+					existingConfigmap := configmap()
+					Expect(fakeClient.Create(context.Background(), existingConfigmap)).To(Succeed())
+
+					got := &corev1.ConfigMap{}
+					Expect(configmapManager.Get(context.Background(), client.ObjectKeyFromObject(existingConfigmap), got)).To(Succeed())
+					Expect(got.Name).To(Equal(existingConfigmap.Name))
+					Expect(got.Namespace).To(Equal(existingConfigmap.Namespace))
+					Expect(got.Data).To(Equal(existingConfigmap.Data))
+				})
+			})
+
+			Context("when the ConfigMap does not exist", func() {
+				It("should return error while getting the ConfigMap", func() {
+					configmap := configmap()
+
+					got := &corev1.ConfigMap{}
+					err := configmapManager.Get(context.Background(), client.ObjectKeyFromObject(configmap), got)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
+			})
+		})
+
 	})
 })
 
