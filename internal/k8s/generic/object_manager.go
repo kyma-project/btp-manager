@@ -38,6 +38,13 @@ func (m *ObjectManager[T]) Get(ctx context.Context, key client.ObjectKey, object
 	return nil
 }
 
+func (m *ObjectManager[T]) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if err := m.client.List(ctx, list, opts...); err != nil {
+		return fmt.Errorf("while listing objects: %w", err)
+	}
+	return nil
+}
+
 func (m *ObjectManager[T]) Update(ctx context.Context, object T, opts ...client.UpdateOption) error {
 	if err := m.client.Update(ctx, object, opts...); err != nil {
 		return fmt.Errorf("while updating %q: %w", object.GetName(), err)
