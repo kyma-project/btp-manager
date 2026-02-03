@@ -30,3 +30,10 @@ func (m *ObjectManager[T]) Apply(ctx context.Context, object T, opts ...client.P
 	}
 	return nil
 }
+
+func (m *ObjectManager[T]) Get(ctx context.Context, key client.ObjectKey, object T, opts ...client.GetOption) error {
+	if err := m.client.Get(ctx, key, object, opts...); err != nil {
+		return fmt.Errorf("while getting %q: %w", key.Name, err)
+	}
+	return nil
+}
