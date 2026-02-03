@@ -97,6 +97,22 @@ var _ = Describe("Object Manager", func() {
 					Expect(got).To(Equal(configmap))
 				})
 			})
+
+			Context("when the ConfigMap already exists", func() {
+				It("should apply the ConfigMap", func() {
+					expectedData := map[string]string{"key2": "value2"}
+					existingConfigmap, applyConfigmap := configmap(), configmap()
+					applyConfigmap.Data = expectedData
+
+					Expect(fakeClient.Create(context.Background(), existingConfigmap)).To(Succeed())
+
+					Expect(configmapManager.Apply(context.Background(), applyConfigmap, client.FieldOwner(fieldOwner))).To(Succeed())
+
+					got := &corev1.ConfigMap{}
+					Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existingConfigmap), got)).To(Succeed())
+					Expect(got).To(Equal(applyConfigmap))
+				})
+			})
 		})
 	})
 })
@@ -110,6 +126,9 @@ func configmap() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      configmapName,
 			Namespace: namespace,
+		},
+		Data: map[string]string{
+			"key1": "value1",
 		},
 	}
 }
