@@ -38,6 +38,13 @@ func (m *ObjectManager[T]) Get(ctx context.Context, key client.ObjectKey, object
 	return nil
 }
 
+func (m *ObjectManager[T]) Update(ctx context.Context, object T, opts ...client.UpdateOption) error {
+	if err := m.client.Update(ctx, object, opts...); err != nil {
+		return fmt.Errorf("while updating %q: %w", object.GetName(), err)
+	}
+	return nil
+}
+
 func (m *ObjectManager[T]) Delete(ctx context.Context, object T, opts ...client.DeleteOption) error {
 	if err := m.client.Delete(ctx, object, opts...); err != nil {
 		return fmt.Errorf("while deleting %q: %w", object.GetName(), err)
