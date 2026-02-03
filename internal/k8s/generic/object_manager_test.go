@@ -169,6 +169,87 @@ var _ = Describe("Object Manager", func() {
 			})
 		})
 
+		Describe("List ConfigMaps", func() {
+			const (
+				otherConfigmapName = "test-configmap-2"
+				otherNamespace     = "test-namespace-2"
+			)
+
+			Context("when ConfigMaps exist", func() {
+				It("should list all ConfigMaps", func() {
+					configmap1 := configmap()
+					configmap2 := &corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      otherConfigmapName,
+							Namespace: otherNamespace,
+						},
+						Data: map[string]string{"key2": "value2"},
+					}
+					Expect(fakeClient.Create(context.Background(), configmap1)).To(Succeed())
+					Expect(fakeClient.Create(context.Background(), configmap2)).To(Succeed())
+
+					list := &corev1.ConfigMapList{}
+					Expect(configmapManager.List(context.Background(), list)).To(Succeed())
+
+					Expect(list.Items).To(HaveLen(2))
+					Expect(list.Items[0].Name).To(Or(Equal(configmap1.Name), Equal(configmap2.Name)))
+					Expect(list.Items[1].Name).To(Or(Equal(configmap1.Name), Equal(configmap2.Name)))
+				})
+
+				It("should list ConfigMaps in a specific namespace", func() {
+					configmapInNamespace := configmap()
+					configmapInOtherNamespace := &corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      otherConfigmapName,
+							Namespace: otherNamespace,
+						},
+						Data: map[string]string{"key": "value"},
+					}
+					Expect(fakeClient.Create(context.Background(), configmapInNamespace)).To(Succeed())
+					Expect(fakeClient.Create(context.Background(), configmapInOtherNamespace)).To(Succeed())
+
+					list := &corev1.ConfigMapList{}
+					Expect(configmapManager.List(context.Background(), list, client.InNamespace(namespace))).To(Succeed())
+
+					Expect(list.Items).To(HaveLen(1))
+					Expect(list.Items[0].Name).To(Equal(configmapInNamespace.Name))
+					Expect(list.Items[0].Namespace).To(Equal(namespace))
+				})
+
+				It("should list ConfigMaps with matching labels", func() {
+					expectedLabels := map[string]string{"app": "test"}
+					configmapWithLabel := configmap()
+					configmapWithLabel.Labels = expectedLabels
+					configmapWithoutLabels := &corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      otherConfigmapName,
+							Namespace: otherNamespace,
+						},
+						Data: map[string]string{"key": "value"},
+					}
+
+					Expect(fakeClient.Create(context.Background(), configmapWithLabel)).To(Succeed())
+					Expect(fakeClient.Create(context.Background(), configmapWithoutLabels)).To(Succeed())
+
+					list := &corev1.ConfigMapList{}
+					Expect(configmapManager.List(context.Background(), list, client.MatchingLabels(expectedLabels))).To(Succeed())
+
+					Expect(list.Items).To(HaveLen(1))
+					Expect(list.Items[0].Name).To(Equal(configmapWithLabel.Name))
+					Expect(list.Items[0].Labels).To(Equal(configmapWithLabel.Labels))
+				})
+			})
+
+			Context("when no ConfigMaps exist", func() {
+				It("should return an empty list", func() {
+					list := &corev1.ConfigMapList{}
+					Expect(configmapManager.List(context.Background(), list)).To(Succeed())
+
+					Expect(list.Items).To(BeEmpty())
+				})
+			})
+		})
+
 		Describe("Delete ConfigMap", func() {
 			Context("when the ConfigMap exists", func() {
 				It("should delete the ConfigMap", func() {
