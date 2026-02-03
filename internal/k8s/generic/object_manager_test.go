@@ -178,13 +178,7 @@ var _ = Describe("Object Manager", func() {
 			Context("when ConfigMaps exist", func() {
 				It("should list all ConfigMaps", func() {
 					configmap1 := configmap()
-					configmap2 := &corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      otherConfigmapName,
-							Namespace: otherNamespace,
-						},
-						Data: map[string]string{"key2": "value2"},
-					}
+					configmap2 := configmap(otherConfigmapName, otherNamespace)
 					Expect(fakeClient.Create(context.Background(), configmap1)).To(Succeed())
 					Expect(fakeClient.Create(context.Background(), configmap2)).To(Succeed())
 
@@ -198,13 +192,7 @@ var _ = Describe("Object Manager", func() {
 
 				It("should list ConfigMaps in a specific namespace", func() {
 					configmapInNamespace := configmap()
-					configmapInOtherNamespace := &corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      otherConfigmapName,
-							Namespace: otherNamespace,
-						},
-						Data: map[string]string{"key": "value"},
-					}
+					configmapInOtherNamespace := configmap(otherConfigmapName, otherNamespace)
 					Expect(fakeClient.Create(context.Background(), configmapInNamespace)).To(Succeed())
 					Expect(fakeClient.Create(context.Background(), configmapInOtherNamespace)).To(Succeed())
 
@@ -220,13 +208,7 @@ var _ = Describe("Object Manager", func() {
 					expectedLabels := map[string]string{"app": "test"}
 					configmapWithLabel := configmap()
 					configmapWithLabel.Labels = expectedLabels
-					configmapWithoutLabels := &corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      otherConfigmapName,
-							Namespace: otherNamespace,
-						},
-						Data: map[string]string{"key": "value"},
-					}
+					configmapWithoutLabels := configmap(otherConfigmapName, otherNamespace)
 
 					Expect(fakeClient.Create(context.Background(), configmapWithLabel)).To(Succeed())
 					Expect(fakeClient.Create(context.Background(), configmapWithoutLabels)).To(Succeed())
@@ -279,14 +261,19 @@ var _ = Describe("Object Manager", func() {
 	})
 })
 
-func configmap() *corev1.ConfigMap {
+func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
+	name, namespace := configmapName, namespace
+	if len(nameAndNamespace) > 0 {
+		name = nameAndNamespace[0]
+		namespace = nameAndNamespace[1]
+	}
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      configmapName,
+			Name:      name,
 			Namespace: namespace,
 		},
 		Data: map[string]string{
