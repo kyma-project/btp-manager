@@ -23,3 +23,10 @@ func (m *ObjectManager[T]) Create(ctx context.Context, object T, opts ...client.
 	}
 	return nil
 }
+
+func (m *ObjectManager[T]) Apply(ctx context.Context, object T, opts ...client.PatchOption) error {
+	if err := m.client.Patch(ctx, object, client.Apply, opts...); err != nil {
+		return fmt.Errorf("while applying %q: %w", object.GetName(), err)
+	}
+	return nil
+}

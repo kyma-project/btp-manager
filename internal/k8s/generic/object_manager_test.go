@@ -57,15 +57,10 @@ var _ = Describe("Object Manager", func() {
 			configmapManager = generic.NewObjectManager[*corev1.ConfigMap](fakeClient)
 		})
 
-		Describe("Create a ConfigMap", func() {
+		Describe("Create ConfigMap", func() {
 			Context("when the ConfigMap does not exist", func() {
 				It("should create the ConfigMap", func() {
-					configmap := &corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      configmapName,
-							Namespace: namespace,
-						},
-					}
+					configmap := configmap()
 
 					Expect(configmapManager.Create(context.Background(), configmap)).To(Succeed())
 
@@ -75,14 +70,9 @@ var _ = Describe("Object Manager", func() {
 				})
 			})
 
-			Context("when the ConfigMap exists", func() {
+			Context("when the ConfigMap already exists", func() {
 				It("should return error while creating the ConfigMap", func() {
-					existingConfigmap := &corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      configmapName,
-							Namespace: namespace,
-						},
-					}
+					existingConfigmap := configmap()
 					configmap := existingConfigmap.DeepCopy()
 					Expect(fakeClient.Create(context.Background(), existingConfigmap)).To(Succeed())
 
@@ -93,5 +83,33 @@ var _ = Describe("Object Manager", func() {
 			})
 		})
 
+		Describe("Apply ConfigMap", func() {
+			const fieldOwner = "object-manager-test"
+
+			Context("when the ConfigMap does not exist", func() {
+				It("should apply the ConfigMap", func() {
+					configmap := configmap()
+
+					Expect(configmapManager.Apply(context.Background(), configmap, client.FieldOwner(fieldOwner))).To(Succeed())
+
+					got := &corev1.ConfigMap{}
+					Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(configmap), got)).To(Succeed())
+					Expect(got).To(Equal(configmap))
+				})
+			})
+		})
 	})
 })
+
+func configmap() *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configmapName,
+			Namespace: namespace,
+		},
+	}
+}
