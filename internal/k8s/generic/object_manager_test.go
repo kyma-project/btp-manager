@@ -545,11 +545,7 @@ var _ = Describe("Object Manager", func() {
 })
 
 func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
-	name, ns := configmapName, namespace
-	if len(nameAndNamespace) > 0 {
-		name = nameAndNamespace[0]
-		ns = nameAndNamespace[1]
-	}
+	name, ns := getNameAndNamespaceOrDefaults(nameAndNamespace, configmapName, namespace)
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
@@ -566,11 +562,7 @@ func configmap(nameAndNamespace ...string) *corev1.ConfigMap {
 }
 
 func secret(nameAndNamespace ...string) *corev1.Secret {
-	name, ns := secretName, namespace
-	if len(nameAndNamespace) > 0 {
-		name = nameAndNamespace[0]
-		ns = nameAndNamespace[1]
-	}
+	name, ns := getNameAndNamespaceOrDefaults(nameAndNamespace, secretName, namespace)
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -583,5 +575,16 @@ func secret(nameAndNamespace ...string) *corev1.Secret {
 		Data: map[string][]byte{
 			"key1": []byte("value1"),
 		},
+	}
+}
+
+func getNameAndNamespaceOrDefaults(nameAndNamespace []string, defaultName, defaultNamespace string) (string, string) {
+	switch {
+	case len(nameAndNamespace) == 1:
+		return nameAndNamespace[0], defaultNamespace
+	case len(nameAndNamespace) > 1:
+		return nameAndNamespace[0], nameAndNamespace[1]
+	default:
+		return defaultName, defaultNamespace
 	}
 }
