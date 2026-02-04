@@ -94,7 +94,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   namespace: kyma-system
-  name: kyma-project.io--btp-operator-allow-to-webhook
+  name: kyma-project.io--allow-btp-operator-webhook
 spec:
   podSelector:
     matchLabels:

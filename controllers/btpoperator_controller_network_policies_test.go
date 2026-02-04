@@ -38,7 +38,7 @@ var expectedPolicyNames = []string{
 	"kyma-project.io--btp-operator-allow-to-apiserver",
 	"kyma-project.io--btp-operator-to-dns",
 	"kyma-project.io--allow-btp-operator-metrics",
-	"kyma-project.io--btp-operator-allow-to-webhook",
+	"kyma-project.io--allow-btp-operator-webhook",
 }
 
 var _ = Describe("BTP Operator Network Policies", func() {
@@ -327,6 +327,22 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				disableNetworkPoliciesAndWait()
 				verifyNetworkPoliciesDeleted()
 			})
+		})
+	})
+
+	Context("When testing migration logic", func() {
+		It("should delete the old webhook network policy during migration", func() {
+			reconciler := &BtpOperatorReconciler{
+				Client: k8sClient,
+			}
+			oldPolicy := createMockNetworkPolicy("kyma-project.io--btp-operator-allow-to-webhook")
+			Expect(k8sClient.Create(context.Background(), oldPolicy)).To(Succeed())
+			_, err := getNetworkPolicy(context.Background(), "kyma-project.io--btp-operator-allow-to-webhook", "kyma-system")
+			Expect(err).NotTo(HaveOccurred())
+			err = reconciler.deleteOldWebhookNetworkPolicy(context.Background())
+			Expect(err).NotTo(HaveOccurred())
+			_, err = getNetworkPolicy(context.Background(), "kyma-project.io--btp-operator-allow-to-webhook", "kyma-system")
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })
