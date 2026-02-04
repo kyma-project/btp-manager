@@ -20,34 +20,37 @@ func NewObjectManager[T client.Object](k8sClient client.Client) *ObjectManager[T
 
 func (m *ObjectManager[T]) Create(ctx context.Context, object T, opts ...client.CreateOption) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Creating object", "name", object.GetName())
+	kind := object.GetObjectKind().GroupVersionKind().Kind
+	logger.Info("Creating object", "kind", kind, "name", object.GetName())
 	if err := m.client.Create(ctx, object, opts...); err != nil {
-		return fmt.Errorf("while creating %q: %w", object.GetName(), err)
+		return fmt.Errorf("while creating %s %q: %w", kind, object.GetName(), err)
 	}
 	return nil
 }
 
 func (m *ObjectManager[T]) Apply(ctx context.Context, object T, opts ...client.PatchOption) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Applying object", "name", object.GetName())
+	kind := object.GetObjectKind().GroupVersionKind().Kind
+	logger.Info("Applying object", "kind", kind, "name", object.GetName())
 	if err := m.client.Patch(ctx, object, client.Apply, opts...); err != nil {
-		return fmt.Errorf("while applying %q: %w", object.GetName(), err)
+		return fmt.Errorf("while applying %s %q: %w", kind, object.GetName(), err)
 	}
 	return nil
 }
 
 func (m *ObjectManager[T]) Get(ctx context.Context, key client.ObjectKey, object T, opts ...client.GetOption) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Getting object", "name", key.Name)
+	kind := object.GetObjectKind().GroupVersionKind().Kind
+	logger.Info("Getting object", "kind", kind, "name", key.Name)
 	if err := m.client.Get(ctx, key, object, opts...); err != nil {
-		return fmt.Errorf("while getting %q: %w", key.Name, err)
+		return fmt.Errorf("while getting %s %q: %w", kind, key.Name, err)
 	}
 	return nil
 }
 
 func (m *ObjectManager[T]) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Listing objects")
+	logger.Info("Listing objects", "kind", list.GetObjectKind().GroupVersionKind().Kind)
 	if err := m.client.List(ctx, list, opts...); err != nil {
 		return fmt.Errorf("while listing objects: %w", err)
 	}
@@ -56,18 +59,20 @@ func (m *ObjectManager[T]) List(ctx context.Context, list client.ObjectList, opt
 
 func (m *ObjectManager[T]) Update(ctx context.Context, object T, opts ...client.UpdateOption) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Updating object", "name", object.GetName())
+	kind := object.GetObjectKind().GroupVersionKind().Kind
+	logger.Info("Updating object", "kind", kind, "name", object.GetName())
 	if err := m.client.Update(ctx, object, opts...); err != nil {
-		return fmt.Errorf("while updating %q: %w", object.GetName(), err)
+		return fmt.Errorf("while updating %s %q: %w", kind, object.GetName(), err)
 	}
 	return nil
 }
 
 func (m *ObjectManager[T]) Delete(ctx context.Context, object T, opts ...client.DeleteOption) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Deleting object", "name", object.GetName())
+	kind := object.GetObjectKind().GroupVersionKind().Kind
+	logger.Info("Deleting object", "kind", kind, "name", object.GetName())
 	if err := m.client.Delete(ctx, object, opts...); err != nil {
-		return fmt.Errorf("while deleting %q: %w", object.GetName(), err)
+		return fmt.Errorf("while deleting %s %q: %w", kind, object.GetName(), err)
 	}
 	return nil
 }
