@@ -668,8 +668,6 @@ func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Contex
 			return fmt.Errorf("failed to delete old webhook network policy: %w", err)
 		}
 		logger.Info("old webhook network policy not found, skipping deletion", "policyName", oldWebhookNetworkPolicyName)
-	} else {
-		logger.Info("deleted old webhook network policy during migration", "policyName", oldWebhookNetworkPolicyName)
 	}
 
 	return nil
