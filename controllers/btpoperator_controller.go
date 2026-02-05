@@ -123,6 +123,9 @@ const (
 
 	deploymentAvailableConditionType   = "Available"
 	deploymentProgressingConditionType = "Progressing"
+
+	// TODO: remove old webhook network policy name after some time
+	oldWebhookNetworkPolicyName = "kyma-project.io--btp-operator-allow-to-webhook"
 )
 
 const (
@@ -534,6 +537,10 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 			return err
 		}
 	}
+	if err := r.deleteOldWebhookNetworkPolicy(ctx); err != nil {
+		logger.Error(err, "while deleting old webhook network policy")
+		return fmt.Errorf("failed to delete old webhook network policy: %w", err)
+	}
 
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
 		logger.Error(err, "while preparing objects to apply")
@@ -641,6 +648,26 @@ func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) erro
 		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 			return fmt.Errorf("failed to delete network policies: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+	oldPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      oldWebhookNetworkPolicyName,
+			Namespace: config.ChartNamespace,
+		},
+	}
+
+	if err := r.Delete(ctx, oldPolicy); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			logger.Error(err, "failed to delete old webhook network policy during migration", "policyName", oldWebhookNetworkPolicyName)
+			return fmt.Errorf("failed to delete old webhook network policy: %w", err)
+		}
+		logger.Info("old webhook network policy not found, skipping deletion", "policyName", oldWebhookNetworkPolicyName)
 	}
 
 	return nil

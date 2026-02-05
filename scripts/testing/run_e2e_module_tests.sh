@@ -79,7 +79,7 @@ checkNetworkPoliciesExist() {
     "kyma-project.io--btp-operator-allow-to-apiserver"
     "kyma-project.io--btp-operator-to-dns"
     "kyma-project.io--allow-btp-operator-metrics"
-    "kyma-project.io--btp-operator-allow-to-webhook"
+    "kyma-project.io--allow-btp-operator-webhook"
   )
   
   for policy in "${policies[@]}"; do
@@ -100,7 +100,7 @@ checkNetworkPoliciesDeleted() {
     "kyma-project.io--btp-operator-allow-to-apiserver"
     "kyma-project.io--btp-operator-to-dns"
     "kyma-project.io--allow-btp-operator-metrics"
-    "kyma-project.io--btp-operator-allow-to-webhook"
+    "kyma-project.io--allow-btp-operator-webhook"
   )
   
   for policy in "${policies[@]}"; do
