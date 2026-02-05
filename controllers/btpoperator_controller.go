@@ -124,7 +124,7 @@ const (
 	deploymentAvailableConditionType   = "Available"
 	deploymentProgressingConditionType = "Progressing"
 
-	// oldWebhookNetworkPolicyName is the old name of the webhook network policy that needs to be deleted during migration
+	// TODO: remove old webhook network policy name after some time
 	oldWebhookNetworkPolicyName = "kyma-project.io--btp-operator-allow-to-webhook"
 )
 
@@ -525,12 +525,6 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
 
-	// Delete old webhook network policy to support migration to new name
-	if err := r.deleteOldWebhookNetworkPolicy(ctx); err != nil {
-		logger.Error(err, "while deleting old webhook network policy")
-		return fmt.Errorf("failed to delete old webhook network policy: %w", err)
-	}
-
 	if cr.IsNetworkPoliciesDisabled() {
 		logger.Info("network policies disabled, cleaning up existing ones")
 		if err := r.cleanupNetworkPolicies(ctx); err != nil {
@@ -542,6 +536,10 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 		if err := r.addNetworkPoliciesToResources(ctx, &resourcesToApply); err != nil {
 			return err
 		}
+	}
+	if err := r.deleteOldWebhookNetworkPolicy(ctx); err != nil {
+		logger.Error(err, "while deleting old webhook network policy")
+		return fmt.Errorf("failed to delete old webhook network policy: %w", err)
 	}
 
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
@@ -655,7 +653,6 @@ func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) erro
 	return nil
 }
 
-// deleteOldWebhookNetworkPolicy deletes the old webhook network policy to support migration to the new name
 func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 	oldPolicy := &networkingv1.NetworkPolicy{
@@ -670,8 +667,7 @@ func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Contex
 			logger.Error(err, "failed to delete old webhook network policy during migration", "policyName", oldWebhookNetworkPolicyName)
 			return fmt.Errorf("failed to delete old webhook network policy: %w", err)
 		}
-		// Policy doesn't exist, which is fine - migration already happened or this is a new installation
-		logger.V(1).Info("old webhook network policy not found, skipping deletion", "policyName", oldWebhookNetworkPolicyName)
+		logger.Info("old webhook network policy not found, skipping deletion", "policyName", oldWebhookNetworkPolicyName)
 	} else {
 		logger.Info("deleted old webhook network policy during migration", "policyName", oldWebhookNetworkPolicyName)
 	}
