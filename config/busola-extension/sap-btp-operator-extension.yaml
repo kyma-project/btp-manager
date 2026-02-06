@@ -44,6 +44,16 @@ data:
         group: apps
         namespace: kyma-system
         name: sap-btp-operator-controller-manager
+    relatedServiceInstances:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+    relatedServiceBindings:
+      resource:
+        kind: ServiceBinding
+        version: v1
+        group: services.cloud.sap.com
     # 1. Default secret: sap-btp-service-operator (cluster-wide)
     defaultSecret:
       resource:
@@ -170,14 +180,11 @@ data:
         widget: Panel
         children:
           - name: Service Instances
-            widget: Table
-            source: '$relatedServiceInstances().items'
-            name: instances
-            disableHiding: true
+            widget: Panel
             children:
-              - source: '$count($)'
+              - source: '$count($relatedServiceInstances().items)'
                 name: Total Count
-                visibility: header
+                widget: Text
               - widget: ResourceLink
                 source: '"See details"'
                 name: Details
@@ -186,21 +193,17 @@ data:
                   kind: '"CustomResourceDefinition"'
                   namespace: '""'
           - name: Service Bindings  
-            widget: Table
-            source: '$relatedServiceBindings().items'
-            name: bindings
-            disableHiding: true
+            widget: Panel
             children:
-              - source: '$count($)'
+              - source: '$count($relatedServiceBindings().items)'
                 name: Total Count
-                visibility: header
+                widget: Text
               - widget: ResourceLink
                 source: '"See details"'
                 name: Details
                 resource:
                   name: '"servicebindings.services.cloud.sap.com"'
                   kind: '"CustomResourceDefinition"'
-                  namespace: '""'
       - name: Secrets Monitoring
         widget: Panel
         children:
@@ -252,4 +255,18 @@ data:
                       name: '$item.metadata.name'
                       namespace: '$item.metadata.namespace'
                       kind: '"Secret"'
+      - name: Graph Documentation
+        widget: Panel
+        children:
+          - name: "How This Graph is Built"
+            source: "'The visualization queries your Kubernetes cluster and filters resources based on the kyma-project.io/module label.'"
+            widget: Text
+          - name: "Label Used for Filtering"
+            source: "'Label Filter: kyma-project.io/module=btp-operator'"
+            widget: Text
+            copyable: true  
+
+      - widget: Alert
+        severity: information
+        source: "'💡 Tip: Only resources tagged with kyma-project.io/module=btp-operator will appear in this visualization.'"
 
