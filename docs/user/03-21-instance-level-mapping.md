@@ -34,7 +34,7 @@ To create a service instance with a custom Secret, you must use the **btpAccessC
     metadata:
       name: {YOUR_SECRET_NAME}
       namespace: kyma-system
-    data:
+    stringData:
       clientid: {CLIENT_ID}
       clientsecret: {CLIENT_SECRET}
       sm_url: {SM_URL}

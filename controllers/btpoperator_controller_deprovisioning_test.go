@@ -131,7 +131,7 @@ var _ = Describe("BTP Operator controller - deprovisioning", func() {
 			"kyma-project.io--btp-operator-allow-to-apiserver",
 			"kyma-project.io--btp-operator-to-dns",
 			"kyma-project.io--allow-btp-operator-metrics",
-			"kyma-project.io--btp-operator-allow-to-webhook",
+			"kyma-project.io--allow-btp-operator-webhook",
 		}
 
 		BeforeEach(func() {
