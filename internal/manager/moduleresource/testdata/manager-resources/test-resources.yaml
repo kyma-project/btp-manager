@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: manager-resource
+  namespace: test-namespace
+data:
+  key: "value"

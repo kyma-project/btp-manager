@@ -30,13 +30,15 @@ const (
 	configmapKind = "ConfigMap"
 	secretKind    = "Secret"
 
-	configmapName  = "test-configmap"
-	secretName     = "test-secret"
-	deploymentName = "test-deployment"
+	configmapName       = "test-configmap"
+	secretName          = "test-secret"
+	deploymentName      = "test-deployment"
+	managerResourceName = "manager-resource"
 
 	moduleResourcesPath         = "./testdata"
 	moduleResourcesPathToApply  = moduleResourcesPath + "/apply"
 	moduleResourcesPathToDelete = moduleResourcesPath + "/delete"
+	managerResourcesPath        = "./testdata/manager-resources"
 
 	requiredSecretName      = "sap-btp-manager"
 	requiredSecretNamespace = "kyma-system"
@@ -70,7 +72,7 @@ var _ = Describe("Module Resource Manager", func() {
 			WithScheme(scheme).
 			Build()
 
-		manager = NewManager(fakeClient, scheme)
+		manager = NewManager(fakeClient, scheme, []ManagerResource{})
 	})
 
 	Describe("read required secret", func() {
@@ -467,7 +469,7 @@ var _ = Describe("Module Resource Manager", func() {
 					expectedName2 = "configmap2"
 				)
 				client := &errorOnDeleteClient{fakeClient}
-				manager = NewManager(client, scheme)
+				manager = NewManager(client, scheme, []ManagerResource{})
 
 				us1 := &unstructured.Unstructured{}
 				us1.SetKind(configmapKind)
@@ -557,6 +559,112 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
+
+	Describe("manager resources management", func() {
+		var ctx context.Context
+
+		BeforeEach(func() {
+			ctx = context.Background()
+			Expect(createBtpOperatorCR(fakeClient)).To(Succeed())
+		})
+
+		It("should apply enabled manager resources", func() {
+			resource := &fakeManagerResource{
+				name:          managerResourceName,
+				enabled:       true,
+				manifestsPath: managerResourcesPath,
+				object:        &corev1.ConfigMap{},
+			}
+			manager = NewManager(fakeClient, scheme, []ManagerResource{resource})
+
+			err := manager.applyManagerResources(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			configmap := &corev1.ConfigMap{}
+			err = fakeClient.Get(ctx, client.ObjectKey{
+				Name:      managerResourceName,
+				Namespace: testNamespace,
+			}, configmap)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should skip disabled manager resources", func() {
+			resource := &fakeManagerResource{
+				name:          managerResourceName,
+				enabled:       false,
+				manifestsPath: managerResourcesPath,
+				object:        &corev1.ConfigMap{},
+			}
+			manager = NewManager(fakeClient, scheme, []ManagerResource{resource})
+
+			err := manager.applyManagerResources(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			configmap := &corev1.ConfigMap{}
+			err = fakeClient.Get(ctx, client.ObjectKey{
+				Name:      managerResourceName,
+				Namespace: testNamespace,
+			}, configmap)
+			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("should delete disabled manager resources", func() {
+			configmap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      managerResourceName,
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						ManagedByLabelKey: OperatorName,
+					},
+				},
+			}
+			Expect(fakeClient.Create(ctx, configmap)).To(Succeed())
+
+			resource := &fakeManagerResource{
+				name:    managerResourceName,
+				enabled: false,
+				object:  &corev1.ConfigMap{},
+			}
+			manager = NewManager(fakeClient, scheme, []ManagerResource{resource})
+
+			err := manager.deleteManagerResources(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = fakeClient.Get(ctx, client.ObjectKey{
+				Name:      configmapName,
+				Namespace: testNamespace,
+			}, &corev1.ConfigMap{})
+			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("should not delete enabled manager resources", func() {
+			configmap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      managerResourceName,
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						ManagedByLabelKey: OperatorName,
+					},
+				},
+			}
+			Expect(fakeClient.Create(ctx, configmap)).To(Succeed())
+
+			resource := &fakeManagerResource{
+				name:    managerResourceName,
+				enabled: true,
+				object:  &corev1.ConfigMap{},
+			}
+			manager = NewManager(fakeClient, scheme, []ManagerResource{resource})
+
+			err := manager.deleteManagerResources(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(fakeClient.Get(ctx, client.ObjectKey{
+				Name:      managerResourceName,
+				Namespace: testNamespace,
+			}, &corev1.ConfigMap{})).To(Succeed())
+		})
+	})
 })
 
 func createRequiredSecret(k8sClient client.Client) error {
@@ -619,4 +727,36 @@ func unstructuredConfigmap() *unstructured.Unstructured {
 			},
 		},
 	}
+}
+
+type fakeManagerResource struct {
+	name          string
+	enabled       bool
+	manifestsPath string
+	object        client.Object
+}
+
+func (f *fakeManagerResource) Name() string {
+	return f.name
+}
+
+func (f *fakeManagerResource) Enabled(_ *v1alpha1.BtpOperator) bool {
+	return f.enabled
+}
+
+func (f *fakeManagerResource) ManifestsPath() string {
+	return f.manifestsPath
+}
+
+func (f *fakeManagerResource) Object() client.Object {
+	return f.object
+}
+
+func createBtpOperatorCR(k8sClient client.Client) error {
+	return k8sClient.Create(context.Background(), &v1alpha1.BtpOperator{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      config.BtpOperatorCrName,
+			Namespace: config.KymaSystemNamespaceName,
+		},
+	})
 }
