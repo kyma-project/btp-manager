@@ -55,7 +55,7 @@ var _ = Describe("Resource Manager", func() {
 		config.ManagerResourcesPath = ManagerResourcesPath
 	})
 
-	It("should apply enabled manager resources", func() {
+	It("should create enabled manager resources", func() {
 		Expect(createBtpOperatorCR(ctx, fakeClient, "false")).To(Succeed())
 
 		err := manager.createManagerResources(ctx)

@@ -66,10 +66,10 @@ func (m *Manager) createManagerResources(ctx context.Context) error {
 				return fmt.Errorf("while converting to unstructured: %w", err)
 			}
 
-			logger.Info(fmt.Sprintf("applying %d %s", len(objects), resource.Name()))
+			logger.Info(fmt.Sprintf("creating %d %s", len(objects), resource.Name()))
 			err = m.createOrUpdateResources(ctx, unstructuredObjects)
 			if err != nil {
-				return fmt.Errorf("failed to apply %s: %w", resource.Name(), err)
+				return fmt.Errorf("failed to create %s: %w", resource.Name(), err)
 			}
 		}
 	}
