@@ -29,15 +29,16 @@ var (
 	scheme     *runtime.Scheme
 )
 
-func TestModuleResource(t *testing.T) {
+func TestManagerResource(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Resource Manager Suite")
+	RunSpecs(t, "Manager Resource Suite")
 }
 
 var _ = BeforeSuite(func() {
 	scheme = runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	config.ManagerResourcesPath = ManagerResourcesPath
 })
 
 var _ = Describe("Resource Manager", func() {
@@ -52,7 +53,6 @@ var _ = Describe("Resource Manager", func() {
 			WithScheme(scheme).
 			Build()
 		manager = NewManager(fakeClient, scheme, []Resource{&NetworkPolicies{}})
-		config.ManagerResourcesPath = ManagerResourcesPath
 	})
 
 	It("should create enabled manager resources", func() {
