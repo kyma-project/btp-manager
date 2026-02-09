@@ -81,7 +81,8 @@ var _ = Describe("Secrets Manager", func() {
 				expectedSecret := sapBtpServiceOperatorSecret()
 				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
 
-				actualSecret := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+				actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(actualSecret).To(Equal(expectedSecret))
 			})
@@ -102,6 +103,9 @@ func secretWithNameAndNamespace(name, namespace string) *corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": "btp-manager",
+			},
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{

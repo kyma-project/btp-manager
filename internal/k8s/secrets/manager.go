@@ -10,6 +10,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	managedByLabel                  = "app.kubernetes.io/managed-by"
+	operatorName                    = "btp-manager"
+	sapBtpServiceOperatorSecretName = "sap-btp-service-operator"
+)
+
 type Manager struct {
 	*generic.ObjectManager[*corev1.Secret]
 }
@@ -30,4 +36,49 @@ func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 		return nil, err
 	}
 	return secret, nil
+}
+
+func (m *Manager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
+	secrets, err := m.getManagedSecrets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if secrets.Size() == 0 {
+		return nil, nil
+	}
+	return m.getSapBtpServiceOperatorSecretFromList(secrets), nil
+
+}
+
+func (m *Manager) getManagedSecrets(ctx context.Context) (*corev1.SecretList, error) {
+	logger := log.FromContext(ctx)
+	secrets := &corev1.SecretList{}
+
+	logger.Info("Getting managed secrets")
+	if err := m.List(ctx, secrets, client.MatchingLabels{managedByLabel: operatorName}); err != nil {
+		logger.Error(err, "Failed to get managed secrets")
+		return nil, err
+	}
+	return secrets, nil
+}
+
+func (m *Manager) getSapBtpServiceOperatorSecretFromList(secrets *corev1.SecretList) *corev1.Secret {
+	var sapBtpServiceOperatorSecret *corev1.Secret
+	for _, secret := range secrets.Items {
+		if isSecretInModuleNamespace(&secret) {
+			sapBtpServiceOperatorSecret = &secret
+			break
+		} else if isSecretInCustomNamespace(&secret) {
+			sapBtpServiceOperatorSecret = &secret
+		}
+	}
+	return sapBtpServiceOperatorSecret
+}
+
+func isSecretInModuleNamespace(secret *corev1.Secret) bool {
+	return secret.Name == sapBtpServiceOperatorSecretName && secret.Namespace == config.ChartNamespace
+}
+
+func isSecretInCustomNamespace(secret *corev1.Secret) bool {
+	return secret.Name == sapBtpServiceOperatorSecretName
 }
