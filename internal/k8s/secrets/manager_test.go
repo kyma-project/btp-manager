@@ -48,7 +48,7 @@ var _ = Describe("Secrets Manager", func() {
 			WithScheme(scheme).
 			Build()
 
-		mgr = secrets.NewManager()
+		mgr = secrets.NewManager(fakeClient)
 	})
 
 	Describe("Required sap-btp-manager secret", func() {
@@ -57,7 +57,8 @@ var _ = Describe("Secrets Manager", func() {
 				expectedSecret := requiredSecret()
 				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
 
-				actualSecret := mgr.GetRequiredSecret(context.Background())
+				actualSecret, err := mgr.GetRequiredSecret(context.Background())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(actualSecret).To(Equal(expectedSecret))
 			})
