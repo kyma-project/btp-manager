@@ -118,17 +118,3 @@ func (h *Handler) ObjectsToUnstructured(objects []runtime.Object) ([]*unstructur
 
 	return us, nil
 }
-
-func (h *Handler) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
-	objects, err := h.CollectObjectsFromDir(manifestsDir)
-	if err != nil {
-		return nil, fmt.Errorf("while collecting objects from directory %s: %w", manifestsDir, err)
-	}
-
-	unstructuredObjects, err := h.ObjectsToUnstructured(objects)
-	if err != nil {
-		return nil, fmt.Errorf("while converting to unstructured: %w", err)
-	}
-
-	return unstructuredObjects, nil
-}

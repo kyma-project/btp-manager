@@ -55,13 +55,19 @@ func (m *Manager) createManagerResources(ctx context.Context) error {
 	for _, resource := range m.resources {
 		if resource.Enabled(btpOperator) {
 			logger.Info(fmt.Sprintf("loading %s", resource.Name()))
-			objects, err := m.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(resource.ManifestsPath())
+
+			objects, err := m.manifestHandler.CollectObjectsFromDir(resource.ManifestsPath())
 			if err != nil {
-				return fmt.Errorf("failed to load %s: %w", resource.Name(), err)
+				return fmt.Errorf("while collecting objects from directory %s: %w", resource.ManifestsPath(), err)
+			}
+
+			unstructuredObjects, err := m.manifestHandler.ObjectsToUnstructured(objects)
+			if err != nil {
+				return fmt.Errorf("while converting to unstructured: %w", err)
 			}
 
 			logger.Info(fmt.Sprintf("applying %d %s", len(objects), resource.Name()))
-			err = m.createOrUpdateResources(ctx, objects)
+			err = m.createOrUpdateResources(ctx, unstructuredObjects)
 			if err != nil {
 				return fmt.Errorf("failed to apply %s: %w", resource.Name(), err)
 			}
