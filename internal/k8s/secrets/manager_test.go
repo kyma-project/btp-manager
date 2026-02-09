@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
+	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -73,21 +74,43 @@ var _ = Describe("Secrets Manager", func() {
 			})
 		})
 	})
+
+	Describe("sap-btp-service-operator secret", func() {
+		When("the secret exists in the module's namespace", func() {
+			It("should return the secret", func() {
+				expectedSecret := sapBtpServiceOperatorSecret()
+				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+
+				actualSecret := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+
+				Expect(actualSecret).To(Equal(expectedSecret))
+			})
+		})
+	})
 })
 
 func requiredSecret() *corev1.Secret {
+	return secretWithNameAndNamespace(requiredSecretName, kymaNamespace)
+}
+
+func sapBtpServiceOperatorSecret() *corev1.Secret {
+	return secretWithNameAndNamespace(moduleresource.SapBtpServiceOperatorName, kymaNamespace)
+}
+
+func secretWithNameAndNamespace(name, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      requiredSecretName,
-			Namespace: kymaNamespace,
+			Name:      name,
+			Namespace: namespace,
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			"clientid":     []byte("dGVzdF9jbGllbnRpZA=="),
-			"clientsecret": []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
-			"sm_url":       []byte("dGVzdF9zbV91cmw="),
-			"tokenurl":     []byte("dGVzdF90b2tlbnVybA=="),
-			"cluster_id":   []byte("dGVzdF9jbHVzdGVyX2lk"),
+			"clientid":       []byte("dGVzdF9jbGllbnRpZA=="),
+			"clientsecret":   []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
+			"sm_url":         []byte("dGVzdF9zbV91cmw="),
+			"tokenurl":       []byte("dGVzdF90b2tlbnVybA=="),
+			"tokenurlsuffix": []byte("L29hdXRoL3Rva2Vu"),
+			"cluster_id":     []byte("dGVzdF9jbHVzdGVyX2lk"),
 		},
 	}
 }
