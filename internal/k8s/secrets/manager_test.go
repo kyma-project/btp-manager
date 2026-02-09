@@ -63,6 +63,15 @@ var _ = Describe("Secrets Manager", func() {
 				Expect(actualSecret).To(Equal(expectedSecret))
 			})
 		})
+
+		Context("when the secret does not exist", func() {
+			It("should return an error", func() {
+				_, err := mgr.GetRequiredSecret(context.Background())
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not found"))
+			})
+		})
 	})
 })
 
