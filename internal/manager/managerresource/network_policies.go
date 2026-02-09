@@ -1,4 +1,4 @@
-package moduleresource
+package managerresource
 
 import (
 	"fmt"

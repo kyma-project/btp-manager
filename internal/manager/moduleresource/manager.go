@@ -9,17 +9,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -58,17 +55,6 @@ const (
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 )
 
-var (
-	managedByLabelFilter = client.MatchingLabels{ManagedByLabelKey: OperatorName}
-)
-
-type ManagerResource interface {
-	Name() string
-	Enabled(cr *v1alpha1.BtpOperator) bool
-	ManifestsPath() string
-	Object() client.Object
-}
-
 type Metadata struct {
 	Kind string
 	Name string
@@ -89,16 +75,14 @@ type Manager struct {
 	manifestHandler    *manifest.Handler
 	resourceIndices    map[Metadata]int
 	credentialsContext credentialsContext
-	managerResources   []ManagerResource
 }
 
-func NewManager(client client.Client, scheme *runtime.Scheme, managerResources []ManagerResource) *Manager {
+func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
 	return &Manager{
-		client:           client,
-		scheme:           scheme,
-		manifestHandler:  &manifest.Handler{Scheme: scheme},
-		resourceIndices:  make(map[Metadata]int),
-		managerResources: managerResources,
+		client:          client,
+		scheme:          scheme,
+		manifestHandler: &manifest.Handler{Scheme: scheme},
+		resourceIndices: make(map[Metadata]int),
 	}
 }
 
@@ -162,22 +146,6 @@ func (m *Manager) setCredentialsNamespace(s *corev1.Secret) {
 
 func (m *Manager) setClusterID(s *corev1.Secret) {
 	m.credentialsContext.clusterIdFromSapBtpManagerSecret = string(s.Data[ClusterIdSecretKey])
-}
-
-func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
-	objects, err := m.manifestHandler.CollectObjectsFromDir(manifestsDir)
-	if err != nil {
-		return nil, fmt.Errorf("while collecting objects from directory %s: %w", manifestsDir, err)
-	}
-
-	unstructuredObjects, err := m.manifestHandler.ObjectsToUnstructured(objects)
-	if err != nil {
-		return nil, fmt.Errorf("while converting to unstructured: %w", err)
-	}
-
-	m.indexModuleResources(unstructuredObjects)
-
-	return unstructuredObjects, nil
 }
 
 func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
@@ -310,10 +278,12 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 }
 
 func (m *Manager) applyModuleResources(ctx context.Context) error {
-	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
+	objects, err := m.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
 	if err != nil {
 		return nil
 	}
+
+	m.indexModuleResources(objects)
 
 	return m.applyOrUpdateResources(ctx, objects)
 }
@@ -359,10 +329,12 @@ func (m *Manager) updateResource(ctx context.Context, u *unstructured.Unstructur
 }
 
 func (m *Manager) deleteOutdatedResources(ctx context.Context) error {
-	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
+	objects, err := m.manifestHandler.CreateUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
 	if err != nil {
 		return nil
 	}
+
+	m.indexModuleResources(objects)
 
 	return m.deleteResources(ctx, objects)
 }
@@ -448,54 +420,4 @@ func (m *Manager) isDeploymentReady(u *unstructured.Unstructured) bool {
 	replicas, _, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
 	readyReplicas, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
 	return replicas == readyReplicas && replicas > 0
-}
-
-func (m *Manager) applyManagerResources(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-
-	btpOperator := &v1alpha1.BtpOperator{}
-	if err := m.client.Get(ctx, client.ObjectKey{Namespace: config.KymaSystemNamespaceName, Name: config.BtpOperatorCrName}, btpOperator); err != nil {
-		return fmt.Errorf("failed to get BTP Operator CR: %w", err)
-	}
-
-	for _, resource := range m.managerResources {
-		if resource.Enabled(btpOperator) {
-			logger.Info(fmt.Sprintf("loading %s", resource.Name()))
-			// TODO what about indexModuleResources
-			objects, err := m.createUnstructuredObjectsFromManifestsDir(resource.ManifestsPath())
-			if err != nil {
-				return fmt.Errorf("failed to load %s: %w", resource.Name(), err)
-			}
-
-			logger.Info(fmt.Sprintf("applying %d %s", len(objects), resource.Name()))
-			err = m.applyOrUpdateResources(ctx, objects)
-			if err != nil {
-				return fmt.Errorf("failed to apply %s: %w", resource.Name(), err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func (m *Manager) deleteManagerResources(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-
-	btpOperator := &v1alpha1.BtpOperator{}
-	if err := m.client.Get(ctx, client.ObjectKey{Namespace: config.KymaSystemNamespaceName, Name: config.BtpOperatorCrName}, btpOperator); err != nil {
-		return fmt.Errorf("failed to get BTP Operator CR: %w", err)
-	}
-
-	for _, resource := range m.managerResources {
-		if !resource.Enabled(btpOperator) {
-			logger.Info(fmt.Sprintf("%s disabled, cleaning up existing ones", resource.Name()))
-			if err := m.client.DeleteAllOf(ctx, resource.Object(), client.InNamespace(config.ChartNamespace), managedByLabelFilter); err != nil {
-				if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
-					return fmt.Errorf("failed to delete %s: %w", resource.Name(), err)
-				}
-			}
-		}
-	}
-
-	return nil
 }
