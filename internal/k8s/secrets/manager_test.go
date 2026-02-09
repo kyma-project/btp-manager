@@ -52,7 +52,7 @@ var _ = Describe("Secrets Manager", func() {
 	})
 
 	Describe("Required sap-btp-manager secret", func() {
-		Context("when the secret exists", func() {
+		When("the secret exists", func() {
 			It("should return the secret", func() {
 				expectedSecret := requiredSecret()
 				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
@@ -64,7 +64,7 @@ var _ = Describe("Secrets Manager", func() {
 			})
 		})
 
-		Context("when the secret does not exist", func() {
+		When("the secret does not exist", func() {
 			It("should return an error", func() {
 				_, err := mgr.GetRequiredSecret(context.Background())
 
