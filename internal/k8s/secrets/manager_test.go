@@ -87,6 +87,22 @@ var _ = Describe("Secrets Manager", func() {
 				Expect(actualSecret).To(Equal(expectedSecret))
 			})
 		})
+
+		When("the secret exists in a custom namespace", func() {
+			It("should return the secret", func() {
+				const expectedNamespace = "test-namespace"
+				expectedSecret := sapBtpServiceOperatorSecret()
+				expectedSecret.Namespace = expectedNamespace
+
+				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+
+				actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(actualSecret.Name).To(Equal(expectedSecret.Name))
+				Expect(actualSecret.Namespace).To(Equal(expectedNamespace))
+			})
+		})
 	})
 })
 
