@@ -24,6 +24,18 @@ data:
         kind: Pod
         version: v1
       filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedServiceInstances:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+        namespace: null
+    relatedServiceBindings:
+      resource:
+        kind: ServiceBinding
+        version: v1
+        group: services.cloud.sap.com
+        namespace: null
     btpSecret:
       resource:
         kind: Secret
@@ -44,16 +56,6 @@ data:
         group: apps
         namespace: kyma-system
         name: sap-btp-operator-controller-manager
-    relatedServiceInstances:
-      resource:
-        kind: ServiceInstance
-        version: v1
-        group: services.cloud.sap.com
-    relatedServiceBindings:
-      resource:
-        kind: ServiceBinding
-        version: v1
-        group: services.cloud.sap.com
     # 1. Default secret: sap-btp-service-operator (cluster-wide)
     defaultSecret:
       resource:
@@ -75,13 +77,12 @@ data:
         version: v1
         group: services.cloud.sap.com
         namespace: null  # Explicitly search ALL namespaces
-    # 4. Referenced secrets
-    referencedSecrets:
+    # 4. All secrets (cluster-wide) - we'll filter in the UI table
+    allSecrets:
       resource:
         kind: Secret
         version: v1
         namespace: null  # Explicitly search ALL namespaces
-      filter: '$item.metadata.name in $allServiceInstances().items.spec.btpAccessCredentialsSecret'
       
   general: |-
     resource:
@@ -176,13 +177,27 @@ data:
             source: >-
               ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system')
             widget: Text
+          - widget: Alert
+            severity: information
+            source: "'Update credentials when rotating SAP BTP service keys or changing subaccounts.'"
+          - name: Edit Secret
+            widget: ResourceLink
+            source: '"sap-btp-manager"'
+            resource:
+              name: '"sap-btp-manager"'
+              namespace: '"kyma-system"'
+              kind: '"Secret"'
+          - name: When to Update Credentials
+            source: '"Learn when to rotate credentials"'
+            link: '"https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access"'
+            widget: ExternalLink
       - name: Service Instances and Bindings
         widget: Panel
         children:
           - name: Service Instances
             widget: Panel
             children:
-              - source: '$count($relatedServiceInstances().items)'
+              - source: '$string($count($relatedServiceInstances().items)) & " items"'
                 name: Total Count
                 widget: Text
               - widget: ResourceLink
@@ -195,7 +210,7 @@ data:
           - name: Service Bindings  
             widget: Panel
             children:
-              - source: '$count($relatedServiceBindings().items)'
+              - source: '$string($count($relatedServiceBindings().items)) & " items"'
                 name: Total Count
                 widget: Text
               - widget: ResourceLink
@@ -206,11 +221,8 @@ data:
                   kind: '"CustomResourceDefinition"'
       - name: Secrets Monitoring
         widget: Panel
+        description: To learn more about different secret types and their configuration, visit the {{[documentation](https://help.sap.com/docs/btp/sap-business-technology-platform/working-with-multiple-subaccounts)}}
         children:
-          - name: Secrets Types
-            source: '"See Secrets Management Documentation"'
-            link: '"https://github.com/SAP/sap-btp-service-operator?tab=readme-ov-file#configuring-multiple-subaccounts"'
-            widget: ExternalLink
           - name: Default Secret (sap-btp-service-operator)
             widget: Panel
             children:
@@ -240,19 +252,25 @@ data:
             widget: Panel
             children:
               - widget: Table
-                source: '$referencedSecrets().items'
+                source: >-
+                  $allServiceInstances().items[$exists(spec.btpAccessCredentialsSecret)]
                 children:
                   - source: '$item.metadata.name'
-                    name: Name
-                  - source: '$item.metadata.namespace'
-                    name: Namespace
-                  - source: '$item.metadata.creationTimestamp'
-                    name: Created
-                  - source: '$item.metadata.name'
-                    name: Details
+                    name: ServiceInstance
                     widget: ResourceLink
                     resource:
                       name: '$item.metadata.name'
+                      namespace: '$item.metadata.namespace'
+                      kind: '"ServiceInstance"'
+                      group: '"services.cloud.sap.com"'
+                      version: '"v1"'
+                  - source: '$item.metadata.namespace'
+                    name: Namespace
+                  - source: '$item.spec.btpAccessCredentialsSecret'
+                    name: Secret
+                    widget: ResourceLink
+                    resource:
+                      name: '$item.spec.btpAccessCredentialsSecret'
                       namespace: '$item.metadata.namespace'
                       kind: '"Secret"'
       - name: Graph Documentation
