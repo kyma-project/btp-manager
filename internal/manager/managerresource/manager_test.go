@@ -7,7 +7,6 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/manifest"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,24 +36,38 @@ var _ = BeforeSuite(func() {
 
 var _ = Describe("Resource Manager", func() {
 	var (
-		ctx     context.Context
-		manager *Manager
+		ctx context.Context
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		manager = NewManager([]Resource{&NetworkPolicies{}}, &manifest.Handler{Scheme: scheme})
 	})
 
-	It("returns resources to create", func() {
+	It("returns resources to create when they are enabled", func() {
+		manager := NewManager([]Resource{NewNetworkPolicies(true)}, &manifest.Handler{Scheme: scheme})
 		resources, err := manager.ResourcesToCreate(ctx)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(resources).To(HaveLen(4))
 	})
 
-	It("returns resources to delete", func() {
+	It("returns no resources to create when they are disabled", func() {
+		manager := NewManager([]Resource{NewNetworkPolicies(false)}, &manifest.Handler{Scheme: scheme})
+		resources, err := manager.ResourcesToCreate(ctx)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resources).To(BeEmpty())
+	})
+
+	It("returns resources to delete when they are disabled", func() {
+		manager := NewManager([]Resource{NewNetworkPolicies(false)}, &manifest.Handler{Scheme: scheme})
 		resources, err := manager.ResourcesToDelete(ctx)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(resources).To(HaveLen(1))
+	})
+
+	It("returns no resources to delete when they are enabled", func() {
+		manager := NewManager([]Resource{NewNetworkPolicies(true)}, &manifest.Handler{Scheme: scheme})
+		resources, err := manager.ResourcesToDelete(ctx)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resources).To(BeEmpty())
 	})
 })

@@ -10,10 +10,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type NetworkPolicies struct{}
+type NetworkPolicies struct {
+	enabled bool
+}
+
+func NewNetworkPolicies(enabled bool) *NetworkPolicies {
+	return &NetworkPolicies{enabled: enabled}
+}
 
 func (n *NetworkPolicies) Name() string {
 	return "network policies"
+}
+
+func (n *NetworkPolicies) Enabled() bool {
+	return n.enabled
 }
 
 func (n *NetworkPolicies) ManifestsPath() string {

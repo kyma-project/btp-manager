@@ -13,6 +13,7 @@ import (
 
 type Resource interface {
 	Name() string
+	Enabled() bool
 	ManifestsPath() string
 	Object() client.Object
 }
@@ -34,6 +35,10 @@ func (m *Manager) ResourcesToCreate(ctx context.Context) ([]*unstructured.Unstru
 	var resources []*unstructured.Unstructured
 
 	for _, resource := range m.resources {
+		if !resource.Enabled() {
+			continue
+		}
+
 		logger.Info(fmt.Sprintf("Loading %s", resource.Name()))
 		objects, err := m.manifestHandler.CollectObjectsFromDir(resource.ManifestsPath())
 		if err != nil {
@@ -57,6 +62,10 @@ func (m *Manager) ResourcesToDelete(ctx context.Context) ([]client.Object, error
 	var resources []client.Object
 
 	for _, resource := range m.resources {
+		if resource.Enabled() {
+			continue
+		}
+
 		logger.Info(fmt.Sprintf("%s disabled, preparing existing resources for removal", resource.Name()))
 		resources = append(resources, resource.Object())
 	}
