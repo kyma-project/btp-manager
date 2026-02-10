@@ -65,7 +65,6 @@ func (m *Manager) ResourcesToDelete(ctx context.Context) ([]client.Object, error
 		if resource.Enabled() {
 			continue
 		}
-
 		logger.Info(fmt.Sprintf("%s disabled, preparing existing resources for removal", resource.Name()))
 		resources = append(resources, resource.Object())
 	}
