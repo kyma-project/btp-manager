@@ -28,11 +28,18 @@ func NewManager(k8sClient client.Client) *Manager {
 
 func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
-	secret := &corev1.Secret{}
-
 	logger.Info("Getting the required secret")
-	if err := m.Get(ctx, client.ObjectKey{Name: config.SecretName, Namespace: config.KymaSystemNamespaceName}, secret); err != nil {
+	secret, err := m.getSecretByNameAndNamespace(ctx, config.SecretName, config.KymaSystemNamespaceName)
+	if err != nil {
 		logger.Error(err, "Failed to get the required secret")
+		return nil, err
+	}
+	return secret, nil
+}
+
+func (m *Manager) getSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	if err := m.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, secret); err != nil {
 		return nil, err
 	}
 	return secret, nil

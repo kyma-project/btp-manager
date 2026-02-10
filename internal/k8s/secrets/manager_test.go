@@ -75,7 +75,7 @@ var _ = Describe("Secrets Manager", func() {
 		})
 	})
 
-	Describe("sap-btp-service-operator secret", func() {
+	Describe("Operand's sap-btp-service-operator secret", func() {
 		When("the secret exists in the module's namespace", func() {
 			It("should return the secret", func() {
 				expectedSecret := sapBtpServiceOperatorSecret()
