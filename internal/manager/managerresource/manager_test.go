@@ -2,22 +2,18 @@ package managerresource
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
-	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
@@ -25,8 +21,7 @@ const (
 )
 
 var (
-	fakeClient client.Client
-	scheme     *runtime.Scheme
+	scheme *runtime.Scheme
 )
 
 func TestManagerResource(t *testing.T) {
@@ -49,60 +44,36 @@ var _ = Describe("Resource Manager", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		fakeClient = fake.NewClientBuilder().
-			WithScheme(scheme).
-			Build()
-		manager = NewManager(fakeClient, scheme, []Resource{&NetworkPolicies{}})
+		manager = NewManager([]Resource{&NetworkPolicies{}}, &manifest.Handler{Scheme: scheme})
 	})
 
-	It("should create enabled manager resources", func() {
-		Expect(createBtpOperatorCR(ctx, fakeClient, "false")).To(Succeed())
-
-		err := manager.CreateManagerResources(ctx)
+	It("returns resources when they are enabled", func() {
+		resources, err := manager.ResourcesToCreate(ctx, createBtpOperatorCR("false"))
 		Expect(err).NotTo(HaveOccurred())
-
-		expectNetworkPoliciesCount(ctx, fakeClient, 4)
+		Expect(resources).To(HaveLen(4))
 	})
 
-	It("should skip disabled manager resources", func() {
-		Expect(createBtpOperatorCR(ctx, fakeClient, "true")).To(Succeed())
-
-		err := manager.CreateManagerResources(ctx)
+	It("returns no resources to create when they are disabled", func() {
+		resources, err := manager.ResourcesToCreate(ctx, createBtpOperatorCR("true"))
 		Expect(err).NotTo(HaveOccurred())
-
-		expectNetworkPoliciesCount(ctx, fakeClient, 0)
+		Expect(resources).To(BeEmpty())
 	})
 
-	It("should delete disabled manager resources", func() {
-		Expect(createBtpOperatorCR(ctx, fakeClient, "true")).To(Succeed())
-		Expect(createNetworkPolicies(ctx, fakeClient, 4)).To(Succeed())
-
-		err := manager.DeleteManagerResources(ctx)
+	It("returns resources to delete when they are disabled", func() {
+		resources, err := manager.ResourcesToDelete(ctx, createBtpOperatorCR("true"))
 		Expect(err).NotTo(HaveOccurred())
-
-		expectNetworkPoliciesCount(ctx, fakeClient, 0)
+		Expect(resources).To(HaveLen(1))
 	})
 
-	It("should not delete enabled manager resources", func() {
-		Expect(createBtpOperatorCR(ctx, fakeClient, "false")).To(Succeed())
-		Expect(createNetworkPolicies(ctx, fakeClient, 4)).To(Succeed())
-
-		err := manager.DeleteManagerResources(ctx)
+	It("returns no resources to delete when they are enabled", func() {
+		resources, err := manager.ResourcesToDelete(ctx, createBtpOperatorCR("false"))
 		Expect(err).NotTo(HaveOccurred())
-
-		expectNetworkPoliciesCount(ctx, fakeClient, 4)
+		Expect(resources).To(BeEmpty())
 	})
 })
 
-func expectNetworkPoliciesCount(ctx context.Context, k8sClient client.Client, expected int) {
-	var policies networkingv1.NetworkPolicyList
-	err := k8sClient.List(ctx, &policies, client.InNamespace(config.KymaSystemNamespaceName))
-	Expect(err).NotTo(HaveOccurred())
-	Expect(policies.Items).To(HaveLen(expected))
-}
-
-func createBtpOperatorCR(ctx context.Context, k8sClient client.Client, disableNetworkPolicies string) error {
-	return k8sClient.Create(ctx, &v1alpha1.BtpOperator{
+func createBtpOperatorCR(disableNetworkPolicies string) *v1alpha1.BtpOperator {
+	return &v1alpha1.BtpOperator{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      config.BtpOperatorCrName,
 			Namespace: config.KymaSystemNamespaceName,
@@ -110,26 +81,5 @@ func createBtpOperatorCR(ctx context.Context, k8sClient client.Client, disableNe
 				v1alpha1.DisableNetworkPoliciesAnnotation: disableNetworkPolicies,
 			},
 		},
-	})
-}
-
-func createNetworkPolicies(ctx context.Context, k8sClient client.Client, count int) error {
-	for i := 1; i <= count; i++ {
-		policy := &networkingv1.NetworkPolicy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("test-policy-%d", i),
-				Namespace: config.KymaSystemNamespaceName,
-				Labels: map[string]string{
-					moduleresource.ManagedByLabelKey: moduleresource.OperatorName,
-				},
-			},
-			Spec: networkingv1.NetworkPolicySpec{
-				PodSelector: metav1.LabelSelector{},
-			},
-		}
-		if err := k8sClient.Create(ctx, policy); err != nil {
-			return err
-		}
 	}
-	return nil
 }
