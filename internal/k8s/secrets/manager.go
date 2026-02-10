@@ -28,7 +28,7 @@ func NewManager(k8sClient client.Client) *Manager {
 
 func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("Getting the required secret")
+	logger.Info("Getting the required secret", "name", config.SecretName, "namespace", config.KymaSystemNamespaceName)
 	secret, err := m.getSecretByNameAndNamespace(ctx, config.SecretName, config.KymaSystemNamespaceName)
 	if err != nil {
 		logger.Error(err, "Failed to get the required secret")
@@ -46,46 +46,45 @@ func (m *Manager) getSecretByNameAndNamespace(ctx context.Context, name, namespa
 }
 
 func (m *Manager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Getting SAP BTP service operator secret")
 	secrets, err := m.getManagedSecrets(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if secrets.Size() == 0 {
+	if len(secrets) == 0 {
+		logger.Info("No managed secrets found")
 		return nil, nil
 	}
 	return m.getSapBtpServiceOperatorSecretFromList(secrets), nil
 
 }
 
-func (m *Manager) getManagedSecrets(ctx context.Context) (*corev1.SecretList, error) {
+func (m *Manager) getManagedSecrets(ctx context.Context) ([]corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	secrets := &corev1.SecretList{}
 
-	logger.Info("Getting managed secrets")
+	logger.Info("Listing managed secrets")
 	if err := m.List(ctx, secrets, client.MatchingLabels{managedByLabel: operatorName}); err != nil {
-		logger.Error(err, "Failed to get managed secrets")
+		logger.Error(err, "Failed to list managed secrets")
 		return nil, err
 	}
-	return secrets, nil
+	return secrets.Items, nil
 }
 
-func (m *Manager) getSapBtpServiceOperatorSecretFromList(secrets *corev1.SecretList) *corev1.Secret {
+func (m *Manager) getSapBtpServiceOperatorSecretFromList(secrets []corev1.Secret) *corev1.Secret {
 	var sapBtpServiceOperatorSecret *corev1.Secret
-	for _, secret := range secrets.Items {
-		if isSecretInModuleNamespace(&secret) {
-			sapBtpServiceOperatorSecret = &secret
-			break
-		} else if isSecretInCustomNamespace(&secret) {
+	for _, secret := range secrets {
+		if secret.Name != sapBtpServiceOperatorSecretName {
+			continue
+		}
+		if secret.Namespace == config.ChartNamespace {
+			return &secret
+		}
+		if sapBtpServiceOperatorSecret == nil {
 			sapBtpServiceOperatorSecret = &secret
 		}
 	}
+
 	return sapBtpServiceOperatorSecret
-}
-
-func isSecretInModuleNamespace(secret *corev1.Secret) bool {
-	return secret.Name == sapBtpServiceOperatorSecretName && secret.Namespace == config.ChartNamespace
-}
-
-func isSecretInCustomNamespace(secret *corev1.Secret) bool {
-	return secret.Name == sapBtpServiceOperatorSecretName
 }
