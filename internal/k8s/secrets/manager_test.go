@@ -103,6 +103,14 @@ var _ = Describe("Secrets Manager", func() {
 				Expect(actualSecret.Namespace).To(Equal(expectedNamespace))
 			})
 		})
+
+		When("the secret does not exist", func() {
+			It("should return nil", func() {
+				actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(actualSecret).To(BeNil())
+			})
+		})
 	})
 })
 
