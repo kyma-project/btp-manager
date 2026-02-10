@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -15,10 +14,6 @@ type NetworkPolicies struct{}
 
 func (n *NetworkPolicies) Name() string {
 	return "network policies"
-}
-
-func (n *NetworkPolicies) Enabled(cr *v1alpha1.BtpOperator) bool {
-	return !cr.IsNetworkPoliciesDisabled()
 }
 
 func (n *NetworkPolicies) ManifestsPath() string {
