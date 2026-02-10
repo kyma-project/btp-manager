@@ -58,7 +58,7 @@ var _ = Describe("Resource Manager", func() {
 	It("should create enabled manager resources", func() {
 		Expect(createBtpOperatorCR(ctx, fakeClient, "false")).To(Succeed())
 
-		err := manager.createManagerResources(ctx)
+		err := manager.CreateManagerResources(ctx)
 		Expect(err).NotTo(HaveOccurred())
 
 		expectNetworkPoliciesCount(ctx, fakeClient, 4)
@@ -67,7 +67,7 @@ var _ = Describe("Resource Manager", func() {
 	It("should skip disabled manager resources", func() {
 		Expect(createBtpOperatorCR(ctx, fakeClient, "true")).To(Succeed())
 
-		err := manager.createManagerResources(ctx)
+		err := manager.CreateManagerResources(ctx)
 		Expect(err).NotTo(HaveOccurred())
 
 		expectNetworkPoliciesCount(ctx, fakeClient, 0)
@@ -77,7 +77,7 @@ var _ = Describe("Resource Manager", func() {
 		Expect(createBtpOperatorCR(ctx, fakeClient, "true")).To(Succeed())
 		Expect(createNetworkPolicies(ctx, fakeClient, 4)).To(Succeed())
 
-		err := manager.deleteManagerResources(ctx)
+		err := manager.DeleteManagerResources(ctx)
 		Expect(err).NotTo(HaveOccurred())
 
 		expectNetworkPoliciesCount(ctx, fakeClient, 0)
@@ -87,7 +87,7 @@ var _ = Describe("Resource Manager", func() {
 		Expect(createBtpOperatorCR(ctx, fakeClient, "false")).To(Succeed())
 		Expect(createNetworkPolicies(ctx, fakeClient, 4)).To(Succeed())
 
-		err := manager.deleteManagerResources(ctx)
+		err := manager.DeleteManagerResources(ctx)
 		Expect(err).NotTo(HaveOccurred())
 
 		expectNetworkPoliciesCount(ctx, fakeClient, 4)

@@ -44,7 +44,7 @@ func NewManager(client client.Client, scheme *runtime.Scheme, resources []Resour
 	}
 }
 
-func (m *Manager) createManagerResources(ctx context.Context) error {
+func (m *Manager) CreateManagerResources(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 
 	btpOperator := &v1alpha1.BtpOperator{}
@@ -77,7 +77,7 @@ func (m *Manager) createManagerResources(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) deleteManagerResources(ctx context.Context) error {
+func (m *Manager) DeleteManagerResources(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 
 	btpOperator := &v1alpha1.BtpOperator{}
