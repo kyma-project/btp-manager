@@ -10,7 +10,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -47,39 +46,15 @@ var _ = Describe("Resource Manager", func() {
 		manager = NewManager([]Resource{&NetworkPolicies{}}, &manifest.Handler{Scheme: scheme})
 	})
 
-	It("returns resources when they are enabled", func() {
-		resources, err := manager.ResourcesToCreate(ctx, createBtpOperatorCR("false"))
+	It("returns resources to create", func() {
+		resources, err := manager.ResourcesToCreate(ctx)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(resources).To(HaveLen(4))
 	})
 
-	It("returns no resources to create when they are disabled", func() {
-		resources, err := manager.ResourcesToCreate(ctx, createBtpOperatorCR("true"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(resources).To(BeEmpty())
-	})
-
-	It("returns resources to delete when they are disabled", func() {
-		resources, err := manager.ResourcesToDelete(ctx, createBtpOperatorCR("true"))
+	It("returns resources to delete", func() {
+		resources, err := manager.ResourcesToDelete(ctx)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(resources).To(HaveLen(1))
 	})
-
-	It("returns no resources to delete when they are enabled", func() {
-		resources, err := manager.ResourcesToDelete(ctx, createBtpOperatorCR("false"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(resources).To(BeEmpty())
-	})
 })
-
-func createBtpOperatorCR(disableNetworkPolicies string) *v1alpha1.BtpOperator {
-	return &v1alpha1.BtpOperator{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      config.BtpOperatorCrName,
-			Namespace: config.KymaSystemNamespaceName,
-			Annotations: map[string]string{
-				v1alpha1.DisableNetworkPoliciesAnnotation: disableNetworkPolicies,
-			},
-		},
-	}
-}
