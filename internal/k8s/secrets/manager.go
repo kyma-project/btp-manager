@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	managedByLabel                  = "app.kubernetes.io/managed-by"
-	operatorName                    = "btp-manager"
-	sapBtpServiceOperatorSecretName = "sap-btp-service-operator"
+	operatorName                             = "btp-manager"
+	managedByLabel                           = "app.kubernetes.io/managed-by"
+	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
+	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
 )
 
 type Manager struct {

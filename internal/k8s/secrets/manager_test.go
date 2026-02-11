@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	requiredSecretName = "sap-btp-manager"
-	kymaNamespace      = "kyma-system"
+	requiredSecretName                       = "sap-btp-manager"
+	kymaNamespace                            = "kyma-system"
+	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
 )
 
 var (
@@ -75,6 +76,20 @@ var _ = Describe("Secrets Manager", func() {
 		})
 	})
 
+	Describe("Operand's sap-btp-operator-clusterid secret", func() {
+		When("the secret exists", func() {
+			It("should return the secret", func() {
+				expectedSecret := sapBtpServiceOperatorClusterIdSecret()
+				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+
+				actualSecret, err := mgr.GetSapBtpServiceOperatorClusterIdSecret(context.Background())
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(actualSecret).To(Equal(expectedSecret))
+			})
+		})
+	})
+
 	Describe("Operand's sap-btp-service-operator secret", func() {
 		When("the secret exists in the module's namespace", func() {
 			It("should return the secret", func() {
@@ -113,6 +128,19 @@ var _ = Describe("Secrets Manager", func() {
 		})
 	})
 })
+
+func sapBtpServiceOperatorClusterIdSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sapBtpServiceOperatorClusterIdSecretName,
+			Namespace: kymaNamespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"INITIAL_CLUSTER_ID": []byte("dGVzdC1jbHVzdGVyLWlk"),
+		},
+	}
+}
 
 func requiredSecret() *corev1.Secret {
 	return secretWithNameAndNamespace(requiredSecretName, kymaNamespace)
