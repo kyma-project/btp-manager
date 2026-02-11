@@ -130,43 +130,50 @@ var _ = Describe("Secrets Manager", func() {
 })
 
 func sapBtpServiceOperatorClusterIdSecret() *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sapBtpServiceOperatorClusterIdSecretName,
-			Namespace: kymaNamespace,
-		},
-		Type: corev1.SecretTypeOpaque,
-		Data: map[string][]byte{
-			"INITIAL_CLUSTER_ID": []byte("dGVzdC1jbHVzdGVyLWlk"),
-		},
+	secret := secretWithNameAndNamespace(sapBtpServiceOperatorClusterIdSecretName, kymaNamespace)
+	data := map[string][]byte{
+		"INITIAL_CLUSTER_ID": []byte("dGVzdC1jbHVzdGVyLWlk"),
 	}
+	secret.Data = data
+	return secret
 }
 
 func requiredSecret() *corev1.Secret {
-	return secretWithNameAndNamespace(requiredSecretName, kymaNamespace)
+	return credsSecretWithNameAndNamespace(requiredSecretName, kymaNamespace)
 }
 
 func sapBtpServiceOperatorSecret() *corev1.Secret {
-	return secretWithNameAndNamespace(moduleresource.SapBtpServiceOperatorName, kymaNamespace)
+	return credsSecretWithNameAndNamespace(moduleresource.SapBtpServiceOperatorName, kymaNamespace)
+}
+
+func credsSecretWithNameAndNamespace(name, namespace string) *corev1.Secret {
+	secret := secretWithNameAndNamespace(name, namespace)
+	labels := map[string]string{
+		"app.kubernetes.io/managed-by": "btp-manager",
+	}
+	data := map[string][]byte{
+		"clientid":       []byte("dGVzdF9jbGllbnRpZA=="),
+		"clientsecret":   []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
+		"sm_url":         []byte("dGVzdF9zbV91cmw="),
+		"tokenurl":       []byte("dGVzdF90b2tlbnVybA=="),
+		"tokenurlsuffix": []byte("L29hdXRoL3Rva2Vu"),
+		"cluster_id":     []byte("dGVzdF9jbHVzdGVyX2lk"),
+	}
+	secret.Labels = labels
+	secret.Data = data
+	return secret
 }
 
 func secretWithNameAndNamespace(name, namespace string) *corev1.Secret {
 	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "btp-manager",
-			},
 		},
 		Type: corev1.SecretTypeOpaque,
-		Data: map[string][]byte{
-			"clientid":       []byte("dGVzdF9jbGllbnRpZA=="),
-			"clientsecret":   []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
-			"sm_url":         []byte("dGVzdF9zbV91cmw="),
-			"tokenurl":       []byte("dGVzdF90b2tlbnVybA=="),
-			"tokenurlsuffix": []byte("L29hdXRoL3Rva2Vu"),
-			"cluster_id":     []byte("dGVzdF9jbHVzdGVyX2lk"),
-		},
 	}
 }
