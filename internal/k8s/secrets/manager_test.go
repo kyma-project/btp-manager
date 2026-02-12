@@ -21,6 +21,7 @@ const (
 	requiredSecretName                       = "sap-btp-manager"
 	kymaNamespace                            = "kyma-system"
 	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
+	caServerCertSecretName                   = "ca-server-cert"
 )
 
 var (
@@ -136,8 +137,31 @@ var _ = Describe("Secrets Manager", func() {
 				})
 			})
 		})
+
+		Context("Webhook certificate secrets", func() {
+			When("the CA server cert secret exists", func() {
+				It("should return the secret", func() {
+					expectedSecret := caServerCertSecret()
+					Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+
+					actualSecret, err := mgr.GetCaServerCertSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(actualSecret).To(Equal(expectedSecret))
+				})
+			})
+		})
 	})
 })
+
+func caServerCertSecret() *corev1.Secret {
+	secret := secretWithNameAndNamespace(caServerCertSecretName, kymaNamespace)
+	labels := map[string]string{
+		"app.kubernetes.io/managed-by": "btp-manager",
+	}
+	secret.Labels = labels
+	return secret
+}
 
 func sapBtpServiceOperatorClusterIdSecret() *corev1.Secret {
 	secret := secretWithNameAndNamespace(sapBtpServiceOperatorClusterIdSecretName, kymaNamespace)
