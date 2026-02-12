@@ -57,6 +57,21 @@ func (m *Manager) GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, er
 	return secret, nil
 }
 
+func (m *Manager) GetWebhookServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Getting the webhook server cert secret", "name", webhookServerCertSecretName, "namespace", config.ChartNamespace)
+	secret, err := m.getSecretByNameAndNamespace(ctx, webhookServerCertSecretName, config.ChartNamespace)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("webhook server cert secret not found")
+			return nil, nil
+		}
+		logger.Error(err, "Failed to get the webhook server cert secret")
+		return nil, err
+	}
+	return secret, nil
+}
+
 func (m *Manager) getSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
 	if err := m.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, secret); err != nil {
