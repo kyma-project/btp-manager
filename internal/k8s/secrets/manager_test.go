@@ -131,9 +131,13 @@ var _ = Describe("Secrets Manager", func() {
 
 func sapBtpServiceOperatorClusterIdSecret() *corev1.Secret {
 	secret := secretWithNameAndNamespace(sapBtpServiceOperatorClusterIdSecretName, kymaNamespace)
+	labels := map[string]string{
+		"services.cloud.sap.com/managed-by-sap-btp-operator": "true",
+	}
 	data := map[string][]byte{
 		"INITIAL_CLUSTER_ID": []byte("dGVzdC1jbHVzdGVyLWlk"),
 	}
+	secret.Labels = labels
 	secret.Data = data
 	return secret
 }
