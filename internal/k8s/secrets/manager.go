@@ -15,6 +15,7 @@ const (
 	managedByLabel                           = "app.kubernetes.io/managed-by"
 	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
 	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
+	managedByBTPOperatorLabel                = "services.cloud.sap.com/managed-by-sap-btp-operator"
 )
 
 type Manager struct {
@@ -49,43 +50,66 @@ func (m *Manager) getSecretByNameAndNamespace(ctx context.Context, name, namespa
 func (m *Manager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Getting SAP BTP service operator secret")
-	secrets, err := m.getManagedSecrets(ctx)
+
+	labels := map[string]string{
+		managedByLabel: operatorName,
+	}
+
+	secrets, err := m.getSecretsByLabels(ctx, labels)
 	if err != nil {
 		return nil, err
 	}
 	if len(secrets) == 0 {
-		logger.Info("No managed secrets found")
+		logger.Info("No secrets found")
 		return nil, nil
 	}
-	return m.getSapBtpServiceOperatorSecretFromList(secrets), nil
-
+	return m.getSecretFromListByName(secrets, sapBtpServiceOperatorSecretName, config.ChartNamespace), nil
 }
 
-func (m *Manager) getManagedSecrets(ctx context.Context) ([]corev1.Secret, error) {
+func (m *Manager) GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Getting SAP BTP service operator cluster ID secret")
+
+	labels := map[string]string{
+		managedByBTPOperatorLabel: "true",
+	}
+
+	secrets, err := m.getSecretsByLabels(ctx, labels)
+	if err != nil {
+		return nil, err
+	}
+	if len(secrets) == 0 {
+		logger.Info("No secrets found")
+		return nil, nil
+	}
+	return m.getSecretFromListByName(secrets, sapBtpServiceOperatorClusterIdSecretName, config.ChartNamespace), nil
+}
+
+func (m *Manager) getSecretsByLabels(ctx context.Context, labels map[string]string) ([]corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	secrets := &corev1.SecretList{}
 
-	logger.Info("Listing managed secrets")
-	if err := m.List(ctx, secrets, client.MatchingLabels{managedByLabel: operatorName}); err != nil {
-		logger.Error(err, "Failed to list managed secrets")
+	logger.Info("Listing secrets by labels", "labels", labels)
+	if err := m.List(ctx, secrets, client.MatchingLabels(labels)); err != nil {
+		logger.Error(err, "Failed to list secrets")
 		return nil, err
 	}
 	return secrets.Items, nil
 }
 
-func (m *Manager) getSapBtpServiceOperatorSecretFromList(secrets []corev1.Secret) *corev1.Secret {
-	var sapBtpServiceOperatorSecret *corev1.Secret
-	for _, secret := range secrets {
-		if secret.Name != sapBtpServiceOperatorSecretName {
+func (m *Manager) getSecretFromListByName(secrets []corev1.Secret, secretName, optionalSecretNamespace string) *corev1.Secret {
+	var secret *corev1.Secret
+	for _, s := range secrets {
+		if s.Name != secretName {
 			continue
 		}
-		if secret.Namespace == config.ChartNamespace {
-			return &secret
+		if s.Namespace == optionalSecretNamespace {
+			return &s
 		}
-		if sapBtpServiceOperatorSecret == nil {
-			sapBtpServiceOperatorSecret = &secret
+		if secret == nil {
+			secret = &s
 		}
 	}
 
-	return sapBtpServiceOperatorSecret
+	return secret
 }
