@@ -13,11 +13,12 @@ import (
 
 const (
 	operatorName                             = "btp-manager"
-	managedByLabel                           = "app.kubernetes.io/managed-by"
 	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
 	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
-	managedByBTPOperatorLabel                = "services.cloud.sap.com/managed-by-sap-btp-operator"
 	caServerCertSecretName                   = "ca-server-cert"
+	webhookServerCertSecretName              = "webhook-server-cert"
+	managedByLabel                           = "app.kubernetes.io/managed-by"
+	managedByBTPOperatorLabel                = "services.cloud.sap.com/managed-by-sap-btp-operator"
 )
 
 type Manager struct {

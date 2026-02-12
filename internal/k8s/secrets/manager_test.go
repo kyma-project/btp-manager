@@ -150,6 +150,14 @@ var _ = Describe("Secrets Manager", func() {
 					Expect(actualSecret).To(Equal(expectedSecret))
 				})
 			})
+
+			When("the secret does not exist", func() {
+				It("should return nil", func() {
+					actualSecret, err := mgr.GetCaServerCertSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(actualSecret).To(BeNil())
+				})
+			})
 		})
 	})
 })
