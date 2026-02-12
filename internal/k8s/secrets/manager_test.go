@@ -53,77 +53,79 @@ var _ = Describe("Secrets Manager", func() {
 		mgr = secrets.NewManager(fakeClient)
 	})
 
-	Describe("Required sap-btp-manager secret", func() {
-		When("the secret exists", func() {
-			It("should return the secret", func() {
-				expectedSecret := requiredSecret()
-				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+	Describe("Getting secrets", func() {
+		Context("Required sap-btp-manager secret", func() {
+			When("the secret exists", func() {
+				It("should return the secret", func() {
+					expectedSecret := requiredSecret()
+					Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
 
-				actualSecret, err := mgr.GetRequiredSecret(context.Background())
-				Expect(err).ToNot(HaveOccurred())
+					actualSecret, err := mgr.GetRequiredSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
 
-				Expect(actualSecret).To(Equal(expectedSecret))
+					Expect(actualSecret).To(Equal(expectedSecret))
+				})
+			})
+
+			When("the secret does not exist", func() {
+				It("should return an error", func() {
+					_, err := mgr.GetRequiredSecret(context.Background())
+
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("not found"))
+				})
 			})
 		})
 
-		When("the secret does not exist", func() {
-			It("should return an error", func() {
-				_, err := mgr.GetRequiredSecret(context.Background())
+		Context("Operand's sap-btp-service-operator secret", func() {
+			When("the secret exists in the module's namespace", func() {
+				It("should return the secret", func() {
+					expectedSecret := sapBtpServiceOperatorSecret()
+					Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
 
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("not found"))
+					actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(actualSecret).To(Equal(expectedSecret))
+				})
 			})
-		})
-	})
 
-	Describe("Operand's sap-btp-operator-clusterid secret", func() {
-		When("the secret exists", func() {
-			It("should return the secret", func() {
-				expectedSecret := sapBtpServiceOperatorClusterIdSecret()
-				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+			When("the secret exists in a custom namespace", func() {
+				It("should return the secret", func() {
+					const expectedNamespace = "test-namespace"
+					expectedSecret := sapBtpServiceOperatorSecret()
+					expectedSecret.Namespace = expectedNamespace
 
-				actualSecret, err := mgr.GetSapBtpServiceOperatorClusterIdSecret(context.Background())
-				Expect(err).ToNot(HaveOccurred())
+					Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
 
-				Expect(actualSecret).To(Equal(expectedSecret))
+					actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(actualSecret.Name).To(Equal(expectedSecret.Name))
+					Expect(actualSecret.Namespace).To(Equal(expectedNamespace))
+				})
 			})
-		})
-	})
 
-	Describe("Operand's sap-btp-service-operator secret", func() {
-		When("the secret exists in the module's namespace", func() {
-			It("should return the secret", func() {
-				expectedSecret := sapBtpServiceOperatorSecret()
-				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
-
-				actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
-				Expect(err).ToNot(HaveOccurred())
-
-				Expect(actualSecret).To(Equal(expectedSecret))
-			})
-		})
-
-		When("the secret exists in a custom namespace", func() {
-			It("should return the secret", func() {
-				const expectedNamespace = "test-namespace"
-				expectedSecret := sapBtpServiceOperatorSecret()
-				expectedSecret.Namespace = expectedNamespace
-
-				Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
-
-				actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
-				Expect(err).ToNot(HaveOccurred())
-
-				Expect(actualSecret.Name).To(Equal(expectedSecret.Name))
-				Expect(actualSecret.Namespace).To(Equal(expectedNamespace))
+			When("the secret does not exist", func() {
+				It("should return nil", func() {
+					actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(actualSecret).To(BeNil())
+				})
 			})
 		})
 
-		When("the secret does not exist", func() {
-			It("should return nil", func() {
-				actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
-				Expect(err).ToNot(HaveOccurred())
-				Expect(actualSecret).To(BeNil())
+		Context("Operand's sap-btp-operator-clusterid secret", func() {
+			When("the secret exists", func() {
+				It("should return the secret", func() {
+					expectedSecret := sapBtpServiceOperatorClusterIdSecret()
+					Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+
+					actualSecret, err := mgr.GetSapBtpServiceOperatorClusterIdSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(actualSecret).To(Equal(expectedSecret))
+				})
 			})
 		})
 	})
