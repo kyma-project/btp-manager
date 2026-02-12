@@ -22,6 +22,7 @@ const (
 	kymaNamespace                            = "kyma-system"
 	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
 	caServerCertSecretName                   = "ca-server-cert"
+	webhookServerCertSecretName              = "webhook-server-cert"
 )
 
 var (
@@ -151,9 +152,29 @@ var _ = Describe("Secrets Manager", func() {
 				})
 			})
 
-			When("the secret does not exist", func() {
+			When("the CA server cert secret does not exist", func() {
 				It("should return nil", func() {
 					actualSecret, err := mgr.GetCaServerCertSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+					Expect(actualSecret).To(BeNil())
+				})
+			})
+
+			When("the webhook server cert secret exists", func() {
+				It("should return the secret", func() {
+					expectedSecret := webhookServerCertSecret()
+					Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+
+					actualSecret, err := mgr.GetWebhookServerCertSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(actualSecret).To(Equal(expectedSecret))
+				})
+			})
+
+			When("the webhook server cert secret does not exist", func() {
+				It("should return nil", func() {
+					actualSecret, err := mgr.GetWebhookServerCertSecret(context.Background())
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualSecret).To(BeNil())
 				})
@@ -162,12 +183,13 @@ var _ = Describe("Secrets Manager", func() {
 	})
 })
 
+func webhookServerCertSecret() *corev1.Secret {
+	secret := secretWithNameAndNamespaceManagedByBtpManager(webhookServerCertSecretName, kymaNamespace)
+	return secret
+}
+
 func caServerCertSecret() *corev1.Secret {
-	secret := secretWithNameAndNamespace(caServerCertSecretName, kymaNamespace)
-	labels := map[string]string{
-		"app.kubernetes.io/managed-by": "btp-manager",
-	}
-	secret.Labels = labels
+	secret := secretWithNameAndNamespaceManagedByBtpManager(caServerCertSecretName, kymaNamespace)
 	return secret
 }
 
@@ -193,10 +215,7 @@ func sapBtpServiceOperatorSecret() *corev1.Secret {
 }
 
 func credsSecretWithNameAndNamespace(name, namespace string) *corev1.Secret {
-	secret := secretWithNameAndNamespace(name, namespace)
-	labels := map[string]string{
-		"app.kubernetes.io/managed-by": "btp-manager",
-	}
+	secret := secretWithNameAndNamespaceManagedByBtpManager(name, namespace)
 	data := map[string][]byte{
 		"clientid":       []byte("dGVzdF9jbGllbnRpZA=="),
 		"clientsecret":   []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
@@ -205,8 +224,16 @@ func credsSecretWithNameAndNamespace(name, namespace string) *corev1.Secret {
 		"tokenurlsuffix": []byte("L29hdXRoL3Rva2Vu"),
 		"cluster_id":     []byte("dGVzdF9jbHVzdGVyX2lk"),
 	}
-	secret.Labels = labels
 	secret.Data = data
+	return secret
+}
+
+func secretWithNameAndNamespaceManagedByBtpManager(name, namespace string) *corev1.Secret {
+	secret := secretWithNameAndNamespace(name, namespace)
+	labels := map[string]string{
+		"app.kubernetes.io/managed-by": "btp-manager",
+	}
+	secret.Labels = labels
 	return secret
 }
 
