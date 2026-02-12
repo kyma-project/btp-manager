@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -16,6 +17,7 @@ const (
 	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
 	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
 	managedByBTPOperatorLabel                = "services.cloud.sap.com/managed-by-sap-btp-operator"
+	caServerCertSecretName                   = "ca-server-cert"
 )
 
 type Manager struct {
@@ -34,6 +36,21 @@ func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 	secret, err := m.getSecretByNameAndNamespace(ctx, config.SecretName, config.KymaSystemNamespaceName)
 	if err != nil {
 		logger.Error(err, "Failed to get the required secret")
+		return nil, err
+	}
+	return secret, nil
+}
+
+func (m *Manager) GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Getting the CA server cert secret", "name", caServerCertSecretName, "namespace", config.ChartNamespace)
+	secret, err := m.getSecretByNameAndNamespace(ctx, caServerCertSecretName, config.ChartNamespace)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("CA server cert secret not found")
+			return nil, nil
+		}
+		logger.Error(err, "Failed to get the CA server cert secret")
 		return nil, err
 	}
 	return secret, nil
