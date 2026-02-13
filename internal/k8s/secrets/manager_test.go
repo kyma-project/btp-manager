@@ -13,7 +13,7 @@ import (
 )
 
 var _ = Describe("Secrets Manager", func() {
-	var mgr *secrets.Manager
+	var mgr secrets.Manager
 
 	BeforeEach(func() {
 		fakeClient = fake.NewClientBuilder().

@@ -41,17 +41,39 @@ type SecretClient interface {
 	Writer
 }
 
-type Manager struct {
+type Manager interface {
+	// GetRequiredSecret retrieves the required sap-btp-manager secret.
+	// Returns an error if the secret is not found.
+	GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
+
+	// GetCaServerCertSecret retrieves the CA server certificate secret.
+	// Returns nil if the secret is not found (optional secret).
+	GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error)
+
+	// GetWebhookServerCertSecret retrieves the webhook server certificate secret.
+	// Returns nil if the secret is not found (optional secret).
+	GetWebhookServerCertSecret(ctx context.Context) (*corev1.Secret, error)
+
+	// GetSapBtpServiceOperatorSecret retrieves the SAP BTP service operator secret.
+	// Returns nil if no matching secret is found.
+	GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error)
+
+	// GetSapBtpServiceOperatorClusterIdSecret retrieves the cluster ID secret.
+	// Returns nil if no matching secret is found.
+	GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error)
+}
+
+type manager struct {
 	SecretClient
 }
 
-func NewManager(secretClient SecretClient) *Manager {
-	return &Manager{
+func NewManager(secretClient SecretClient) Manager {
+	return &manager{
 		SecretClient: secretClient,
 	}
 }
 
-func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
+func (m *manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Getting the required secret", logKeyName, config.SecretName, logKeyNamespace, config.KymaSystemNamespaceName)
 	secret, err := m.getSecretByNameAndNamespace(ctx, config.SecretName, config.KymaSystemNamespaceName)
@@ -62,15 +84,15 @@ func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 	return secret, nil
 }
 
-func (m *Manager) GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
+func (m *manager) GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
 	return m.getOptionalSecretByNameAndNamespace(ctx, caServerCertSecretName, config.ChartNamespace)
 }
 
-func (m *Manager) GetWebhookServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
+func (m *manager) GetWebhookServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
 	return m.getOptionalSecretByNameAndNamespace(ctx, webhookServerCertSecretName, config.ChartNamespace)
 }
 
-func (m *Manager) getOptionalSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+func (m *manager) getOptionalSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Getting secret", logKeyName, name, logKeyNamespace, namespace)
 
@@ -86,7 +108,7 @@ func (m *Manager) getOptionalSecretByNameAndNamespace(ctx context.Context, name,
 	return secret, nil
 }
 
-func (m *Manager) getSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
+func (m *manager) getSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
 	if err := m.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, secret); err != nil {
 		return nil, err
@@ -94,17 +116,17 @@ func (m *Manager) getSecretByNameAndNamespace(ctx context.Context, name, namespa
 	return secret, nil
 }
 
-func (m *Manager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
+func (m *manager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
 	labels := map[string]string{managedByLabel: operatorName}
 	return m.getSecretByNameAndLabels(ctx, sapBtpServiceOperatorSecretName, labels)
 }
 
-func (m *Manager) GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error) {
+func (m *manager) GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error) {
 	labels := map[string]string{managedByBTPOperatorLabel: "true"}
 	return m.getSecretByNameAndLabels(ctx, sapBtpServiceOperatorClusterIdSecretName, labels)
 }
 
-func (m *Manager) getSecretByNameAndLabels(ctx context.Context, secretName string, labels map[string]string) (*corev1.Secret, error) {
+func (m *manager) getSecretByNameAndLabels(ctx context.Context, secretName string, labels map[string]string) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Getting secret by name and labels", logKeyName, secretName, logKeyLabels, labels)
 
@@ -119,7 +141,7 @@ func (m *Manager) getSecretByNameAndLabels(ctx context.Context, secretName strin
 	return m.findSecretInList(secrets, secretName, config.ChartNamespace), nil
 }
 
-func (m *Manager) getSecretsByLabels(ctx context.Context, labels map[string]string) ([]corev1.Secret, error) {
+func (m *manager) getSecretsByLabels(ctx context.Context, labels map[string]string) ([]corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	secrets := &corev1.SecretList{}
 
@@ -131,7 +153,7 @@ func (m *Manager) getSecretsByLabels(ctx context.Context, labels map[string]stri
 	return secrets.Items, nil
 }
 
-func (m *Manager) findSecretInList(secrets []corev1.Secret, secretName, preferredNamespace string) *corev1.Secret {
+func (m *manager) findSecretInList(secrets []corev1.Secret, secretName, preferredNamespace string) *corev1.Secret {
 	var fallbackSecret *corev1.Secret
 	for _, s := range secrets {
 		if s.Name != secretName {
