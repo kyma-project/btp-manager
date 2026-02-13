@@ -19,6 +19,10 @@ const (
 	webhookServerCertSecretName              = "webhook-server-cert"
 	managedByLabel                           = "app.kubernetes.io/managed-by"
 	managedByBTPOperatorLabel                = "services.cloud.sap.com/managed-by-sap-btp-operator"
+
+	logKeyName      = "name"
+	logKeyNamespace = "namespace"
+	logKeyLabels    = "labels"
 )
 
 type Manager struct {
@@ -33,7 +37,7 @@ func NewManager(k8sClient client.Client) *Manager {
 
 func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("Getting the required secret", "name", config.SecretName, "namespace", config.KymaSystemNamespaceName)
+	logger.Info("Getting the required secret", logKeyName, config.SecretName, logKeyNamespace, config.KymaSystemNamespaceName)
 	secret, err := m.getSecretByNameAndNamespace(ctx, config.SecretName, config.KymaSystemNamespaceName)
 	if err != nil {
 		logger.Error(err, "Failed to get the required secret")
@@ -43,30 +47,24 @@ func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 }
 
 func (m *Manager) GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Getting the CA server cert secret", "name", caServerCertSecretName, "namespace", config.ChartNamespace)
-	secret, err := m.getSecretByNameAndNamespace(ctx, caServerCertSecretName, config.ChartNamespace)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			logger.Info("CA server cert secret not found")
-			return nil, nil
-		}
-		logger.Error(err, "Failed to get the CA server cert secret")
-		return nil, err
-	}
-	return secret, nil
+	return m.getOptionalSecretByNameAndNamespace(ctx, caServerCertSecretName, config.ChartNamespace)
 }
 
 func (m *Manager) GetWebhookServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
+	return m.getOptionalSecretByNameAndNamespace(ctx, webhookServerCertSecretName, config.ChartNamespace)
+}
+
+func (m *Manager) getOptionalSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("Getting the webhook server cert secret", "name", webhookServerCertSecretName, "namespace", config.ChartNamespace)
-	secret, err := m.getSecretByNameAndNamespace(ctx, webhookServerCertSecretName, config.ChartNamespace)
+	logger.Info("Getting secret", logKeyName, name, logKeyNamespace, namespace)
+
+	secret, err := m.getSecretByNameAndNamespace(ctx, name, namespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("webhook server cert secret not found")
+			logger.Info("Secret not found", logKeyName, name)
 			return nil, nil
 		}
-		logger.Error(err, "Failed to get the webhook server cert secret")
+		logger.Error(err, "Failed to get secret", logKeyName, name)
 		return nil, err
 	}
 	return secret, nil
@@ -81,31 +79,18 @@ func (m *Manager) getSecretByNameAndNamespace(ctx context.Context, name, namespa
 }
 
 func (m *Manager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Getting SAP BTP service operator secret")
-
-	labels := map[string]string{
-		managedByLabel: operatorName,
-	}
-
-	secrets, err := m.getSecretsByLabels(ctx, labels)
-	if err != nil {
-		return nil, err
-	}
-	if len(secrets) == 0 {
-		logger.Info("No secrets found")
-		return nil, nil
-	}
-	return m.getSecretFromListByName(secrets, sapBtpServiceOperatorSecretName, config.ChartNamespace), nil
+	labels := map[string]string{managedByLabel: operatorName}
+	return m.getSecretByNameAndLabels(ctx, sapBtpServiceOperatorSecretName, labels)
 }
 
 func (m *Manager) GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Getting SAP BTP service operator cluster ID secret")
+	labels := map[string]string{managedByBTPOperatorLabel: "true"}
+	return m.getSecretByNameAndLabels(ctx, sapBtpServiceOperatorClusterIdSecretName, labels)
+}
 
-	labels := map[string]string{
-		managedByBTPOperatorLabel: "true",
-	}
+func (m *Manager) getSecretByNameAndLabels(ctx context.Context, secretName string, labels map[string]string) (*corev1.Secret, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Getting secret by name and labels", logKeyName, secretName, logKeyLabels, labels)
 
 	secrets, err := m.getSecretsByLabels(ctx, labels)
 	if err != nil {
@@ -115,14 +100,14 @@ func (m *Manager) GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (
 		logger.Info("No secrets found")
 		return nil, nil
 	}
-	return m.getSecretFromListByName(secrets, sapBtpServiceOperatorClusterIdSecretName, config.ChartNamespace), nil
+	return m.findSecretInList(secrets, secretName, config.ChartNamespace), nil
 }
 
 func (m *Manager) getSecretsByLabels(ctx context.Context, labels map[string]string) ([]corev1.Secret, error) {
 	logger := log.FromContext(ctx)
 	secrets := &corev1.SecretList{}
 
-	logger.Info("Listing secrets by labels", "labels", labels)
+	logger.Info("Listing secrets by labels", logKeyLabels, labels)
 	if err := m.List(ctx, secrets, client.MatchingLabels(labels)); err != nil {
 		logger.Error(err, "Failed to list secrets")
 		return nil, err
@@ -130,19 +115,19 @@ func (m *Manager) getSecretsByLabels(ctx context.Context, labels map[string]stri
 	return secrets.Items, nil
 }
 
-func (m *Manager) getSecretFromListByName(secrets []corev1.Secret, secretName, optionalSecretNamespace string) *corev1.Secret {
-	var secret *corev1.Secret
+func (m *Manager) findSecretInList(secrets []corev1.Secret, secretName, preferredNamespace string) *corev1.Secret {
+	var fallbackSecret *corev1.Secret
 	for _, s := range secrets {
 		if s.Name != secretName {
 			continue
 		}
-		if s.Namespace == optionalSecretNamespace {
+		if s.Namespace == preferredNamespace {
 			return &s
 		}
-		if secret == nil {
-			secret = &s
+		if fallbackSecret == nil {
+			fallbackSecret = &s
 		}
 	}
 
-	return secret
+	return fallbackSecret
 }
