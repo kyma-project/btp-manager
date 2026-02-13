@@ -79,6 +79,42 @@ var _ = Describe("Secrets Manager", func() {
 				})
 			})
 
+			When("two secrets exist, one in module's namespace and the other in a different namespace", func() {
+				It("should return the secret from the module's namespace", func() {
+					const otherNamespace = "other-namespace"
+					expectedSecret := sapBtpServiceOperatorSecret()
+					otherSecret := sapBtpServiceOperatorSecret()
+					otherSecret.Namespace = otherNamespace
+
+					Expect(fakeClient.Create(context.Background(), expectedSecret)).To(Succeed())
+					Expect(fakeClient.Create(context.Background(), otherSecret)).To(Succeed())
+
+					actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(actualSecret.Name).To(Equal(expectedSecret.Name))
+					Expect(actualSecret.Namespace).To(Equal(expectedSecret.Namespace))
+				})
+			})
+
+			When("three secrets exist in different namespaces", func() {
+				It("should return the fallback secret from any namespace", func() {
+					const expectedSecretName = moduleresource.SapBtpServiceOperatorName
+					namespaces := []string{"other-namespace-1", "other-namespace-2", "other-namespace-3"}
+					for _, namespace := range namespaces {
+						secret := sapBtpServiceOperatorSecret()
+						secret.Namespace = namespace
+						Expect(fakeClient.Create(context.Background(), secret)).To(Succeed())
+					}
+
+					actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(actualSecret.Name).To(Equal(expectedSecretName))
+					Expect(actualSecret.Namespace).To(BeElementOf(namespaces))
+				})
+			})
+
 			When("the secret does not exist", func() {
 				It("should return nil", func() {
 					actualSecret, err := mgr.GetSapBtpServiceOperatorSecret(context.Background())
