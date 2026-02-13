@@ -44,7 +44,7 @@ var _ = BeforeSuite(func() {
 
 var _ = Describe("Object Manager", func() {
 	var (
-		configmapManager *generic.ObjectManager[*corev1.ConfigMap]
+		configmapManager *generic.ObjectManager[*corev1.ConfigMap, *corev1.ConfigMapList]
 	)
 
 	BeforeEach(func() {
@@ -56,7 +56,7 @@ var _ = Describe("Object Manager", func() {
 	Describe("for ConfigMaps", func() {
 
 		BeforeEach(func() {
-			configmapManager = generic.NewObjectManager[*corev1.ConfigMap](fakeClient)
+			configmapManager = generic.NewObjectManager[*corev1.ConfigMap, *corev1.ConfigMapList](fakeClient)
 		})
 
 		Describe("Create ConfigMap", func() {
@@ -299,11 +299,11 @@ var _ = Describe("Object Manager", func() {
 
 	Describe("for Secrets", func() {
 		var (
-			secretManager *generic.ObjectManager[*corev1.Secret]
+			secretManager *generic.ObjectManager[*corev1.Secret, *corev1.SecretList]
 		)
 
 		BeforeEach(func() {
-			secretManager = generic.NewObjectManager[*corev1.Secret](fakeClient)
+			secretManager = generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](fakeClient)
 		})
 
 		Describe("Create Secret", func() {
