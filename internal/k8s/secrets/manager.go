@@ -26,7 +26,7 @@ const (
 
 type Reader interface {
 	Get(ctx context.Context, key client.ObjectKey, object *corev1.Secret, opts ...client.GetOption) error
-	List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+	List(ctx context.Context, list *corev1.SecretList, opts ...client.ListOption) error
 }
 
 type Writer interface {
