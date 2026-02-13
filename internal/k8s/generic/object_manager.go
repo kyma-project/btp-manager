@@ -8,17 +8,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type ObjectManager[T client.Object] struct {
+type ObjectManager[T client.Object, U client.ObjectList] struct {
 	client client.Client
 }
 
-func NewObjectManager[T client.Object](k8sClient client.Client) *ObjectManager[T] {
-	return &ObjectManager[T]{
+func NewObjectManager[T client.Object, U client.ObjectList](k8sClient client.Client) *ObjectManager[T, U] {
+	return &ObjectManager[T, U]{
 		client: k8sClient,
 	}
 }
 
-func (m *ObjectManager[T]) Create(ctx context.Context, object T, opts ...client.CreateOption) error {
+func (m *ObjectManager[T, U]) Create(ctx context.Context, object T, opts ...client.CreateOption) error {
 	logger := log.FromContext(ctx)
 	kind := object.GetObjectKind().GroupVersionKind().Kind
 	logger.Info("Creating object", "kind", kind, "name", object.GetName())
@@ -28,7 +28,7 @@ func (m *ObjectManager[T]) Create(ctx context.Context, object T, opts ...client.
 	return nil
 }
 
-func (m *ObjectManager[T]) Apply(ctx context.Context, object T, opts ...client.PatchOption) error {
+func (m *ObjectManager[T, U]) Apply(ctx context.Context, object T, opts ...client.PatchOption) error {
 	logger := log.FromContext(ctx)
 	kind := object.GetObjectKind().GroupVersionKind().Kind
 	logger.Info("Applying object", "kind", kind, "name", object.GetName())
@@ -38,7 +38,7 @@ func (m *ObjectManager[T]) Apply(ctx context.Context, object T, opts ...client.P
 	return nil
 }
 
-func (m *ObjectManager[T]) Get(ctx context.Context, key client.ObjectKey, object T, opts ...client.GetOption) error {
+func (m *ObjectManager[T, U]) Get(ctx context.Context, key client.ObjectKey, object T, opts ...client.GetOption) error {
 	logger := log.FromContext(ctx)
 	kind := object.GetObjectKind().GroupVersionKind().Kind
 	logger.Info("Getting object", "kind", kind, "name", key.Name)
@@ -48,7 +48,7 @@ func (m *ObjectManager[T]) Get(ctx context.Context, key client.ObjectKey, object
 	return nil
 }
 
-func (m *ObjectManager[T]) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+func (m *ObjectManager[T, U]) List(ctx context.Context, list U, opts ...client.ListOption) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Listing objects", "kind", list.GetObjectKind().GroupVersionKind().Kind)
 	if err := m.client.List(ctx, list, opts...); err != nil {
@@ -57,7 +57,7 @@ func (m *ObjectManager[T]) List(ctx context.Context, list client.ObjectList, opt
 	return nil
 }
 
-func (m *ObjectManager[T]) Update(ctx context.Context, object T, opts ...client.UpdateOption) error {
+func (m *ObjectManager[T, U]) Update(ctx context.Context, object T, opts ...client.UpdateOption) error {
 	logger := log.FromContext(ctx)
 	kind := object.GetObjectKind().GroupVersionKind().Kind
 	logger.Info("Updating object", "kind", kind, "name", object.GetName())
@@ -67,7 +67,7 @@ func (m *ObjectManager[T]) Update(ctx context.Context, object T, opts ...client.
 	return nil
 }
 
-func (m *ObjectManager[T]) Delete(ctx context.Context, object T, opts ...client.DeleteOption) error {
+func (m *ObjectManager[T, U]) Delete(ctx context.Context, object T, opts ...client.DeleteOption) error {
 	logger := log.FromContext(ctx)
 	kind := object.GetObjectKind().GroupVersionKind().Kind
 	logger.Info("Deleting object", "kind", kind, "name", object.GetName())
