@@ -65,13 +65,13 @@ type Manager interface {
 
 type manager struct {
 	SecretClient
-	Verificator
+	Verifier
 }
 
-func NewManager(secretClient SecretClient, secretVerificator Verificator) Manager {
+func NewManager(secretClient SecretClient, secretVerifier Verifier) Manager {
 	return &manager{
 		SecretClient: secretClient,
-		Verificator:  secretVerificator,
+		Verifier:     secretVerifier,
 	}
 }
 

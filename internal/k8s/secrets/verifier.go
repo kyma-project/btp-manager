@@ -9,20 +9,20 @@ import (
 
 var requiredSecretKeys = []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
 
-type Verificator interface {
+type Verifier interface {
 	Verify(secret *corev1.Secret) error
 }
 
 type VerificationDispatcher struct {
-	verificators map[string]Verificator
+	verifiers map[string]Verifier
 }
 
-func NewVerificationDispatcher(verificators map[string]Verificator) *VerificationDispatcher {
-	if verificators == nil {
-		verificators = make(map[string]Verificator)
+func NewVerificationDispatcher(verifiers map[string]Verifier) *VerificationDispatcher {
+	if verifiers == nil {
+		verifiers = make(map[string]Verifier)
 	}
 	return &VerificationDispatcher{
-		verificators: verificators,
+		verifiers: verifiers,
 	}
 }
 
@@ -31,27 +31,27 @@ func (d *VerificationDispatcher) Verify(secret *corev1.Secret) error {
 		return fmt.Errorf("secret is nil")
 	}
 
-	verificator, exists := d.verificators[secret.Name]
+	verifier, exists := d.verifiers[secret.Name]
 	if !exists {
-		return fmt.Errorf("no verificator registered for secret: %s", secret.Name)
+		return fmt.Errorf("no verifier registered for secret: %s", secret.Name)
 	}
 
-	return verificator.Verify(secret)
+	return verifier.Verify(secret)
 }
 
-func (d *VerificationDispatcher) RegisterVerificator(secretName string, verificator Verificator) {
-	d.verificators[secretName] = verificator
+func (d *VerificationDispatcher) RegisterVerifier(secretName string, verifier Verifier) {
+	d.verifiers[secretName] = verifier
 }
 
-type RequiredSecretVerificator struct {
+type RequiredSecretVerifier struct {
 	requiredKeys []string
 }
 
-func NewRequiredSecretVerificator() *RequiredSecretVerificator {
-	return &RequiredSecretVerificator{requiredKeys: requiredSecretKeys}
+func NewRequiredSecretVerifier() *RequiredSecretVerifier {
+	return &RequiredSecretVerifier{requiredKeys: requiredSecretKeys}
 }
 
-func (v *RequiredSecretVerificator) Verify(secret *corev1.Secret) error {
+func (v *RequiredSecretVerifier) Verify(secret *corev1.Secret) error {
 	if secret == nil {
 		return fmt.Errorf("secret is nil")
 	}
@@ -83,12 +83,12 @@ func (v *RequiredSecretVerificator) Verify(secret *corev1.Secret) error {
 	return nil
 }
 
-type NoopVerificator struct{}
+type NoopVerifier struct{}
 
-func NewNoopVerificator() *NoopVerificator {
-	return &NoopVerificator{}
+func NewNoopVerifier() *NoopVerifier {
+	return &NoopVerifier{}
 }
 
-func (v *NoopVerificator) Verify(_ *corev1.Secret) error {
+func (v *NoopVerifier) Verify(_ *corev1.Secret) error {
 	return nil
 }

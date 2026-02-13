@@ -22,7 +22,7 @@ var _ = Describe("Secrets Manager", func() {
 
 		mgr = secrets.NewManager(
 			generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](fakeClient),
-			secrets.NewRequiredSecretVerificator(),
+			secrets.NewRequiredSecretVerifier(),
 		)
 	})
 
