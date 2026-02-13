@@ -3,6 +3,7 @@ package secrets_test
 import (
 	"context"
 
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	. "github.com/onsi/ginkgo/v2"
@@ -19,7 +20,7 @@ var _ = Describe("Secrets Manager", func() {
 			WithScheme(scheme).
 			Build()
 
-		mgr = secrets.NewManager(fakeClient)
+		mgr = secrets.NewManager(generic.NewObjectManager[*corev1.Secret](fakeClient))
 	})
 
 	Describe("Getting secrets", func() {

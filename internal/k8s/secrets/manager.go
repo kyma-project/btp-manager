@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/kyma-project/btp-manager/controllers/config"
-	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,13 +24,30 @@ const (
 	logKeyLabels    = "labels"
 )
 
-type Manager struct {
-	*generic.ObjectManager[*corev1.Secret]
+type Reader interface {
+	Get(ctx context.Context, key client.ObjectKey, object *corev1.Secret, opts ...client.GetOption) error
+	List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
 }
 
-func NewManager(k8sClient client.Client) *Manager {
+type Writer interface {
+	Create(ctx context.Context, object *corev1.Secret, opts ...client.CreateOption) error
+	Apply(ctx context.Context, object *corev1.Secret, opts ...client.PatchOption) error
+	Update(ctx context.Context, object *corev1.Secret, opts ...client.UpdateOption) error
+	Delete(ctx context.Context, object *corev1.Secret, opts ...client.DeleteOption) error
+}
+
+type SecretClient interface {
+	Reader
+	Writer
+}
+
+type Manager struct {
+	SecretClient
+}
+
+func NewManager(secretClient SecretClient) *Manager {
 	return &Manager{
-		ObjectManager: generic.NewObjectManager[*corev1.Secret](k8sClient),
+		SecretClient: secretClient,
 	}
 }
 
