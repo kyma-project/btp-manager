@@ -20,7 +20,10 @@ var _ = Describe("Secrets Manager", func() {
 			WithScheme(scheme).
 			Build()
 
-		mgr = secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](fakeClient))
+		mgr = secrets.NewManager(
+			generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](fakeClient),
+			secrets.NewRequiredSecretVerificator(),
+		)
 	})
 
 	Describe("Getting secrets", func() {

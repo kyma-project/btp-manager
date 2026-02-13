@@ -65,11 +65,13 @@ type Manager interface {
 
 type manager struct {
 	SecretClient
+	Verificator
 }
 
-func NewManager(secretClient SecretClient) Manager {
+func NewManager(secretClient SecretClient, secretVerificator Verificator) Manager {
 	return &manager{
 		SecretClient: secretClient,
+		Verificator:  secretVerificator,
 	}
 }
 
@@ -81,6 +83,11 @@ func (m *manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 		logger.Error(err, "Failed to get the required secret")
 		return nil, err
 	}
+	if err := m.Verify(secret); err != nil {
+		logger.Error(err, "Secret is invalid")
+		return nil, err
+	}
+
 	return secret, nil
 }
 
