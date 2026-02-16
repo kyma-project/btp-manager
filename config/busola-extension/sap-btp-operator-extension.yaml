@@ -330,5 +330,5 @@ data:
 
       - widget: Alert
         severity: information
-        source: "'💡 Tip: Only resources tagged with kyma-project.io/module=btp-operator will appear in this visualization.'"
+        source: "'Tip: Only resources tagged with kyma-project.io/module=btp-operator will appear in this visualization.'"
 
