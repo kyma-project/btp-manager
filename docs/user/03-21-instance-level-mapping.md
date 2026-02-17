@@ -123,3 +123,4 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 [Working with Multiple Subaccounts](03-20-multitenancy.md)<br>
 [Namespace-Level Mapping](03-22-namespace-level-mapping.md)
+[Customize the Default Credentials and Access](03-11-customize_secret.md)

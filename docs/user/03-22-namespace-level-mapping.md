@@ -57,5 +57,6 @@ To connect a namespace to a specific subaccount, maintain the access credentials
 
 ## Related Information
 
-[Working with Multiple Subaccounts](03-20-multitenancy.md)<br>
+[Working with Multiple Subaccounts](03-20-multitenancy.md)
 [Instance-Level Mapping](03-21-instance-level-mapping.md)
+[Customize the Default Credentials and Access](03-11-customize_secret.md)
