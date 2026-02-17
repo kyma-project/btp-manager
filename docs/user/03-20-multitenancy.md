@@ -10,7 +10,7 @@ To apply the multitenancy feature, choose the method that suits your needs and a
 * [Namespace-level mapping](03-22-namespace-level-mapping.md): Connect namespaces to separate subaccounts by configuring dedicated credentials for each namespace.
 * [Instance-level mapping](03-21-instance-level-mapping.md): Define a specific subaccount for each service instance, regardless of the namespace context.
 
-Regardless of the method, you must create Secrets in the managed namespace. By default, it is the `kyma-system` namespace. If you want to customize the managed namespace, follow the intructions in [Customize the Default Credentials and Access](03-11-customize_secret.md).
+Regardless of the method, you must create Secrets in the managed namespace. By default, it is the `kyma-system` namespace. If you want to customize the managed namespace, follow the instructions in [Customize the Default Credentials and Access](03-11-customize_secret.md).
 
 ### Secrets Precedence
 
