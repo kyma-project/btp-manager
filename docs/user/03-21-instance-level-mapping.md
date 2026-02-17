@@ -10,7 +10,7 @@ You can map a Kubernetes service instance to an SAP Service Manager instance in 
 
 ## Context
 
-To have multiple service instances from different subaccounts associated with one namespace, you must store access credentials for each subaccount in a custom Secret in the `kyma-system` namespace.
+To have multiple service instances from different subaccounts associated with one namespace, you must store access credentials for each subaccount in a custom Secret in the managed namespace, which is by default the `kyma-system` namespace.
 To create a service instance with a custom Secret, you must use the **btpAccessCredentialsSecret** field in the `spec` of the service instance. In it, you pass the Secret from the `kyma-system` namespace to create your service instance. You can use different Secrets for different service instances.
 
 ## Create Your Custom Secret
@@ -123,3 +123,4 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 [Working with Multiple Subaccounts](03-20-multitenancy.md)<br>
 [Namespace-Level Mapping](03-22-namespace-level-mapping.md)
+[Customize the Default Credentials and Access](03-11-customize_secret.md)
