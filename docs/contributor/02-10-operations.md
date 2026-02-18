@@ -83,7 +83,7 @@ The provisioning process is part of a module reconciliation.
 8. The reconciler removes finalizers from service instances.
 9. The last step in soft-delete mode is checking for any leftover service instances.
 10. If any soft-delete step fails because of an error or unsuccessful resource deletion, the process throws a respective error, and the reconciliation starts again.
-11. Regardless of the mode, all SAP BTP service operator resources marked with the `app.kubernetes.io/managed-by:btp-manager` label are deleted. Deletion of module resources is based on resources GVKs (GroupVersionKinds) in [manifests](../../module-resources). If the process succeeds, the finalizer on the BtpOperator CR is removed, and the resource is deleted. If an error occurs during deprovisioning (11a), the BtpOperator CR is set to `Error`.
+11. Regardless of the mode, all SAP BTP service operator resources marked with the `app.kubernetes.io/managed-by:btp-manager` label are deleted. Deletion of module resources is based on resources GVKs (GroupVersionKinds) in [manifests](https://github.com/kyma-project/btp-manager/tree/main/module-resources). If the process succeeds, the finalizer on the BtpOperator CR is removed, and the resource is deleted. If an error occurs during deprovisioning (11a), the BtpOperator CR is set to `Error`.
 
 ## Conditions
 The state of the SAP BTP Operator CR is represented by [**Status**](https://github.com/kyma-project/module-manager/blob/main/pkg/declarative/v2/object.go#L23),
