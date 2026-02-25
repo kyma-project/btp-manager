@@ -152,14 +152,14 @@ data:
           source: metadata.generation
         - name: Installation Date
           source: metadata.creationTimestamp
-        - name: SAP BTP Operator Module
+        - name: Module Documentation
           source: '"See Documentation"'
           link: '"https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module"'
           widget: ExternalLink
-        - name: BTP Manager Verision
+        - name: BTP Manager Version
           source: '$substringAfter($btpManagerDeployment().spec.template.spec.containers[0].image, ":")'
           widget: Text
-        - name: BTP Operator Version
+        - name: SAP BTP Service Operator Version
           source: '$substringAfter($btpOperatorDeployment().spec.template.spec.containers[1].image, ":v")'
           widget: Text
     body: 
@@ -190,12 +190,12 @@ data:
           - name: Secret Management Documentation
             source: >-
               $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
-              ? '"Learn about preconfigured credentials"' 
-              : '"Learn about customizing credentials"'
+              ? 'Learn about customizing credentials'
+              : 'Learn about preconfigured credentials' 
             link: >-
               $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
-              ? 'https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access' 
-              : 'https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access'
+              ? 'https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access'
+              : 'https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access' 
             widget: ExternalLink
           - name: Edit Secret
             widget: ResourceLink
@@ -210,7 +210,7 @@ data:
           - name: Service Instances
             widget: Panel
             children:
-              - source: '$string($count($relatedServiceInstances().items)) & " items"'
+              - source: '$string($count($relatedServiceInstances().items)) & " item/s"'
                 name: Total Count
                 widget: Text
               - widget: ResourceLink
@@ -223,7 +223,7 @@ data:
           - name: Service Bindings  
             widget: Panel
             children:
-              - source: '$string($count($relatedServiceBindings().items)) & " items"'
+              - source: '$string($count($relatedServiceBindings().items)) & " item/s"'
                 name: Total Count
                 widget: Text
               - widget: ResourceLink
@@ -306,17 +306,27 @@ data:
                     widget: ResourceLink
                     resource:
                       name: '$item.secretName'
-                      namespace: >-
-                        ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system')
+                      namespace: '$item.instances[0].namespace'
                       kind: '"Secret"'
-                  - source: >-
-                      ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system')
+                  - source: '$item.instances[0].namespace'
                     name: Secret Namespace
+                    widget: Text
+                  - source: >-
+                      (
+                        $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
+                        $item.instances[0].namespace = $managedNamespace ? 'In Managed Namespace' : 'Not in Managed Namespace';
+                      )
+                    name: Status
                     widget: Badge
-                  - source: '$item.instances'
+                    highlights:
+                      positive:
+                        - In Managed Namespace
+                      informative:
+                        - Not in Managed Namespace
+                  - source: '$map($item.instances, function($i) { $i.name & " (" & $i.namespace & ")" })'
                     name: ServiceInstances
-                    widget: ResourceRefs
-                    kind: ServiceInstance
+                    widget: JoinedArray
+                    separator: ', '
       - name: Graph Documentation
         widget: Panel
         children:
