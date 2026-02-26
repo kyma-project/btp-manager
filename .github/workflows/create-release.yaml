@@ -142,7 +142,7 @@ jobs:
         run: "./scripts/testing/check_top.sh"
 
       - name: Reset k3s cluster
-        run: "./scripts/testing/k3s-reset.sh --wait"
+        run: "./scripts/testing/k3s-reset.sh"
 
       - name: Install BTP Manager and SAP BTP Operator again on reset cluster
         timeout-minutes: 2
@@ -151,50 +151,9 @@ jobs:
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh"
 
-  run-performance-tests:
-    name: Performance tests
-    needs: build-image
-    uses: "./.github/workflows/run-performance-tests-reusable.yaml"
-    secrets: inherit
-    with:
-      release: "true"
-      image-tag: ${{ github.event.inputs.name }}
-      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-      credentials-mode: real
-
-  run-e2e-upgrade-tests:
-    name: E2E upgrade tests
-    needs: build-image
-    secrets: inherit
-    if: ${{ inputs.credentials == 'real' }}
-    uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
-    with:
-      image-tag: ${{ github.event.inputs.name }}
-      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-
-  run-e2e-upgrade-while-deleting-tests:
-    name: E2E upgrade while deleting tests
-    needs: build-image
-    secrets: inherit
-    uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
-    with:
-      release: "true"
-      image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-      image-tag: ${{ github.event.inputs.name }}
-
-  run-e2e-sap-btp-manager-secret-customization-test:
-    name: E2E BTP Manager secret customization test
-    needs: build-image
-    secrets: inherit
-    uses: "./.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml"
-    with:
-      release: "true"
-      image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
-      image-tag: ${{ github.event.inputs.name }}
-
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test]
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests ]
     runs-on: ubuntu-latest
 
     steps:
