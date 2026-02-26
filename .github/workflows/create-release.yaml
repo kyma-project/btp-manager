@@ -122,7 +122,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.name }}"
 
-      - name: Install BTP Manager and SAP BTP Operator
+      - name: Install BTP Manager and SAP BTP Operator - LimitedCache disabled
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy"
 
@@ -144,7 +144,7 @@ jobs:
       - name: Reset k3s cluster
         run: "./scripts/testing/k3s-reset.sh"
 
-      - name: Install BTP Manager and SAP BTP Operator again on reset cluster
+      - name: Install BTP Manager and SAP BTP Operator LimitedCache enabled
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy true"
 
