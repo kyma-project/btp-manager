@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           echo "Validating given release tag: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
-          gh release view --repo $BTP_MANAGER_REPO ${{ inputs.releaseTag }}
+          release_info=$(gh release view --repo $BTP_MANAGER_REPO ${{ inputs.releaseTag }})
           if [ $? -eq 0 ]; then
               echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
               echo "Submitting module release tag: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
