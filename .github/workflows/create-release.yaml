@@ -141,6 +141,16 @@ jobs:
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh"
 
+      - name: Reset k3s cluster
+        run: "./scripts/testing/k3s-reset.sh --wait"
+
+      - name: Install BTP Manager and SAP BTP Operator again on reset cluster
+        timeout-minutes: 2
+        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci"
+
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: "./scripts/testing/check_top.sh"
+
   run-performance-tests:
     name: Performance tests
     needs: build-image
