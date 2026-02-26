@@ -48,10 +48,12 @@ fi
 
 echo -e "\n--- Setting EnableLimitCache=${LIMIT_CACHE} in configmap"
 if [[ "${LIMIT_CACHE}" == "true" ]]
-  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"true"}}'
 then
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"true"}}'
+else
   kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"false"}}'
 fi
+
 kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitCache' | xargs -I{} echo "EnableLimitCache is set to {}"
 
 
