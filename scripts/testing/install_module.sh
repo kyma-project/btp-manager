@@ -16,7 +16,7 @@
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
 
-LIMIT_CACHE=${3:false}
+LIMIT_CACHE=${4:false}
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -48,7 +48,7 @@ if [[ "${LIMIT_CACHE}" == "true" ]]
 then
   kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"false"}}'
 fi
-kubectl configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitCache' | xargs -I{} echo "EnableLimitCache is set to {}"
+kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitCache' | xargs -I{} echo "EnableLimitCache is set to {}"
 
 echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"
 IMG=${IMAGE_NAME} make deploy
