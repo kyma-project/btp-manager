@@ -16,9 +16,7 @@
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
 
-set -x
-LIMIT_CACHE=${3:"false"}
-set +x
+LIMIT_CACHE=${3:-false}
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
