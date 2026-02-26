@@ -46,15 +46,15 @@ else
   kubectl apply -f ./examples/btp-manager-secret.yaml
 fi
 
-echo -e "\n--- Setting EnableLimitCache=${LIMIT_CACHE} in configmap"
+echo -e "\n--- Setting EnableLimitedCache=${LIMIT_CACHE} in configmap"
 if [[ "${LIMIT_CACHE}" == "true" ]]
 then
-  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"true"}}'
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"true"}}'
 else
-  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"false"}}'
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"false"}}'
 fi
 
-kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitCache' | xargs -I{} echo "EnableLimitCache is set to {}"
+kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitedCache' | xargs -I{} echo "EnableLimitedCache is set to {}"
 
 echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"
 IMG=${IMAGE_NAME} make deploy
