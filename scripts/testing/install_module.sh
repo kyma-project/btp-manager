@@ -17,7 +17,7 @@
 #      SM_TOKEN_URL - token url
 
 set -x
-LIMIT_CACHE=${4:false}
+LIMIT_CACHE=${4:"false"}
 set +x
 
 # standard bash error handling
