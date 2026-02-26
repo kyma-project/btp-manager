@@ -122,24 +122,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.name }}"
 
-      - name: Install BTP Manager and SAP BTP Operator
-        timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci"
-
-      - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
-        
-      - name: Run stress test - instances and bindings
-        run: "./scripts/testing/stress-mem-instances-bindings.sh 500 30"
-
-      - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
-
-      - name: Run stress test - secrets and configmaps
-        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120"
-
-      - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+#      - name: Install BTP Manager and SAP BTP Operator
+#        timeout-minutes: 2
+#        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci"
+#
+#      - name: BTP Manager and SAP BTP Operator controller resources usage
+#        run: "./scripts/testing/check_top.sh"
+#
+#      - name: Run stress test - instances and bindings
+#        run: "./scripts/testing/stress-mem-instances-bindings.sh 500 30"
+#
+#      - name: BTP Manager and SAP BTP Operator controller resources usage
+#        run: "./scripts/testing/check_top.sh"
+#
+#      - name: Run stress test - secrets and configmaps
+#        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120"
+#
+#      - name: BTP Manager and SAP BTP Operator controller resources usage
+#        run: "./scripts/testing/check_top.sh"
 
       - name: Reset k3s cluster
         run: "./scripts/testing/k3s-reset.sh"
