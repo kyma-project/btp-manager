@@ -31,7 +31,7 @@ YAML_DIR="scripts/testing/yaml"
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
 
-# creating configmap
+# creating empty configmap - all settings default
 kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
 
 # creating secret
@@ -55,7 +55,6 @@ else
 fi
 
 kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitCache' | xargs -I{} echo "EnableLimitCache is set to {}"
-
 
 echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"
 IMG=${IMAGE_NAME} make deploy
