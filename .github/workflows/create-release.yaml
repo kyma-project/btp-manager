@@ -146,7 +146,7 @@ jobs:
 
       - name: Install BTP Manager and SAP BTP Operator again on reset cluster
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci true"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh"

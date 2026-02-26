@@ -22,6 +22,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 IMAGE_NAME=$1
 CREDENTIALS=$2
 YAML_DIR="scripts/testing/yaml"
+LIMIT_CACHE=${3:false}
 
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
@@ -36,6 +37,14 @@ else
   kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
   kubectl apply -f ./examples/btp-manager-secret.yaml
 fi
+
+echo -e "\n--- Setting EnableLimitCache=${LIMIT_CACHE} in configmap"
+if [[ "${LIMIT_CACHE}" == "true" ]]
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"true"}}'
+then
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"false"}}'
+fi
+kubectl configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitCache' | xargs -I{} echo "EnableLimitCache is set to {}"
 
 echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"
 IMG=${IMAGE_NAME} make deploy
