@@ -16,9 +16,7 @@
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
 
-set -x
 LIMIT_CACHE=${4:"false"}
-set +x
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -38,10 +36,11 @@ if [[ "${CREDENTIALS}" == "real" ]]
 then
   [ -n "${SM_CLIENT_ID}" ] && [ -n "${SM_CLIENT_SECRET}" ] && [ -n "${SM_URL}" ] && [ -n "${SM_TOKEN_URL}" ] || (echo "Missing credentials - failing test" && exit 1)
   envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
-  kubectl apply -f ${YAML_DIR}/e2e-test-configmap0.yaml
 else
   # shortening HardDeleteTimeout to make cleanup faster
   kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"HardDeleteTimeout":"10s"}}'
+  kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.HardDeleteTimeout' | xargs -I{} echo "HardDeleteTimeout is set to {}"
   kubectl apply -f ./examples/btp-manager-secret.yaml
 fi
 
@@ -52,6 +51,7 @@ then
   kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitCache":"false"}}'
 fi
 kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.EnableLimitCache' | xargs -I{} echo "EnableLimitCache is set to {}"
+
 
 echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"
 IMG=${IMAGE_NAME} make deploy
