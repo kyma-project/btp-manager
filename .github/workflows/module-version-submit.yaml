@@ -8,13 +8,12 @@ name: Submit module version
 #     MODULE_MANIFESTS_REPO_NAME - repository of modules manifests
 
 env:
-
   # DO NOT CHANGE THIS VALUE - the change will cause inconsistency on landscapes
   # since there would be "old-named" and "new-named" modules and LM would switch between those infinitely
   FULL_MODULE_NAME: kyma-project.io/module/btp-operator
 
   # GitHub repositories
-  MODULE_MANIFESTS_WITH_USER:  "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
+  MODULE_MANIFESTS_WITH_USER: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
   BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
   BTP_MANAGER_REPO: "kyma-project/btp-manager"
 
@@ -65,38 +64,36 @@ jobs:
         run: |
           latest_release=$(gh release view --repo $BTP_MANAGER_REPO --json tagName --jq '.tagName')
           echo "TAG=${latest_release}" >> $GITHUB_ENV
-          echo "Submitting module with latest release tag: ${latest_release}"| tee $GITHUB_STEP_SUMMARY
+          echo "Submitting module with latest release tag: ${latest_release}" | tee $GITHUB_STEP_SUMMARY
 
       - name: Validate given release tag
         if: inputs.releaseTag != 'use latest release'
         shell: bash
         run: |
           echo "Validating given release tag: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
-          release_info=$(gh release view --repo $BTP_MANAGER_REPO ${{ inputs.releaseTag }})      
+          gh release view --repo $BTP_MANAGER_REPO ${{ inputs.releaseTag }}
           if [ $? -eq 0 ]; then
               echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
-              echo "Submitting module release tag: ${latest_release}"| tee $GITHUB_STEP_SUMMARY
+              echo "Submitting module release tag: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
           else
               echo "Release tag not found: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
               exit 1  
           fi
+
       - name: Set branch name
         run: echo "BRANCH_NAME=btp-manager-${TAG}" >> $GITHUB_ENV
 
       - name: Setup git and clone repo
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
         run: |
           git config --global user.email ${{ vars.GIT_USER_EMAIL }}
           git config --global user.name ${{ vars.GIT_USER_NAME }}
           git clone ${MODULE_MANIFESTS_WITH_USER}
-        env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
 
-      - name: Sync Repo and create branch
+      - name: Create branch
         working-directory: module-manifests
         run: |
-          git remote add upstream ${MODULE_MANIFESTS_WITH_USER}
-          git fetch upstream
-          git merge upstream/main
           git checkout -B ${BRANCH_NAME}
           mkdir -p modules/btp-operator/${TAG}
 
@@ -136,13 +133,11 @@ jobs:
 
       - name: Commit and push changes
         working-directory: module-manifests
-        env:
-          FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
           git add .
           git commit -m "Configuration files update"
-          git remote set-url origin ${FORK_ORIGIN}
-          git push --set-upstream origin ${BRANCH_NAME} -f
+          git remote set-url origin ${MODULE_MANIFESTS_WITH_USER}
+          git push origin ${BRANCH_NAME}
 
       - name: Create PR if needed
         working-directory: module-manifests
@@ -152,11 +147,16 @@ jobs:
         run: |
           prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
 
-          if  echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
-              echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
+          if echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
+              echo "Opened PR already exists, no need to create new one, PR will be updated by push from previous step"
               exit 0
           fi
-          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R https://github.tools.sap/kyma/module-manifests/ --title "Submit BTP Manager version ${TAG}" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
 
-          
-          
+          gh pr create \
+            -B main \
+            -H ${BRANCH_NAME} \
+            -R https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}/ \
+            --title "Submit BTP Manager version ${TAG}" \
+            --fill \
+            --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" \
+            | tee $GITHUB_STEP_SUMMARY
