@@ -46,7 +46,7 @@ jobs:
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}  
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
       - name: Edit sap-btp-manager secret in a loop
         run: |
@@ -113,7 +113,7 @@ jobs:
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
       - name: Delete and apply sap-btp-manager secret in a loop
         run: |
@@ -193,7 +193,7 @@ jobs:
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
       - name: Scale down btp-manager-controller-manager 
         run: |

@@ -16,7 +16,9 @@
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
 
-LIMIT_CACHE=${4:"false"}
+set -x
+LIMIT_CACHE=${3:"false"}
+set +x
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -31,6 +33,9 @@ YAML_DIR="scripts/testing/yaml"
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
 
+# creating configmap
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+
 # creating secret
 if [[ "${CREDENTIALS}" == "real" ]]
 then
@@ -38,7 +43,6 @@ then
   envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 else
   # shortening HardDeleteTimeout to make cleanup faster
-  kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
   kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"HardDeleteTimeout":"10s"}}'
   kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.HardDeleteTimeout' | xargs -I{} echo "HardDeleteTimeout is set to {}"
   kubectl apply -f ./examples/btp-manager-secret.yaml
