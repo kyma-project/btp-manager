@@ -8,7 +8,7 @@ set -o pipefail # prevents errors in a pipeline from being masked
 
 set -x
 
-k3s server --cluster-reset
+sudo k3s server --cluster-reset
 
 if [ "${WAIT_OPT}" == "--wait" ]
 then
