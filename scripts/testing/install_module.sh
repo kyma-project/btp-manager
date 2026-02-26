@@ -5,6 +5,9 @@
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
+#     - EnableLimitCache in configmap, allowed values (optional, default: false):
+#         true - cache enabled
+#         false - cache disabled
 # ./install_module.sh europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-999 real
 
 # The script requires the following environment variables if is called with "real" parameter - these should be real credentials base64 encoded:
@@ -12,6 +15,8 @@
 #      SM_CLIENT_SECRET - client secret
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
+
+LIMIT_CACHE=${3:false}
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -22,7 +27,6 @@ set -o pipefail # prevents errors in a pipeline from being masked
 IMAGE_NAME=$1
 CREDENTIALS=$2
 YAML_DIR="scripts/testing/yaml"
-LIMIT_CACHE=${3:false}
 
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
