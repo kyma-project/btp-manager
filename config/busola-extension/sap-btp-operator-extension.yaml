@@ -1,0 +1,344 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: btpoperator-module
+  namespace: kyma-system
+  labels:
+    app.kubernetes.io/managed-by: kyma
+    app.kubernetes.io/name: btp-manager
+    app.kubernetes.io/part-of: Kyma
+    busola.io/extension: resource
+    busola.io/extension-version: '0.5'
+    kyma-project.io/module: btp-operator
+    operator.kyma-project.io/managed-by: kyma
+data:
+  dataSources: |-
+    relatedDeployments:
+      resource:
+        kind: Deployment
+        version: v1
+        group: apps
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedPods:
+      resource:
+        kind: Pod
+        version: v1
+      filter: $item.metadata.labels.`kyma-project.io/module` = "btp-operator"
+    relatedServiceInstances:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+        namespace: null
+    relatedServiceBindings:
+      resource:
+        kind: ServiceBinding
+        version: v1
+        group: services.cloud.sap.com
+        namespace: null
+    btpSecret:
+      resource:
+        kind: Secret
+        version: v1
+        namespace: kyma-system
+        name: sap-btp-manager
+    btpManagerDeployment:
+      resource:
+        kind: Deployment
+        version: v1
+        group: apps
+        namespace: kyma-system
+        name: btp-manager-controller-manager
+    btpOperatorDeployment:
+      resource:
+        kind: Deployment
+        version: v1
+        group: apps
+        namespace: kyma-system
+        name: sap-btp-operator-controller-manager
+    # 1. Default secret: sap-btp-service-operator (cluster-wide)
+    defaultSecret:
+      resource:
+        kind: Secret
+        version: v1
+        namespace: null  # Explicitly search ALL namespaces
+      filter: '$item.metadata.name = "sap-btp-service-operator"'
+    # 2. Namespaced secrets: {namespace}-sap-btp-service-operator (cluster-wide)
+    namespacedSecrets:
+      resource:
+        kind: Secret
+        version: v1
+        namespace: null  # Explicitly search ALL namespaces
+      filter: '$contains($item.metadata.name, "-sap-btp-service-operator") and $item.metadata.name != "sap-btp-service-operator"'
+    # 3. ServiceInstances (cluster-wide)
+    allServiceInstances:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+        namespace: null  # Explicitly search ALL namespaces
+    # 4. All secrets (cluster-wide) - we'll filter in the UI table
+    allSecrets:
+      resource:
+        kind: Secret
+        version: v1
+        namespace: null  # Explicitly search ALL namespaces
+    # 5. Referenced secrets grouped by secret name with their ServiceInstances
+    referencedSecrets:
+      resource:
+        kind: ServiceInstance
+        version: v1
+        group: services.cloud.sap.com
+        namespace: null
+      filter: '$exists($item.spec.btpAccessCredentialsSecret)'
+      
+  general: |-
+    resource:
+      kind: BtpOperator
+      group: operator.kyma-project.io
+      version: v1alpha1
+    name: BTP Operators
+    category: Kyma
+    urlPath: btpoperators
+    scope: namespace
+    description: >-
+      BTP Operator enables consumption of SAP BTP services in your Kubernetes cluster.
+    features:
+      actions:
+        disableCreate: true
+        disableDelete: true
+  
+  list: |-
+    - name: State
+      source: status.state
+      widget: Badge
+      highlights:
+        positive:
+          - Ready
+        negative:
+          - Error
+          - Deleting
+        critical:
+          - Warning
+        informative:
+          - Processing
+  
+  details: |-
+    resourceGraph:
+      dataSources:
+        - source: relatedDeployments
+        - source: relatedPods
+
+    header:
+      - name: Namespace
+        source: metadata.namespace
+      
+    status:
+      header:
+        - source: status.state
+          widget: Badge
+          placeholder: '-'
+          highlights:
+            positive:
+              - Running
+              - ok
+            critical: $item < 0
+      body:
+        - name: Conditions
+          source: status.conditions
+          visibility: $exists(status.conditions)
+          widget: ConditionList
+        - name: Generation
+          source: metadata.generation
+        - name: Installation Date
+          source: metadata.creationTimestamp
+        - name: Module Documentation
+          source: '"See Documentation"'
+          link: '"https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module"'
+          widget: ExternalLink
+        - name: BTP Manager Version
+          source: '$substringAfter($btpManagerDeployment().spec.template.spec.containers[0].image, ":")'
+          widget: Text
+        - name: SAP BTP Service Operator Version
+          source: '$substringAfter($btpOperatorDeployment().spec.template.spec.containers[1].image, ":v")'
+          widget: Text
+    body: 
+      - name: SAP BTP Manager Secret
+        widget: Panel
+        visibility: >-
+          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
+          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
+        source: '$base64decode($btpSecret().data.clientid)'
+        children:
+          - name: Cluster ID
+            source: '$base64decode($btpSecret().data.cluster_id)'
+          - name: Service Manager URL
+            source: '$base64decode($btpSecret().data.sm_url)'
+          - name: Token URL
+            source: '$base64decode($btpSecret().data.tokenurl)'
+          - name: Credentials Namespace
+            source: >-
+              ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system')
+            widget: Text
+          - widget: Alert
+            severity: >-
+              $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) ? 'warning' : 'information'
+            source: >-
+              $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
+              ? 'This secret is NOT managed by Kyma. You are responsible for updating credentials manually when rotating SAP BTP service keys or changing subaccounts. You can revert to managed mode by removing the skip-reconciliation label.' 
+              : 'This secret is managed by Kyma. It will be reconciled automatically. You can customize it if needed.'
+          - name: Secret Management Documentation
+            source: >-
+              $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
+              ? 'Learn about customizing credentials'
+              : 'Learn about preconfigured credentials' 
+            link: >-
+              $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
+              ? 'https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access'
+              : 'https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access' 
+            widget: ExternalLink
+          - name: Edit Secret
+            widget: ResourceLink
+            source: '"sap-btp-manager"'
+            resource:
+              name: '"sap-btp-manager"'
+              namespace: '"kyma-system"'
+              kind: '"Secret"'
+      - name: Service Instances and Bindings
+        widget: Panel
+        children:
+          - name: Service Instances
+            widget: Panel
+            children:
+              - source: '$string($count($relatedServiceInstances().items)) & " item/s"'
+                name: Total Count
+                widget: Text
+              - widget: ResourceLink
+                source: '"See details"'
+                name: Details
+                resource:
+                  name: '"serviceinstances.services.cloud.sap.com"'
+                  kind: '"CustomResourceDefinition"'
+                  namespace: '""'
+          - name: Service Bindings  
+            widget: Panel
+            children:
+              - source: '$string($count($relatedServiceBindings().items)) & " item/s"'
+                name: Total Count
+                widget: Text
+              - widget: ResourceLink
+                source: '"See details"'
+                name: Details
+                resource:
+                  name: '"servicebindings.services.cloud.sap.com"'
+                  kind: '"CustomResourceDefinition"'
+                  namespace: '""'
+      - name: Input Secrets Dashboard
+        widget: Panel
+        description: To learn more about different secret types and their configuration, visit the {{[documentation](https://help.sap.com/docs/btp/sap-business-technology-platform/working-with-multiple-subaccounts)}}
+        children:
+          - name: Default Secret (sap-btp-service-operator)
+            widget: Panel
+            children:
+              - widget: Table
+                source: '$defaultSecret().items'
+                children:
+                  - source: '$item.metadata.name'
+                    name: Name
+                  - source: '$item.metadata.namespace'
+                    name: Namespace
+                  - source: '$item.metadata.creationTimestamp'
+                    name: Created
+          - name: Namespaced Secrets (custom-namespace-sap-btp-service-operator)
+            widget: Panel
+            children:
+              - widget: Table
+                source: >-
+                  (
+                    $btpSecretData := $btpSecret();
+                    $managedNs := $exists($btpSecretData.data.credentials_namespace) ? $base64decode($btpSecretData.data.credentials_namespace) : 'kyma-system';
+                    $all := $namespacedSecrets().items;
+                    $inManaged := $all[metadata.namespace = $managedNs];
+                    $notInManaged := $all[metadata.namespace != $managedNs];
+                    $append($inManaged, $notInManaged)
+                  )
+                children:
+                  - source: '$item.metadata.name'
+                    name: Name
+                  - source: '$item.metadata.namespace'
+                    name: Namespace
+                  - source: >-
+                      (
+                        $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
+                        $item.metadata.namespace = $managedNamespace ? 'In Use' : 'Not in Use';
+                      )
+                    name: Status
+                    widget: Badge
+                    highlights:
+                      positive:
+                        - In Use
+                      informative:
+                        - Not in Use
+                  - source: '$item.metadata.creationTimestamp'
+                    name: Created
+          
+          - name: Referenced Secrets (from ServiceInstance.spec.btpAccessCredentialsSecret)
+            widget: Panel
+            children:
+              - widget: Table
+                source: >-
+                  (
+                    $instances := $referencedSecrets().items;
+                    $uniqueSecrets := $distinct($instances.spec.btpAccessCredentialsSecret);
+                    $map($uniqueSecrets, function($secretName) {
+                      {
+                        "secretName": $secretName,
+                        "instances": $filter($instances, function($i) { $i.spec.btpAccessCredentialsSecret = $secretName }).{
+                          "name": metadata.name,
+                          "namespace": metadata.namespace
+                        }
+                      }
+                    })
+                  )
+                children:
+                  - source: '$item.secretName'
+                    name: Secret
+                    widget: ResourceLink
+                    resource:
+                      name: '$item.secretName'
+                      namespace: '$item.instances[0].namespace'
+                      kind: '"Secret"'
+                  - source: '$item.instances[0].namespace'
+                    name: Secret Namespace
+                    widget: Text
+                  - source: >-
+                      (
+                        $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
+                        $item.instances[0].namespace = $managedNamespace ? 'In Managed Namespace' : 'Not in Managed Namespace';
+                      )
+                    name: Status
+                    widget: Badge
+                    highlights:
+                      positive:
+                        - In Managed Namespace
+                      informative:
+                        - Not in Managed Namespace
+                  - source: '$map($item.instances, function($i) { $i.name & " (" & $i.namespace & ")" })'
+                    name: ServiceInstances
+                    widget: JoinedArray
+                    separator: ', '
+      - name: Graph Documentation
+        widget: Panel
+        children:
+          - name: "How This Graph is Built"
+            source: "'The visualization queries your Kubernetes cluster and filters resources based on the kyma-project.io/module label.'"
+            widget: Text
+          - name: "Label Used for Filtering"
+            source: "'Label Filter: kyma-project.io/module=btp-operator'"
+            widget: Text
+            copyable: true  
+
+      - widget: Alert
+        severity: information
+        source: "'Tip: Only resources tagged with kyma-project.io/module=btp-operator will appear in this visualization.'"
+
