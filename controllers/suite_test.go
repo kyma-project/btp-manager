@@ -177,6 +177,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
 
 	metrics := btpmanagermetrics.NewWebhookMetrics(ctrlmetrics.Registry)
+	configMetrics := btpmanagermetrics.NewConfigMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
@@ -185,7 +186,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		cleanupReconciler,
 		metrics,
 		[]config.WatchHandler{
-			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme()),
+			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
 	)
 
