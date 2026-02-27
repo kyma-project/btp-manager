@@ -123,6 +123,7 @@ func main() {
 
 	signalContext := ctrl.SetupSignalHandler()
 	webhookMetrics := btpmanagermetrics.NewWebhookMetrics(ctrlmetrics.Registry)
+	configMetrics := btpmanagermetrics.NewConfigMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
@@ -131,7 +132,7 @@ func main() {
 		cleanupReconciler,
 		webhookMetrics,
 		[]config.WatchHandler{
-			config.NewHandler(mgr.GetClient(), scheme),
+			config.NewHandler(mgr.GetClient(), scheme, configMetrics),
 		},
 	)
 
