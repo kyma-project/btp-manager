@@ -84,7 +84,7 @@ jobs:
         working-directory: module-manifests/modules/btp-operator
         run: |
           echo "Removing module version config: ${TAG}/${MODULE_CONFIG_FILENAME}" | tee $GITHUB_STEP_SUMMARY
-          rm -rf ${TAG}
+          rm -rf ${TAG}/${MODULE_CONFIG_FILENAME}
 
       - name: Commit and push changes
         working-directory: module-manifests
