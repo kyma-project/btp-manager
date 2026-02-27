@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -34,8 +35,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
-
-	"github.com/go-logr/logr"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -160,9 +159,9 @@ type BtpOperatorReconciler struct {
 	*rest.Config
 	apiServerClient                                     client.Client
 	Scheme                                              *runtime.Scheme
-	manifestHandler        *manifest.Handler
-	webhookMetrics         *metrics.WebhookMetrics
-	instanceBindingService InstanceBindingSerivce
+	manifestHandler                                     *manifest.Handler
+	webhookMetrics                                      *metrics.WebhookMetrics
+	instanceBindingService                              InstanceBindingSerivce
 	workqueueSize                                       int
 	previousCredentialsNamespace                        string
 	clusterIdFromSapBtpManagerSecret                    string
