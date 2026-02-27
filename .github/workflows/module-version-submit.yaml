@@ -105,7 +105,7 @@ jobs:
           cat <<EOF | tee ${TAG}/module-config.yaml
           name: ${FULL_MODULE_NAME}
           version: ${TAG}
-          team: Gopher
+          team: kyma/Gopher
           repository: https://github.com/kyma-project/btp-manager.git
           repositoryTag: ${TAG}
           manifest: ${MANIFEST_FILENAME}
