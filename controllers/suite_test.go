@@ -43,8 +43,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	// +kubebuilder:scaffold:imports
+	//+kubebuilder:scaffold:imports
 )
 
 const (
@@ -175,7 +176,7 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
 
-	metrics := btpmanagermetrics.NewMetrics()
+	metrics := btpmanagermetrics.NewWebhookMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
