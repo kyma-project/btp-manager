@@ -31,3 +31,28 @@ func NewWebhookMetrics(r prometheus.Registerer) *WebhookMetrics {
 func (m *WebhookMetrics) IncrementCertsRegenerationCounter() {
 	m.certsRegenerationCounter.Inc()
 }
+
+type ConfigMetrics struct {
+	configMapAppliedGauge prometheus.Gauge
+}
+
+func NewConfigMetrics(r prometheus.Registerer) *ConfigMetrics {
+	gauge := promauto.With(r).NewGauge(prometheus.GaugeOpts{
+		Name: buildMetricName("", "custom_config_applied"),
+		Help: "Indicates if the custom configuration ConfigMap is applied (1) or not (0)",
+	})
+	gauge.Set(0)
+
+	m := &ConfigMetrics{
+		configMapAppliedGauge: gauge,
+	}
+	return m
+}
+
+func (m *ConfigMetrics) ConfigMapApplied() {
+	m.configMapAppliedGauge.Set(1)
+}
+
+func (m *ConfigMetrics) ConfigMapNotApplied() {
+	m.configMapAppliedGauge.Set(0)
+}
