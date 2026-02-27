@@ -9,9 +9,10 @@ run-name: Promote ${{ inputs.releaseTag }} module version to ${{ inputs.channel 
 #     MODULE_MANIFESTS_REPO_NAME - repository of modules manifests
 
 env:
-  MODULE_MANIFESTS_REPO:  "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
+  MODULE_MANIFESTS_WITH_USER: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
   BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
   CHANNEL_MAPPING_FILENAME: module-releases.yaml
+
 on:
   workflow_dispatch:
     inputs:
@@ -46,29 +47,22 @@ jobs:
       - name: Checkout btp-manager
         uses: actions/checkout@v6
         with:
-         path: btp-manager
+          path: btp-manager
 
-      - name: Checkout module-manifests
-        uses: actions/checkout@v6
-        with:
-          github-server-url: https://${{ vars.GH_TOOLS_HOST }}
-          repository: kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}
-          token: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
-          path: module-manifests
+      - name: Setup git and clone module-manifests
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+        run: |
+          git config --global user.email ${{ vars.GIT_USER_EMAIL }}
+          git config --global user.name ${{ vars.GIT_USER_NAME }}
+          git clone ${MODULE_MANIFESTS_WITH_USER}
 
       - name: Set branch name
         run: echo "BRANCH_NAME=btp-manager-${{ inputs.releaseTag }}-${{ inputs.channel }}" >> $GITHUB_ENV
 
-      - name: Setup git and sync module-manifests repository
-        working-directory: ./module-manifests
-        env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+      - name: Create branch
+        working-directory: module-manifests
         run: |
-          git config user.email ${{ vars.GIT_USER_EMAIL }}
-          git config user.name ${{ vars.GIT_USER_NAME }}
-          git remote add upstream ${MODULE_MANIFESTS_REPO}
-          git fetch upstream
-          git merge upstream/main
           git checkout -B ${BRANCH_NAME}
 
       - name: Modify channel mapping
@@ -79,13 +73,11 @@ jobs:
 
       - name: Commit and push changes
         working-directory: module-manifests
-        env:
-          FORK_ORIGIN: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/${{ vars.GIT_USER_NAME }}/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
           git add .
           git commit -m "Configuration files update"
-          git remote set-url origin ${FORK_ORIGIN}
-          git push --set-upstream origin ${BRANCH_NAME} -f
+          git remote set-url origin ${MODULE_MANIFESTS_WITH_USER}
+          git push origin ${BRANCH_NAME}
 
       - name: Create PR if needed
         working-directory: module-manifests
@@ -99,8 +91,17 @@ jobs:
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
         run: |
           prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+
           if echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
-            echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
+            echo "Opened PR already exists, no need to create new one, PR will be updated by push from previous step"
             exit 0
           fi
-          gh pr create -B main -H ${{ vars.GIT_USER_NAME }}:${BRANCH_NAME} -R "${MODULE_MANIFESTS_REPO_URL}" --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" --fill --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" | tee $GITHUB_STEP_SUMMARY
+
+          gh pr create \
+            -B main \
+            -H ${BRANCH_NAME} \
+            -R "${MODULE_MANIFESTS_REPO_URL}" \
+            --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" \
+            --fill \
+            --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" \
+            | tee $GITHUB_STEP_SUMMARY
