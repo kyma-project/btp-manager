@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/metrics"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus"
 	ioprometheusclient "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
@@ -12,12 +16,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	"github.com/kyma-project/btp-manager/controllers/config"
-	"github.com/kyma-project/btp-manager/internal/metrics"
 )
 
 const configAppliedMetricName = "btpmanager_custom_config_applied"
@@ -161,7 +159,7 @@ var _ = Describe("ConfigMetrics", func() {
 	})
 })
 
-func getGaugeMetricFromRegistryByName(reg *prometheus.Registry , metricName string) (*ioprometheusclient.Gauge, error) {
+func getGaugeMetricFromRegistryByName(reg *prometheus.Registry, metricName string) (*ioprometheusclient.Gauge, error) {
 	gauge, err := reg.Gather()
 	if err != nil {
 		return nil, err
