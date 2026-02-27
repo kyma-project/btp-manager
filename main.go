@@ -28,6 +28,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -121,16 +122,17 @@ func main() {
 	}
 
 	signalContext := ctrl.SetupSignalHandler()
-	metrics := btpmanagermetrics.NewMetrics()
+	webhookMetrics := btpmanagermetrics.NewWebhookMetrics(ctrlmetrics.Registry)
+	configMetrics := btpmanagermetrics.NewConfigMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
 		scheme,
 		cleanupReconciler,
-		metrics,
+		webhookMetrics,
 		[]config.WatchHandler{
-			config.NewHandler(mgr.GetClient(), scheme),
+			config.NewHandler(mgr.GetClient(), scheme, configMetrics),
 		},
 	)
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/metrics"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,13 +59,15 @@ type WatchHandler interface {
 
 type Handler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme        *runtime.Scheme
+	configMetrics *metrics.ConfigMetrics
 }
 
-func NewHandler(client client.Client, scheme *runtime.Scheme) *Handler {
+func NewHandler(client client.Client, scheme *runtime.Scheme, configMetrics *metrics.ConfigMetrics) *Handler {
 	return &Handler{
-		Client: client,
-		Scheme: scheme,
+		Client:        client,
+		Scheme:        scheme,
+		configMetrics: configMetrics,
 	}
 }
 
@@ -77,9 +80,27 @@ func (r *Handler) Predicates() predicate.Funcs {
 		return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace
 	}
 	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
-		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
-		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
+		CreateFunc: func(e event.CreateEvent) bool {
+			matches := nameMatches(e.Object)
+			if matches {
+				r.configMetrics.ConfigMapApplied()
+			}
+			return matches
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			matches := nameMatches(e.Object)
+			if matches {
+				r.configMetrics.ConfigMapNotApplied()
+			}
+			return matches
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			matches := nameMatches(e.ObjectNew)
+			if matches {
+				r.configMetrics.ConfigMapApplied()
+			}
+			return matches
+		},
 	}
 }
 
