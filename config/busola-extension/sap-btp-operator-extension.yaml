@@ -153,7 +153,7 @@ data:
         - name: Installation Date
           source: metadata.creationTimestamp
         - name: Module Documentation
-          source: '"See Documentation"'
+          source: '"SAP BTP Operator"'
           link: '"https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module"'
           widget: ExternalLink
         - name: BTP Manager Version
@@ -182,20 +182,27 @@ data:
             widget: Text
           - widget: Alert
             severity: >-
-              $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) ? 'warning' : 'information'
+              $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) ? 'warning' : 
+              ($exists($btpSecret().data.credentials_namespace) ? 'warning' : 'information')
             source: >-
               $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
-              ? 'This secret is NOT managed by Kyma. You are responsible for updating credentials manually when rotating SAP BTP service keys or changing subaccounts. You can revert to managed mode by removing the skip-reconciliation label.' 
-              : 'This secret is managed by Kyma. It will be reconciled automatically. You can customize it if needed.'
+              ? "This Secret is NOT managed by Kyma. Therefore, when rotating SAP BTP service keys or changing subaccounts, you must manually update credentials. To revert to managed mode, remove the skip-reconciliation label." 
+              : ($exists($btpSecret().data.credentials_namespace) 
+                ? "This Secret is managed by Kyma. If you don't customize it, the Secret will be automatically reconciled within 24 hours. To keep your custom settings, follow the instructions in Customizing the Default Credentials and Access." 
+                : "This Secret is managed by Kyma. To switch it to the unmanaged mode, follow the instructions in the documentation below.")
           - name: Secret Management Documentation
             source: >-
               $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
               ? 'Learn about customizing credentials'
-              : 'Learn about preconfigured credentials' 
+              : ($exists($btpSecret().data.credentials_namespace) 
+                ? 'Customizing the Default Credentials and Access'
+                : 'Learn about preconfigured credentials')
             link: >-
               $exists($btpSecret().metadata.labels.`kyma-project.io/skip-reconciliation`) 
               ? 'https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access'
-              : 'https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access' 
+              : ($exists($btpSecret().data.credentials_namespace)
+                ? 'https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access'
+                : 'https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access')
             widget: ExternalLink
           - name: Edit Secret
             widget: ResourceLink
@@ -235,7 +242,7 @@ data:
                   namespace: '""'
       - name: Input Secrets Dashboard
         widget: Panel
-        description: To learn more about different secret types and their configuration, visit the {{[documentation](https://help.sap.com/docs/btp/sap-business-technology-platform/working-with-multiple-subaccounts)}}
+        description: For more information about different secret types and their configuration, see the {{[documentation](https://help.sap.com/docs/btp/sap-business-technology-platform/working-with-multiple-subaccounts)}}
         children:
           - name: Default Secret (sap-btp-service-operator)
             widget: Panel
@@ -340,5 +347,5 @@ data:
 
       - widget: Alert
         severity: information
-        source: "'Tip: Only resources tagged with kyma-project.io/module=btp-operator will appear in this visualization.'"
+        source: "'Tip: Only resources tagged with kyma-project.io/module=btp-operator appear in this visualization.'"
 
