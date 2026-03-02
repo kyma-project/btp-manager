@@ -129,9 +129,19 @@ k3d kubeconfig get kyma > tests/integration/fixtures/kubeconfig.yaml
 cp ../config/busola-extension/sap-btp-operator-extension.yaml tests/integration/fixtures/
 cp ../busola-tests/ext-test-btp-operator.spec.js tests/integration/tests/
 
-# Add test to cypress.config.js specPattern (using perl for cross-platform compatibility)
-perl -i -pe 's/(test-companion-feedback-dialog\.spec\.js'\'',)/$1\n      '\''tests\/ext-test-btp-operator.spec.js'\'',/' \
-  tests/integration/cypress.config.js
+# Add test to cypress.config.js specPattern (using Python for reliability)
+python3 -c "
+import re
+with open('tests/integration/cypress.config.js', 'r') as f:
+    content = f.read()
+content = re.sub(
+    r\"(tests/companion/test-companion-feedback-dialog\.spec\.js',)\",
+    r\"\1\\n      'tests/ext-test-btp-operator.spec.js',\",
+    content
+)
+with open('tests/integration/cypress.config.js', 'w') as f:
+    f.write(content)
+"
 
 # 5. Run tests
 cd tests/integration

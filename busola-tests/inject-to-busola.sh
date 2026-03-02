@@ -54,9 +54,21 @@ echo -e "${GREEN}3. Updating cypress.config.js...${NC}"
 if grep -q "tests/ext-test-btp-operator.spec.js" "$BUSOLA_PATH/tests/integration/cypress.config.js"; then
   echo "   ⚠ Test already exists in cypress.config.js"
 else
-  # Add test to specPattern array (using perl for cross-platform compatibility)
-  perl -i -pe 's/(test-companion-feedback-dialog\.spec\.js'\'',)/$1\n      '\''tests\/ext-test-btp-operator.spec.js'\'',/' \
-    "$BUSOLA_PATH/tests/integration/cypress.config.js"
+  # Add test to specPattern array (using Python for reliability)
+  python3 -c "
+import re
+config_file = '$BUSOLA_PATH/tests/integration/cypress.config.js'
+with open(config_file, 'r') as f:
+    content = f.read()
+# Add our test after companion-feedback-dialog test
+content = re.sub(
+    r\"(tests/companion/test-companion-feedback-dialog\.spec\.js',)\",
+    r\"\1\\n      'tests/ext-test-btp-operator.spec.js',\",
+    content
+)
+with open(config_file, 'w') as f:
+    f.write(content)
+  "
   
   # Verify it was added
   if grep -q "tests/ext-test-btp-operator.spec.js" "$BUSOLA_PATH/tests/integration/cypress.config.js"; then

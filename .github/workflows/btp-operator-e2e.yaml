@@ -78,9 +78,20 @@ jobs:
           cp btp-manager/busola-tests/ext-test-btp-operator.spec.js \
              busola/tests/integration/tests/
           
-          # Add test to cypress.config.js specPattern (using perl for cross-platform compatibility)
-          perl -i -pe 's/(test-companion-feedback-dialog\.spec\.js'\',)/$1\n      '"'"'tests\/ext-test-btp-operator.spec.js'"'"',/' \
-            busola/tests/integration/cypress.config.js
+          # Add test to cypress.config.js specPattern
+          python3 -c "
+          import re
+          with open('busola/tests/integration/cypress.config.js', 'r') as f:
+              content = f.read()
+          # Add our test after companion-feedback-dialog test
+          content = re.sub(
+              r\"(tests/companion/test-companion-feedback-dialog\.spec\.js',)\",
+              r\"\1\\n      'tests/ext-test-btp-operator.spec.js',\",
+              content
+          )
+          with open('busola/tests/integration/cypress.config.js', 'w') as f:
+              f.write(content)
+          "
           
           echo "Injected files:"
           ls -la busola/tests/integration/fixtures/ | grep sap-btp
