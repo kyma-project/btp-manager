@@ -235,7 +235,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			var err error
 			secret, err = createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
-			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+			Expect(k8sClient.Create(ctx, secret, client.FieldOwner(operatorName))).To(Succeed())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateProcessing, metav1.ConditionFalse, conditions.Initialized)))
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))

@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -42,7 +43,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 		secret, err := createCorrectSecretFromYaml()
 		Expect(err).To(BeNil())
-		Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+		Expect(k8sClient.Create(ctx, secret, client.FieldOwner(operatorName))).To(Succeed())
 
 		manifestHandler = &manifest.Handler{Scheme: k8sManager.GetScheme()}
 		actualWorkqueueSize = func() int { return reconciler.workqueueSize }
@@ -266,18 +267,34 @@ var _ = Describe("BTP Operator controller - updating", func() {
 })
 
 func addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured []*unstructured.Unstructured) {
-	for _, unstructuredObject := range objectsUnstructured {
-		patch := &unstructured.Unstructured{}
-		patch.SetGroupVersionKind(unstructuredObject.GroupVersionKind())
-		patch.SetNamespace(unstructuredObject.GetNamespace())
-		patch.SetName(unstructuredObject.GetName())
-
-		labels := unstructuredObject.GetLabels()
-		if len(labels) == 0 {
-			labels = make(map[string]string)
+	for _, obj := range objectsUnstructured {
+		ensureLabel := func(u *unstructured.Unstructured) {
+			labels := u.GetLabels()
+			if labels == nil {
+				labels = make(map[string]string)
+			}
+			labels[extraLabelKey] = extraLabelValue
+			u.SetLabels(labels)
 		}
-		labels[extraLabelKey] = extraLabelValue
-		patch.SetLabels(labels)
-		Expect(k8sClient.Patch(ctx, patch, client.Apply, client.FieldOwner("reconciler"))).To(Succeed())
+
+		current := &unstructured.Unstructured{}
+		current.SetGroupVersionKind(obj.GroupVersionKind())
+
+		err := k8sClient.Get(ctx, client.ObjectKey{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
+		}, current)
+
+		if errors.IsNotFound(err) {
+			obj.SetGroupVersionKind(obj.GroupVersionKind())
+			ensureLabel(obj)
+			Expect(k8sClient.Create(ctx, obj, client.FieldOwner("reconciler"))).To(Succeed())
+			continue
+		}
+
+		Expect(err).NotTo(HaveOccurred())
+
+		ensureLabel(current)
+		Expect(k8sClient.Update(ctx, current, client.FieldOwner("reconciler"))).To(Succeed())
 	}
 }

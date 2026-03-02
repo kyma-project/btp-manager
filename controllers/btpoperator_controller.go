@@ -793,7 +793,7 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
-			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
+			if err := r.Create(ctx, u, client.FieldOwner(operatorName)); err != nil {
 				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
