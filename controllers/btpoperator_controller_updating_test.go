@@ -268,7 +268,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 func addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured []*unstructured.Unstructured) {
 	for _, obj := range objectsUnstructured {
-		ensureLabel := func(u *unstructured.Unstructured) {
+		addExtraLabel := func(u *unstructured.Unstructured) {
 			labels := u.GetLabels()
 			if labels == nil {
 				labels = make(map[string]string)
@@ -287,14 +287,14 @@ func addExtraLabelWithReconcilerAsFieldManager(objectsUnstructured []*unstructur
 
 		if errors.IsNotFound(err) {
 			obj.SetGroupVersionKind(obj.GroupVersionKind())
-			ensureLabel(obj)
+			addExtraLabel(obj)
 			Expect(k8sClient.Create(ctx, obj, client.FieldOwner("reconciler"))).To(Succeed())
 			continue
 		}
 
 		Expect(err).NotTo(HaveOccurred())
 
-		ensureLabel(current)
+		addExtraLabel(current)
 		Expect(k8sClient.Update(ctx, current, client.FieldOwner("reconciler"))).To(Succeed())
 	}
 }
