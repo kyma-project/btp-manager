@@ -41,7 +41,6 @@ func NewConfigMetrics(r prometheus.Registerer) *ConfigMetrics {
 		Name: buildMetricName("", "custom_config_applied"),
 		Help: "Indicates if the custom configuration ConfigMap is applied (1) or not (0)",
 	})
-	gauge.Set(0)
 
 	m := &ConfigMetrics{
 		configMapAppliedGauge: gauge,
