@@ -20,7 +20,7 @@ SAP BTP Operator searches for the credentials in the following order:
 2. Managed namespace Secret assigned to a given namespace
 3. Managed namespace default Secret
 
-![Secrets precedence](../assets/secrets_precedence_4.drawio.svg) 
+![Secrets precedence](../assets/secrets_precedence.drawio.svg) 
 
 ## Procedure
 
