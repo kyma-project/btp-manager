@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -34,8 +35,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
-
-	"github.com/go-logr/logr"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -161,7 +160,7 @@ type BtpOperatorReconciler struct {
 	apiServerClient                                     client.Client
 	Scheme                                              *runtime.Scheme
 	manifestHandler                                     *manifest.Handler
-	metrics                                             *metrics.Metrics
+	webhookMetrics                                      *metrics.WebhookMetrics
 	instanceBindingService                              InstanceBindingSerivce
 	workqueueSize                                       int
 	previousCredentialsNamespace                        string
@@ -180,14 +179,14 @@ type ResourceReadiness struct {
 	Ready     bool
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics, watchHandlers []config.WatchHandler) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
 		Scheme:                 scheme,
 		manifestHandler:        &manifest.Handler{Scheme: scheme},
 		instanceBindingService: instanceBindingSerivice,
-		metrics:                metrics,
+		webhookMetrics:         metrics,
 		watchHandlers:          watchHandlers,
 	}
 }
@@ -1813,7 +1812,7 @@ func (r *BtpOperatorReconciler) regenerateCertificates(ctx context.Context, reso
 	}
 
 	logger.Info("certificates regeneration succeeded")
-	r.metrics.IncreaseCertsRegenerationsCounter()
+	r.webhookMetrics.IncrementCertsRegenerationCounter()
 
 	return nil
 }
@@ -1838,7 +1837,7 @@ func (r *BtpOperatorReconciler) regenerateWebhookCertificate(ctx context.Context
 	}
 
 	logger.Info("webhook certificate regeneration succeeded")
-	r.metrics.IncreaseCertsRegenerationsCounter()
+	r.webhookMetrics.IncrementCertsRegenerationCounter()
 
 	return nil
 }
