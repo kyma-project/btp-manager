@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -155,6 +156,72 @@ var _ = Describe("ConfigMetrics", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(gauge.GetValue()).To(Equal(0.0))
+		})
+	})
+})
+
+var _ = Describe("Handler startup sync", func() {
+	var (
+		configMetrics *metrics.ConfigMetrics
+		testRegistry  *prometheus.Registry
+		scheme        *runtime.Scheme
+	)
+
+	BeforeEach(func() {
+		testRegistry = prometheus.NewRegistry()
+		configMetrics = metrics.NewConfigMetrics(testRegistry)
+
+		scheme = runtime.NewScheme()
+		Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
+	})
+
+	Context("Start method", func() {
+		It("should set gauge to 1 when ConfigMap exists at startup", func() {
+			existingCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      config.ConfigName,
+					Namespace: config.ChartNamespace,
+				},
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existingCM).Build()
+			handler := config.NewHandler(fakeClient, scheme, configMetrics)
+
+			Err := handler.Start(context.Background())
+			Expect(Err).NotTo(HaveOccurred())
+
+			gauge, err := getGaugeMetricFromRegistryByName(testRegistry, configAppliedMetricName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gauge.GetValue()).To(Equal(1.0))
+		})
+
+		It("should keep gauge at 0 when ConfigMap does not exist at startup", func() {
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			handler := config.NewHandler(fakeClient, scheme, configMetrics)
+
+			Err := handler.Start(context.Background())
+			Expect(Err).NotTo(HaveOccurred())
+
+			gauge, err := getGaugeMetricFromRegistryByName(testRegistry, configAppliedMetricName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gauge.GetValue()).To(Equal(0.0))
+		})
+
+		It("should only match ConfigMap in the correct namespace", func() {
+			wrongNsCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      config.ConfigName,
+					Namespace: "other-namespace",
+				},
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(wrongNsCM).Build()
+			handler := config.NewHandler(fakeClient, scheme, configMetrics)
+
+			Err := handler.Start(context.Background())
+			Expect(Err).NotTo(HaveOccurred())
+
+			gauge, err := getGaugeMetricFromRegistryByName(testRegistry, configAppliedMetricName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gauge.GetValue()).To(Equal(0.0), "ConfigMap in wrong namespace should not set the metric")
 		})
 	})
 })
