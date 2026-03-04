@@ -1,237 +1,577 @@
 # BTP Operator Busola Extension E2E Tests
 
-This directory contains E2E test scenarios for the BTP Operator Busola extension. These tests are injected into the Busola repository during CI/CD workflow execution to validate the extension's functionality in an isolated k3d cluster environment.
+This directory contains automated E2E test scenarios for the BTP Operator Busola extension. Tests run in an isolated k3d Kubernetes cluster with a local Busola dashboard instance, validating extension functionality without external dependencies.
 
-## Overview
+## Why This Approach?
 
-The tests in this directory are designed to run against a local Busola instance with a k3d Kubernetes cluster. The workflow automatically:
-1. Creates a k3d cluster
-2. Clones the Busola repository
-3. Injects extension ConfigMap and test scenarios from this directory
-4. Builds and runs Busola locally
-5. Executes the Cypress E2E tests
+**Before**: Tests required access to `dev.kyma.cloud.sap` cluster via `DEV_KUBECONFIG` secret, creating external dependencies and maintenance overhead.
+
+**Now**: 
+- ✅ Fully isolated testing in ephemeral k3d clusters
+- ✅ No external cluster dependencies
+- ✅ Reproducible locally and in CI/CD
+- ✅ Complete automation via single script
+- ✅ Interactive debugging support
+
+## Quick Start
+
+Run tests locally with one command:
+
+```bash
+# Full automated run with cleanup
+./busola-tests/run-local-test.sh --cleanup
+
+# Interactive debugging with Cypress GUI
+./busola-tests/run-local-test.sh --interactive --cleanup
+```
+
+**First time?** Script will automatically:
+1. Create k3d cluster `kyma` 
+2. Install all Kubernetes prerequisites (CRDs, namespaces, secrets)
+3. Clone/build Busola (if needed)
+4. Inject extension and test files
+5. Run Cypress tests
+6. Clean up (with `--cleanup` flag)
 
 ## Directory Structure
 
 ```
 busola-tests/
-├── ext-test-btp-operator.spec.js    # Main E2E test specification
+├── run-local-test.sh                 # 🚀 Main automation script (all-in-one)
+├── ext-test-btp-operator.spec.js    # Cypress E2E test specification
 ├── fixtures/
-│   └── mock-btp-secret.yaml         # Mock BTP secret for testing
+│   └── mock-btp-secret.yaml         # Mock BTP credentials for testing
 └── README.md                         # This file
+```
+
+## Script Usage
+
+### run-local-test.sh
+
+Complete automation for local E2E testing. Handles cluster creation, prerequisites installation, Busola setup, and test execution.
+
+**Options:**
+- `--busola-path PATH` - Custom Busola repo path (default: `../busola`)
+- `--skip-cluster` - Skip k3d cluster creation (reuse existing)
+- `--skip-busola` - Skip Busola build/start (must be running on :3001)
+- `--headed` - Run Cypress with visible browser window
+- `--interactive` - Open Cypress GUI for manual test selection
+- `--cleanup` - Delete k3d cluster after tests complete
+- `-h, --help` - Show detailed help
+
+**Examples:**
+
+```bash
+# Standard full run with cleanup
+./busola-tests/run-local-test.sh --cleanup
+
+# Debug failing test with visible browser
+./busola-tests/run-local-test.sh --headed
+
+# Interactive test development (GUI mode)
+./busola-tests/run-local-test.sh --interactive
+
+# Fast iteration (reuse cluster & Busola after first run)
+./busola-tests/run-local-test.sh --skip-cluster --skip-busola --headed
+
+# Use custom Busola location
+./busola-tests/run-local-test.sh --busola-path ~/projects/busola --cleanup
 ```
 
 ## Test Scenarios
 
 ### ext-test-btp-operator.spec.js
 
-Tests the BTP Operator extension functionality including:
+Comprehensive Cypress test covering BTP Operator extension functionality in Busola UI.
 
-1. **Extension Upload and Verification**
-   - Uploads the BTP Operator extension ConfigMap
-   - Verifies the "BTP Operators" menu appears in Busola
-   - Checks default state (status, credentials namespace, service instances)
+**Test Coverage:**
+
+1. **Extension Loading & Navigation**
+   - Uploads BTP Operator extension ConfigMap to cluster
+   - Verifies "BTP Operators" menu item appears in Busola navigation
+   - Validates extension renders correctly in dashboard
+
+2. **Default State Validation**
+   - Checks BtpOperator CR status display
+   - Verifies default credentials namespace (`kyma-system`)
+   - Validates Service Instance and Binding counts
    - Tests internal resource links (secrets, CRDs)
 
-2. **Custom Credentials Namespace Configuration**
-   - Creates a test namespace with custom secret
-   - Modifies the `sap-btp-manager` secret to use custom namespace
+3. **Custom Namespace Configuration**
+   - Creates custom namespace with test secret
+   - Updates `sap-btp-manager` secret to reference custom namespace
    - Adds `kyma-project.io/skip-reconciliation` label
-   - Verifies the extension shows correct status badges
-   - Tests Service Instance and Binding creation
+   - Validates extension updates UI accordingly
+   - Verifies status badges reflect configuration changes
+
+4. **Resource Creation UI**
+   - Tests "Create Service Instance" form
+   - Tests "Create Service Binding" form
+   - Validates form validation and user flows
+
+**Test Pattern:**
+- Uses `cy.loginAndSelectCluster()` for authentication
+- Leverages Busola's built-in support commands
+- Runs headless by default, supports `--headed` and `--interactive` modes
 
 ## Fixtures
 
 ### mock-btp-secret.yaml
 
-A mock SAP BTP Manager secret with test credentials. This secret is installed in the k3d cluster before tests run to satisfy the extension's data source requirements.
+Mock SAP BTP Manager credentials secret installed in k3d cluster before tests run.
 
-**Contains:**
-- `clientid`: Mock client ID
-- `clientsecret`: Mock client secret
-- `sm_url`: Mock Service Manager URL
-- `tokenurl`: Mock token URL
-- `cluster_id`: Mock cluster ID
+**Purpose**: Satisfies extension's `$btpSecret()` dataSource requirement, enabling UI panels and features.
 
-All values are base64-encoded as required by Kubernetes secrets.
+**Contents** (base64-encoded):
+- `clientid` - Mock SAP BTP client ID
+- `clientsecret` - Mock client secret
+- `sm_url` - Mock Service Manager URL (`https://mock-sm.example.com`)
+- `tokenurl` - Mock token endpoint URL (`https://mock-auth.example.com/oauth/token`)
+- `cluster_id` - Mock cluster identifier
 
-## Workflow Integration
+**Labels**:
+- `app.kubernetes.io/managed-by: kcp-kyma-environment-broker` - Matches production secret pattern
 
-The test files are used in [.github/workflows/btp-operator-e2e.yaml](../.github/workflows/btp-operator-e2e.yaml):
+**Note**: These are test credentials only. No actual SAP BTP connection is made.
 
-1. **Checkout btp-manager** → Clone this repository
-2. **Setup k3d cluster** → Create isolated test cluster
-3. **Checkout Busola** → Clone Busola repository to `./busola`
-4. **Inject extension** → Copy `config/busola-extension/sap-btp-operator-extension.yaml` to Busola fixtures
-5. **Inject test** → Copy `busola-tests/ext-test-btp-operator.spec.js` to Busola tests
-6. **Update Cypress config** → Add test to `cypress.config.js` specPattern array
-7. **Install prerequisites** → Apply CRDs, BtpOperator CR, mock secret
-8. **Build Busola** → Run Busola setup script
-9. **Run tests** → Execute Cypress with `CYPRESS_DOMAIN=http://localhost:3001`
+## CI/CD Workflow Integration
 
-## Local Testing
+Tests run automatically in GitHub Actions on pull requests that modify:
+- `config/busola-extension/**` - Extension ConfigMap changes
+- `busola-tests/**` - Test scenario changes
+- `config/crd/**` - BtpOperator CRD changes
+- `examples/btp-operator.yaml` - CR definition changes
 
-### Quick Start (recommended)
+**Workflow Steps** (see [.github/workflows/btp-operator-e2e.yaml](../.github/workflows/btp-operator-e2e.yaml)):
 
-Use the automated script:
+1. **Setup Environment**
+   - Checkout `btp-manager` repository
+   - Checkout `busola` repository (latest main branch)
+   - Install k3d v5.8.3, setup Node.js 24 with npm cache
 
+2. **Create Isolated Cluster**
+   - `k3d cluster create kyma --agents 1 --port 80:80 --port 443:443`
+   - Install BtpOperator CRD from `config/crd/bases/`
+   - Install SAP BTP Service Operator CRDs from `module-chart/chart/templates/crd.yml`
+   - Create `kyma-system` namespace
+   - Apply BtpOperator CR from `examples/btp-operator.yaml`
+   - Apply mock secret from `busola-tests/fixtures/mock-btp-secret.yaml`
+
+3. **Inject Test Files**
+   - Copy extension ConfigMap to Busola fixtures
+   - Copy test spec to Busola tests directory
+   - Update `cypress.config.js` to include test spec (Python-based injection)
+
+4. **Run Tests**
+   - Build Busola with `.github/scripts/setup_local_busola.sh`
+   - Generate kubeconfig for cluster
+   - Execute Cypress: `npx cypress run --spec "tests/ext-test-btp-operator.spec.js"`
+
+5. **Collect Artifacts** (on failure)
+   - Upload Cypress videos (7-day retention)
+   - Upload Cypress screenshots (7-day retention)
+   - Upload Busola logs (7-day retention)
+
+**Benefits:**
+- No external cluster dependencies
+- Consistent test environment
+- Fast feedback on PRs (~10-15 minutes)
+- Full artifact collection for debugging
+
+## Local Testing Workflow
+
+### Prerequisites
+
+Before running tests locally, ensure you have:
+
+- **k3d** (v5.6.0+) - [Installation guide](https://k3d.io/#installation)
+- **kubectl** - Kubernetes CLI
+- **Node.js** (v18+) and npm
+- **Python 3** - For config file manipulation
+- **Chrome browser** - Cypress default
+
+### First-Time Setup
+
+1. **Clone Busola** (if not already cloned):
+   ```bash
+   cd /Users/I767610/Documents/repositories
+   git clone https://github.com/kyma-project/busola.git
+   cd btp-manager
+   ```
+
+2. **Run tests**:
+   ```bash
+   ./busola-tests/run-local-test.sh --cleanup
+   ```
+
+That's it! The script handles everything else automatically.
+
+### Development Workflow
+
+**Option 1: Full automated run** (recommended for CI validation)
 ```bash
-# Full run with automatic cleanup
 ./busola-tests/run-local-test.sh --cleanup
+```
+- Creates fresh cluster
+- Installs all prerequisites
+- Builds Busola
+- Runs tests headlessly
+- Cleans up cluster
 
-# Interactive mode (opens Cypress GUI)
+**Option 2: Interactive debugging** (recommended for test development)
+```bash
+# First run - setup everything
 ./busola-tests/run-local-test.sh --interactive
 
-# Quick rerun (if cluster and Busola already running)
+# In Cypress GUI:
+# - Select test file
+# - Run with live reload
+# - Inspect each step
+
+# After changes - quick rerun (reuses cluster & Busola)
 ./busola-tests/run-local-test.sh --skip-cluster --skip-busola --headed
 ```
 
-**Script options:**
-- `--busola-path PATH` - Path to busola repo (default: ../busola)
-- `--skip-cluster` - Skip k3d cluster creation
-- `--skip-busola` - Skip Busola build and start
-- `--headed` - Run Cypress in headed mode (visible browser)
-- `--interactive` - Open Cypress GUI
-- `--cleanup` - Cleanup k3d cluster after tests
-- `-h, --help` - Show help
+**Option 3: Watch mode** (recommended for extension development)
+```bash
+# Terminal 1: Keep cluster running
+./busola-tests/run-local-test.sh --interactive
+# Keep Cypress GUI open
 
-### Manual Setup
+# Terminal 2: Make changes to extension
+vim config/busola-extension/sap-btp-operator-extension.yaml
+
+# Terminal 3: Reapply and retest
+kubectl apply -f config/busola-extension/sap-btp-operator-extension.yaml
+# Rerun test in Cypress GUI
+```
+
+### What the Script Does
+
+The `run-local-test.sh` script automates these steps:
+
+1. **Cluster Setup**
+   - Creates k3d cluster named `kyma` with port forwarding (80, 443)
+   - Or reuses existing cluster (with `--skip-cluster`)
+
+2. **Prerequisites Installation**
+   - Creates `kyma-system` namespace
+   - Installs BtpOperator CRD (`operator.kyma-project.io/btpoperators`)
+   - Installs SAP BTP Service Operator CRDs (`services.cloud.sap.com/serviceinstances`, `servicebindings`)
+   - Creates BtpOperator CR named `btpoperator`
+   - Applies mock BTP secret with test credentials
+
+3. **Busola Setup**
+   - Checks if Busola is running on `http://localhost:3001`
+   - If not, builds and starts Busola (via `.github/scripts/setup_local_busola.sh`)
+   - Or skips build (with `--skip-busola`)
+
+4. **Test Injection**
+   - Copies extension ConfigMap to Busola fixtures
+   - Copies test spec to Busola tests directory
+   - Updates `cypress.config.js` specPattern array (Python-based)
+
+5. **Test Execution**
+   - Generates kubeconfig from k3d cluster
+   - Runs Cypress in selected mode (headless/headed/interactive)
+   - Collects videos and screenshots on failure
+
+6. **Cleanup** (optional)
+   - Deletes k3d cluster (with `--cleanup` flag)
+
+### Advanced: Manual Step-by-Step
+
+If you need to run steps individually (e.g., for debugging the script itself):
 
 ```bash
-# 1. Create k3d cluster
+# 1. Create cluster
 k3d cluster create kyma --agents 1 --port 80:80@loadbalancer --port 443:443@loadbalancer
 
 # 2. Install prerequisites
 kubectl create namespace kyma-system
 kubectl apply -f config/crd/bases/operator.kyma-project.io_btpoperators.yaml
-kubectl apply -f module-chart/chart/templates/crd.yml  # ServiceInstance & ServiceBinding CRDs
+kubectl apply -f module-chart/chart/templates/crd.yml
 kubectl apply -f examples/btp-operator.yaml
 kubectl apply -f busola-tests/fixtures/mock-btp-secret.yaml
 
-# 3. Clone and setup Busola (if not already cloned)
-git clone https://github.com/kyma-project/busola.git ../busola
+# 3. Setup Busola (in busola repo)
 cd ../busola
 .github/scripts/setup_local_busola.sh &
-# Wait for Busola to start (check http://localhost:3001)
+# Wait for http://localhost:3001
 
-# 4. Inject test files using helper script
+# 4. Inject files
 cd ../btp-manager
-./busola-tests/inject-to-busola.sh ../busola
-
-# 5. Generate kubeconfig and run tests
 k3d kubeconfig get kyma > ../busola/tests/integration/fixtures/kubeconfig.yaml
+cp config/busola-extension/sap-btp-operator-extension.yaml ../busola/tests/integration/fixtures/
+cp busola-tests/ext-test-btp-operator.spec.js ../busola/tests/integration/tests/
+
+# 5. Update Cypress config
 cd ../busola/tests/integration
-npm ci
-CYPRESS_DOMAIN=http://localhost:3001 cypress run --spec "tests/ext-test-btp-operator.spec.js" --browser chrome
-
-# 6. Cleanup
-k3d cluster delete kyma
-```
-
-### Manual step-by-step
-
-```bash
-# 1. Create k3d cluster
-k3d cluster create kyma --agents 1 --port 80:80@loadbalancer --port 443:443@loadbalancer
-
-# 2. Install prerequisites
-kubectl create namespace kyma-system
-kubectl apply -k config/crd
-kubectl apply -f module-chart/chart/templates/crd.yml  # ServiceInstance & ServiceBinding CRDs
-kubectl apply -f examples/btp-operator.yaml
-kubectl apply -f busola-tests/fixtures/mock-btp-secret.yaml
-
-# 3. Clone and setup Busola
-git clone https://github.com/kyma-project/busola.git
-cd busola
-.github/scripts/setup_local_busola.sh &
-
-# Wait for Busola to start (check http://localhost:3001)
-
-# 4. Inject test files
-k3d kubeconfig get kyma > tests/integration/fixtures/kubeconfig.yaml
-cp ../config/busola-extension/sap-btp-operator-extension.yaml tests/integration/fixtures/
-cp ../busola-tests/ext-test-btp-operator.spec.js tests/integration/tests/
-
-# Add test to cypress.config.js specPattern (using Python for reliability)
 python3 -c "
 import re
-with open('tests/integration/cypress.config.js', 'r') as f:
+with open('cypress.config.js', 'r') as f:
     content = f.read()
 content = re.sub(
     r\"(tests/companion/test-companion-feedback-dialog\.spec\.js',)\",
     r\"\1\\n      'tests/ext-test-btp-operator.spec.js',\",
     content
 )
-with open('tests/integration/cypress.config.js', 'w') as f:
+with open('cypress.config.js', 'w') as f:
     f.write(content)
 "
 
-# 5. Run tests
-cd tests/integration
-npm ci
-CYPRESS_DOMAIN=http://localhost:3001 cypress run --spec "tests/ext-test-btp-operator.spec.js" --browser chrome
+# 6. Run tests
+CYPRESS_DOMAIN=http://localhost:3001 npx cypress run --spec "tests/ext-test-btp-operator.spec.js"
 
-# 6. Cleanup
+# 7. Cleanup
 k3d cluster delete kyma
 ```
 
-## Test Modification Guidelines
+## Extending Tests
 
-When modifying tests:
+When adding new test scenarios to `ext-test-btp-operator.spec.js`:
 
-1. **Use Busola test helpers**: Tests use cy.* commands from Busola's support files (login-commands.js, navigate-to.js, etc.)
-2. **Import config**: Always use `import config from '../config'` for CYPRESS_DOMAIN
-3. **Login pattern**: Use `cy.loginAndSelectCluster({fileName: 'kubeconfig.yaml'})` 
-4. **No hardcoded URLs**: All URLs should use `config.domain`
-5. **Wait times**: Use reasonable waits (avoid excessive cy.wait() calls)
-6. **Cleanup**: Tests should not leave orphaned resources
+### Code Guidelines
 
-## Prerequisites
+**1. Use Busola test utilities**
+```javascript
+import config from '../config';
+// Access config.domain instead of hardcoding URLs
 
-The following resources must exist in the cluster before tests run:
+cy.loginAndSelectCluster({fileName: 'kubeconfig.yaml'});
+// Don't navigate to URLs manually
+```
 
-- **Namespace**: `kyma-system`
-- **CRD**: `btpoperators.operator.kyma-project.io`
-- **CR**: `BtpOperator` named `btpoperator` in `kyma-system`
-- **Secret**: `sap-btp-manager` in `kyma-system` (from mock-btp-secret.yaml)
-- **CRDs**: `serviceinstances.services.cloud.sap.com`, `servicebindings.services.cloud.sap.com`
+**2. Resource navigation patterns**
+```javascript
+// Good: Use Busola's navigation commands
+cy.navigateTo('Namespaces', 'kyma-system');
+cy.clickGenericListLink('sap-btp-manager');
 
-**Note**: SAP BTP Service Operator CRDs (ServiceInstance, ServiceBinding) are installed from [module-chart/chart/templates/crd.yml](../module-chart/chart/templates/crd.yml).
+// Avoid: Direct URL navigation
+// cy.visit(`${config.domain}/cluster/kyma/namespaces/kyma-system/...`)
+```
 
-## CI/CD Artifacts
+**3. Wait strategies**
+```javascript
+// Good: Wait for specific conditions
+cy.contains('BTP Operators').should('be.visible');
+cy.get('[data-testid="status-badge"]').should('contain', 'Ready');
 
-On test failure, the workflow uploads:
-- Cypress videos: `busola/tests/integration/cypress/videos`
-- Cypress screenshots: `busola/tests/integration/cypress/screenshots`
+// Avoid: Arbitrary sleeps
+// cy.wait(5000) // Don't do this
+```
 
-Retention: 7 days
+**4. Clean up after tests**
+```javascript
+after(() => {
+  // Delete test resources
+  cy.deleteInDetails('Namespace', 'test-namespace');
+});
+```
 
-## Related Files
+### Test Structure
 
-- Extension ConfigMap: [config/busola-extension/sap-btp-operator-extension.yaml](../config/busola-extension/sap-btp-operator-extension.yaml)
-- Workflow definition: [.github/workflows/btp-operator-e2e.yaml](../.github/workflows/btp-operator-e2e.yaml)
-- BtpOperator CRD: [config/crd/bases/](../config/crd/bases/)
-- Example BtpOperator CR: [examples/btp-operator.yaml](../examples/btp-operator.yaml)
+Follow this pattern for new test cases:
+
+```javascript
+context('Feature Name', () => {
+  before(() => {
+    // Setup: Create resources
+  });
+
+  it('should validate behavior', () => {
+    // Test steps
+  });
+
+  after(() => {
+    // Cleanup: Remove test resources
+  });
+});
+```
+
+## Cluster Prerequisites
+
+The following Kubernetes resources must exist before tests run:
+
+| Resource Type | Name | Namespace | Source File |
+|--------------|------|-----------|-------------|
+| Namespace | `kyma-system` | - | created by script |
+| CRD | `btpoperators.operator.kyma-project.io` | - | [config/crd/bases/](../config/crd/bases/) |
+| CRD | `serviceinstances.services.cloud.sap.com` | - | [module-chart/chart/templates/crd.yml](../module-chart/chart/templates/crd.yml) |
+| CRD | `servicebindings.services.cloud.sap.com` | - | [module-chart/chart/templates/crd.yml](../module-chart/chart/templates/crd.yml) |
+| BtpOperator CR | `btpoperator` | `kyma-system` | [examples/btp-operator.yaml](../examples/btp-operator.yaml) |
+| Secret | `sap-btp-manager` | `kyma-system` | [busola-tests/fixtures/mock-btp-secret.yaml](fixtures/mock-btp-secret.yaml) |
+
+All prerequisites are installed automatically by `run-local-test.sh` and the CI/CD workflow.
 
 ## Troubleshooting
 
-**Test fails with "Extension not loaded"**
-- Ensure extension ConfigMap was uploaded successfully
-- Check if `kyma-system` namespace exists
-- Verify BtpOperator CR is present and in Ready state
+### Common Issues
 
-**Login fails**
-- Verify kubeconfig.yaml is in `busola/tests/integration/fixtures/`
-- Check if Busola is running on http://localhost:3001
-- Ensure k3d cluster is accessible
+**❌ "Busola not found at ../busola"**
+```bash
+# Solution: Clone Busola repository
+cd ..
+git clone https://github.com/kyma-project/busola.git
+cd btp-manager
+./busola-tests/run-local-test.sh
+```
 
-**Secret tests fail**
-- Check if mock-btp-secret.yaml was applied
-- Verify secret data is properly base64-encoded
-- Confirm secret exists in `kyma-system` namespace
+**❌ "Cluster 'kyma' already exists"**
+```bash
+# Solution: Script will auto-delete and recreate
+# Or manually delete:
+k3d cluster delete kyma
+```
 
-**Service Instance/Binding tests fail**
-- These resources may fail webhook validation in k3d (expected)
-- Tests verify UI behavior, not actual SAP BTP integration
-- Check if SAP BTP Service Operator CRDs are installed
+**❌ "Busola failed to start"**
+```bash
+# Check Busola logs
+cat ../busola/busola.log
+
+# Common issues:
+# - Port 3001 already in use: Kill process using port
+# - npm install failed: Clear busola/node_modules and retry
+# - Missing dependencies: Install Node.js 18+
+```
+
+**❌ Test fails with "Extension not loaded"**
+```bash
+# Verify extension ConfigMap exists
+kubectl get cm -n kube-public | grep btp-operator
+
+# Verify BtpOperator CR exists
+kubectl get btpoperators -A
+
+# Check Busola can see the extension (in browser):
+# http://localhost:3001 → Extensions → Should show BTP Operator
+```
+
+**❌ Test fails with "Login failed"**
+```bash
+# Verify kubeconfig was generated
+ls -la ../busola/tests/integration/fixtures/kubeconfig.yaml
+
+# Verify k3d cluster is accessible
+kubectl cluster-info
+
+# Check cluster context
+k3d kubeconfig get kyma | grep server
+# Should show: https://0.0.0.0:XXXXX
+```
+
+**❌ "Secret not found" errors**
+```bash
+# Verify mock secret exists
+kubectl get secret sap-btp-manager -n kyma-system
+
+# Reapply if missing
+kubectl apply -f busola-tests/fixtures/mock-btp-secret.yaml
+```
+
+**❌ "ServiceInstance CRD not found"**
+```bash
+# Verify SAP BTP Service Operator CRDs installed
+kubectl get crd | grep services.cloud.sap.com
+
+# Should show:
+# servicebindings.services.cloud.sap.com
+# serviceinstances.services.cloud.sap.com
+
+# Reinstall if missing
+kubectl apply -f module-chart/chart/templates/crd.yml
+```
+
+**❌ Cypress fails with timeout**
+```bash
+# Increase timeout and run in headed mode to see what's happening
+./busola-tests/run-local-test.sh --skip-cluster --skip-busola --headed
+
+# Check if elements are loading slowly
+# Look for network errors in browser console
+```
+
+### Debug Mode
+
+For detailed debugging:
+
+```bash
+# Run with headed browser to see test execution
+./busola-tests/run-local-test.sh --headed
+
+# Or use interactive mode to step through manually
+./busola-tests/run-local-test.sh --interactive
+
+# Check test artifacts after failure
+ls ../busola/tests/integration/cypress/videos/
+ls ../busola/tests/integration/cypress/screenshots/
+```
+
+### Getting Help
+
+**Check test artifacts:**
+- Videos: `busola/tests/integration/cypress/videos/`
+- Screenshots: `busola/tests/integration/cypress/screenshots/`
+- Busola logs: `busola/busola.log`
+
+**Verify environment:**
+```bash
+# Check versions
+k3d version    # Should be 5.6.0+
+kubectl version --client
+node --version  # Should be 18+
+python3 --version
+
+# Check running processes
+ps aux | grep -E "busola|k3d|cypress"
+
+# Check ports
+lsof -i :3001  # Busola
+lsof -i :6443  # k3d API server
+```
+
+## CI/CD Artifacts
+
+When tests fail in GitHub Actions, the following artifacts are uploaded for 7 days:
+
+- **Cypress Videos** - Full test execution recordings
+- **Cypress Screenshots** - Screenshots of failed assertions
+- **Busola Logs** - Console output from Busola build/startup
+
+Access artifacts from the workflow run page → "Artifacts" section.
+
+## Related Files
+
+| File | Purpose |
+|------|---------|
+| [config/busola-extension/sap-btp-operator-extension.yaml](../config/busola-extension/sap-btp-operator-extension.yaml) | Extension ConfigMap definition (UI panels, datasources, forms) |
+| [.github/workflows/btp-operator-e2e.yaml](../.github/workflows/btp-operator-e2e.yaml) | GitHub Actions workflow for automated testing |
+| [config/crd/bases/](../config/crd/bases/) | BtpOperator CRD definition |
+| [module-chart/chart/templates/crd.yml](../module-chart/chart/templates/crd.yml) | SAP BTP Service Operator CRDs (ServiceInstance, ServiceBinding) |
+| [examples/btp-operator.yaml](../examples/btp-operator.yaml) | Example BtpOperator CR used in tests |
+
+## Architecture Decision
+
+**Why k3d + Busola?**
+
+Previously, tests depended on `dev.kyma.cloud.sap` external cluster requiring:
+- `DEV_KUBECONFIG` secret management
+- Network access to dev environment
+- Coupling with external cluster state
+- Maintenance overhead when dev environment changes
+
+**New approach benefits:**
+- ✅ **Isolated**: Each test run gets fresh cluster
+- ✅ **Reproducible**: Same environment locally and in CI
+- ✅ **Fast**: No external dependencies or network latency
+- ✅ **Debuggable**: Run tests locally with `--interactive` mode
+- ✅ **Maintainable**: Single script handles all setup
+- ✅ **Cost-effective**: No permanent test cluster needed
+
+**Trade-offs:**
+- ⚠️ Tests run against mock BTP credentials (no real SAP BTP validation)
+- ⚠️ ServiceInstance/Binding creation may fail validation (expected - UI behavior is tested)
+- ⏱️ Initial Busola build takes ~5-10 minutes (cached in subsequent runs)
+
+For real SAP BTP integration testing, separate integration test suite is recommended.

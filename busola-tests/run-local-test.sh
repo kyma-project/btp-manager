@@ -196,11 +196,34 @@ fi
 # Step 4: Inject test files into Busola
 echo -e "${GREEN}[4/6] Injecting test files into Busola...${NC}"
 
-"${SCRIPT_DIR}/inject-to-busola.sh" "$BUSOLA_PATH"
+# Copy extension ConfigMap
+cp "${BTP_MANAGER_ROOT}/config/busola-extension/sap-btp-operator-extension.yaml" \
+   "${BUSOLA_PATH}/tests/integration/fixtures/"
+echo -e "${GREEN}   ✓ Extension ConfigMap copied${NC}"
 
-if [ $? -ne 0 ]; then
-  echo -e "${RED}   ✗ Failed to inject test files${NC}"
-  exit 1
+# Copy test spec
+cp "${SCRIPT_DIR}/ext-test-btp-operator.spec.js" \
+   "${BUSOLA_PATH}/tests/integration/tests/"
+echo -e "${GREEN}   ✓ Test spec copied${NC}"
+
+# Update cypress.config.js if needed
+if grep -q "tests/ext-test-btp-operator.spec.js" "${BUSOLA_PATH}/tests/integration/cypress.config.js"; then
+  echo -e "${YELLOW}   ⚠ Test already in cypress.config.js${NC}"
+else
+  python3 -c "
+import re
+config_file = '${BUSOLA_PATH}/tests/integration/cypress.config.js'
+with open(config_file, 'r') as f:
+    content = f.read()
+content = re.sub(
+    r\"(tests/companion/test-companion-feedback-dialog\.spec\.js',)\",
+    r\"\1\\n      'tests/ext-test-btp-operator.spec.js',\",
+    content
+)
+with open(config_file, 'w') as f:
+    f.write(content)
+  "
+  echo -e "${GREEN}   ✓ Test added to cypress.config.js${NC}"
 fi
 
 # Step 5: Generate kubeconfig

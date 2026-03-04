@@ -1,4 +1,4 @@
-name: BTP Operator Extension E2E Tests
+name: BTP Operator Busola Extension Tests
 
 on:
   pull_request:
