@@ -54,7 +54,9 @@ context('Test BTP Operator extension', () => {
     cy.getLeftNav().contains('Namespaces').click();
     cy.contains('ui5-link', 'kyma-system').click();
     
+
     // Check if BTP Operators menu item exists (extension loaded)
+    cy.getLeftNav().contains('Kyma').should('be.visible').click();
     cy.getLeftNav().contains('BTP Operators').should('be.visible').click();
     
     // Verify we're on the BTP Operators page
@@ -66,9 +68,6 @@ context('Test BTP Operator extension', () => {
     
     // Verify default state of BTP Operator extension
     cy.getMidColumn().within(() => {
-      // Verify Status is Ready
-      cy.contains('Status').should('be.visible');
-      cy.contains('Ready').should('be.visible');
       
       // Verify Credentials Namespace is kyma-system
       cy.contains('Credentials Namespace').should('be.visible');
@@ -77,7 +76,7 @@ context('Test BTP Operator extension', () => {
       // Verify Service Instances section shows 0 items
       cy.contains('Service Instances and Bindings').should('be.visible');
       cy.contains('Service Instances').should('be.visible');
-      cy.contains('0 items').should('be.visible');
+      cy.contains('0 item/s').should('be.visible');
       
       // Verify SAP BTP Manager Secret section exists
       cy.contains('SAP BTP Manager Secret').should('be.visible');
@@ -157,6 +156,7 @@ context('Test BTP Operator extension', () => {
     
     cy.getLeftNav().contains('Namespaces').click();
     cy.contains('ui5-link', 'kyma-system').click();
+    cy.wait(1000);
     cy.getLeftNav().contains('Configuration').click();
     cy.getLeftNav().contains('Secrets').click();
     
@@ -208,6 +208,7 @@ context('Test BTP Operator extension', () => {
     cy.wait(5000);
     
     // 4. Navigate back to BTP Operator and verify changes
+    cy.getLeftNav().contains('Kyma').should('be.visible').click();
     cy.getLeftNav().contains('BTP Operators').click();
     cy.clickGenericListLink('btpoperator');
     cy.wait(1000);

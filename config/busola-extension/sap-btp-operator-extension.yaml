@@ -165,9 +165,6 @@ data:
     body: 
       - name: SAP BTP Manager Secret
         widget: Panel
-        visibility: >-
-          $exists(metadata.labels.`operator.kyma-project.io/managed-by`) and
-          metadata.labels.`operator.kyma-project.io/managed-by` = 'kyma'
         source: '$base64decode($btpSecret().data.clientid)'
         children:
           - name: Cluster ID

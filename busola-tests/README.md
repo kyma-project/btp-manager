@@ -71,9 +71,31 @@ The test files are used in [.github/workflows/btp-operator-e2e.yaml](../.github/
 
 ## Local Testing
 
-To run tests locally:
+### Quick Start (recommended)
 
-### Quick start (using helper script)
+Use the automated script:
+
+```bash
+# Full run with automatic cleanup
+./busola-tests/run-local-test.sh --cleanup
+
+# Interactive mode (opens Cypress GUI)
+./busola-tests/run-local-test.sh --interactive
+
+# Quick rerun (if cluster and Busola already running)
+./busola-tests/run-local-test.sh --skip-cluster --skip-busola --headed
+```
+
+**Script options:**
+- `--busola-path PATH` - Path to busola repo (default: ../busola)
+- `--skip-cluster` - Skip k3d cluster creation
+- `--skip-busola` - Skip Busola build and start
+- `--headed` - Run Cypress in headed mode (visible browser)
+- `--interactive` - Open Cypress GUI
+- `--cleanup` - Cleanup k3d cluster after tests
+- `-h, --help` - Show help
+
+### Manual Setup
 
 ```bash
 # 1. Create k3d cluster
@@ -82,6 +104,7 @@ k3d cluster create kyma --agents 1 --port 80:80@loadbalancer --port 443:443@load
 # 2. Install prerequisites
 kubectl create namespace kyma-system
 kubectl apply -f config/crd/bases/operator.kyma-project.io_btpoperators.yaml
+kubectl apply -f module-chart/chart/templates/crd.yml  # ServiceInstance & ServiceBinding CRDs
 kubectl apply -f examples/btp-operator.yaml
 kubectl apply -f busola-tests/fixtures/mock-btp-secret.yaml
 
@@ -114,6 +137,7 @@ k3d cluster create kyma --agents 1 --port 80:80@loadbalancer --port 443:443@load
 # 2. Install prerequisites
 kubectl create namespace kyma-system
 kubectl apply -k config/crd
+kubectl apply -f module-chart/chart/templates/crd.yml  # ServiceInstance & ServiceBinding CRDs
 kubectl apply -f examples/btp-operator.yaml
 kubectl apply -f busola-tests/fixtures/mock-btp-secret.yaml
 
@@ -172,6 +196,8 @@ The following resources must exist in the cluster before tests run:
 - **CR**: `BtpOperator` named `btpoperator` in `kyma-system`
 - **Secret**: `sap-btp-manager` in `kyma-system` (from mock-btp-secret.yaml)
 - **CRDs**: `serviceinstances.services.cloud.sap.com`, `servicebindings.services.cloud.sap.com`
+
+**Note**: SAP BTP Service Operator CRDs (ServiceInstance, ServiceBinding) are installed from [module-chart/chart/templates/crd.yml](../module-chart/chart/templates/crd.yml).
 
 ## CI/CD Artifacts
 

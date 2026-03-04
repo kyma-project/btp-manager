@@ -55,6 +55,9 @@ jobs:
           # Install BtpOperator CRD
           kubectl apply -f btp-manager/config/crd/bases/operator.kyma-project.io_btpoperators.yaml
           
+          # Install SAP BTP Service Operator CRDs (ServiceInstance, ServiceBinding)
+          kubectl apply -f btp-manager/module-chart/chart/templates/crd.yml
+          
           # Create BtpOperator CR
           kubectl apply -f btp-manager/examples/btp-operator.yaml
           
@@ -67,6 +70,7 @@ jobs:
           echo "Installed prerequisites:"
           kubectl get btpoperators -A
           kubectl get secrets -n kyma-system
+          kubectl get crd | grep services.cloud.sap.com
 
       - name: Inject test files into Busola
         run: |
