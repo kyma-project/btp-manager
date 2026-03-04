@@ -40,7 +40,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 		GinkgoWriter.Println("--- PROCESS:", GinkgoParallelProcess(), "---")
 		secret, err := createCorrectSecretFromYaml()
 		Expect(err).To(BeNil())
-		Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+		Expect(k8sClient.Create(ctx, secret, client.FieldOwner(operatorName))).To(Succeed())
 
 		orgCaCertificateExpiration = config.CaCertificateExpiration
 		orgWebhookCertExpiration = config.WebhookCertificateExpiration

@@ -28,6 +28,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
@@ -44,7 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	// +kubebuilder:scaffold:imports
+	//+kubebuilder:scaffold:imports
 )
 
 const (
@@ -175,7 +176,9 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
 
-	metrics := btpmanagermetrics.NewMetrics()
+	testRegistry := prometheus.NewRegistry()
+	metrics := btpmanagermetrics.NewWebhookMetrics(testRegistry)
+	configMetrics := btpmanagermetrics.NewConfigMetrics(testRegistry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
@@ -184,7 +187,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		cleanupReconciler,
 		metrics,
 		[]config.WatchHandler{
-			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme()),
+			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
 	)
 
