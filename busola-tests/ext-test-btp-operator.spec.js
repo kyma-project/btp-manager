@@ -157,7 +157,6 @@ context('Test BTP Operator extension', () => {
     cy.getLeftNav().contains('Namespaces').click();
     cy.contains('ui5-link', 'kyma-system').click();
     cy.wait(1000);
-    cy.getLeftNav().contains('Configuration').click();
     cy.getLeftNav().contains('Secrets').click();
     
     cy.clickGenericListLink('sap-btp-manager');
@@ -208,7 +207,6 @@ context('Test BTP Operator extension', () => {
     cy.wait(5000);
     
     // 4. Navigate back to BTP Operator and verify changes
-    cy.getLeftNav().contains('Kyma').should('be.visible').click();
     cy.getLeftNav().contains('BTP Operators').click();
     cy.clickGenericListLink('btpoperator');
     cy.wait(1000);
@@ -279,7 +277,6 @@ spec:
     // 6. Navigate back to BTP Operator and verify counts
     cy.getLeftNav().contains('Namespaces').click();
     cy.contains('ui5-link', 'kyma-system').click();
-    cy.getLeftNav().contains('Kyma').click();
     cy.getLeftNav().contains('BTP Operators').click();
     cy.clickGenericListLink('btpoperator');
     cy.wait(1000);
