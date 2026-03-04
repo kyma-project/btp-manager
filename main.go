@@ -125,6 +125,7 @@ func main() {
 	webhookMetrics := btpmanagermetrics.NewWebhookMetrics(ctrlmetrics.Registry)
 	configMetrics := btpmanagermetrics.NewConfigMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
+	configHandler := config.NewHandler(mgr.GetClient(), scheme, configMetrics)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
@@ -132,12 +133,17 @@ func main() {
 		cleanupReconciler,
 		webhookMetrics,
 		[]config.WatchHandler{
-			config.NewHandler(mgr.GetClient(), scheme, configMetrics),
+			configHandler,
 		},
 	)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
+		os.Exit(1)
+	}
+
+	if err := mgr.Add(configHandler); err != nil {
+		setupLog.Error(err, "unable to register config handler as runnable")
 		os.Exit(1)
 	}
 

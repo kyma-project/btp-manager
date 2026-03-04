@@ -104,6 +104,22 @@ func (r *Handler) Predicates() predicate.Funcs {
 	}
 }
 
+func (r *Handler) Start(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+	cm := &corev1.ConfigMap{}
+	err := r.Get(ctx, types.NamespacedName{Name: ConfigName, Namespace: ChartNamespace}, cm)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		logger.Info("custom configuration ConfigMap not found at startup")
+		return nil
+	}
+	logger.Info("custom configuration ConfigMap found at startup, setting metric to 1")
+	r.configMetrics.ConfigMapApplied()
+	return nil
+}
+
 func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
 
