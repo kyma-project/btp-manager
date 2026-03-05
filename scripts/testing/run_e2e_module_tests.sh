@@ -326,6 +326,9 @@ waitForBtpOperatorCrReadiness
 
 echo -e "\n--- Testing EnableLimitedCache ConfigMap propagation"
 
+kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}'
+kubectl get configmap sap-btp-manager -n kyma-system -o jsonpath='{.data.EnableLimitedCache}'
+
 echo -e "\n--- Verifying default ENABLE_LIMITED_CACHE value (true) in sap-btp-operator-config ConfigMap"
 operator_limited_cache_default=$(kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}' 2>/dev/null || echo "")
 echo -e "Current ENABLE_LIMITED_CACHE in sap-btp-operator-config: ${operator_limited_cache_default}"
@@ -537,7 +540,7 @@ make undeploy
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
 kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
 
-kubectl patch secret ${SI_PARAMS_SECRET_NAME} -p '{"metadata":{"finalizers":null}}' --type=merge
+kubectl patch secret ${SI_PARAMS_SECRET_NAME} -p '{"metadata":{"finalizers":null}}' --type=merge || echo "ignoring failure during params secret patching"
 kubectl delete secret ${SI_PARAMS_SECRET_NAME} || echo "ignoring failure during params secret removal"
 
 echo -e "\n--- All objects cleaned up, test completed successfully"
