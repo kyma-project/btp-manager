@@ -537,6 +537,7 @@ kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure d
 kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
 kubectl get secret ${SI_PARAMS_SECRET_NAME} -oyaml
 
+kubectl patch secret ${SI_PARAMS_SECRET_NAME} -p '{"metadata":{"finalizers":null}}' --type=merge
 kubectl delete secret ${SI_PARAMS_SECRET_NAME} || echo "ignoring failure during params secret removal"
 
 echo -e "\n--- All objects cleaned up, test completed successfully"
