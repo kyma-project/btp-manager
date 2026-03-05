@@ -12,7 +12,7 @@ manager:
     certManager: false
   kubernetesMatchLabels:
     enabled: true
-  enable_limited_cache: true
+  enable_limited_cache: false
   priorityClassName: "btp-manager-kyma-priority"
   securityContext:
     privileged: false

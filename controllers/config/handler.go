@@ -48,7 +48,7 @@ var (
 	ResourcesPath        = "./module-resources"
 	ManagerResourcesPath = "./manager-resources"
 
-	EnableLimitedCache = "true"
+	EnableLimitedCache = "false"
 )
 
 type WatchHandler interface {

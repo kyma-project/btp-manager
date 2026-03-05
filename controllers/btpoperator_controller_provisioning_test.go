@@ -78,14 +78,14 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 			})
 
-			It("should set EnableLimitedCache to true by default in operator ConfigMap", func() {
+			It("should set EnableLimitedCache to false by default in operator ConfigMap", func() {
 				secret, err := createCorrectSecretFromYaml()
 				Expect(err).To(BeNil())
 				Expect(k8sClient.Create(ctx, secret, client.FieldOwner(operatorName))).To(Succeed())
 				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 
 				operatorConfigMap := getOperatorConfigMap()
-				Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "true"))
+				Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
 			})
 
 			Context("when EnableLimitedCache configuration is modified", func() {
@@ -99,11 +99,11 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 					config.EnableLimitedCache = originalValue
 				})
 
-				It("should set EnableLimitedCache to false in operator ConfigMap when configured", func() {
+				It("should set EnableLimitedCache to true in operator ConfigMap when configured", func() {
 
 					// set via reconciler to exercise production code path
-					createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "false"})
-					Eventually(func() string { return config.EnableLimitedCache }).Should(Equal("false"))
+					createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "true"})
+					Eventually(func() string { return config.EnableLimitedCache }).Should(Equal("true"))
 
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
@@ -111,7 +111,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 					Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
 
 					operatorConfigMap := getOperatorConfigMap()
-					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "false"))
+					Expect(operatorConfigMap.Data).To(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "true"))
 				})
 
 				It("should set EnableLimitedCache to false in operator ConfigMap when explicitly configured", func() {
