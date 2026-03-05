@@ -326,9 +326,6 @@ waitForBtpOperatorCrReadiness
 
 echo -e "\n--- Testing EnableLimitedCache ConfigMap propagation"
 
-kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}'
-kubectl get configmap sap-btp-manager -n kyma-system -o jsonpath='{.data.EnableLimitedCache}'
-
 echo -e "\n--- Verifying default ENABLE_LIMITED_CACHE value (true) in sap-btp-operator-config ConfigMap"
 operator_limited_cache_default=$(kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}' 2>/dev/null || echo "")
 echo -e "Current ENABLE_LIMITED_CACHE in sap-btp-operator-config: ${operator_limited_cache_default}"
