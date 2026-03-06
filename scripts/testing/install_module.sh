@@ -5,6 +5,10 @@
 #     - credentials mode, allowed values (required):
 #         dummy - dummy credentials passed
 #         real - real credentials passed
+#     - EnableLimitedCache in configmap, allowed values (optional):
+#         true - cache enabled
+#         false - cache disabled
+#         when not set, config map is not patched, default value is used
 # ./install_module.sh europe-docker.pkg.dev/kyma-project/dev/btp-manager:PR-999 real
 
 # The script requires the following environment variables if is called with "real" parameter - these should be real credentials base64 encoded:
@@ -12,6 +16,8 @@
 #      SM_CLIENT_SECRET - client secret
 #      SM_URL - service manager url
 #      SM_TOKEN_URL - token url
+
+LIMIT_CACHE=${3}
 
 # standard bash error handling
 set -o nounset  # treat unset variables as an error and exit immediately.
@@ -26,6 +32,9 @@ YAML_DIR="scripts/testing/yaml"
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
 
+# creating empty configmap - all settings default
+kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+
 # creating secret
 if [[ "${CREDENTIALS}" == "real" ]]
 then
@@ -33,8 +42,23 @@ then
   envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 else
   # shortening HardDeleteTimeout to make cleanup faster
-  kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"HardDeleteTimeout":"10s"}}'
+  kubectl get configmap sap-btp-manager -n kyma-system -ojson | jq '.data.HardDeleteTimeout' | xargs -I{} echo "HardDeleteTimeout is set to {}"
   kubectl apply -f ./examples/btp-manager-secret.yaml
+fi
+
+if [[ -n "${LIMIT_CACHE}" ]]
+then
+  if [[ "${LIMIT_CACHE}" != "true" && "${LIMIT_CACHE}" != "false" ]]
+  then
+    echo "Invalid value for EnableLimitedCache - allowed values are true or false - failing test"
+    exit 1
+  fi
+  echo -e "\n--- Setting EnableLimitedCache=${LIMIT_CACHE} in configmap"
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p "{\"data\":{\"EnableLimitedCache\":\"${LIMIT_CACHE}\"}}"
+  kubectl get configmap sap-btp-manager -ojsonpath='{.data.EnableLimitedCache}' -n kyma-system | xargs -I{} echo "EnableLimitedCache is set to {}"
+else
+  echo "EnableLimitedCache not set, using default value"
 fi
 
 echo -e "\n--- Deploying module with image: ${IMAGE_NAME} - invoking make"

@@ -3,35 +3,63 @@
 ## Auto Update Chart and Resources
 
 The workflow performs the following actions:
+
 - Updates the chart (`module-chart/chart`) to the latest version
-- Uploads the operand's container images to the Kyma container images repository (`europe-docker.pkg.dev/kyma-project/prod`)
+- Uploads the operand's container images to the Kyma container images repository (
+  `europe-docker.pkg.dev/kyma-project/prod`)
 - Renders the resource templates from the newest chart
 - Creates a PR with the changes.
- 
-The created pull request requires a manual approval. All GitHub checks are triggered on the pull request. The workflow works on the following shell scripts:
 
-- `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator), from the release tagged as `latest` and places it in the `module-chart/chart`. 
+The created pull request requires a manual approval. All GitHub checks are triggered on the pull request. The workflow
+works on the following shell scripts:
 
-- `update-external-images.sh` - updates `external-images.yaml`, which lists the operand's container images for uploading to the Kyma container images repository. The script extracts images from `module-chart/chart/values.yaml` by searching for the **repository** and **tag** fields.
+- `make-module-chart.sh` - downloads the chart from the [upstream](https://github.com/SAP/sap-btp-service-operator),
+  from the release tagged as `latest` and places it in the `module-chart/chart`.
 
-After both scripts run, the workflow creates a pull request that is auto-merged into the `main` branch. Only a limited subset of GitHub checks is executed. The merge commit triggers the [sync-external-images](../../.github/workflows/sync-external-images.yaml) workflow, which runs the image-syncer tool to upload the operand's container images into the Kyma container images repository.
-	
-- `make-module-resources.sh` - uses Helm to render Kubernetes resources templates. As a base, it takes a chart from the `module-chart/chart` and values to [override](../../module-chart/overrides.yaml). After Helm finishes templating with the applied overrides, the generated resources are put into `module-resources/apply`. The script removes all container images for the operator from the chart's [deployment manifest](../../module-resources/apply/deployment.yml). The operator sets the container images dynamically by reading [environment variables with container images](../../config/manager/set_external_images.yaml). The resources used in the previous version but not used in the new version are placed under `module-resource/delete`.
-During the process of iterating over the `sap-btp-service-operator` resources, the script also keeps track of the GVKs to generate RBAC rules in [`btpoperator_controller.go`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/controllers/btpoperator_controller.go#L135-L146), which feeds into RBAC **ClusterRole** in the [`role.yaml`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/config/rbac/role.yaml#L1) resource kept in sync with `make manifests` just like any standard [kubebuilder operator](https://book-v2.book.kubebuilder.io/reference/markers/rbac.html). The script excludes all resources with a Helm hook "pre-delete" as it is not necessary to apply it. Additionally, all excluded resources are added to the `module-resources/excluded` folder, where you can see what was excluded.
+- `update-external-images.sh` - updates `external-images.yaml`, which lists the operand's container images for uploading
+  to the Kyma container images repository. The script extracts images from `module-chart/chart/values.yaml` by searching
+  for the **repository** and **tag** fields.
 
-- `add_module_managed_images_envs.sh` - sets container images environment variables in [`set_external_images.yaml`](../../config/manager/set_external_images.yaml) based on `external-images.yaml`. The script has strict definitions of environment variables and container images and requires manual adjustments when new container images appear in the upstream chart.
- 
+After both scripts run, the workflow creates a pull request that is auto-merged into the `main` branch. Only a limited
+subset of GitHub checks is executed. The merge commit triggers
+the [sync-external-images](../../.github/workflows/sync-external-images.yaml) workflow, which runs the Image Syncer tool
+to upload the operand's container images into the Kyma container images repository.
+
+- `make-module-resources.sh` - uses Helm to render Kubernetes resources templates. As a base, it takes a chart from the
+  `module-chart/chart` and values to [override](../../module-chart/overrides.yaml). After Helm finishes templating with
+  the applied overrides, the generated resources are put into `module-resources/apply`. The script removes all container
+  images for the operator from the chart's [deployment manifest](../../module-resources/apply/deployment.yml). The
+  operator dynamically sets the container images by
+  reading [environment variables with container images](../../config/manager/set_external_images.yaml). The resources
+  used in the previous version but not used in the new version are placed under `module-resource/delete`.
+  While iterating over the `sap-btp-service-operator` resources, the script also keeps track of the GVKs
+  to generate RBAC rules in [
+  `btpoperator_controller.go`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/controllers/btpoperator_controller.go#L135-L146),
+  which feeds into RBAC **ClusterRole** in the [
+  `role.yaml`](https://github.com/kyma-project/btp-manager/blob/5a8420347c6a526f158fde7c41c3842eb54e2fda/config/rbac/role.yaml#L1)
+  resource kept in sync with `make manifests` just like any
+  standard [kubebuilder operator](https://book-v2.book.kubebuilder.io/reference/markers/rbac.html). The script excludes
+  all resources with a Helm hook "pre-delete" as it is not necessary to apply it. Additionally, all excluded resources
+  are added to the `module-resources/excluded` folder, where you can see what was excluded.
+
+- `add_module_managed_images_envs.sh` - sets container images environment variables in [
+  `set_external_images.yaml`](../../config/manager/set_external_images.yaml) based on `external-images.yaml`. The script
+  has strict definitions of environment variables and container images and requires manual adjustments when new
+  container images appear in the upstream chart.
+
 All these scripts can be triggered manually from the developer's computer.
 
-To keep `module-chart/chart` in sync with the [upstream](https://github.com/SAP/sap-btp-service-operator), you must not apply any manual changes there.
+To keep `module-chart/chart` in sync with the [upstream](https://github.com/SAP/sap-btp-service-operator), you must not
+apply any manual changes there.
 
 ## Release Workflow
 
 See [BTP Manager Release Pipeline](03-10-release.md) to learn more about the release workflow.
 
-## E2E Tests Workflow 
+## E2E Tests Workflow
 
-This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls the [`run-e2e-tests-reusable`](/.github/workflows/run-e2e-tests-reusable.yaml) workflow.
+This workflow uses the DEV artifact registry, tags the binary image and OCI module image with the PR number, and calls
+the [`run-e2e-tests-reusable`](/.github/workflows/run-e2e-tests-reusable.yaml) workflow.
 
 ## Unit Tests Workflow
 
@@ -39,7 +67,8 @@ This workflow calls the [`run-e2e-tests-reusable`](/.github/workflows/run-unit-t
 
 ## Markdown Links Check Workflow
 
-The [`markdown-link-check`](/.github/workflows/markdown-link-check.yaml) workflow is triggered daily at midnight and by each PR on the `main` branch. It checks for dead links in the repository.
+The [`markdown-link-check`](/.github/workflows/markdown-link-check.yaml) workflow is triggered daily at midnight and by
+each PR on the `main` branch. It checks for dead links in the repository.
 
 ## Govulncheck Workflow
 
@@ -47,15 +76,19 @@ The [`run-govulncheck`](/.github/workflows/run-govulncheck.yaml) workflow runs t
 
 ## Auto Merge Workflow
 
-The [`auto-merge`](/.github/workflows/auto-merge.yaml) workflow enables the auto-merge functionality on a PR that is not a draft.
+The [`auto-merge`](/.github/workflows/auto-merge.yaml) workflow enables the auto-merge functionality on a PR that is not
+a draft.
 
 ## All Checks Passed Workflow
 
-The [`pr-checks`](/.github/workflows/pr-checks.yaml) workflow checks if all jobs, except those excluded in the workflow configuration, have passed.
+The [`pr-checks`](/.github/workflows/pr-checks.yaml) workflow checks if all jobs, except those excluded in the workflow
+configuration, have passed.
 
 ## Module Catalog Protection Workflow
 
-The [`module-catalog-protection`](/.github/workflows/module-catalog-protection.yaml) workflow ensures that changes to module catalog directories (`module-chart/` and `module-resources/`) are properly restricted. The workflow is triggered when a pull request contains changes to these protected directories.
+The [`module-catalog-protection`](/.github/workflows/module-catalog-protection.yaml) workflow ensures that changes to
+module catalog directories (`module-chart/` and `module-resources/`) are properly restricted. The workflow is triggered
+when a pull request contains changes to these protected directories.
 
 ### Protection Rules
 
@@ -70,11 +103,16 @@ The [`module-catalog-protection`](/.github/workflows/module-catalog-protection.y
 
 ## E2E BTP Manager Secret Customization Test Workflow
 
-The [`run-e2e-sap-btp-manager-secret-customization-test`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml) workflow runs the E2E BTP Manager secret customization tests by calling the [`run-e2e-sap-btp-manager-secret-customization-test-reusable`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) workflow.
+The [
+`run-e2e-sap-btp-manager-secret-customization-test`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test.yaml)
+workflow runs the E2E BTP Manager secret customization tests by calling the [
+`run-e2e-sap-btp-manager-secret-customization-test-reusable`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml)
+workflow.
 
 ## Upload Release Logs as Assets Workflow
 
-The [`upload-release-logs`](/.github/workflows/upload-release-logs.yml) workflow uploads the logs from the release workflow as assets to the corresponding GitHub release. It is triggered on every published release event.
+The [`upload-release-logs`](/.github/workflows/upload-release-logs.yml) workflow uploads the logs from the release
+workflow as assets to the corresponding GitHub release. It is triggered on every published release event.
 
 The workflow performs the following steps:
 
@@ -89,7 +127,8 @@ To call any of the existing reusable workflows, you must have access to them.
 
 ### E2E Tests
 
-The [`run-e2e-tests-reusable`](/.github/workflows/run-e2e-tests-reusable.yaml) workflow runs the E2E tests on the k3s cluster. 
+The [`run-e2e-tests-reusable`](/.github/workflows/run-e2e-tests-reusable.yaml) workflow runs the E2E tests on the k3s
+cluster.
 You pass the following parameters from the calling workflow:
 
 | Parameter name        | Required | Description                                                            |
@@ -98,10 +137,11 @@ You pass the following parameters from the calling workflow:
 | **image-tag**         | yes      | Binary image tag                                                       |
 | **last-k3s-versions** | no       | Number of most recent k3s versions to be used for tests, default = `1` |
 
-
 The workflow performs the following actions:
-- Fetches the **last-k3s-versions** tag versions of k3s releases 
-- Prepares the **last-k3s-versions** k3s clusters with the Docker registries using the list of versions from the previous step
+
+- Fetches the **last-k3s-versions** tag versions of k3s releases
+- Prepares the **last-k3s-versions** k3s clusters with the Docker registries using the list of versions from the
+  previous step
 - Waits for the binary image to be ready in the registry
 - Runs the E2E tests on the clusters
 - Waits for all tests to finish
@@ -112,13 +152,16 @@ The [`run-unit-tests-reusable`](/.github/workflows/run-unit-tests-reusable.yaml)
 No parameters are passed from the calling workflow (callee).
 
 The workflow performs the following actions:
+
 - Checks out code and sets up the cache
 - Sets up the Go environment
 - Invokes `make test`
 
 ### E2E BTP Manager Secret Customization Test
 
-The [`run-e2e-sap-btp-manager-secret-customization-test-reusable`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml) workflow runs the E2E BTP Manager secret customization test on the k3s cluster.
+The [
+`run-e2e-sap-btp-manager-secret-customization-test-reusable`](/.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml)
+workflow runs the E2E BTP Manager secret customization test on the k3s cluster.
 The following parameters are required from the calling workflow:
 
 | Parameter name     | Required | Description                     |
@@ -127,6 +170,7 @@ The following parameters are required from the calling workflow:
 | **image-tag**      | yes      | Binary image tag                |
 
 The workflow performs the following actions:
+
 - Prepares the k3s cluster with the Docker registry
 - Waits for the binary image to be ready in the registry
 - Installs the module
@@ -134,15 +178,17 @@ The workflow performs the following actions:
 
 ### Performance Tests
 
-The [`run-performance-tests-reusable`](/.github/workflows/run-performance-tests-reusable.yaml) workflow runs performance tests on the k3s cluster. The following parameters are required from the calling workflow:
+The [`run-performance-tests-reusable`](/.github/workflows/run-performance-tests-reusable.yaml) workflow runs performance
+tests on the k3s cluster. The following parameters are required from the calling workflow:
 
-| Parameter name       | Required | Description                     |
-|----------------------|----------|---------------------------------|
-| **image-repo**       | yes      | Binary image registry reference |
-| **image-tag**        | yes      | Binary image tag                |
+| Parameter name       | Required | Description                                        |
+|----------------------|----------|----------------------------------------------------|
+| **image-repo**       | yes      | Binary image registry reference                    |
+| **image-tag**        | yes      | Binary image tag                                   |
 | **credentials-mode** | yes      | Specifies whether to use real or dummy credentials |
 
 The workflow performs the following actions for all jobs:
+
 - Prepares the k3s cluster with the Docker registry
 - Waits for the binary image to be ready in the registry
 - Installs the module
@@ -150,10 +196,12 @@ The workflow performs the following actions for all jobs:
 <details>
 <summary>Frequent Secret Update Test</summary>
 
-- **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` Secret is updated frequently.
+- **Purpose**: Evaluates the system's response time and reconciliation success rate when the `sap-btp-manager` Secret is
+  updated frequently.
 - **Steps**:
     - Patches the `sap-btp-manager` Secret in a loop to simulate frequent updates.
-    - Fetches metrics from `btp-manager-controller-manager` to measure average reconciliation time, reconciliation errors, and other reconciliation statistics.
+    - Fetches metrics from `btp-manager-controller-manager` to measure average reconciliation time, reconciliation
+      errors, and other reconciliation statistics.
 - **The test fails in the following conditions**:
     - Average reconciliation time exceeds the defined threshold.
     - Reconciliation errors are detected.
@@ -163,10 +211,12 @@ The workflow performs the following actions for all jobs:
 <details>
 <summary>Reconciliation After Secret Deletion Test</summary>
 
-- **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` Secret is repeatedly deleted and reapplied.
+- **Purpose**: Measures the reconciliation performance of BTP Manager when the `sap-btp-manager` Secret is repeatedly
+  deleted and reapplied.
 - **Steps**:
     - Deletes and reapplies the `sap-btp-manager` Secret in a loop to simulate different BtpOperator statuses.
-    - Fetches metrics from `btp-manager-controller-manager` to measure average and maximum reconciliation time, and counts the number of reconciliation errors.
+    - Fetches metrics from `btp-manager-controller-manager` to measure average and maximum reconciliation time, and
+      counts the number of reconciliation errors.
 - **The test fails in the following conditions**:
     - Average reconciliation time exceeds the defined threshold.
     - Reconciliation errors are detected.
@@ -176,7 +226,8 @@ The workflow performs the following actions for all jobs:
 <details>
 <summary>Reconciliation After Crash Test</summary>
 
-- **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the `btp-manager-controller-manager` deployment.
+- **Purpose**: Tests the system's recovery and reconciliation performance after scaling down and scaling up the
+  `btp-manager-controller-manager` deployment.
 - **Steps**:
     - Scales down the `btp-manager-controller-manager` deployment to simulate a crash.
     - Deletes Secrets and ConfigMaps managed by BTP Manager to simulate missing resources.
@@ -191,7 +242,8 @@ The workflow performs the following actions for all jobs:
 <details>
 <summary>Installation Duration Test</summary>
 
-- **Purpose**: Measures the time taken to install and uninstall BTP Manager and BtpOperator, and the duration of certificate generation.
+- **Purpose**: Measures the time taken to install and uninstall BTP Manager and BtpOperator, and the duration of
+  certificate generation.
 - **Steps**:
     - Installs BTP Manager and measures the installation duration.
     - Applies BtpOperator and measures the time taken to reach the `Ready` state.
@@ -202,3 +254,70 @@ The workflow performs the following actions for all jobs:
     - Certificate regeneration process does not complete within the expected time.
 
 </details>
+
+## Stress Tests
+
+Stress tests are run on the k3s cluster as a separate job.
+
+The job performs the following steps:
+
+- Prepares the k3s cluster with the Docker registry
+- Waits for the binary image to be ready in the registry
+- Installs the module with `EnableLimitedCache: true` in `btp-operator-configmap.yaml` ConfigMap to force the SAP BTP
+  service operator to use the LimitedCache feature.
+
+<details>
+<summary>Post Start-Up Check</summary>
+
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator right after
+  the start-up to ensure it is within acceptable limits.
+- **Steps**:
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
+      immediately after they start.
+    - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
+- **The test fails in the following conditions**:
+    - The threshold is exceeded.
+
+</details>
+
+<details>
+<summary>Service Instances and Service Bindings Check</summary>
+
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator after the
+  creation of a large number of service instances and service bindings.
+- **Steps**:
+    - Creates a large number of service instances and service bindings to simulate a heavy load on the system.
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
+      immediately after they start.
+    - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
+- **The test fails in the following conditions**:
+    - The threshold is exceeded.
+
+</details>
+
+<details>
+<summary>Secrets and Config Maps Check</summary>
+
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator after the
+  creation of large number of Secrets and Config Maps.
+- **Steps**:
+    - Creates a large number of Secrets and Config Maps to simulate a heavy load on the system.
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
+      immediately after they start.
+    - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
+- **The test fails in the following conditions**:
+    - The threshold is exceeded.
+
+</details>
+
+### Thresholds
+
+The thresholds are defined as repository variables and can be adjusted if needed. The thresholds are set based on the
+current performance of the SAP BTP service operator, with some margin to account for performance fluctuations. If the thresholds
+are consistently exceeded, it may indicate a performance regression that must be investigated.
+
+| Environment variable name             | Velue | Description                                                |
+|---------------------------------------|-------|------------------------------------------------------------|
+| OPERATOR_POST_STARTUP_MEM_THRESHOLD   | 24Mi  | Threshold for post start-up check                          |
+| OPERATOR_POST_INSTANCES_MEM_THRESHOLD | 75Mi  | Threshold for service instances and service bindings check |
+| OPERATOR_POST_SECRETS_MEM_THRESHOLD   | 75Mi  | Threshold for Secrets and Config Maps check                |
