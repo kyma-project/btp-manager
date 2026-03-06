@@ -269,7 +269,7 @@ The job performs the following steps:
 <details>
 <summary>Post Start-Up Check</summary>
 
-- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and SAP BTP Service Operator right after
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator right after
   the start-up to ensure it is within acceptable limits.
 - **Steps**:
     - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and SAP BTP Service Operator pods
