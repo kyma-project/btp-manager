@@ -146,8 +146,9 @@ jobs:
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh ${OPERATOR_POST_SECRETS_MEM_THRESHOLD} ${MEM_REF_URL}"
 
-      - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+      - name: Run stress test - large labeled secrets
+        run: "./scripts/testing/stress-mem-large-labeled-secrets.sh"
+
 
   run-performance-tests:
     name: Performance tests

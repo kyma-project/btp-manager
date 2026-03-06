@@ -4,7 +4,7 @@
 #
 # The script has the following arguments:
 #     - number of Config Maps and Secrets to create (default: 100)
-#     - number of large (64KB) secrets to create (default: 0)
+#     - number of large (64KB) Secrets to create (default: 0)
 # Example (creates 1000 CMs and Secrets):
 #     ./stress-mem-secrets-configmaps.sh 100
 
