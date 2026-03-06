@@ -272,37 +272,37 @@ The job performs the following steps:
 - **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator right after
   the start-up to ensure it is within acceptable limits.
 - **Steps**:
-    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and SAP BTP Service Operator pods
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
       immediately after they start.
-    - Compares the fetched memory usage for SAP BTP Service Operator against predefined threshold.
+    - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
 - **The test fails in the following conditions**:
-    - The threshold is exceeded
+    - The threshold is exceeded.
 
 </details>
 
 <details>
 <summary>Service Instances and Service Bindings Check</summary>
 
-- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and SAP BTP Service Operator after the
-  creation of large number of Service Instances and Service Bindings.
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator after the
+  creation of a large number of service instances and service bindings.
 - **Steps**:
-    - Creates a large number of Service Instances and Service Bindings to simulate a heavy load on the system.
-    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and SAP BTP Service Operator pods
+    - Creates a large number of service instances and service bindings to simulate a heavy load on the system.
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
       immediately after they start.
-    - Compares the fetched memory usage for SAP BTP Service Operator against predefined threshold.
+    - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
 - **The test fails in the following conditions**:
-    - The threshold is exceeded
+    - The threshold is exceeded.
 
 </details>
 
 <details>
 <summary>Secrets and Config Maps Check</summary>
 
-- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and SAP BTP Service Operator after the
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator after the
   creation of large number of Secrets and Config Maps.
 - **Steps**:
     - Creates a large number of Secrets and Config Maps to simulate a heavy load on the system.
-    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and SAP BTP Service Operator pods
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
       immediately after they start.
     - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
 - **The test fails in the following conditions**:
