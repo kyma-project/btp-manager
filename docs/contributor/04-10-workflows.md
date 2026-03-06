@@ -267,7 +267,7 @@ The job performs the following steps:
   service operator to use the LimitedCache feature.
 
 <details>
-<summary>Post Start-up Check</summary>
+<summary>Post Start-Up Check</summary>
 
 - **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and SAP BTP Service Operator right after
   the start-up to ensure it is within acceptable limits.
