@@ -146,6 +146,9 @@ jobs:
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh ${OPERATOR_POST_SECRETS_MEM_THRESHOLD} ${MEM_REF_URL}"
 
+      - name: Testing persistence of the local file
+        run: "cat top.mem.txt"
+
   run-performance-tests:
     name: Performance tests
     needs: build-image
