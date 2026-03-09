@@ -108,6 +108,7 @@ jobs:
       OPERATOR_POST_STARTUP_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_STARTUP_MEM_THRESHOLD }}
       OPERATOR_POST_INSTANCES_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_INSTANCES_MEM_THRESHOLD }}
       OPERATOR_POST_SECRETS_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_SECRETS_MEM_THRESHOLD }}
+      OPERATOR_MEM_EXPECTED_INCREASE: ${{ vars.OPERATOR_MEM_EXPECTED_INCREASE }}
       MEM_REF_URL: ${{ vars.MEM_REF_URL }}
 
     steps:
@@ -144,11 +145,13 @@ jobs:
         run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120 100"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh ${OPERATOR_POST_SECRETS_MEM_THRESHOLD} ${MEM_REF_URL}"
+        run: "./scripts/testing/check_top.sh ${OPERATOR_MEM_EXPECTED_INCREASE}"
 
       - name: Run stress test - large labeled secrets
-        run: "./scripts/testing/stress-mem-large-labeled-secrets.sh"
+        run: "./scripts/testing/stress-mem-large-labeled-secrets.sh 16"
 
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: "./scripts/testing/check_top_increased.sh ${OPERATOR_MEM_EXPECTED_INCREASE}"
 
   run-performance-tests:
     name: Performance tests
