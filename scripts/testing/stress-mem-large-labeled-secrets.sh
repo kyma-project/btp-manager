@@ -9,6 +9,8 @@
 
 M=${1-16}
 
+YAML_DIR=./scripts/testing/yaml
+
 echo -e "\n---Creating ${M} large and labeled Secrets"
 for ((i=1; i <= M ; i++))
 do
