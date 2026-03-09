@@ -23,4 +23,4 @@ done
 
 ./scripts/testing/check_pod_restarts.sh
 
-sleep 60
+sleep 10
