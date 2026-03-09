@@ -501,6 +501,7 @@ if [[ "${CREDENTIALS}" != "real" ]]
 then
   echo -e "\n--- Creating sap-btp-manager configmap with HardDeleteTimeout 10s"
   kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"HardDeleteTimeout":"10s"}}'
 fi
 
 echo -e "\n--- Adding force delete label"
@@ -535,6 +536,8 @@ make undeploy
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
 kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
+
+kubectl patch secret ${SI_PARAMS_SECRET_NAME} -p '{"metadata":{"finalizers":null}}' --type=merge || echo "ignoring failure during params secret patching"
 kubectl delete secret ${SI_PARAMS_SECRET_NAME} || echo "ignoring failure during params secret removal"
 
 echo -e "\n--- All objects cleaned up, test completed successfully"
