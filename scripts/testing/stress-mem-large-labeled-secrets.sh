@@ -16,7 +16,7 @@ do
 
   export SECRET_NAME
 
-  envsubst <large.labeled.secret.tmpl.yaml | kubectl apply -f - >/dev/null
+  envsubst <${YAML_DIR}/large.labeled.secret.tmpl.yaml | kubectl apply -f - >/dev/null
 done
 
 ./scripts/testing/check_pod_restarts.sh
