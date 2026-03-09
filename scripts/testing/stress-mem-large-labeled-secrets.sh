@@ -8,6 +8,7 @@
 #     ./stress-mem-large-labeled-secrets-configmaps.sh 10
 
 M=${1-16}
+YAML_DIR=./scripts/testing/yaml
 
 echo -e "\n---Creating ${M} large and labeled Secrets"
 for ((i=1; i <= M ; i++))
@@ -16,7 +17,10 @@ do
 
   export SECRET_NAME
 
-  envsubst <large.labeled.secret.yaml | kubectl apply -f - >/dev/null
+  envsubst <${YAML_DIR}/large.labeled.secret.tmpl.yaml | kubectl apply -f - >/dev/null
 done
+
+# Give the cluster some time to react to the new secrets (cache these) and potentially restart pods if OOM occurs. Then check for restarts.
+sleep 60
 
 ./scripts/testing/check_pod_restarts.sh
