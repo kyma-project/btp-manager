@@ -21,6 +21,6 @@ do
 done
 
 # Give the cluster some time to react to the new secrets (cache these) and potentially restart pods if OOM occurs. Then check for restarts.
-sleep 60
+sleep 10
 
 ./scripts/testing/check_pod_restarts.sh
