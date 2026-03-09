@@ -30,8 +30,6 @@ measure_pod_resources app.kubernetes.io/component=btp-manager.kyma-project.io
 echo -e "\n--- BTP Operator checking kubectl top" 
 measure_pod_resources app.kubernetes.io/name=sap-btp-operator| tee fin.mem.txt
 
-set -x
-
 OPERATOR_MEM=$( awk '/sap-btp-operator-controller-manager.*manager/{print $4}' <top.mem.txt | sed 's/Mi//')
 FIN_OPERATOR_MEM=$( awk '/sap-btp-operator-controller-manager.*manager/{print $4}' <fin.mem.txt | sed 's/Mi//')
 
