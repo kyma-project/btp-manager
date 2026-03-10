@@ -36,8 +36,8 @@ FIN_OPERATOR_MEM=$( awk '/sap-btp-operator-controller-manager.*manager/{print $4
 TARGET_MEM=$((OPERATOR_MEM + MEM_INCREASE))
 
 if [ -n "$OPERATOR_MEM" ] && [ -n "$FIN_OPERATOR_MEM" ] && [ "$FIN_OPERATOR_MEM" -ge "$TARGET_MEM" ]; then
-     echo "Memory usage of BTP Operator is within the expected limit: ${FIN_OPERATOR_MEM}Mi >= ${TARGET_MEM}Mi"
+     echo "Memory usage of BTP Operator exceeded expected level: ${FIN_OPERATOR_MEM}Mi >= ${TARGET_MEM}Mi"
 else
-     echo "Memory usage of BTP Operator does not exceed the expected limit: ${FIN_OPERATOR_MEM}Mi < ${TARGET_MEM}Mi"
+     echo "Memory usage of BTP Operator did not exceed the expected level: ${FIN_OPERATOR_MEM}Mi < ${TARGET_MEM}Mi"
      exit 1
 fi
