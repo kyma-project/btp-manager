@@ -269,7 +269,8 @@ The job performs the following steps:
 <details>
 <summary>Post Start-Up Check</summary>
 
-- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator right after
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator right
+  after
   the start-up to ensure it is within acceptable limits.
 - **Steps**:
     - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
@@ -287,8 +288,8 @@ The job performs the following steps:
   creation of a large number of service instances and service bindings.
 - **Steps**:
     - Creates a large number of service instances and service bindings to simulate a heavy load on the system.
-    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
-      immediately after they start.
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator
+      Pods.
     - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
 - **The test fails in the following conditions**:
     - The threshold is exceeded.
@@ -302,18 +303,39 @@ The job performs the following steps:
   creation of large number of Secrets and Config Maps.
 - **Steps**:
     - Creates a large number of Secrets and Config Maps to simulate a heavy load on the system.
-    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods
-      immediately after they start.
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator
+      Pods.
     - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
 - **The test fails in the following conditions**:
     - The threshold is exceeded.
 
 </details>
 
+<details>
+<summary>Large Labeled Secrets Check</summary>
+
+- **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator after the
+  creation of large number of labeled Secrets. Labeled secrets are cached by the SAP BTP service operator when the
+  LimitedCache feature is enabled, which can lead to an increase in memory usage. This test simulates this scenario to
+  ensure that the memory usage remains within acceptable limits.
+- **Steps**:
+    - Creates additional large labeled Secrets (64KB each) to simulate the memory footprint increase when the operator
+      watches labeled resources.
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator
+      Pods.
+    - Compares the fetched memory usage for the SAP BTP service operator against the value from previous step.
+- **Memory footprint is expected to increase** after the creation of large labeled Secrets, as the SAP BTP service
+  operator caches these resources when using the LimitedCache feature.
+- **The test fails in the following conditions**:
+    - The footprint does not increase.
+
+</details>
+
 ### Thresholds
 
 The thresholds are defined as repository variables and can be adjusted if needed. The thresholds are set based on the
-current performance of the SAP BTP service operator, with some margin to account for performance fluctuations. If the thresholds
+current performance of the SAP BTP service operator, with some margin to account for performance fluctuations. If the
+thresholds
 are consistently exceeded, it may indicate a performance regression that must be investigated.
 
 | Environment variable name             | Velue | Description                                                |
@@ -321,3 +343,4 @@ are consistently exceeded, it may indicate a performance regression that must be
 | OPERATOR_POST_STARTUP_MEM_THRESHOLD   | 24Mi  | Threshold for post start-up check                          |
 | OPERATOR_POST_INSTANCES_MEM_THRESHOLD | 75Mi  | Threshold for service instances and service bindings check |
 | OPERATOR_POST_SECRETS_MEM_THRESHOLD   | 75Mi  | Threshold for Secrets and Config Maps check                |
+| OPERATOR_MEM_EXPECTED_INCREASE        | 1Mi   | Expected amount of memory consumed by the cache            |
