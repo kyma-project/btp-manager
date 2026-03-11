@@ -324,7 +324,8 @@ The job performs the following steps:
     - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator
       Pods.
     - Compares the fetched memory usage for the SAP BTP service operator against the value from the previous step.
-- **Memory footprint is expected to increase** after the creation of large labeled Secrets, as the SAP BTP service
+- **Expected result**:
+   - Memory footprint increases after creating large labeled Secrets, as the SAP BTP service
   operator caches these resources when using the LimitedCache feature.
 - **The test fails in the following conditions**:
     - The footprint does not increase.
