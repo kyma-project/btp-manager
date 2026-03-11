@@ -287,8 +287,7 @@ The job performs the following steps:
   creation of a large number of service instances and service bindings.
 - **Steps**:
     - Creates a large number of service instances and service bindings to simulate a heavy load on the system.
-    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator
-      Pods.
+    - Invokes kubectl top command to fetch the CPU and memory usage of BTP Manager and the SAP BTP service operator Pods.
     - Compares the fetched memory usage for the SAP BTP service operator against a predefined threshold.
 - **The test fails in the following conditions**:
     - The threshold is exceeded.
