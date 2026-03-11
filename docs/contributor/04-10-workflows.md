@@ -315,7 +315,7 @@ The job performs the following steps:
 <summary>Large Labeled Secrets Check</summary>
 
 - **Purpose**: Check the resource consumption (CPU and memory) of BTP Manager and the SAP BTP service operator after the
-  creation of large number of labeled Secrets. Labeled secrets are cached by the SAP BTP service operator when the
+  creation of a large number of labeled Secrets. Labeled secrets are cached by the SAP BTP service operator when the
   LimitedCache feature is enabled, which can lead to an increase in memory usage. This test simulates this scenario to
   ensure that the memory usage remains within acceptable limits.
 - **Steps**:
