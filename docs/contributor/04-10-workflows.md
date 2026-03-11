@@ -335,8 +335,7 @@ The job performs the following steps:
 ### Thresholds
 
 The thresholds are defined as repository variables and can be adjusted if needed. The thresholds are set based on the
-current performance of the SAP BTP service operator, with some margin to account for performance fluctuations. If the
-thresholds
+current performance of the SAP BTP service operator, with some margin to account for performance fluctuations. If the thresholds
 are consistently exceeded, it may indicate a performance regression that must be investigated.
 
 | Environment variable name             | Velue | Description                                                |
