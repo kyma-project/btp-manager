@@ -1,0 +1,167 @@
+name: BTP Operator Busola Extension Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'config/busola-extension/**'
+      - 'busola-tests/**'
+      - 'config/crd/**'
+      - 'examples/btp-operator.yaml'
+      - '.github/workflows/btp-operator-e2e.yaml'
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout btp-manager
+        uses: actions/checkout@v4
+        with:
+          path: btp-manager
+
+      - name: Create k3d cluster
+        uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 #v2.4.0
+        with:
+          cluster-name: 'kyma'
+          k3d-version: v5.8.3
+          args: >-
+            --agents 1
+            --port 80:80@loadbalancer
+            --port 443:443@loadbalancer
+            --wait
+
+      - name: Checkout Busola
+        uses: actions/checkout@v4
+        with:
+          repository: kyma-project/busola
+          ref: main
+          path: busola
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: busola/tests/integration/package-lock.json
+
+      - name: Install BTP Operator prerequisites
+        run: |
+          # Create kyma-system namespace
+          kubectl create namespace kyma-system
+          
+          # Install BtpOperator CRD
+          kubectl apply -f btp-manager/config/crd/bases/operator.kyma-project.io_btpoperators.yaml
+          
+          # Install SAP BTP Service Operator CRDs (ServiceInstance, ServiceBinding)
+          kubectl apply -f btp-manager/module-chart/chart/templates/crd.yml
+          
+          # Create BtpOperator CR
+          kubectl apply -f btp-manager/examples/btp-operator.yaml
+          
+          # Create mock BTP secret
+          kubectl apply -f btp-manager/busola-tests/fixtures/mock-btp-secret.yaml
+          
+          # Wait for resources to be ready
+          kubectl wait --for=condition=Ready btpoperator/btpoperator -n kyma-system --timeout=60s || true
+          
+          echo "Installed prerequisites:"
+          kubectl get btpoperators -A
+          kubectl get secrets -n kyma-system
+          kubectl get crd | grep services.cloud.sap.com
+
+      - name: Inject test files into Busola
+        run: |
+          # Copy extension ConfigMap to Busola fixtures
+          cp btp-manager/config/busola-extension/sap-btp-operator-extension.yaml \
+             busola/tests/integration/fixtures/
+          
+          # Copy test spec to Busola tests
+          cp btp-manager/busola-tests/ext-test-btp-operator.spec.js \
+             busola/tests/integration/tests/
+          
+          # Add test to cypress.config.js specPattern
+          python3 -c "
+          import re
+          with open('busola/tests/integration/cypress.config.js', 'r') as f:
+              content = f.read()
+          # Add our test after companion-feedback-dialog test
+          content = re.sub(
+              r\"(tests/companion/test-companion-feedback-dialog\.spec\.js',)\",
+              r\"\1\\n      'tests/ext-test-btp-operator.spec.js',\",
+              content
+          )
+          with open('busola/tests/integration/cypress.config.js', 'w') as f:
+              f.write(content)
+          "
+          
+          echo "Injected files:"
+          ls -la busola/tests/integration/fixtures/ | grep sap-btp
+          ls -la busola/tests/integration/tests/ | grep ext-test-btp
+          echo "Updated cypress.config.js specPattern"
+          grep -A 2 "ext-test-btp-operator" busola/tests/integration/cypress.config.js || echo "Warning: Test not found in config"
+
+      - name: Build and start Busola
+        run: |
+          cd busola
+          .github/scripts/setup_local_busola.sh > busola.log 2>&1
+          echo "Busola setup completed"
+          
+          # Verify Busola is running
+          if curl -s http://localhost:3001 > /dev/null; then
+            echo "✓ Busola is running on http://localhost:3001"
+          else
+            echo "✗ Busola failed to start"
+            cat busola.log
+            exit 1
+          fi
+
+      - name: Generate kubeconfig for tests
+        run: |
+          k3d kubeconfig get kyma > busola/tests/integration/fixtures/kubeconfig.yaml
+          echo "Kubeconfig generated"
+
+      - name: Run Cypress E2E tests
+        run: |
+          cd busola/tests/integration
+          npm ci
+          
+          # Verify test file exists
+          if [ ! -f "tests/ext-test-btp-operator.spec.js" ]; then
+            echo "Error: Test file not found!"
+            exit 1
+          fi
+          
+          # Run Cypress tests
+          npx cypress run --spec "tests/ext-test-btp-operator.spec.js" --browser chrome
+        env:
+          CYPRESS_DOMAIN: http://localhost:3001
+
+      - name: Upload test videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos
+          path: busola/tests/integration/cypress/videos/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots
+          path: busola/tests/integration/cypress/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Busola logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: busola-logs
+          path: busola/busola.log
+          if-no-files-found: ignore
+          retention-days: 7
