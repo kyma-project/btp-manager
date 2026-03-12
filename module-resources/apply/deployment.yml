@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: f010b32851d7317a764107493b176e5182f402772ae5154ff77c7179a69a07e7
+        checksum/config: 5966cb0a562766d5c1c1367611d073b575ae080d988247e464c51fe0044de58f
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
@@ -36,34 +36,12 @@ spec:
           type: RuntimeDefault
       containers:
         - args:
-            - --secure-listen-address=0.0.0.0:8443
-            - --upstream=http://127.0.0.1:8080/
-            - --logtostderr=true
-            - --v=10
-          image: ""
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            privileged: false
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-          name: kube-rbac-proxy
-          resources:
-            limits:
-            requests:
-          ports:
-            - containerPort: 8443
-              name: https
-        - args:
-            - --metrics-addr=127.0.0.1:8080
             - --logger_use_dev_mode=true
           command:
             - /manager
           env:
             - name: APP_VERSION
-              value: "v0.10.2"
+              value: "v0.10.3"
             - name: GODEBUG
               value: "fips140=only,tlsmlkem=0"
           envFrom:
@@ -86,6 +64,9 @@ spec:
           ports:
             - containerPort: 9443
               name: webhook-server
+              protocol: TCP
+            - containerPort: 8080
+              name: metrics
               protocol: TCP
           livenessProbe:
             httpGet:
