@@ -41,7 +41,7 @@ type SecretClient interface {
 	Writer
 }
 
-type Manager interface {
+type Getter interface {
 	// GetRequiredSecret retrieves the required sap-btp-manager secret.
 	// Returns an error if the secret is not found.
 	GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
@@ -61,6 +61,10 @@ type Manager interface {
 	// GetSapBtpServiceOperatorClusterIdSecret retrieves the cluster ID secret.
 	// Returns nil if no matching secret is found.
 	GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error)
+}
+
+type Manager interface {
+	Getter
 }
 
 type manager struct {
