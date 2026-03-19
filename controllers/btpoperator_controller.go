@@ -400,7 +400,6 @@ func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.
 	return r.secretsManager.GetRequiredSecret(ctx)
 }
 
-
 func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
 }

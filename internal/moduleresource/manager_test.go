@@ -80,23 +80,6 @@ var _ = Describe("Module Resource Manager", func() {
 		manager = NewManager(fakeClient, scheme, secretsManager)
 	})
 
-	Describe("read required secret", func() {
-		It("should return error when required secret does not exist", func() {
-			secret, err := manager.GetRequiredSecret(context.Background())
-			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
-			Expect(secret).To(BeNil())
-		})
-
-		It("should get required secret", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.GetRequiredSecret(context.Background())
-
-			Expect(err).To(BeNil())
-			Expect(secret.Name).To(Equal(requiredSecretName))
-			Expect(secret.Namespace).To(Equal(requiredSecretNamespace))
-		})
-	})
-
 	Describe("setup credentials context", func() {
 		var secret *corev1.Secret
 
@@ -280,9 +263,18 @@ var _ = Describe("Module Resource Manager", func() {
 			kubeRbacProxyImage  = "local.test/kyma-project/kube-rbac-proxy:v0.0.1"
 		)
 
+		var deployment *unstructured.Unstructured
+
 		BeforeEach(func() {
 			Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
 			Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpOperatorImage)).To(Succeed())
+
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			Expect(err).NotTo(HaveOccurred())
+
+			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
+			Expect(found).To(BeTrue())
+			deployment = objects[deploymentIndex]
 		})
 
 		AfterEach(func() {
@@ -291,14 +283,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should set container images for manager and kube-rbac-proxy", func() {
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
-			Expect(err).NotTo(HaveOccurred())
-
-			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
-			Expect(found).To(BeTrue())
-			deployment := objects[deploymentIndex]
-
-			err = manager.SetDeploymentImages(deployment)
+			err := manager.SetDeploymentImages(deployment)
 			Expect(err).NotTo(HaveOccurred())
 
 			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
@@ -310,6 +295,52 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(ok).To(BeTrue())
 			Expect(managerContainer["name"]).To(Equal("manager"))
 			Expect(managerContainer["image"]).To(Equal(sapBtpOperatorImage))
+
+			proxyContainer, ok := containers[1].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(proxyContainer["name"]).To(Equal("kube-rbac-proxy"))
+			Expect(proxyContainer["image"]).To(Equal(kubeRbacProxyImage))
+		})
+
+		It("should set container image only for manager", func() {
+			const oldProxyImage = "old-proxy:latest"
+			Expect(os.Unsetenv(KubeRbacProxyEnv)).To(Succeed())
+
+			err := manager.SetDeploymentImages(deployment)
+			Expect(err).NotTo(HaveOccurred())
+
+			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeTrue())
+			Expect(containers).To(HaveLen(2))
+
+			managerContainer, ok := containers[0].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(managerContainer["name"]).To(Equal("manager"))
+			Expect(managerContainer["image"]).To(Equal(sapBtpOperatorImage))
+
+			proxyContainer, ok := containers[1].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(proxyContainer["name"]).To(Equal("kube-rbac-proxy"))
+			Expect(proxyContainer["image"]).To(Equal(oldProxyImage))
+		})
+
+		It("should set container image only for kube-rbac-proxy", func() {
+			const oldManagerImage = "old-image:latest"
+			Expect(os.Unsetenv(SapBtpServiceOperatorEnv)).To(Succeed())
+
+			err := manager.SetDeploymentImages(deployment)
+			Expect(err).NotTo(HaveOccurred())
+
+			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeTrue())
+			Expect(containers).To(HaveLen(2))
+
+			managerContainer, ok := containers[0].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(managerContainer["name"]).To(Equal("manager"))
+			Expect(managerContainer["image"]).To(Equal(oldManagerImage))
 
 			proxyContainer, ok := containers[1].(map[string]interface{})
 			Expect(ok).To(BeTrue())

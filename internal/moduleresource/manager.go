@@ -88,8 +88,12 @@ func NewManager(client client.Client, scheme *runtime.Scheme, secretsManager sec
 	}
 }
 
-func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
-	return m.secretsManager.GetRequiredSecret(ctx)
+func (m *Manager) GetResourceIndexByMetadata(metadata Metadata) (int, error) {
+	index, ok := m.resourceIndices[metadata]
+	if !ok {
+		return 0, fmt.Errorf(fmt.Sprintf("%s/%s resource index does not exist", metadata.Kind, metadata.Name))
+	}
+	return index, nil
 }
 
 func (m *Manager) SetCredentialsContext(s *corev1.Secret) {
@@ -215,13 +219,17 @@ func (m *Manager) SetSecretValues(secret *corev1.Secret, u *unstructured.Unstruc
 }
 
 func (m *Manager) SetDeploymentImages(u *unstructured.Unstructured) error {
-	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
-	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
-	if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
-		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
+	sapBtpServiceOperatorImage, exists := os.LookupEnv(SapBtpServiceOperatorEnv)
+	if exists {
+		if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
+			return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
+		}
 	}
-	if err := m.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
-		return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
+	kubeRbacProxyImage, exists := os.LookupEnv(KubeRbacProxyEnv)
+	if exists {
+		if err := m.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
+			return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
+		}
 	}
 
 	return nil
