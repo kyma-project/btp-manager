@@ -35,7 +35,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/moduleresource"
-	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -530,49 +529,7 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	logger := log.FromContext(ctx)
 	logger.Info("preparing module resources to apply")
 
-	var configMapIndex, secretIndex, deploymentIndex int
-	for i, u := range resourcesToApply {
-		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
-			configMapIndex = i
-			continue
-		}
-		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
-			secretIndex = i
-			continue
-		}
-		if u.GetName() == config.DeploymentName && u.GetKind() == deploymentKind {
-			deploymentIndex = i
-			continue
-		}
-	}
-
-	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
-	if err != nil {
-		logger.Error(err, "while getting module chart version")
-		return fmt.Errorf("failed to get module chart version: %w", err)
-	}
-
-	if err := r.moduleResourceManager.AddLabels(chartVer, resourcesToApply...); err != nil {
-		logger.Error(err, "while adding labels to resources")
-		return fmt.Errorf("failed to add labels to resources: %w", err)
-	}
-	r.moduleResourceManager.SetNamespace(resourcesToApply)
-	r.moduleResourceManager.SetCredentialsContext(s)
-
-	if err := r.moduleResourceManager.SetConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
-		logger.Error(err, "while setting ConfigMap values")
-		return fmt.Errorf("failed to set ConfigMap values: %w", err)
-	}
-	if err := r.moduleResourceManager.SetSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
-		logger.Error(err, "while setting Secret values")
-		return fmt.Errorf("failed to set Secret values: %w", err)
-	}
-	if err := r.moduleResourceManager.SetDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
-		logger.Error(err, "while setting container images in Deployment")
-		return fmt.Errorf("failed to set container images in Deployment: %w", err)
-	}
-
-	return nil
+	return r.moduleResourceManager.PrepareModuleResources(resourcesToApply, s)
 }
 
 func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
