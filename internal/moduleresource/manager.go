@@ -92,12 +92,12 @@ func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 	return m.secretsManager.GetRequiredSecret(ctx)
 }
 
-func (m *Manager) setCredentialsContext(s *corev1.Secret) {
-	m.setClusterID(s)
-	m.setCredentialsNamespace(s)
+func (m *Manager) SetCredentialsContext(s *corev1.Secret) {
+	m.SetClusterID(s)
+	m.SetCredentialsNamespace(s)
 }
 
-func (m *Manager) setCredentialsNamespace(s *corev1.Secret) {
+func (m *Manager) SetCredentialsNamespace(s *corev1.Secret) {
 	credentialsNamespace := config.ChartNamespace
 	if s != nil {
 		if v, ok := s.Data[CredentialsNamespaceSecretKey]; ok && len(v) > 0 {
@@ -108,11 +108,11 @@ func (m *Manager) setCredentialsNamespace(s *corev1.Secret) {
 	m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret = credentialsNamespace
 }
 
-func (m *Manager) setClusterID(s *corev1.Secret) {
+func (m *Manager) SetClusterID(s *corev1.Secret) {
 	m.credentialsContext.clusterIdFromSapBtpManagerSecret = string(s.Data[ClusterIdSecretKey])
 }
 
-func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
+func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
 	objects, err := m.manifestHandler.CollectObjectsFromDir(manifestsDir)
 	if err != nil {
 		return nil, fmt.Errorf("while collecting objects from directory %s: %w", manifestsDir, err)
@@ -138,7 +138,7 @@ func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstr
 	}
 }
 
-func (m *Manager) addLabels(chartVersion string, us ...*unstructured.Unstructured) error {
+func (m *Manager) AddLabels(chartVersion string, us ...*unstructured.Unstructured) error {
 	for _, u := range us {
 		labels := u.GetLabels()
 		if len(labels) == 0 {
@@ -173,13 +173,13 @@ func (m *Manager) addLabelsInPodTemplate(u *unstructured.Unstructured) error {
 	return nil
 }
 
-func (m *Manager) setNamespace(us []*unstructured.Unstructured) {
+func (m *Manager) SetNamespace(us []*unstructured.Unstructured) {
 	for _, u := range us {
 		u.SetNamespace(config.ChartNamespace)
 	}
 }
 
-func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (m *Manager) SetConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	if err := unstructured.SetNestedField(u.Object, string(secret.Data[ClusterIdSecretKey]), "data", clusterIdConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set cluster_id: %w", err)
 	}
@@ -199,7 +199,7 @@ func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unst
 	return nil
 }
 
-func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (m *Manager) SetSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	u.SetNamespace(m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret)
 
 	for k := range secret.Data {
@@ -214,7 +214,7 @@ func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstruc
 	return nil
 }
 
-func (m *Manager) setDeploymentImages(u *unstructured.Unstructured) error {
+func (m *Manager) SetDeploymentImages(u *unstructured.Unstructured) error {
 	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
 	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
 	if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
@@ -258,19 +258,19 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 }
 
 func (m *Manager) applyModuleResources(ctx context.Context) error {
-	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
+	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
 	if err != nil {
 		return nil
 	}
 
-	return m.applyOrUpdateResources(ctx, objects)
+	return m.ApplyOrUpdateResources(ctx, objects)
 }
 
 func resourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
 }
 
-func (m *Manager) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (m *Manager) ApplyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	for _, u := range us {
 		if err := m.applyOrUpdateResource(ctx, u); err != nil {
 			return err
@@ -306,8 +306,8 @@ func (m *Manager) updateResource(ctx context.Context, u *unstructured.Unstructur
 	return nil
 }
 
-func (m *Manager) deleteOutdatedResources(ctx context.Context) error {
-	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
+func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
+	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
 	if err != nil {
 		return nil
 	}
@@ -334,7 +334,7 @@ func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstru
 	return nil
 }
 
-func (m *Manager) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
+func (m *Manager) WaitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	ctx, cancel := context.WithTimeout(ctx, config.ReadyTimeout)
 	defer cancel()
 

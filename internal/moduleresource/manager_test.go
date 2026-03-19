@@ -105,7 +105,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should set default credentials namespace when required secret does not contain credentials_namespace", func() {
-			manager.setCredentialsNamespace(secret)
+			manager.SetCredentialsNamespace(secret)
 
 			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(kymaNamespace))
 		})
@@ -113,7 +113,7 @@ var _ = Describe("Module Resource Manager", func() {
 		It("should set credentials namespace from required secret", func() {
 			const expectedCredentialsNamespace = "new-credentials-namespace"
 			secret.Data[CredentialsNamespaceSecretKey] = []byte(expectedCredentialsNamespace)
-			manager.setCredentialsNamespace(secret)
+			manager.SetCredentialsNamespace(secret)
 
 			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(expectedCredentialsNamespace))
 		})
@@ -121,7 +121,7 @@ var _ = Describe("Module Resource Manager", func() {
 		It("should set credentials ID from required secret", func() {
 			const expectedClusterID = "new-credentials-id"
 			secret.Data[ClusterIdSecretKey] = []byte(expectedClusterID)
-			manager.setClusterID(secret)
+			manager.SetClusterID(secret)
 
 			Expect(manager.credentialsContext.clusterIdFromSapBtpManagerSecret).To(Equal(expectedClusterID))
 		})
@@ -129,7 +129,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("create unstructured objects from manifests directory", func() {
 		It("should load and convert manifests to unstructured objects", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
@@ -155,7 +155,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should return error for non-existent directory", func() {
-			_, err := manager.createUnstructuredObjectsFromManifestsDir("./non-existent")
+			_, err := manager.CreateUnstructuredObjectsFromManifestsDir("./non-existent")
 
 			Expect(err).To(HaveOccurred())
 		})
@@ -163,11 +163,11 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("add labels", func() {
 		It("should add managed-by, chart version, and module labels to all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			chartVersion := "0.0.1"
-			Expect(manager.addLabels(chartVersion, objects...)).NotTo(HaveOccurred())
+			Expect(manager.AddLabels(chartVersion, objects...)).NotTo(HaveOccurred())
 
 			for _, obj := range objects {
 				labels := obj.GetLabels()
@@ -187,10 +187,10 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("set namespace", func() {
 		It("should set namespace in all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			manager.setNamespace(objects)
+			manager.SetNamespace(objects)
 
 			for _, obj := range objects {
 				Expect(obj.GetNamespace()).To(Equal(kymaNamespace))
@@ -225,15 +225,15 @@ var _ = Describe("Module Resource Manager", func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
 			Expect(found).To(BeTrue())
 			configmap := objects[configmapIndex]
 
-			manager.setCredentialsContext(secret)
-			err = manager.setConfigMapValues(secret, configmap)
+			manager.SetCredentialsContext(secret)
+			err = manager.SetConfigMapValues(secret, configmap)
 			Expect(err).NotTo(HaveOccurred())
 
 			data, found, err := unstructured.NestedStringMap(configmap.Object, "data")
@@ -257,9 +257,9 @@ var _ = Describe("Module Resource Manager", func() {
 			secretObj.SetName(SapBtpServiceOperatorName)
 			secretObj.SetNamespace(kymaNamespace)
 
-			manager.setCredentialsContext(secret)
+			manager.SetCredentialsContext(secret)
 
-			Expect(manager.setSecretValues(secret, secretObj)).NotTo(HaveOccurred())
+			Expect(manager.SetSecretValues(secret, secretObj)).NotTo(HaveOccurred())
 			Expect(secretObj.GetNamespace()).To(Equal(expectedCredentialsNamespace))
 
 			data, found, err := unstructured.NestedStringMap(secretObj.Object, "data")
@@ -291,14 +291,14 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should set container images for manager and kube-rbac-proxy", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
 			Expect(found).To(BeTrue())
 			deployment := objects[deploymentIndex]
 
-			err = manager.setDeploymentImages(deployment)
+			err = manager.SetDeploymentImages(deployment)
 			Expect(err).NotTo(HaveOccurred())
 
 			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
@@ -331,7 +331,7 @@ var _ = Describe("Module Resource Manager", func() {
 				},
 			}
 
-			err := manager.setDeploymentImages(deployment)
+			err := manager.SetDeploymentImages(deployment)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("container manager not found"))
 		})
@@ -425,7 +425,7 @@ var _ = Describe("Module Resource Manager", func() {
 				}, configmap)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(manager.deleteOutdatedResources(context.Background())).Should(Succeed())
+				Expect(manager.DeleteOutdatedResources(context.Background())).Should(Succeed())
 
 				err = fakeClient.Get(ctx, client.ObjectKey{
 					Name:      configmapName,
@@ -435,7 +435,7 @@ var _ = Describe("Module Resource Manager", func() {
 			})
 
 			It("should not error when deleting non-existent resources", func() {
-				Expect(manager.deleteOutdatedResources(context.Background())).Should(Succeed())
+				Expect(manager.DeleteOutdatedResources(context.Background())).Should(Succeed())
 			})
 
 			It("should return error when unable to delete resources", func() {
@@ -490,7 +490,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -502,7 +502,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("timeout"))
 		})
@@ -515,7 +515,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{configmap}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -530,7 +530,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment, configmap}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
