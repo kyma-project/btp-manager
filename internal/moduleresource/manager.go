@@ -321,7 +321,7 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
 }
 
-func (m *Manager) deleteCreationTimestamp(us ...*unstructured.Unstructured) {
+func (m *Manager) DeleteCreationTimestamp(us ...*unstructured.Unstructured) {
 	for _, u := range us {
 		unstructured.RemoveNestedField(u.Object, "metadata", "creationTimestamp")
 	}

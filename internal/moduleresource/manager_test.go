@@ -183,7 +183,7 @@ var _ = Describe("Module Resource Manager", func() {
 			cm := unstructuredConfigmap()
 			Expect(unstructured.SetNestedField(cm.Object, "metadata", "creationTimestamp")).To(Succeed())
 
-			manager.deleteCreationTimestamp(cm)
+			manager.DeleteCreationTimestamp(cm)
 
 			Expect(unstructured.NestedString(cm.Object, "metadata", "creationTimestamp")).To(BeEmpty())
 		})
