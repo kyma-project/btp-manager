@@ -178,6 +178,17 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 	})
 
+	Describe("delete creation timestamp", func() {
+		It("should delete creation timestamp in unstructured object", func() {
+			cm := unstructuredConfigmap()
+			Expect(unstructured.SetNestedField(cm.Object, "metadata", "creationTimestamp")).To(Succeed())
+
+			manager.deleteCreationTimestamp(cm)
+
+			Expect(unstructured.NestedString(cm.Object, "metadata", "creationTimestamp")).To(BeEmpty())
+		})
+	})
+
 	Describe("set ConfigMap values", func() {
 		It("should set ConfigMap values from Secret", func() {
 			const (
