@@ -27,8 +27,10 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/moduleresource"
 	"github.com/prometheus/client_golang/prometheus"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -183,8 +185,13 @@ var _ = SynchronizedBeforeSuite(func() {
 	configMetrics := btpmanagermetrics.NewConfigMetrics(testRegistry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 
-	// Create mock secrets.Manager for tests
-	mockSecretsManager := &mockSecretsManager{client: k8sManager.GetClient()}
+	secretClient := generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient())
+	secretVerifier := secrets.NewVerificationDispatcher(map[string]secrets.Verifier{
+		config.SecretName: secrets.NewRequiredSecretVerifier(),
+	})
+	secretsManager := secrets.NewManager(secretClient, secretVerifier)
+
+	moduleResourceManager := moduleresource.NewManager(k8sManager.GetClient(), k8sManager.GetScheme(), secretsManager)
 
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
@@ -192,8 +199,8 @@ var _ = SynchronizedBeforeSuite(func() {
 		k8sManager.GetScheme(),
 		cleanupReconciler,
 		metrics,
-		mockSecretsManager,
-		nil, // moduleResourceManager not used in suite tests
+		secretsManager,
+		moduleResourceManager,
 		[]config.WatchHandler{
 			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
@@ -287,36 +294,3 @@ var _ = SynchronizedAfterSuite(func() {
 	Expect(os.RemoveAll(defaultChartPath)).To(Succeed())
 	Expect(os.RemoveAll(defaultResourcesPath)).To(Succeed())
 })
-
-// mockSecretsManager is a simple mock implementation of secrets.Manager for tests
-type mockSecretsManager struct {
-	client client.Client
-}
-
-// Verify mockSecretsManager implements secrets.Manager
-var _ secrets.Manager = (*mockSecretsManager)(nil)
-
-func (m *mockSecretsManager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: config.KymaSystemNamespaceName, Name: config.SecretName}
-	if err := m.client.Get(ctx, objKey, secret); err != nil {
-		return nil, err
-	}
-	return secret, nil
-}
-
-func (m *mockSecretsManager) GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
-	return nil, nil
-}
-
-func (m *mockSecretsManager) GetWebhookServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
-	return nil, nil
-}
-
-func (m *mockSecretsManager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
-	return nil, nil
-}
-
-func (m *mockSecretsManager) GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error) {
-	return nil, nil
-}
