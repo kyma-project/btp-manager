@@ -437,9 +437,16 @@ var _ = Describe("Module Resource Manager", func() {
 
 		Describe("delete resources", func() {
 			var ctx context.Context
+			var savedResourcesPath string
 
 			BeforeEach(func() {
 				ctx = context.Background()
+				savedResourcesPath = config.ResourcesPath
+				config.ResourcesPath = moduleResourcesPath
+			})
+
+			AfterEach(func() {
+				config.ResourcesPath = savedResourcesPath
 			})
 
 			It("should delete existing resources", func() {
