@@ -484,7 +484,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 		return fmt.Errorf("failed to prepare admission webhooks: %w", err)
 	}
 
-	r.deleteCreationTimestamp(resourcesToApply...)
+	r.moduleResourceManager.DeleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
 	if err = r.moduleResourceManager.ApplyOrUpdateResources(ctx, resourcesToApply); err != nil {
