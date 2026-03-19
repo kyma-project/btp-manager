@@ -383,20 +383,15 @@ func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) 
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting and verifying the required Secret")
-	secret, err := r.getRequiredSecret(ctx)
+	secret, err := r.secretsManager.GetRequiredSecret(ctx)
 	if err != nil {
-		logger.Error(err, "while getting or verifying the required Secret")
-		// Check if it's a verification error or missing secret
+		logger.Error(err, "while getting the required Secret")
 		if strings.Contains(err.Error(), "not found") {
 			return nil, NewErrorWithReason(conditions.MissingSecret, "Secret resource not found")
 		}
 		return nil, NewErrorWithReason(conditions.InvalidSecret, "Secret validation failed")
 	}
 	return secret, nil
-}
-
-func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
-	return r.secretsManager.GetRequiredSecret(ctx)
 }
 
 func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
@@ -487,7 +482,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	r.moduleResourceManager.DeleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
-	if err = r.moduleResourceManager.ApplyOrUpdateResources(ctx, resourcesToApply); err != nil {
+	if err = r.moduleResourceManager.CreateOrUpdateResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
