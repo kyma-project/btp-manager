@@ -29,9 +29,6 @@ const (
 	testNamespace = "test-namespace"
 	kymaNamespace = "kyma-system"
 
-	configmapKind = "ConfigMap"
-	secretKind    = "Secret"
-
 	configmapName  = "test-configmap"
 	secretName     = "test-secret"
 	deploymentName = "test-deployment"
@@ -118,9 +115,9 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(objects).To(HaveLen(3))
 			Expect(manager.resourceIndices).To(HaveLen(3))
 
-			configmapIndex := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
+			configmapIndex := manager.resourceIndices[Metadata{Kind: configMapKind, Name: configmapName}]
 			configmap := objects[configmapIndex]
-			Expect(configmap.GetKind()).To(Equal(configmapKind))
+			Expect(configmap.GetKind()).To(Equal(configMapKind))
 			Expect(configmap.GetName()).To(Equal(configmapName))
 			Expect(configmap.GetNamespace()).To(Equal(testNamespace))
 
@@ -173,7 +170,7 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			manager.SetNamespace(objects)
+			manager.SetNamespace(objects...)
 
 			for _, obj := range objects {
 				Expect(obj.GetNamespace()).To(Equal(kymaNamespace))
@@ -211,7 +208,7 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
+			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configMapKind, Name: configmapName}]
 			Expect(found).To(BeTrue())
 			configmap := objects[configmapIndex]
 
@@ -478,12 +475,12 @@ var _ = Describe("Module Resource Manager", func() {
 				manager = NewManager(client, scheme, secretsManager)
 
 				us1 := &unstructured.Unstructured{}
-				us1.SetKind(configmapKind)
+				us1.SetKind(configMapKind)
 				us1.SetName(expectedName1)
 				us1.SetNamespace(testNamespace)
 
 				us2 := &unstructured.Unstructured{}
-				us2.SetKind(configmapKind)
+				us2.SetKind(configMapKind)
 				us2.SetName(expectedName2)
 				us2.SetNamespace(testNamespace)
 
@@ -493,8 +490,8 @@ var _ = Describe("Module Resource Manager", func() {
 				Expect(err).To(HaveOccurred())
 
 				const errorFormat = "failed to delete %s %s"
-				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName1, configmapKind)))
-				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName2, configmapKind)))
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName1, configMapKind)))
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf(errorFormat, expectedName2, configMapKind)))
 			})
 		})
 	})
@@ -620,7 +617,7 @@ func unstructuredConfigmap() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "v1",
-			"kind":       configmapKind,
+			"kind":       configMapKind,
 			"metadata": map[string]interface{}{
 				"name":      configmapName,
 				"namespace": testNamespace,

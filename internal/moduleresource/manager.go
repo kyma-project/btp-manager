@@ -12,6 +12,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	"github.com/kyma-project/btp-manager/internal/manifest"
+	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,10 +44,17 @@ const (
 )
 
 const (
+	secretKind     = "Secret"
+	configMapKind  = "ConfigMap"
+	deploymentKind = "Deployment"
+
 	clusterIdConfigMapKey           = "CLUSTER_ID"
 	releaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
 	managementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
 	enableLimitedCacheConfigMapKey  = "ENABLE_LIMITED_CACHE"
+
+	sapBtpServiceOperatorConfigMapName = "sap-btp-operator-config"
+	sapBtpServiceOperatorSecretName    = "sap-btp-service-operator"
 
 	sapBtpServiceOperatorContainerName = "manager"
 	kubeRbacProxyContainerName         = KubeRbacProxyName
@@ -142,6 +150,54 @@ func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstr
 	}
 }
 
+func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
+	const indexGetErrFormat = "while getting %s/%s index: %w"
+	configMapIndex, err := m.GetResourceIndexByMetadata(Metadata{
+		Kind: configMapKind,
+		Name: sapBtpServiceOperatorConfigMapName,
+	})
+	if err != nil {
+		return fmt.Errorf(indexGetErrFormat, configMapKind, sapBtpServiceOperatorConfigMapName, err)
+	}
+	secretIndex, err := m.GetResourceIndexByMetadata(Metadata{
+		Kind: secretKind,
+		Name: sapBtpServiceOperatorSecretName,
+	})
+	if err != nil {
+		return fmt.Errorf(indexGetErrFormat, secretKind, sapBtpServiceOperatorSecretName, err)
+	}
+	deploymentIndex, err := m.GetResourceIndexByMetadata(Metadata{
+		Kind: deploymentKind,
+		Name: config.DeploymentName,
+	})
+	if err != nil {
+		return fmt.Errorf(indexGetErrFormat, deploymentKind, config.DeploymentName, err)
+	}
+
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
+	if err != nil {
+		return fmt.Errorf("failed to get module chart version: %w", err)
+	}
+
+	if err := m.AddLabels(chartVer, resourcesToApply...); err != nil {
+		return fmt.Errorf("failed to add labels to resources: %w", err)
+	}
+
+	m.SetNamespace(resourcesToApply...)
+
+	if err := m.SetConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+		return fmt.Errorf("failed to set ConfigMap values: %w", err)
+	}
+	if err := m.SetSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
+		return fmt.Errorf("failed to set Secret values: %w", err)
+	}
+	if err := m.SetDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+		return fmt.Errorf("failed to set container images in Deployment: %w", err)
+	}
+
+	return nil
+}
+
 func (m *Manager) AddLabels(chartVersion string, us ...*unstructured.Unstructured) error {
 	for _, u := range us {
 		labels := u.GetLabels()
@@ -177,7 +233,7 @@ func (m *Manager) addLabelsInPodTemplate(u *unstructured.Unstructured) error {
 	return nil
 }
 
-func (m *Manager) SetNamespace(us []*unstructured.Unstructured) {
+func (m *Manager) SetNamespace(us ...*unstructured.Unstructured) {
 	for _, u := range us {
 		u.SetNamespace(config.ChartNamespace)
 	}
