@@ -300,7 +300,6 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 		return fmt.Errorf("containers not found in %s %s", u.GetKind(), u.GetName())
 	}
 
-	containerFound := false
 	for i, c := range containers {
 		container, ok := c.(map[string]interface{})
 		if !ok {
@@ -309,13 +308,8 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 		if container["name"] == containerName {
 			container["image"] = image
 			containers[i] = container
-			containerFound = true
 			break
 		}
-	}
-
-	if !containerFound {
-		return fmt.Errorf("container %s not found in %s %s", containerName, u.GetKind(), u.GetName())
 	}
 
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")

@@ -72,8 +72,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 		secretsManager = secrets.NewManager(
 			generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](fakeClient),
-			secrets.NewNoopVerifier(),
-			)
+			secrets.NewNoopVerifier())
 		manager = NewManager(fakeClient, scheme, secretsManager)
 	})
 
