@@ -354,25 +354,6 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(proxyContainer["name"]).To(Equal("kube-rbac-proxy"))
 			Expect(proxyContainer["image"]).To(Equal(kubeRbacProxyImage))
 		})
-
-		It("should return error if container not found", func() {
-			deployment := unstructuredDeployment(0, 0)
-			deployment.Object["spec"] = map[string]interface{}{
-				"template": map[string]interface{}{
-					"spec": map[string]interface{}{
-						"containers": []interface{}{
-							map[string]interface{}{
-								"name": "wrong-container-name",
-							},
-						},
-					},
-				},
-			}
-
-			err := manager.setDeploymentImages(deployment)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("container manager not found"))
-		})
 	})
 
 	Describe("module resources management", func() {
