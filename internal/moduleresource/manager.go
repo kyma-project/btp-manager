@@ -99,7 +99,7 @@ func NewManager(client client.Client, scheme *runtime.Scheme, secretsManager sec
 func (m *Manager) GetResourceIndexByMetadata(metadata Metadata) (int, error) {
 	index, ok := m.resourceIndices[metadata]
 	if !ok {
-		return 0, fmt.Errorf(fmt.Sprintf("%s/%s resource index does not exist", metadata.Kind, metadata.Name))
+		return 0, fmt.Errorf("%s/%s resource index does not exist", metadata.Kind, metadata.Name)
 	}
 	return index, nil
 }
@@ -319,6 +319,12 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 	}
 
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
+}
+
+func (m *Manager) deleteCreationTimestamp(us ...*unstructured.Unstructured) {
+	for _, u := range us {
+		unstructured.RemoveNestedField(u.Object, "metadata", "creationTimestamp")
+	}
 }
 
 func (m *Manager) applyModuleResources(ctx context.Context) error {
