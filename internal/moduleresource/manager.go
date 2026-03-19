@@ -327,34 +327,25 @@ func (m *Manager) DeleteCreationTimestamp(us ...*unstructured.Unstructured) {
 	}
 }
 
-func (m *Manager) applyModuleResources(ctx context.Context) error {
-	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
-	if err != nil {
-		return nil
-	}
-
-	return m.ApplyOrUpdateResources(ctx, objects)
-}
-
 func resourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
 }
 
-func (m *Manager) ApplyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (m *Manager) CreateOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	for _, u := range us {
-		if err := m.applyOrUpdateResource(ctx, u); err != nil {
+		if err := m.createOrUpdateResource(ctx, u); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (m *Manager) applyOrUpdateResource(ctx context.Context, u *unstructured.Unstructured) error {
+func (m *Manager) createOrUpdateResource(ctx context.Context, u *unstructured.Unstructured) error {
 	preExistingResource := &unstructured.Unstructured{}
 	preExistingResource.SetGroupVersionKind(u.GroupVersionKind())
 	if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, preExistingResource); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return m.applyResource(ctx, u)
+			return m.createResource(ctx, u)
 		}
 		return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 	}
@@ -362,9 +353,9 @@ func (m *Manager) applyOrUpdateResource(ctx context.Context, u *unstructured.Uns
 	return m.updateResource(ctx, u)
 }
 
-func (m *Manager) applyResource(ctx context.Context, u *unstructured.Unstructured) error {
-	if err := m.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(OperatorName)); err != nil {
-		return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+func (m *Manager) createResource(ctx context.Context, u *unstructured.Unstructured) error {
+	if err := m.client.Create(ctx, u, client.FieldOwner(OperatorName)); err != nil {
+		return fmt.Errorf("while creating %s %s: %w", u.GetName(), u.GetKind(), err)
 	}
 	return nil
 }

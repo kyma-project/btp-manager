@@ -383,15 +383,15 @@ var _ = Describe("Module Resource Manager", func() {
 			ctx = context.Background()
 		})
 
-		Describe("apply or update resources", func() {
+		Describe("create or update resources", func() {
 			var objects []*unstructured.Unstructured
 
 			BeforeEach(func() {
 				objects, _ = manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			})
 
-			It("should create new resources using Server-Side Apply", func() {
-				err := manager.ApplyOrUpdateResources(ctx, objects)
+			It("should create new resources", func() {
+				err := manager.CreateOrUpdateResources(ctx, objects)
 				Expect(err).NotTo(HaveOccurred())
 
 				configmap := &corev1.ConfigMap{}
@@ -421,7 +421,7 @@ var _ = Describe("Module Resource Manager", func() {
 				err := fakeClient.Create(ctx, configmap)
 				Expect(err).NotTo(HaveOccurred())
 
-				err = manager.ApplyOrUpdateResources(ctx, objects)
+				err = manager.CreateOrUpdateResources(ctx, objects)
 				Expect(err).NotTo(HaveOccurred())
 
 				updated := &corev1.ConfigMap{}
