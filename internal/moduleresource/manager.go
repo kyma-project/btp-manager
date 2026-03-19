@@ -179,26 +179,26 @@ func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstru
 		return fmt.Errorf("failed to get module chart version: %w", err)
 	}
 
-	if err := m.AddLabels(chartVer, resourcesToApply...); err != nil {
+	if err := m.addLabels(chartVer, resourcesToApply...); err != nil {
 		return fmt.Errorf("failed to add labels to resources: %w", err)
 	}
 
-	m.SetNamespace(resourcesToApply...)
+	m.setNamespace(resourcesToApply...)
 
-	if err := m.SetConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+	if err := m.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := m.SetSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
+	if err := m.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-	if err := m.SetDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+	if err := m.setDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
 		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
 
 	return nil
 }
 
-func (m *Manager) AddLabels(chartVersion string, us ...*unstructured.Unstructured) error {
+func (m *Manager) addLabels(chartVersion string, us ...*unstructured.Unstructured) error {
 	for _, u := range us {
 		labels := u.GetLabels()
 		if len(labels) == 0 {
@@ -233,13 +233,13 @@ func (m *Manager) addLabelsInPodTemplate(u *unstructured.Unstructured) error {
 	return nil
 }
 
-func (m *Manager) SetNamespace(us ...*unstructured.Unstructured) {
+func (m *Manager) setNamespace(us ...*unstructured.Unstructured) {
 	for _, u := range us {
 		u.SetNamespace(config.ChartNamespace)
 	}
 }
 
-func (m *Manager) SetConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	if err := unstructured.SetNestedField(u.Object, string(secret.Data[ClusterIdSecretKey]), "data", clusterIdConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set cluster_id: %w", err)
 	}
@@ -259,7 +259,7 @@ func (m *Manager) SetConfigMapValues(secret *corev1.Secret, u *unstructured.Unst
 	return nil
 }
 
-func (m *Manager) SetSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
 	u.SetNamespace(m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret)
 
 	for k := range secret.Data {
@@ -274,7 +274,7 @@ func (m *Manager) SetSecretValues(secret *corev1.Secret, u *unstructured.Unstruc
 	return nil
 }
 
-func (m *Manager) SetDeploymentImages(u *unstructured.Unstructured) error {
+func (m *Manager) setDeploymentImages(u *unstructured.Unstructured) error {
 	sapBtpServiceOperatorImage, exists := os.LookupEnv(SapBtpServiceOperatorEnv)
 	if exists {
 		if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {

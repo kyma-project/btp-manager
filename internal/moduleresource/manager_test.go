@@ -147,7 +147,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			chartVersion := "0.0.1"
-			Expect(manager.AddLabels(chartVersion, objects...)).NotTo(HaveOccurred())
+			Expect(manager.addLabels(chartVersion, objects...)).NotTo(HaveOccurred())
 
 			for _, obj := range objects {
 				labels := obj.GetLabels()
@@ -170,7 +170,7 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			manager.SetNamespace(objects...)
+			manager.setNamespace(objects...)
 
 			for _, obj := range objects {
 				Expect(obj.GetNamespace()).To(Equal(kymaNamespace))
@@ -224,7 +224,7 @@ var _ = Describe("Module Resource Manager", func() {
 			configmap := objects[configmapIndex]
 
 			manager.SetCredentialsContext(secret)
-			err = manager.SetConfigMapValues(secret, configmap)
+			err = manager.setConfigMapValues(secret, configmap)
 			Expect(err).NotTo(HaveOccurred())
 
 			data, found, err := unstructured.NestedStringMap(configmap.Object, "data")
@@ -250,7 +250,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 			manager.SetCredentialsContext(secret)
 
-			Expect(manager.SetSecretValues(secret, secretObj)).NotTo(HaveOccurred())
+			Expect(manager.setSecretValues(secret, secretObj)).NotTo(HaveOccurred())
 			Expect(secretObj.GetNamespace()).To(Equal(expectedCredentialsNamespace))
 
 			data, found, err := unstructured.NestedStringMap(secretObj.Object, "data")
@@ -291,7 +291,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should set container images for manager and kube-rbac-proxy", func() {
-			err := manager.SetDeploymentImages(deployment)
+			err := manager.setDeploymentImages(deployment)
 			Expect(err).NotTo(HaveOccurred())
 
 			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
@@ -314,7 +314,7 @@ var _ = Describe("Module Resource Manager", func() {
 			const oldProxyImage = "old-proxy:latest"
 			Expect(os.Unsetenv(KubeRbacProxyEnv)).To(Succeed())
 
-			err := manager.SetDeploymentImages(deployment)
+			err := manager.setDeploymentImages(deployment)
 			Expect(err).NotTo(HaveOccurred())
 
 			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
@@ -337,7 +337,7 @@ var _ = Describe("Module Resource Manager", func() {
 			const oldManagerImage = "old-image:latest"
 			Expect(os.Unsetenv(SapBtpServiceOperatorEnv)).To(Succeed())
 
-			err := manager.SetDeploymentImages(deployment)
+			err := manager.setDeploymentImages(deployment)
 			Expect(err).NotTo(HaveOccurred())
 
 			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
@@ -370,7 +370,7 @@ var _ = Describe("Module Resource Manager", func() {
 				},
 			}
 
-			err := manager.SetDeploymentImages(deployment)
+			err := manager.setDeploymentImages(deployment)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("container manager not found"))
 		})
