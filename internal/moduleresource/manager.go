@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -74,57 +75,21 @@ type Manager struct {
 	manifestHandler    *manifest.Handler
 	resourceIndices    map[Metadata]int
 	credentialsContext credentialsContext
+	secretsManager     secrets.Manager
 }
 
-func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
+func NewManager(client client.Client, scheme *runtime.Scheme, secretsManager secrets.Manager) *Manager {
 	return &Manager{
 		client:          client,
 		scheme:          scheme,
 		manifestHandler: &manifest.Handler{Scheme: scheme},
 		resourceIndices: make(map[Metadata]int),
+		secretsManager:  secretsManager,
 	}
 }
 
-func (m *Manager) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: config.ChartNamespace, Name: config.SecretName}
-	if err := m.client.Get(ctx, objKey, secret); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, errors.Join(err, fmt.Errorf("%s Secret in %s namespace not found", config.SecretName, config.ChartNamespace))
-		}
-		return nil, fmt.Errorf("unable to get Secret: %w", err)
-	}
-
-	return secret, nil
-}
-
-func (m *Manager) verifySecret(secret *corev1.Secret) error {
-	missingKeys := make([]string, 0)
-	missingValues := make([]string, 0)
-	errs := make([]string, 0)
-	requiredKeys := []string{ClientIdSecretKey, ClientSecretKey, SmUrlSecretKey, TokenUrlSecretKey, ClusterIdSecretKey}
-	for _, key := range requiredKeys {
-		value, exists := secret.Data[key]
-		if !exists {
-			missingKeys = append(missingKeys, key)
-			continue
-		}
-		if len(value) == 0 {
-			missingValues = append(missingValues, key)
-		}
-	}
-	if len(missingKeys) > 0 {
-		missingKeysMsg := fmt.Sprintf("key(s) %s not found", strings.Join(missingKeys, ", "))
-		errs = append(errs, missingKeysMsg)
-	}
-	if len(missingValues) > 0 {
-		missingValuesMsg := fmt.Sprintf("missing value(s) for %s key(s)", strings.Join(missingValues, ", "))
-		errs = append(errs, missingValuesMsg)
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, ", "))
-	}
-	return nil
+func (m *Manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
+	return m.secretsManager.GetRequiredSecret(ctx)
 }
 
 func (m *Manager) setCredentialsContext(s *corev1.Secret) {

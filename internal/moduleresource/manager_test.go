@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -64,59 +66,34 @@ var _ = BeforeSuite(func() {
 
 var _ = Describe("Module Resource Manager", func() {
 	var manager *Manager
+	var secretsManager secrets.Manager
 
 	BeforeEach(func() {
 		fakeClient = fake.NewClientBuilder().
 			WithScheme(scheme).
 			Build()
 
-		manager = NewManager(fakeClient, scheme)
+		secretsManager = secrets.NewManager(
+			generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](fakeClient),
+			secrets.NewNoopVerifier(),
+			)
+		manager = NewManager(fakeClient, scheme, secretsManager)
 	})
 
 	Describe("read required secret", func() {
 		It("should return error when required secret does not exist", func() {
-			secret, err := manager.getRequiredSecret(context.Background())
+			secret, err := manager.GetRequiredSecret(context.Background())
 			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 			Expect(secret).To(BeNil())
 		})
 
 		It("should get required secret", func() {
 			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
+			secret, err := manager.GetRequiredSecret(context.Background())
 
 			Expect(err).To(BeNil())
 			Expect(secret.Name).To(Equal(requiredSecretName))
 			Expect(secret.Namespace).To(Equal(requiredSecretNamespace))
-		})
-
-		It("should successfully verify required secret", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
-			Expect(err).To(BeNil())
-
-			Expect(manager.verifySecret(secret)).To(Succeed())
-		})
-
-		It("should return error when required secret does not contain required key", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
-			Expect(err).To(BeNil())
-
-			delete(secret.Data, ClientIdSecretKey)
-			err = manager.verifySecret(secret)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring(ClientIdSecretKey))
-		})
-
-		It("should return error when one of keys in required secret does not contain value", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
-			Expect(err).To(BeNil())
-
-			secret.Data[ClientSecretKey] = []byte{}
-			err = manager.verifySecret(secret)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring(ClientSecretKey))
 		})
 	})
 
@@ -467,7 +444,7 @@ var _ = Describe("Module Resource Manager", func() {
 					expectedName2 = "configmap2"
 				)
 				client := &errorOnDeleteClient{fakeClient}
-				manager = NewManager(client, scheme)
+				manager = NewManager(client, scheme, secretsManager)
 
 				us1 := &unstructured.Unstructured{}
 				us1.SetKind(configmapKind)
