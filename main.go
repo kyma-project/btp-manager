@@ -27,6 +27,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -41,7 +42,10 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/moduleresource"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -126,12 +130,25 @@ func main() {
 	configMetrics := btpmanagermetrics.NewConfigMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	configHandler := config.NewHandler(mgr.GetClient(), scheme, configMetrics)
+
+	// Create secrets.Manager
+	secretClient := generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](mgr.GetClient())
+	secretVerifier := secrets.NewVerificationDispatcher(map[string]secrets.Verifier{
+		config.SecretName: secrets.NewRequiredSecretVerifier(),
+	})
+	secretsManager := secrets.NewManager(secretClient, secretVerifier)
+
+	// Create moduleresource.Manager
+	moduleResourceManager := moduleresource.NewManager(mgr.GetClient(), mgr.GetScheme(), secretsManager)
+
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
 		scheme,
 		cleanupReconciler,
 		webhookMetrics,
+		secretsManager,
+		moduleResourceManager,
 		[]config.WatchHandler{
 			configHandler,
 		},
