@@ -122,6 +122,14 @@ func (r *Handler) Start(ctx context.Context) error {
 
 func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
+	parseDuration := func(raw string, defaultValue time.Duration, key string) time.Duration {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			logger.Info("failed to parse configuration update", key, err)
+			return defaultValue
+		}
+		return parsed
+	}
 
 	cm, ok := obj.(*corev1.ConfigMap)
 	if !ok {
@@ -144,27 +152,27 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 		case "DeploymentName":
 			DeploymentName = v
 		case "ProcessingStateRequeueInterval":
-			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
+			ProcessingStateRequeueInterval = parseDuration(v, ProcessingStateRequeueInterval, k)
 		case "ReadyStateRequeueInterval":
-			ReadyStateRequeueInterval, err = time.ParseDuration(v)
+			ReadyStateRequeueInterval = parseDuration(v, ReadyStateRequeueInterval, k)
 		case "ReadyTimeout":
-			ReadyTimeout, err = time.ParseDuration(v)
+			ReadyTimeout = parseDuration(v, ReadyTimeout, k)
 		case "HardDeleteCheckInterval":
-			HardDeleteCheckInterval, err = time.ParseDuration(v)
+			HardDeleteCheckInterval = parseDuration(v, HardDeleteCheckInterval, k)
 		case "HardDeleteTimeout":
-			HardDeleteTimeout, err = time.ParseDuration(v)
+			HardDeleteTimeout = parseDuration(v, HardDeleteTimeout, k)
 		case "ResourcesPath":
 			ResourcesPath = v
 		case "ReadyCheckInterval":
-			ReadyCheckInterval, err = time.ParseDuration(v)
+			ReadyCheckInterval = parseDuration(v, ReadyCheckInterval, k)
 		case "DeleteRequestTimeout":
-			DeleteRequestTimeout, err = time.ParseDuration(v)
+			DeleteRequestTimeout = parseDuration(v, DeleteRequestTimeout, k)
 		case "CaCertificateExpiration":
-			CaCertificateExpiration, err = time.ParseDuration(v)
+			CaCertificateExpiration = parseDuration(v, CaCertificateExpiration, k)
 		case "WebhookCertificateExpiration":
-			WebhookCertificateExpiration, err = time.ParseDuration(v)
+			WebhookCertificateExpiration = parseDuration(v, WebhookCertificateExpiration, k)
 		case "ExpirationBoundary":
-			ExpirationBoundary, err = time.ParseDuration(v)
+			ExpirationBoundary = parseDuration(v, ExpirationBoundary, k)
 		case "RsaKeyBits":
 			var bits int
 			bits, err = strconv.Atoi(v)
@@ -174,9 +182,9 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 		case "EnableLimitedCache":
 			EnableLimitedCache = v
 		case "StatusUpdateTimeout":
-			StatusUpdateTimeout, err = time.ParseDuration(v)
+			StatusUpdateTimeout = parseDuration(v, StatusUpdateTimeout, k)
 		case "StatusUpdateCheckInterval":
-			StatusUpdateCheckInterval, err = time.ParseDuration(v)
+			StatusUpdateCheckInterval = parseDuration(v, StatusUpdateCheckInterval, k)
 		case "ManagerResourcesPath":
 			ManagerResourcesPath = v
 		default:
