@@ -131,12 +131,12 @@ func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string)
 		return nil, fmt.Errorf("while converting to unstructured: %w", err)
 	}
 
-	m.indexResources(unstructuredObjects)
+	m.IndexResources(unstructuredObjects)
 
 	return unstructuredObjects, nil
 }
 
-func (m *Manager) indexResources(us []*unstructured.Unstructured) {
+func (m *Manager) IndexResources(us []*unstructured.Unstructured) {
 	for i := range us {
 		resource := us[i]
 		metadata := Metadata{Kind: resource.GetKind(), Name: resource.GetName()}
@@ -145,22 +145,6 @@ func (m *Manager) indexResources(us []*unstructured.Unstructured) {
 }
 
 func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
-	var configMapIndex, secretIndex, deploymentIndex int
-	for i, u := range resourcesToApply {
-		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
-			configMapIndex = i
-			continue
-		}
-		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
-			secretIndex = i
-			continue
-		}
-		if u.GetName() == config.DeploymentName && u.GetKind() == deploymentKind {
-			deploymentIndex = i
-			continue
-		}
-	}
-
 	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
 	if err != nil {
 		return fmt.Errorf("failed to get module chart version: %w", err)
@@ -172,13 +156,21 @@ func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstru
 
 	m.setNamespace(resourcesToApply...)
 
-	if err := m.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+	configmapMetadata := Metadata{Kind: configMapKind, Name: sapBtpServiceOperatorConfigMapName}
+	configmap := m.GetResourceByMetadata(configmapMetadata)
+	if err := m.setConfigMapValues(s, configmap); err != nil {
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := m.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
+
+	secretMetadata := Metadata{Kind: secretKind, Name: sapBtpServiceOperatorSecretName}
+	secret := m.GetResourceByMetadata(secretMetadata)
+	if err := m.setSecretValues(s, secret); err != nil {
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-	if err := m.setDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+
+	deploymentMetadata := Metadata{Kind: deploymentKind, Name: config.DeploymentName}
+	deployment := m.GetResourceByMetadata(deploymentMetadata)
+	if err := m.setDeploymentImages(deployment); err != nil {
 		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
 
