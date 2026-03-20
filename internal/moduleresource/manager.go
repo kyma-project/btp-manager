@@ -63,6 +63,11 @@ const (
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 )
 
+type Metadata struct {
+	Kind string
+	Name string
+}
+
 type credentialsContext struct {
 	previousCredentialsNamespace                        string
 	clusterIdFromSapBtpManagerSecret                    string
@@ -76,6 +81,7 @@ type Manager struct {
 	client             client.Client
 	scheme             *runtime.Scheme
 	manifestHandler    *manifest.Handler
+	resourcesIndex  map[Metadata]*unstructured.Unstructured
 	credentialsContext credentialsContext
 	secretsManager     secrets.Manager
 }
@@ -85,8 +91,13 @@ func NewManager(client client.Client, scheme *runtime.Scheme, secretsManager sec
 		client:          client,
 		scheme:          scheme,
 		manifestHandler: &manifest.Handler{Scheme: scheme},
+		resourcesIndex:  make(map[Metadata]*unstructured.Unstructured),
 		secretsManager:  secretsManager,
 	}
+}
+
+func (m *Manager) GetResourceByMetadata(metadata Metadata) *unstructured.Unstructured {
+	return m.resourcesIndex[metadata]
 }
 
 func (m *Manager) SetCredentialsContext(s *corev1.Secret) {
@@ -120,7 +131,17 @@ func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string)
 		return nil, fmt.Errorf("while converting to unstructured: %w", err)
 	}
 
+	m.indexResources(unstructuredObjects)
+
 	return unstructuredObjects, nil
+}
+
+func (m *Manager) indexResources(us []*unstructured.Unstructured) {
+	for i := range us {
+		resource := us[i]
+		metadata := Metadata{Kind: resource.GetKind(), Name: resource.GetName()}
+		m.resourcesIndex[metadata] = resource
+	}
 }
 
 func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
