@@ -244,8 +244,7 @@ var _ = Describe("Module Resource Manager", func() {
 			secret := requiredSecret()
 			secret.Data[CredentialsNamespaceSecretKey] = []byte(expectedCredentialsNamespace)
 
-			secretObj := &unstructured.Unstructured{}
-			secretObj.SetKind(secretKind)
+			secretObj := unstructuredSecret()
 			secretObj.SetName(SapBtpServiceOperatorName)
 			secretObj.SetNamespace(kymaNamespace)
 
@@ -353,6 +352,39 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(ok).To(BeTrue())
 			Expect(proxyContainer["name"]).To(Equal("kube-rbac-proxy"))
 			Expect(proxyContainer["image"]).To(Equal(kubeRbacProxyImage))
+		})
+	})
+
+	Describe("prepare module resources", func() {
+		var reqSecret *corev1.Secret
+		var objects []*unstructured.Unstructured
+		var chartPathBackup string
+
+		BeforeEach(func() {
+			chartPathBackup = config.ChartPath
+			config.ChartPath = moduleResourcesPath
+
+			reqSecret = requiredSecret()
+
+			uConfigmap := unstructuredConfigmap()
+			uConfigmap.SetName(sapBtpServiceOperatorConfigMapName)
+
+			uSecret := unstructuredSecret()
+			uSecret.SetName(sapBtpServiceOperatorSecretName)
+
+			uDeployment := unstructuredDeployment(1, 1)
+			uDeployment.SetName(config.DeploymentName)
+
+			objects = append(objects, uConfigmap, uSecret, uDeployment)
+			manager.IndexResources(objects)
+		})
+
+		AfterEach(func() {
+			config.ChartPath = chartPathBackup
+		})
+
+		It("should perform all required mutating operations on resources from manifests", func() {
+			Expect(manager.PrepareModuleResources(objects, reqSecret)).To(Succeed())
 		})
 	})
 
@@ -612,6 +644,19 @@ func unstructuredConfigmap() *unstructured.Unstructured {
 			"kind":       configMapKind,
 			"metadata": map[string]interface{}{
 				"name":      configmapName,
+				"namespace": testNamespace,
+			},
+		},
+	}
+}
+
+func unstructuredSecret() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       secretKind,
+			"metadata": map[string]interface{}{
+				"name":      secretName,
 				"namespace": testNamespace,
 			},
 		},
