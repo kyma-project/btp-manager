@@ -97,11 +97,12 @@ jobs:
             exit 0
           fi
 
-          gh pr create \
+          printf '%s\nRisk is Low\n' "${BTP_MANAGER_RELEASES_URL}/${TAG}" \
+            | gh pr create \
             -B main \
             -H ${BRANCH_NAME} \
             -R "${MODULE_MANIFESTS_REPO_URL}" \
             --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" \
             --fill \
-            --body "${BTP_MANAGER_RELEASES_URL}/${TAG}" \
+            --body-file - \
             | tee $GITHUB_STEP_SUMMARY
