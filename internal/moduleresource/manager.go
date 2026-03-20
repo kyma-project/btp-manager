@@ -81,7 +81,7 @@ type Manager struct {
 	client             client.Client
 	scheme             *runtime.Scheme
 	manifestHandler    *manifest.Handler
-	resourcesIndex  map[Metadata]*unstructured.Unstructured
+	resourcesIndex     map[Metadata]*unstructured.Unstructured
 	credentialsContext credentialsContext
 	secretsManager     secrets.Manager
 }

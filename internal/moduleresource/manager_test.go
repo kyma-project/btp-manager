@@ -560,10 +560,6 @@ var _ = Describe("Module Resource Manager", func() {
 	})
 })
 
-func createRequiredSecret(k8sClient client.Client) error {
-	return k8sClient.Create(context.Background(), requiredSecret())
-}
-
 func requiredSecret() *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
