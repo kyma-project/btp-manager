@@ -389,6 +389,7 @@ func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) 
 		if strings.Contains(err.Error(), "not found") {
 			return nil, NewErrorWithReason(conditions.MissingSecret, "Secret resource not found")
 		}
+		logger.Error(err, "while verifying the required Secret")
 		return nil, NewErrorWithReason(conditions.InvalidSecret, "Secret validation failed")
 	}
 	return secret, nil
