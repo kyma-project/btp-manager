@@ -63,11 +63,6 @@ const (
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 )
 
-type Metadata struct {
-	Kind string
-	Name string
-}
-
 type credentialsContext struct {
 	previousCredentialsNamespace                        string
 	clusterIdFromSapBtpManagerSecret                    string
@@ -81,27 +76,17 @@ type Manager struct {
 	client             client.Client
 	scheme             *runtime.Scheme
 	manifestHandler    *manifest.Handler
-	resourcesPointers  map[Metadata]*unstructured.Unstructured
 	credentialsContext credentialsContext
 	secretsManager     secrets.Manager
 }
 
 func NewManager(client client.Client, scheme *runtime.Scheme, secretsManager secrets.Manager) *Manager {
 	return &Manager{
-		client:            client,
-		scheme:            scheme,
-		manifestHandler:   &manifest.Handler{Scheme: scheme},
-		resourcesPointers: make(map[Metadata]*unstructured.Unstructured),
-		secretsManager:    secretsManager,
+		client:          client,
+		scheme:          scheme,
+		manifestHandler: &manifest.Handler{Scheme: scheme},
+		secretsManager:  secretsManager,
 	}
-}
-
-func (m *Manager) GetResourcePointerByMetadata(metadata Metadata) (*unstructured.Unstructured, error) {
-	pointer, ok := m.resourcesPointers[metadata]
-	if !ok {
-		return nil, fmt.Errorf("%s/%s resource pointer does not exist", metadata.Kind, metadata.Name)
-	}
-	return pointer, nil
 }
 
 func (m *Manager) SetCredentialsContext(s *corev1.Secret) {
@@ -135,44 +120,24 @@ func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string)
 		return nil, fmt.Errorf("while converting to unstructured: %w", err)
 	}
 
-	m.indexModuleResources(unstructuredObjects)
-
 	return unstructuredObjects, nil
 }
 
-func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
-	for _, u := range unstructuredObjects {
-		uAddr := u
-		resource := Metadata{
-			Kind: u.GetKind(),
-			Name: u.GetName(),
-		}
-		m.resourcesPointers[resource] = uAddr
-	}
-}
-
 func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
-	const indexGetErrFormat = "while getting %s/%s address: %w"
-	configMapAddr, err := m.GetResourcePointerByMetadata(Metadata{
-		Kind: configMapKind,
-		Name: sapBtpServiceOperatorConfigMapName,
-	})
-	if err != nil {
-		return fmt.Errorf(indexGetErrFormat, configMapKind, sapBtpServiceOperatorConfigMapName, err)
-	}
-	secretAddr, err := m.GetResourcePointerByMetadata(Metadata{
-		Kind: secretKind,
-		Name: sapBtpServiceOperatorSecretName,
-	})
-	if err != nil {
-		return fmt.Errorf(indexGetErrFormat, secretKind, sapBtpServiceOperatorSecretName, err)
-	}
-	deploymentAddr, err := m.GetResourcePointerByMetadata(Metadata{
-		Kind: deploymentKind,
-		Name: config.DeploymentName,
-	})
-	if err != nil {
-		return fmt.Errorf(indexGetErrFormat, deploymentKind, config.DeploymentName, err)
+	var configMapIndex, secretIndex, deploymentIndex int
+	for i, u := range resourcesToApply {
+		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
+			configMapIndex = i
+			continue
+		}
+		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
+			secretIndex = i
+			continue
+		}
+		if u.GetName() == config.DeploymentName && u.GetKind() == deploymentKind {
+			deploymentIndex = i
+			continue
+		}
 	}
 
 	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
@@ -186,13 +151,13 @@ func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstru
 
 	m.setNamespace(resourcesToApply...)
 
-	if err := m.setConfigMapValues(s, configMapAddr); err != nil {
+	if err := m.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := m.setSecretValues(s, secretAddr); err != nil {
+	if err := m.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-	if err := m.setDeploymentImages(deploymentAddr); err != nil {
+	if err := m.setDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
 		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
 
