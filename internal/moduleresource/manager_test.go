@@ -159,7 +159,8 @@ var _ = Describe("Module Resource Manager", func() {
 				Expect(labels[ChartVersionLabelKey]).To(Equal(chartVersion))
 			}
 
-			deployment := getUnstructuredByKindAndName(objects, DeploymentKind, deploymentName)
+			deploymentMetadata := Metadata{Kind: deploymentKind, Name: deploymentName}
+			deployment := manager.GetResourceByMetadata(deploymentMetadata)
 			spec, found, err := unstructured.NestedMap(deployment.Object, "spec", "template", "metadata", "labels")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
@@ -218,13 +219,13 @@ var _ = Describe("Module Resource Manager", func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
 
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
-			Expect(err).NotTo(HaveOccurred())
+			_, _ = manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 
-			configmap := getUnstructuredByKindAndName(objects, configMapKind, configmapName)
+			configmapMetadata := Metadata{Kind: configMapKind, Name: configmapName}
+			configmap := manager.GetResourceByMetadata(configmapMetadata)
 
 			manager.SetCredentialsContext(secret)
-			err = manager.setConfigMapValues(secret, configmap)
+			err := manager.setConfigMapValues(secret, configmap)
 			Expect(err).NotTo(HaveOccurred())
 
 			data, found, err := unstructured.NestedStringMap(configmap.Object, "data")
@@ -277,10 +278,10 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
 			Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpOperatorImage)).To(Succeed())
 
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
-			Expect(err).NotTo(HaveOccurred())
+			_, _ = manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 
-			deployment = getUnstructuredByKindAndName(objects, DeploymentKind, deploymentName)
+			deploymentMetadata := Metadata{Kind: deploymentKind, Name: deploymentName}
+			deployment = manager.GetResourceByMetadata(deploymentMetadata)
 		})
 
 		AfterEach(func() {
@@ -619,13 +620,4 @@ func unstructuredConfigmap() *unstructured.Unstructured {
 			},
 		},
 	}
-}
-
-func getUnstructuredByKindAndName(us []*unstructured.Unstructured, kind, name string) *unstructured.Unstructured {
-	for _, u := range us {
-		if u.GetKind() == kind && u.GetName() == name {
-			return u
-		}
-	}
-	return nil
 }
