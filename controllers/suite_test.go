@@ -27,10 +27,7 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
-	"github.com/kyma-project/btp-manager/internal/k8s/generic"
-	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
-	"github.com/kyma-project/btp-manager/internal/moduleresource"
 	"github.com/prometheus/client_golang/prometheus"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -38,7 +35,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -184,23 +180,12 @@ var _ = SynchronizedBeforeSuite(func() {
 	metrics := btpmanagermetrics.NewWebhookMetrics(testRegistry)
 	configMetrics := btpmanagermetrics.NewConfigMetrics(testRegistry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
-
-	secretClient := generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient())
-	secretVerifier := secrets.NewVerificationDispatcher(map[string]secrets.Verifier{
-		config.SecretName: secrets.NewRequiredSecretVerifier(),
-	})
-	secretsManager := secrets.NewManager(secretClient, secretVerifier)
-
-	moduleResourceManager := moduleresource.NewManager(k8sManager.GetClient(), k8sManager.GetScheme(), secretsManager)
-
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
 		k8sManager.GetScheme(),
 		cleanupReconciler,
 		metrics,
-		secretsManager,
-		moduleResourceManager,
 		[]config.WatchHandler{
 			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
