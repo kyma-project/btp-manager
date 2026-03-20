@@ -112,20 +112,25 @@ var _ = Describe("Module Resource Manager", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
+		})
 
-			configmap := getUnstructuredByKindAndName(objects, configMapKind, configmapName)
+		It("should get unstructured objects by metadata", func() {
+			_, _ = manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+
+			configmapMetadata := Metadata{Kind: configMapKind, Name: configmapName}
+			configmap := manager.GetResourceByMetadata(configmapMetadata)
 			Expect(configmap.GetKind()).To(Equal(configMapKind))
 			Expect(configmap.GetName()).To(Equal(configmapName))
 			Expect(configmap.GetNamespace()).To(Equal(testNamespace))
 
-			deployment := getUnstructuredByKindAndName(objects, DeploymentKind, deploymentName)
-			Expect(err).NotTo(HaveOccurred())
+			deploymentMetadata := Metadata{Kind: deploymentKind, Name: deploymentName}
+			deployment := manager.GetResourceByMetadata(deploymentMetadata)
 			Expect(deployment.GetKind()).To(Equal(DeploymentKind))
 			Expect(deployment.GetName()).To(Equal(deploymentName))
 			Expect(deployment.GetNamespace()).To(Equal(testNamespace))
 
-			secret := getUnstructuredByKindAndName(objects, secretKind, secretName)
-			Expect(err).NotTo(HaveOccurred())
+			secretMetadata := Metadata{Kind: secretKind, Name: secretName}
+			secret := manager.GetResourceByMetadata(secretMetadata)
 			Expect(secret.GetKind()).To(Equal(secretKind))
 			Expect(secret.GetName()).To(Equal(secretName))
 			Expect(secret.GetNamespace()).To(Equal(testNamespace))
