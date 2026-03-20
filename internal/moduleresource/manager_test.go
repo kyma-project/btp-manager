@@ -112,22 +112,22 @@ var _ = Describe("Module Resource Manager", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
-			Expect(manager.resourceIndices).To(HaveLen(3))
+			Expect(manager.resourcesPointers).To(HaveLen(3))
 
-			configmapIndex := manager.resourceIndices[Metadata{Kind: configMapKind, Name: configmapName}]
-			configmap := objects[configmapIndex]
+			configmap, err := manager.GetResourcePointerByMetadata(Metadata{Kind: configMapKind, Name: configmapName})
+			Expect(err).NotTo(HaveOccurred())
 			Expect(configmap.GetKind()).To(Equal(configMapKind))
 			Expect(configmap.GetName()).To(Equal(configmapName))
 			Expect(configmap.GetNamespace()).To(Equal(testNamespace))
 
-			deploymentIndex := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
-			deployment := objects[deploymentIndex]
+			deployment, err := manager.GetResourcePointerByMetadata(Metadata{Kind: DeploymentKind, Name: deploymentName})
+			Expect(err).NotTo(HaveOccurred())
 			Expect(deployment.GetKind()).To(Equal(DeploymentKind))
 			Expect(deployment.GetName()).To(Equal(deploymentName))
 			Expect(deployment.GetNamespace()).To(Equal(testNamespace))
 
-			secretIndex := manager.resourceIndices[Metadata{Kind: secretKind, Name: secretName}]
-			secret := objects[secretIndex]
+			secret, err := manager.GetResourcePointerByMetadata(Metadata{Kind: secretKind, Name: secretName})
+			Expect(err).NotTo(HaveOccurred())
 			Expect(secret.GetKind()).To(Equal(secretKind))
 			Expect(secret.GetName()).To(Equal(secretName))
 			Expect(secret.GetNamespace()).To(Equal(testNamespace))
@@ -156,8 +156,8 @@ var _ = Describe("Module Resource Manager", func() {
 				Expect(labels[ChartVersionLabelKey]).To(Equal(chartVersion))
 			}
 
-			deploymentIndex := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
-			spec, found, err := unstructured.NestedMap(objects[deploymentIndex].Object, "spec", "template", "metadata", "labels")
+			deployment, _ := manager.GetResourcePointerByMetadata(Metadata{Kind: DeploymentKind, Name: deploymentName})
+			spec, found, err := unstructured.NestedMap(deployment.Object, "spec", "template", "metadata", "labels")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
 			Expect(spec[KymaProjectModuleLabelKey]).To(Equal(ModuleName))
@@ -215,12 +215,10 @@ var _ = Describe("Module Resource Manager", func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
 
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			_, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configMapKind, Name: configmapName}]
-			Expect(found).To(BeTrue())
-			configmap := objects[configmapIndex]
+			configmap, _ := manager.GetResourcePointerByMetadata(Metadata{Kind: configMapKind, Name: configmapName})
 
 			manager.SetCredentialsContext(secret)
 			err = manager.setConfigMapValues(secret, configmap)
@@ -276,12 +274,10 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
 			Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpOperatorImage)).To(Succeed())
 
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			_, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
-			Expect(found).To(BeTrue())
-			deployment = objects[deploymentIndex]
+			deployment, _ = manager.GetResourcePointerByMetadata(Metadata{Kind: DeploymentKind, Name: deploymentName})
 		})
 
 		AfterEach(func() {

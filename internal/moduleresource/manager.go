@@ -81,27 +81,27 @@ type Manager struct {
 	client             client.Client
 	scheme             *runtime.Scheme
 	manifestHandler    *manifest.Handler
-	resourceIndices    map[Metadata]int
+	resourcesPointers  map[Metadata]*unstructured.Unstructured
 	credentialsContext credentialsContext
 	secretsManager     secrets.Manager
 }
 
 func NewManager(client client.Client, scheme *runtime.Scheme, secretsManager secrets.Manager) *Manager {
 	return &Manager{
-		client:          client,
-		scheme:          scheme,
-		manifestHandler: &manifest.Handler{Scheme: scheme},
-		resourceIndices: make(map[Metadata]int),
-		secretsManager:  secretsManager,
+		client:            client,
+		scheme:            scheme,
+		manifestHandler:   &manifest.Handler{Scheme: scheme},
+		resourcesPointers: make(map[Metadata]*unstructured.Unstructured),
+		secretsManager:    secretsManager,
 	}
 }
 
-func (m *Manager) GetResourceIndexByMetadata(metadata Metadata) (int, error) {
-	index, ok := m.resourceIndices[metadata]
+func (m *Manager) GetResourcePointerByMetadata(metadata Metadata) (*unstructured.Unstructured, error) {
+	pointer, ok := m.resourcesPointers[metadata]
 	if !ok {
-		return 0, fmt.Errorf("%s/%s resource index does not exist", metadata.Kind, metadata.Name)
+		return nil, fmt.Errorf("%s/%s resource pointer does not exist", metadata.Kind, metadata.Name)
 	}
-	return index, nil
+	return pointer, nil
 }
 
 func (m *Manager) SetCredentialsContext(s *corev1.Secret) {
@@ -141,32 +141,33 @@ func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string)
 }
 
 func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
-	for i, u := range unstructuredObjects {
+	for _, u := range unstructuredObjects {
+		uAddr := u
 		resource := Metadata{
 			Kind: u.GetKind(),
 			Name: u.GetName(),
 		}
-		m.resourceIndices[resource] = i
+		m.resourcesPointers[resource] = uAddr
 	}
 }
 
 func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
-	const indexGetErrFormat = "while getting %s/%s index: %w"
-	configMapIndex, err := m.GetResourceIndexByMetadata(Metadata{
+	const indexGetErrFormat = "while getting %s/%s address: %w"
+	configMapAddr, err := m.GetResourcePointerByMetadata(Metadata{
 		Kind: configMapKind,
 		Name: sapBtpServiceOperatorConfigMapName,
 	})
 	if err != nil {
 		return fmt.Errorf(indexGetErrFormat, configMapKind, sapBtpServiceOperatorConfigMapName, err)
 	}
-	secretIndex, err := m.GetResourceIndexByMetadata(Metadata{
+	secretAddr, err := m.GetResourcePointerByMetadata(Metadata{
 		Kind: secretKind,
 		Name: sapBtpServiceOperatorSecretName,
 	})
 	if err != nil {
 		return fmt.Errorf(indexGetErrFormat, secretKind, sapBtpServiceOperatorSecretName, err)
 	}
-	deploymentIndex, err := m.GetResourceIndexByMetadata(Metadata{
+	deploymentAddr, err := m.GetResourcePointerByMetadata(Metadata{
 		Kind: deploymentKind,
 		Name: config.DeploymentName,
 	})
@@ -185,13 +186,13 @@ func (m *Manager) PrepareModuleResources(resourcesToApply []*unstructured.Unstru
 
 	m.setNamespace(resourcesToApply...)
 
-	if err := m.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+	if err := m.setConfigMapValues(s, configMapAddr); err != nil {
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := m.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
+	if err := m.setSecretValues(s, secretAddr); err != nil {
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-	if err := m.setDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+	if err := m.setDeploymentImages(deploymentAddr); err != nil {
 		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
 
