@@ -29,3 +29,5 @@ manager:
     seccompProfile:
       type: RuntimeDefault
   fips: "fips140=only,tlsmlkem=0"
+  rbacProxy:
+    enabled: false

@@ -192,7 +192,7 @@ echo -e "\n--- Disabling network policies via annotation"
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
 
 echo -e "\n--- Waiting for network policies to be cleaned up"
-sleep 10
+sleep 30
 
 if checkNetworkPoliciesDeleted; then
   echo -e "--- Network policies correctly deleted after disable annotation"
@@ -205,7 +205,7 @@ echo -e "\n--- Re-enabling network policies by removing the disable annotation"
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies-
 
 echo -e "\n--- Waiting for network policies to be recreated"
-sleep 10
+sleep 30
 
 if checkNetworkPoliciesExist; then
   echo -e "--- Network policies correctly recreated after removing disable annotation"
