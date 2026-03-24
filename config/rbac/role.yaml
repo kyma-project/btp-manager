@@ -160,9 +160,9 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
+  - rolebindings
   verbs:
   - create
-  - delete
   - deletecollection
   - get
   - patch
@@ -182,16 +182,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  verbs:
-  - create
-  - deletecollection
-  - get
-  - patch
-  - update
 - apiGroups:
   - services.cloud.sap.com
   resources:
