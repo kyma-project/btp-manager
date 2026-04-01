@@ -71,8 +71,6 @@ const (
 )
 
 const (
-	KubeRbacProxyName         = "kube-rbac-proxy"
-	KubeRbacProxyEnv          = "KUBE_RBAC_PROXY"
 	SapBtpServiceOperatorName = "sap-btp-service-operator"
 	SapBtpServiceOperatorEnv  = "SAP_BTP_SERVICE_OPERATOR"
 
@@ -89,7 +87,6 @@ const (
 	mutatingWebhookName   = operandName + "-mutating-webhook-configuration"
 	validatingWebhookName = operandName + "-validating-webhook-configuration"
 
-	kubeRbacProxyContainerName         = KubeRbacProxyName
 	sapBtpServiceOperatorContainerName = "manager"
 
 	forceDeleteLabelKey       = "force-delete"
@@ -750,12 +747,8 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 
 func (r *BtpOperatorReconciler) setDeploymentImages(u *unstructured.Unstructured) error {
 	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
-	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
 	if err := r.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
 		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
-	}
-	if err := r.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
-		return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
 	}
 
 	return nil

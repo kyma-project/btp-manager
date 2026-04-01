@@ -128,14 +128,6 @@ jobs:
           EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("sap-btp-service-operator")) | .source' external-images.yaml)
           scripts/await_image.sh "${EXTERNAL_IMAGES_REPO}/${EXTERNAL_IMAGE}"
 
-      - name: Wait for kube-rbac-proxy image
-        if: env.UPDATE_CHART == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          EXTERNAL_IMAGE=$(yq '.images[] | select(.source | contains("kube-rbac-proxy")) | .source' external-images.yaml)
-          scripts/await_image.sh "${EXTERNAL_IMAGES_REPO}/${EXTERNAL_IMAGE}"
-
       - name: Checkout code after chart update and external images sync
         if: env.UPDATE_CHART == 'true'
         uses: actions/checkout@v6
