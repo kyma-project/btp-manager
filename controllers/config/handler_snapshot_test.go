@@ -169,4 +169,3 @@ func TestChangedSnapshotKeysNoChanges(t *testing.T) {
 		t.Fatalf("expected no changed keys, got: %#v", got)
 	}
 }
-
