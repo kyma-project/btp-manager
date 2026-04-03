@@ -1,3 +1,2 @@
 images:
   - source: "ghcr.io/sap/sap-btp-service-operator/controller:v0.10.4"
-  - source: "quay.io/brancz/kube-rbac-proxy:v0.20.2"
