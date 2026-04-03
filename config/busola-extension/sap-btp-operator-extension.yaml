@@ -365,6 +365,13 @@ data:
                     - In Use
                   warning:
                     - Not in Use
+                description: >-
+                  (
+                    $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
+                    $item.instances[0].namespace = $managedNamespace
+                    ? 'Ok'
+                    : 'This secret is not in the credentials namespace "' & $managedNamespace & '". Service instances referencing it will fail to provision. To resolve this, either move the secret to the credentials namespace or update the credentials namespace in the BTP Manager secret.'
+                  )
               - source: >-
                   (
                     $secret := $allSecrets().items[metadata.name = $item.secretName][0];
