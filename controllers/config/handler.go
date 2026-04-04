@@ -2,6 +2,8 @@ package config
 
 import (
 	"context"
+	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
@@ -61,6 +63,53 @@ type Handler struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	configMetrics *metrics.ConfigMetrics
+}
+
+func configSnapshot() map[string]any {
+	return map[string]any{
+		"ChartNamespace":                 ChartNamespace,
+		"ChartPath":                      ChartPath,
+		"SecretName":                     SecretName,
+		"ConfigName":                     ConfigName,
+		"DeploymentName":                 DeploymentName,
+		"ProcessingStateRequeueInterval": ProcessingStateRequeueInterval,
+		"ReadyStateRequeueInterval":      ReadyStateRequeueInterval,
+		"ReadyTimeout":                   ReadyTimeout,
+		"HardDeleteCheckInterval":        HardDeleteCheckInterval,
+		"HardDeleteTimeout":              HardDeleteTimeout,
+		"ResourcesPath":                  ResourcesPath,
+		"ReadyCheckInterval":             ReadyCheckInterval,
+		"DeleteRequestTimeout":           DeleteRequestTimeout,
+		"CaCertificateExpiration":        CaCertificateExpiration,
+		"WebhookCertificateExpiration":   WebhookCertificateExpiration,
+		"ExpirationBoundary":             ExpirationBoundary,
+		"RsaKeyBits":                     certs.RsaKeyBits(),
+		"EnableLimitedCache":             EnableLimitedCache,
+		"StatusUpdateTimeout":            StatusUpdateTimeout,
+		"StatusUpdateCheckInterval":      StatusUpdateCheckInterval,
+		"ManagerResourcesPath":           ManagerResourcesPath,
+	}
+}
+
+func changedSnapshotKeys(before, after map[string]any) []string {
+	changed := make([]string, 0)
+	keys := make(map[string]struct{}, len(before)+len(after))
+
+	for k := range before {
+		keys[k] = struct{}{}
+	}
+	for k := range after {
+		keys[k] = struct{}{}
+	}
+
+	for k := range keys {
+		if !reflect.DeepEqual(before[k], after[k]) {
+			changed = append(changed, k)
+		}
+	}
+
+	sort.Strings(changed)
+	return changed
 }
 
 func NewHandler(client client.Client, scheme *runtime.Scheme, configMetrics *metrics.ConfigMetrics) *Handler {
@@ -136,6 +185,8 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 		return []reconcile.Request{}
 	}
 
+	beforeConfig := configSnapshot()
+
 	logger.Info("reconciling configuration update", "config", cm.Data)
 
 	for k, v := range cm.Data {
@@ -194,6 +245,10 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 			logger.Info("failed to parse configuration update", k, err)
 		}
 	}
+
+	afterConfig := configSnapshot()
+	changedFields := changedSnapshotKeys(beforeConfig, afterConfig)
+	logger.Info("configuration snapshot updated", "changedFields", changedFields)
 
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
 }
