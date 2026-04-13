@@ -92,7 +92,6 @@ func main() {
 
 	requiredEnvs := []string{
 		controllers.SapBtpServiceOperatorEnv,
-		controllers.KubeRbacProxyEnv,
 	}
 	if err := ensureRequiredEnvs(requiredEnvs...); err != nil {
 		setupLog.Error(err, "missing required environment variables")

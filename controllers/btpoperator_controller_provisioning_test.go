@@ -133,27 +133,22 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 			Describe("dynamic container image setting in sap-btp-service-operator deployment", func() {
 				const (
 					sapBtpServiceOperatorImage = "test-sap-btp-service-operator:v0.0.1"
-					kubeRbacProxyImage         = "test-kube-rbac-proxy:v0.0.1"
 				)
 
 				var (
 					orgSapBtpServiceOperatorEnv string
-					orgKubeRbacProxyEnv         string
 				)
 
 				BeforeEach(func() {
 					orgSapBtpServiceOperatorEnv = os.Getenv(SapBtpServiceOperatorEnv)
-					orgKubeRbacProxyEnv = os.Getenv(KubeRbacProxyEnv)
 				})
 
 				AfterEach(func() {
 					Expect(os.Setenv(SapBtpServiceOperatorEnv, orgSapBtpServiceOperatorEnv)).To(Succeed())
-					Expect(os.Setenv(KubeRbacProxyEnv, orgKubeRbacProxyEnv)).To(Succeed())
 				})
 
 				It("should set container images from environment variables", func() {
 					Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpServiceOperatorImage)).To(Succeed())
-					Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
 					Expect(k8sClient.Create(ctx, secret, client.FieldOwner(operatorName))).To(Succeed())
@@ -164,15 +159,11 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 						if c.Name == sapBtpServiceOperatorContainerName {
 							Expect(c.Image).To(Equal(sapBtpServiceOperatorImage))
 						}
-						if c.Name == kubeRbacProxyContainerName {
-							Expect(c.Image).To(Equal(kubeRbacProxyImage))
-						}
 					}
 				})
 
 				It("should return reconciliation error on missing environment variables", func() {
 					_ = os.Unsetenv(SapBtpServiceOperatorEnv)
-					_ = os.Unsetenv(KubeRbacProxyEnv)
 					secret, err := createCorrectSecretFromYaml()
 					Expect(err).To(BeNil())
 					Expect(k8sClient.Create(ctx, secret, client.FieldOwner(operatorName))).To(Succeed())
