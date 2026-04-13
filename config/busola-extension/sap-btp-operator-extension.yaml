@@ -226,8 +226,8 @@ data:
                     - Unmanaged
                 description: >-
                   $lowercase($string($lookup($btpSecret().metadata.labels, 'kyma-project.io/skip-reconciliation'))) = 'true'
-                  ? 'This secret is unmanaged. If you make changes, they will not be reverted. To set the secret to managed state, remove the label kyma-project.io/skip-reconciliation from the secret YAML.'
-                  : 'This secret is managed. If you make changes, they will be reverted within 24 hours. To set the secret to unmanaged state, add the label kyma-project.io/skip-reconciliation: true to the secret YAML.'
+                  ? 'This secret is unmanaged. If you make changes, they will not be reverted. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}} To set the secret to the managed state, remove the label kyma-project.io/skip-reconciliation: true from the secret YAML. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}}'
+                  : 'This secret is managed. If you make changes, they will be reverted within 24 hours. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}} To set the secret to the unmanaged state, add the label kyma-project.io/skip-reconciliation: true to the secret YAML. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}}'
               - name: Edit
                 widget: ResourceLink
                 source: '"Edit"'
