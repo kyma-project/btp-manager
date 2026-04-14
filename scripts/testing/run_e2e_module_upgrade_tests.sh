@@ -57,7 +57,7 @@ kubectl apply -f ./deployments/prerequisites.yaml
 [ -n "${SM_CLIENT_ID}" ] && [ -n "${SM_CLIENT_SECRET}" ] && [ -n "${SM_URL}" ] && [ -n "${SM_TOKEN_URL}" ] || (echo "Missing credentials - failing test" && exit 1)
 envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 
-IMG=${REGISTRY}:${BASE_RELEASE} make deploy
+scripts/get_manifest.sh "${BASE_RELEASE}" | kubectl apply -f -
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
