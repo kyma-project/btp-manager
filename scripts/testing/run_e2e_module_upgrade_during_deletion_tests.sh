@@ -22,6 +22,7 @@ if [[ $# -eq 2 ]]; then
   # upgrade from one given version to another given version
   UPGRADE_IMAGE=${1}
   BASE_IMAGE=${2}
+  BASE_IMAGE_TAG="${BASE_IMAGE##*:}"
 elif [[ $# -eq 1 ]]; then
   # upgrade from the latest release to the given version
   UPGRADE_IMAGE=${1}
@@ -47,8 +48,17 @@ echo "-- TO: ${UPGRADE_IMAGE}"
 
 echo -e "\n--- PREPARING ENVIRONMENT"
 
-# deploy base image
+# Clone the base release so the old image is installed with the scripts,
+# YAML files, prerequisites, and config from when that release was published.
+echo -e "\n--- Cloning base version: ${BASE_IMAGE_TAG}"
+BASE_DIR=$(mktemp -d)
+git clone --depth 1 --branch "${BASE_IMAGE_TAG}" "https://github.com/${REPOSITORY:-kyma-project/btp-manager}.git" "${BASE_DIR}"
+
+pushd "${BASE_DIR}"
 scripts/testing/install_module.sh "${BASE_IMAGE}" dummy
+popd
+
+rm -rf "${BASE_DIR}"
 
 SI_NAME=auditlog-management-si-dummy
 export SI_NAME

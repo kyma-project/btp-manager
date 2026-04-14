@@ -43,25 +43,18 @@ NEW_IMAGE_REF=${REGISTRY}:${NEW_TAG}
 
 YAML_DIR="scripts/testing/yaml"
 
-# installing prerequisites, on production environment these are present before chart is used
-kubectl apply -f ./deployments/prerequisites.yaml
-
-# creating secret
-[ -n "${SM_CLIENT_ID}" ] && [ -n "${SM_CLIENT_SECRET}" ] && [ -n "${SM_URL}" ] && [ -n "${SM_TOKEN_URL}" ] || (echo "Missing credentials - failing test" && exit 1)
-envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
-
-# fetch the latest manifest and install btp-manager in current cluster
+# Clone the base release so the old image is installed with the scripts,
+# YAML files, prerequisites, and config from when that release was published.
 echo -e "\n--- Running base version: ${BASE_RELEASE}"
+BASE_DIR=$(mktemp -d)
+git clone --depth 1 --branch "${BASE_RELEASE}" "https://github.com/${REPOSITORY:-kyma-project/btp-manager}.git" "${BASE_DIR}"
 
-BASE_MANIFEST_FILE="btp-manager.base.yaml"
-scripts/get_manifest.sh "${BASE_RELEASE}" >${BASE_MANIFEST_FILE}
+pushd "${BASE_DIR}"
+[ -n "${SM_CLIENT_ID}" ] && [ -n "${SM_CLIENT_SECRET}" ] && [ -n "${SM_URL}" ] && [ -n "${SM_TOKEN_URL}" ] || (echo "Missing credentials - failing test" && exit 1)
+scripts/testing/install_module.sh "${REGISTRY}:${BASE_RELEASE}" real
+popd
 
-if head ${BASE_MANIFEST_FILE}|grep -q "Not Found"; then
-  echo "::error ::Cannot get manifest for base release: ${BASE_RELEASE}" && exit 1
-fi
-
-kubectl apply -f ${BASE_MANIFEST_FILE}
-rm ${BASE_MANIFEST_FILE}
+rm -rf "${BASE_DIR}"
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
