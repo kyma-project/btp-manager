@@ -48,25 +48,17 @@ echo "-- TO: ${UPGRADE_IMAGE}"
 
 echo -e "\n--- PREPARING ENVIRONMENT"
 
-# Install the base release from its published manifest to avoid running the
-# old checkout's install script, which can trigger local tool downloads/builds.
-BASE_RELEASE_MANIFEST_URL="https://github.com/${REPOSITORY:-kyma-project/btp-manager}/releases/download/${BASE_IMAGE_TAG}/btp-manager.yaml"
-echo -e "\n--- Installing base version from release manifest: ${BASE_IMAGE_TAG}"
-kubectl apply -f "${BASE_RELEASE_MANIFEST_URL}"
-
-# If a custom base image was provided for the tagged release, keep the old
-# release manifest/YAML but override the deployed controller image.
-if [[ "${BASE_IMAGE}" != "${REGISTRY}:${BASE_IMAGE_TAG}" ]]; then
-  echo -e "\n--- Overriding base controller image to: ${BASE_IMAGE}"
-  kubectl set image deployment/"${BTP_MANAGER_DEPLOYMENT_NAME}" manager="${BASE_IMAGE}" -n kyma-system
-fi
-
-# Clone the base release only to source the matching YAML files used before
-# the upgrade, so the old image is never combined with newer YAML definitions.
-echo -e "\n--- Cloning base version YAML: ${BASE_IMAGE_TAG}"
+# Clone the base release so the old image is installed with the scripts,
+# YAML files, prerequisites, and config from when that release was published.
+echo -e "\n--- Cloning base version: ${BASE_IMAGE_TAG}"
 BASE_DIR=$(mktemp -d)
 trap '[[ -n "${BASE_DIR:-}" ]] && rm -rf "${BASE_DIR}"' EXIT
 git clone --depth 1 --branch "${BASE_IMAGE_TAG}" "https://github.com/${REPOSITORY:-kyma-project/btp-manager}.git" "${BASE_DIR}"
+
+pushd "${BASE_DIR}"
+scripts/testing/install_module.sh "${BASE_IMAGE}" dummy
+popd
+
 # Use the base release YAML for pre-upgrade resources so the old image
 # is never combined with newer YAML definitions.
 BASE_YAML_DIR="${BASE_DIR}/scripts/testing/yaml"
