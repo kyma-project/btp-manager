@@ -59,17 +59,21 @@ pushd "${BASE_DIR}"
 scripts/testing/install_module.sh "${BASE_IMAGE}" dummy
 popd
 
-rm -rf "${BASE_DIR}"
-trap - EXIT
+# Use the base release YAML for pre-upgrade resources so the old image
+# is never combined with newer YAML definitions.
+BASE_YAML_DIR="${BASE_DIR}/scripts/testing/yaml"
 
 SI_NAME=auditlog-management-si-dummy
 export SI_NAME
 
 echo -e "\n--- Creating ServiceInstance: ${SI_NAME}"
-envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
+envsubst <${BASE_YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
 
 echo -e "\n--- Waiting for ServiceInstance existence"
 until kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME}; do sleep 5; done
+
+rm -rf "${BASE_DIR}"
+trap - EXIT
 
 # set BtpOperator CR in Deleting state
 echo -e "\n--- Deleting BtpOperator CR (setting Deleting state)"

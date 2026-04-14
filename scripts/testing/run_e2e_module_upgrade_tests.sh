@@ -55,8 +55,9 @@ pushd "${BASE_DIR}"
 scripts/testing/install_module.sh "${REGISTRY}:${BASE_RELEASE}" real
 popd
 
-rm -rf "${BASE_DIR}"
-trap - EXIT
+# Use the base release YAML for pre-upgrade resources so the old image
+# is never combined with newer YAML definitions.
+BASE_YAML_DIR="${BASE_DIR}/scripts/testing/yaml"
 
 # verifying whether service instance and service binding crds were created
 echo -e "\n--- Checking if serviceinstances and servicebindings CRDs are created"
@@ -74,10 +75,10 @@ export SI_NAME
 export SB_NAME
 
 echo -e "\n--- Creating ServiceInstance: ${SI_NAME}"
-envsubst <${YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
+envsubst <${BASE_YAML_DIR}/e2e-test-service-instance.yaml | kubectl apply -f -
 
 echo -e "\n--- Creating ServiceBinding: ${SB_NAME}"
-envsubst <${YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
+envsubst <${BASE_YAML_DIR}/e2e-test-service-binding.yaml | kubectl apply -f -
 
 while [[ $(kubectl get serviceinstances.services.cloud.sap.com/${SI_NAME} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]];
 do echo -e "\n--- Waiting for ServiceInstance to be ready"; sleep 5; done
@@ -88,6 +89,9 @@ while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jso
 do echo -e "\n--- Waiting for ServiceBinding to be ready"; sleep 5; done
 
 echo -e "\n--- ServiceBinding is ready"
+
+rm -rf "${BASE_DIR}"
+trap - EXIT
 
 echo -e "\n--- Upgrading the module"
 echo -e "\n--- Running version: ${NEW_TAG}"
