@@ -47,28 +47,16 @@ YAML_DIR="scripts/testing/yaml"
 # YAML files, prerequisites, and config from when that release was published.
 echo -e "\n--- Running base version: ${BASE_RELEASE}"
 BASE_DIR=$(mktemp -d)
+trap '[[ -n "${BASE_DIR:-}" ]] && rm -rf "${BASE_DIR}"' EXIT
 git clone --depth 1 --branch "${BASE_RELEASE}" "https://github.com/${REPOSITORY:-kyma-project/btp-manager}.git" "${BASE_DIR}"
 
 pushd "${BASE_DIR}"
-[ -n "${SM_CLIENT_ID}" ] && [ -n "${SM_CLIENT_SECRET}" ] && [ -n "${SM_URL}" ] && [ -n "${SM_TOKEN_URL}" ] || (echo "Missing credentials - failing test" && exit 1)
+[ -n "${SM_CLIENT_ID:-}" ] && [ -n "${SM_CLIENT_SECRET:-}" ] && [ -n "${SM_URL:-}" ] && [ -n "${SM_TOKEN_URL:-}" ] || (echo "Missing credentials - failing test" && exit 1)
 scripts/testing/install_module.sh "${REGISTRY}:${BASE_RELEASE}" real
 popd
 
 rm -rf "${BASE_DIR}"
-
-# check if deployment is available
-while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
-do echo -e "\n--- Waiting for deployment to be available"; sleep 5; done
-
-echo -e "\n--- Deployment available"
-
-echo -e "\n---Installing BTP operator"
-kubectl apply -f ${YAML_DIR}/e2e-test-btpoperator.yaml
-
-while [[ $(kubectl get btpoperators/btpoperator -n kyma-system  -o json| jq '.status.conditions[] | select(.type=="Ready") |.status+.reason'|xargs)  != "TrueReconcileSucceeded" ]];
-do echo -e "\n--- Waiting for BTP Operator to be ready and reconciled"; sleep 5; done
-
-echo -e "\n--- BTP Operator is ready"
+trap - EXIT
 
 # verifying whether service instance and service binding crds were created
 echo -e "\n--- Checking if serviceinstances and servicebindings CRDs are created"

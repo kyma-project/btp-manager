@@ -52,6 +52,7 @@ echo -e "\n--- PREPARING ENVIRONMENT"
 # YAML files, prerequisites, and config from when that release was published.
 echo -e "\n--- Cloning base version: ${BASE_IMAGE_TAG}"
 BASE_DIR=$(mktemp -d)
+trap '[[ -n "${BASE_DIR:-}" ]] && rm -rf "${BASE_DIR}"' EXIT
 git clone --depth 1 --branch "${BASE_IMAGE_TAG}" "https://github.com/${REPOSITORY:-kyma-project/btp-manager}.git" "${BASE_DIR}"
 
 pushd "${BASE_DIR}"
@@ -59,6 +60,7 @@ scripts/testing/install_module.sh "${BASE_IMAGE}" dummy
 popd
 
 rm -rf "${BASE_DIR}"
+trap - EXIT
 
 SI_NAME=auditlog-management-si-dummy
 export SI_NAME
