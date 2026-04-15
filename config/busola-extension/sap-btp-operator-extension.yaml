@@ -114,7 +114,7 @@ data:
     urlPath: btpoperators
     scope: namespace
     description: >-
-      BTP Operator enables consumption of SAP BTP services in your Kubernetes cluster.
+      {{[SAP BTP Operator](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module)}} provides service management, enabling you to consume SAP BTP services from your Kyma cluster.
     features:
       actions:
         disableCreate: true
@@ -226,8 +226,8 @@ data:
                     - Unmanaged
                 description: >-
                   $lowercase($string($lookup($btpSecret().metadata.labels, 'kyma-project.io/skip-reconciliation'))) = 'true'
-                  ? 'This secret is unmanaged. If you make changes, they will not be reverted. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}} To set the secret to the managed state, remove the label kyma-project.io/skip-reconciliation: true from the secret YAML. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}}'
-                  : 'This secret is managed. If you make changes, they will be reverted within 24 hours. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}} To set the secret to the unmanaged state, add the label kyma-project.io/skip-reconciliation: true to the secret YAML. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}}'
+                  ? 'This secret is unmanaged. If you make changes, they will not be reverted. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access)}} To set the secret to the managed state, remove the label kyma-project.io/skip-reconciliation: true from the secret YAML. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}}'
+                  : 'This secret is managed. If you make changes, they will be reverted within 24 hours. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}} To set the secret to the unmanaged state, add the label kyma-project.io/skip-reconciliation: true to the secret YAML. {{[Learn More](https://help.sap.com/docs/btp/sap-business-technology-platform/customizing-default-credentials-and-access)}}'
               - name: Edit
                 widget: ResourceLink
                 source: '"Edit"'
@@ -279,7 +279,7 @@ data:
       - name: Namespace-Based Secrets
         widget: Panel
         disablePadding: true
-        description: Secrets based on namespace naming convention (custom-namespace-sap-btp-service-operator)
+        description: custom-namespace-sap-btp-service-operator
         children:
           - widget: Table
             source: >-
@@ -353,6 +353,10 @@ data:
                 widget: Text
               - source: '$string($item.instanceCount)'
                 name: Service Instances
+                widget: Badge
+                highlights:
+                  informative: '$exists($)'
+                description: '$join($item.instances.(name & " (" & namespace & ")"), ", ")'
               - source: >-
                   (
                     $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
