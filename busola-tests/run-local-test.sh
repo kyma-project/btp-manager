@@ -140,16 +140,11 @@ echo -e "${GREEN}   ✓ ServiceInstance and ServiceBinding CRDs installed${NC}"
 kubectl apply -f "${BTP_MANAGER_ROOT}/examples/btp-operator.yaml"
 echo -e "${GREEN}   ✓ BtpOperator CR created${NC}"
 
-# Create mock BTP secret
-kubectl apply -f "${BTP_MANAGER_ROOT}/busola-tests/fixtures/mock-btp-secret.yaml"
-echo -e "${GREEN}   ✓ Mock BTP secret created${NC}"
-
 # Wait a moment for resources to settle
 sleep 2
 
 echo -e "${GREEN}   ✓ Prerequisites installed${NC}"
 kubectl get btpoperators -A
-kubectl get secrets -n kyma-system sap-btp-manager
 
 # Step 3: Setup Busola
 if [ "$SKIP_BUSOLA" = false ]; then
