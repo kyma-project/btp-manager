@@ -78,9 +78,6 @@ Creates a ServiceInstance with `spec.btpAccessCredentialsSecret` set, then valid
 - Status shows Not in Use (secret namespace differs from credentials namespace)
 - Service Instances count is correct
 
-## Fixtures
-
-`fixtures/mock-btp-secret.yaml` — the `sap-btp-manager` secret installed in `kyma-system` before tests run. Contains mock base64-encoded values for `clientid`, `clientsecret`, `sm_url`, `tokenurl`, and `cluster_id`. No real SAP BTP connection is made.
 
 ## CI
 
