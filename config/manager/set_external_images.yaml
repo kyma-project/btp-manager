@@ -10,4 +10,4 @@ spec:
         - name: manager
           env:
             - name: SAP_BTP_SERVICE_OPERATOR
-              value: europe-docker.pkg.dev/kyma-project/prod/external/ghcr.io/sap/sap-btp-service-operator/controller:v0.10.4
+              value: europe-docker.pkg.dev/kyma-project/prod/external/ghcr.io/sap/sap-btp-service-operator/controller:v0.10.5
