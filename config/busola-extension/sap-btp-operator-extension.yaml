@@ -114,7 +114,7 @@ data:
     urlPath: btpoperators
     scope: namespace
     description: >-
-      {{[SAP BTP Operator](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module)}} provides service management, enabling you to consume SAP BTP services from your Kyma cluster.
+      SAP BTP Operator](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module)}} provides service management, enabling you to consume SAP BTP services from your Kyma cluster.
     features:
       actions:
         disableCreate: true
@@ -353,10 +353,6 @@ data:
                 widget: Text
               - source: '$string($item.instanceCount)'
                 name: Service Instances
-                widget: Badge
-                highlights:
-                  informative: '$exists($)'
-                description: '$join($item.instances.(name & " (" & namespace & ")"), ", ")'
               - source: >-
                   (
                     $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
