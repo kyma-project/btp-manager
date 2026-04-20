@@ -43,8 +43,9 @@ const (
 )
 
 var (
-	fakeClient client.Client
-	scheme     *runtime.Scheme
+	fakeClient           client.Client
+	scheme               *runtime.Scheme
+	defaultStubDetector  *stubCredentialsProvider
 )
 
 func TestModuleResource(t *testing.T) {
@@ -60,6 +61,11 @@ var _ = BeforeSuite(func() {
 	fakeClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		Build()
+
+	defaultStubDetector = &stubCredentialsProvider{
+		credentialsNamespace: kymaNamespace,
+		clusterId:            "",
+	}
 })
 
 var _ = Describe("Module Resource Manager", func() {
@@ -70,89 +76,65 @@ var _ = Describe("Module Resource Manager", func() {
 			WithScheme(scheme).
 			Build()
 
-		manager = NewManager(fakeClient, scheme)
+		manager = NewManager(fakeClient, scheme, defaultStubDetector)
 	})
 
-	Describe("read required secret", func() {
-		It("should return error when required secret does not exist", func() {
-			secret, err := manager.getRequiredSecret(context.Background())
-			Expect(k8serrors.IsNotFound(err)).To(BeTrue())
-			Expect(secret).To(BeNil())
+
+	Describe("partition resources by kind", func() {
+		It("should return resources of the requested kind in matching and the rest in rest", func() {
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			Expect(err).NotTo(HaveOccurred())
+
+			matching, rest := manager.ResourcesOfKinds(objects, configmapKind)
+
+			Expect(matching).To(HaveLen(1))
+			Expect(matching[0].GetKind()).To(Equal(configmapKind))
+			Expect(rest).To(HaveLen(2))
+			for _, r := range rest {
+				Expect(r.GetKind()).NotTo(Equal(configmapKind))
+			}
 		})
 
-		It("should get required secret", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
+		It("should place resources appended after loading into rest regardless of kind", func() {
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			Expect(err).NotTo(HaveOccurred())
 
-			Expect(err).To(BeNil())
-			Expect(secret.Name).To(Equal(requiredSecretName))
-			Expect(secret.Namespace).To(Equal(requiredSecretNamespace))
+			extra := &unstructured.Unstructured{}
+			extra.SetKind(configmapKind)
+			extra.SetName("extra-configmap")
+			objects = append(objects, extra)
+
+			matching, rest := manager.ResourcesOfKinds(objects, configmapKind)
+
+			Expect(matching).To(HaveLen(1))
+			Expect(matching[0].GetName()).To(Equal(configmapName))
+			Expect(rest).To(HaveLen(3))
 		})
 
-		It("should successfully verify required secret", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
-			Expect(err).To(BeNil())
+		It("should return all resources in rest when no kind matches", func() {
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			Expect(err).NotTo(HaveOccurred())
 
-			Expect(manager.verifySecret(secret)).To(Succeed())
+			matching, rest := manager.ResourcesOfKinds(objects, "NetworkPolicy")
+
+			Expect(matching).To(BeEmpty())
+			Expect(rest).To(HaveLen(len(objects)))
 		})
 
-		It("should return error when required secret does not contain required key", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
-			Expect(err).To(BeNil())
+		It("should return all resources in rest when no kinds are specified", func() {
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			Expect(err).NotTo(HaveOccurred())
 
-			delete(secret.Data, ClientIdSecretKey)
-			err = manager.verifySecret(secret)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring(ClientIdSecretKey))
-		})
+			matching, rest := manager.ResourcesOfKinds(objects)
 
-		It("should return error when one of keys in required secret does not contain value", func() {
-			Expect(createRequiredSecret(fakeClient)).To(Succeed())
-			secret, err := manager.getRequiredSecret(context.Background())
-			Expect(err).To(BeNil())
-
-			secret.Data[ClientSecretKey] = []byte{}
-			err = manager.verifySecret(secret)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring(ClientSecretKey))
-		})
-	})
-
-	Describe("setup credentials context", func() {
-		var secret *corev1.Secret
-
-		BeforeEach(func() {
-			secret = requiredSecret()
-		})
-
-		It("should set default credentials namespace when required secret does not contain credentials_namespace", func() {
-			manager.setCredentialsNamespace(secret)
-
-			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(kymaNamespace))
-		})
-
-		It("should set credentials namespace from required secret", func() {
-			const expectedCredentialsNamespace = "new-credentials-namespace"
-			secret.Data[CredentialsNamespaceSecretKey] = []byte(expectedCredentialsNamespace)
-			manager.setCredentialsNamespace(secret)
-
-			Expect(manager.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret).To(Equal(expectedCredentialsNamespace))
-		})
-
-		It("should set credentials ID from required secret", func() {
-			const expectedClusterID = "new-credentials-id"
-			secret.Data[ClusterIdSecretKey] = []byte(expectedClusterID)
-			manager.setClusterID(secret)
-
-			Expect(manager.credentialsContext.clusterIdFromSapBtpManagerSecret).To(Equal(expectedClusterID))
+			Expect(matching).To(BeEmpty())
+			Expect(rest).To(HaveLen(len(objects)))
 		})
 	})
 
 	Describe("create unstructured objects from manifests directory", func() {
 		It("should load and convert manifests to unstructured objects", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
@@ -178,7 +160,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should return error for non-existent directory", func() {
-			_, err := manager.createUnstructuredObjectsFromManifestsDir("./non-existent")
+			_, err := manager.CreateUnstructuredObjectsFromManifestsDir("./non-existent")
 
 			Expect(err).To(HaveOccurred())
 		})
@@ -186,11 +168,11 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("add labels", func() {
 		It("should add managed-by, chart version, and module labels to all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			chartVersion := "0.0.1"
-			Expect(manager.addLabels(chartVersion, objects...)).NotTo(HaveOccurred())
+			Expect(manager.AddLabels(chartVersion, objects...)).NotTo(HaveOccurred())
 
 			for _, obj := range objects {
 				labels := obj.GetLabels()
@@ -210,10 +192,10 @@ var _ = Describe("Module Resource Manager", func() {
 
 	Describe("set namespace", func() {
 		It("should set namespace in all resources", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			manager.setNamespace(objects)
+			manager.SetNamespace(objects)
 
 			for _, obj := range objects {
 				Expect(obj.GetNamespace()).To(Equal(kymaNamespace))
@@ -222,25 +204,18 @@ var _ = Describe("Module Resource Manager", func() {
 	})
 
 	Describe("set ConfigMap values", func() {
-		It("should set ConfigMap values from Secret", func() {
+		It("should set ConfigMap values from the credentials provider", func() {
 			const (
-				expectedClientId                = "test-client"
 				expectedClusterId               = "test-cluster-123"
 				expectedCredentialsNamespace    = "test-creds-ns"
 				expectedEnableLimitedCacheValue = "true"
 			)
 
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      secretName,
-					Namespace: testNamespace,
-				},
-				Data: map[string][]byte{
-					ClientIdSecretKey:             []byte(expectedClientId),
-					ClusterIdSecretKey:            []byte(expectedClusterId),
-					CredentialsNamespaceSecretKey: []byte(expectedCredentialsNamespace),
-				},
+			stub := &stubCredentialsProvider{
+				credentialsNamespace: expectedCredentialsNamespace,
+				clusterId:            expectedClusterId,
 			}
+			manager = NewManager(fakeClient, scheme, stub)
 
 			restoreEnableLimitedCache := config.EnableLimitedCache
 			config.EnableLimitedCache = expectedEnableLimitedCacheValue
@@ -248,15 +223,14 @@ var _ = Describe("Module Resource Manager", func() {
 				config.EnableLimitedCache = restoreEnableLimitedCache
 			}()
 
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
 			Expect(found).To(BeTrue())
 			configmap := objects[configmapIndex]
 
-			manager.setCredentialsContext(secret)
-			err = manager.setConfigMapValues(secret, configmap)
+			err = manager.SetConfigMapValues(configmap)
 			Expect(err).NotTo(HaveOccurred())
 
 			data, found, err := unstructured.NestedStringMap(configmap.Object, "data")
@@ -273,16 +247,16 @@ var _ = Describe("Module Resource Manager", func() {
 		It("should copy data with base64 encoding excluding cluster_id and credentials_namespace", func() {
 			const expectedCredentialsNamespace = "credentials-namespace"
 			secret := requiredSecret()
-			secret.Data[CredentialsNamespaceSecretKey] = []byte(expectedCredentialsNamespace)
+
+			stub := &stubCredentialsProvider{credentialsNamespace: expectedCredentialsNamespace}
+			manager = NewManager(fakeClient, scheme, stub)
 
 			secretObj := &unstructured.Unstructured{}
 			secretObj.SetKind(secretKind)
 			secretObj.SetName(SapBtpServiceOperatorName)
 			secretObj.SetNamespace(kymaNamespace)
 
-			manager.setCredentialsContext(secret)
-
-			Expect(manager.setSecretValues(secret, secretObj)).NotTo(HaveOccurred())
+			Expect(manager.SetSecretValues(secret, secretObj)).NotTo(HaveOccurred())
 			Expect(secretObj.GetNamespace()).To(Equal(expectedCredentialsNamespace))
 
 			data, found, err := unstructured.NestedStringMap(secretObj.Object, "data")
@@ -314,14 +288,14 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should set container images for manager and kube-rbac-proxy", func() {
-			objects, err := manager.createUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
+			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
 			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
 			Expect(found).To(BeTrue())
 			deployment := objects[deploymentIndex]
 
-			err = manager.setDeploymentImages(deployment)
+			err = manager.SetDeploymentImages(deployment)
 			Expect(err).NotTo(HaveOccurred())
 
 			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
@@ -354,7 +328,7 @@ var _ = Describe("Module Resource Manager", func() {
 				},
 			}
 
-			err := manager.setDeploymentImages(deployment)
+			err := manager.SetDeploymentImages(deployment)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("container manager not found"))
 		})
@@ -448,7 +422,7 @@ var _ = Describe("Module Resource Manager", func() {
 				}, configmap)
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(manager.deleteOutdatedResources(context.Background())).Should(Succeed())
+				Expect(manager.DeleteOutdatedResources(context.Background())).Should(Succeed())
 
 				err = fakeClient.Get(ctx, client.ObjectKey{
 					Name:      configmapName,
@@ -458,7 +432,7 @@ var _ = Describe("Module Resource Manager", func() {
 			})
 
 			It("should not error when deleting non-existent resources", func() {
-				Expect(manager.deleteOutdatedResources(context.Background())).Should(Succeed())
+				Expect(manager.DeleteOutdatedResources(context.Background())).Should(Succeed())
 			})
 
 			It("should return error when unable to delete resources", func() {
@@ -467,7 +441,7 @@ var _ = Describe("Module Resource Manager", func() {
 					expectedName2 = "configmap2"
 				)
 				client := &errorOnDeleteClient{fakeClient}
-				manager = NewManager(client, scheme)
+				manager = NewManager(client, scheme, defaultStubDetector)
 
 				us1 := &unstructured.Unstructured{}
 				us1.SetKind(configmapKind)
@@ -481,7 +455,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 				objects := []*unstructured.Unstructured{us1, us2}
 
-				err := manager.deleteResources(ctx, objects)
+				err := manager.DeleteResources(ctx, objects)
 				Expect(err).To(HaveOccurred())
 
 				const errorFormat = "failed to delete %s %s"
@@ -513,7 +487,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -525,7 +499,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("timeout"))
 		})
@@ -538,7 +512,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{configmap}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -553,7 +527,7 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			objects := []*unstructured.Unstructured{deployment, configmap}
-			err = manager.waitForResourcesReadiness(ctx, objects)
+			err = manager.WaitForResourcesReadiness(ctx, objects)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -579,6 +553,14 @@ func requiredSecret() *corev1.Secret {
 	}
 	return secret
 }
+
+type stubCredentialsProvider struct {
+	credentialsNamespace string
+	clusterId            string
+}
+
+func (s *stubCredentialsProvider) CredentialsNamespaceFromManager() string { return s.credentialsNamespace }
+func (s *stubCredentialsProvider) ClusterIdFromManager() string            { return s.clusterId }
 
 type errorOnDeleteClient struct {
 	client.Client
