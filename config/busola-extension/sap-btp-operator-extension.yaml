@@ -114,7 +114,7 @@ data:
     urlPath: btpoperators
     scope: namespace
     description: >-
-      SAP BTP Operator](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module)}} provides service management, enabling you to consume SAP BTP services from your Kyma cluster.
+      [SAP BTP Operator](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module)}} provides service management, enabling you to consume SAP BTP services from your Kyma cluster.
     features:
       actions:
         disableCreate: true
@@ -152,7 +152,7 @@ data:
       - name: BTP Manager Version
         source: '$substringAfter($btpManagerDeployment().spec.template.spec.containers[0].image, ":")'
         widget: Text
-      - name: BTP Service Operator Version
+      - name: SAP BTP Service Operator Version
         source: >-
           (
             $env := $btpOperatorDeployment().spec.template.spec.containers[0].env;
@@ -206,7 +206,7 @@ data:
           widget: ConditionList
           fullWidth: true
     body:
-      - name: BTP Operator Secrets
+      - name: SAP BTP Operator Secrets
         widget: Panel
         description: For details about secret types and configuration, see {{[Preconfigured Credentials and Access](https://help.sap.com/docs/btp/sap-business-technology-platform/preconfigured-credentials-and-access)}} and {{[Working with Multiple Subaccounts](https://help.sap.com/docs/btp/sap-business-technology-platform/working-with-multiple-subaccounts)}}.
         children:
