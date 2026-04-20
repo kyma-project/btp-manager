@@ -127,7 +127,7 @@ data:
 
     // --- Verify BTP Operator Secrets panel ---
     cy.getMidColumn().within(() => {
-      cy.contains('BTP Operator Secrets').should('be.visible');
+      cy.contains('SAP BTP Operator Secrets').should('be.visible');
 
       // BTP Manager Secret sub-panel
       cy.contains('BTP Manager Secret').should('be.visible');

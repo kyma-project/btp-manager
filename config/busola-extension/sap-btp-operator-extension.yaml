@@ -114,7 +114,7 @@ data:
     urlPath: btpoperators
     scope: namespace
     description: >-
-      [SAP BTP Operator](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module)}} provides service management, enabling you to consume SAP BTP services from your Kyma cluster.
+      {{[SAP BTP Operator](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module)}} provides service management, enabling you to consume SAP BTP services from your Kyma cluster.
     features:
       actions:
         disableCreate: true
