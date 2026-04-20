@@ -10,9 +10,9 @@ Cypress E2E tests for the BTP Operator Busola extension. Tests run against a loc
 - Python 3
 - Chrome
 
-## Quick Start
+## Run Tests
 
-Run all tests from the repository root:
+To run all tests from the repository root, use:
 
 ```shell
 ./busola-tests/run-local-test.sh --cleanup
@@ -26,14 +26,14 @@ The script creates a k3d cluster, installs prerequisites, builds and starts Buso
 |--------|-------------|
 | `--busola-path PATH` | Path to local Busola repository (default: `../busola`) |
 | `--skip-cluster` | Reuse existing k3d cluster `kyma` |
-| `--skip-busola` | Skip Busola build/start (must already be running on `:3001`) |
+| `--skip-busola` | Skip Busola build/start (Busola must already be running on `:3001`) |
 | `--headed` | Run Cypress with a visible browser window |
 | `--interactive` | Open Cypress GUI for manual test selection |
 | `--cleanup` | Delete k3d cluster after tests complete |
 
-## Development Workflow
+## Develop Tests Iteratively
 
-For iterative test development, start with a full run, then reuse the cluster and Busola on subsequent iterations:
+For iterative development, run a full setup once and reuse the cluster and Busola instance on subsequent runs:
 
 ```shell
 # First run — sets everything up and opens Cypress GUI
@@ -43,13 +43,10 @@ For iterative test development, start with a full run, then reuse the cluster an
 ./busola-tests/run-local-test.sh --skip-cluster --skip-busola --headed
 ```
 
-To test extension changes without re-running the full suite:
+To test extension changes without re-running the full suite, apply the updated ConfigMap to the running cluster and rerun:
 
 ```shell
-# Apply extension change to the running cluster
 kubectl apply -f config/busola-extension/sap-btp-operator-extension.yaml -n kube-public
-
-# Rerun tests in the open Cypress GUI or via headed mode
 ./busola-tests/run-local-test.sh --skip-cluster --skip-busola --headed
 ```
 
@@ -57,27 +54,29 @@ kubectl apply -f config/busola-extension/sap-btp-operator-extension.yaml -n kube
 
 All scenarios are in `ext-test-btp-operator.spec.js`.
 
-**1. Upload extension ConfigMap**
-Uploads the extension ConfigMap, verifies the BTP Operators menu appears, opens the `btpoperator` detail view, and validates:
-- Metadata card shows Documentation link, Service Instances, and Service Bindings counts
-- BTP Operator Secrets panel renders with BTP Manager Secret (Managed badge) and SAP BTP Service Operator Secret (Inherited badge)
-- Credentials Namespace defaults to `kyma-system`
-- Edit ResourceLink navigates to the `sap-btp-manager` secret
-- Service Instances and Service Bindings count links navigate to the respective CRD pages
+**1. Upload Extension ConfigMap**
 
-**2. Configure custom credentials namespace**
+Uploads the extension ConfigMap, verifies the **BTP Operators** menu appears, opens the `btpoperator` detail view, and validates:
+- The Metadata card shows the Documentation link, Service Instances count, and Service Bindings count
+- The **BTP Operator Secrets** panel renders with **BTP Manager Secret** (Managed badge) and **SAP BTP Service Operator Secret** (Inherited badge)
+- Credentials Namespace defaults to `kyma-system`
+- The **Edit** ResourceLink navigates to the `sap-btp-manager` secret
+- The Service Instances and Service Bindings count links navigate to the respective CRD pages
+
+**2. Configure Custom Credentials Namespace**
+
 Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager` to add the `kyma-project.io/skip-reconciliation` label and set `credentials_namespace: test`, then validates:
-- BTP Manager Secret badge switches to Unmanaged
+- The **BTP Manager Secret** badge switches to Unmanaged
 - Credentials Namespace shows `test`
-- Namespace-Based Secrets table shows the test secret with In Use status
+- The **Namespace-Based Secrets** table shows the test secret with In Use status
 - After uploading a ServiceInstance and ServiceBinding, counts update in the header
 
 **3. Custom Secrets**
-Creates a ServiceInstance with `spec.btpAccessCredentialsSecret` set, then validates:
-- Custom Secrets panel renders with the referenced secret
-- Status shows Not in Use (secret namespace differs from credentials namespace)
-- Service Instances count is correct
 
+Creates a ServiceInstance with `spec.btpAccessCredentialsSecret` set, then validates:
+- The **Custom Secrets** panel renders with the referenced secret
+- Status shows Not in Use (the secret namespace differs from the credentials namespace)
+- The Service Instances count is correct
 
 ## CI
 
