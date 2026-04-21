@@ -86,7 +86,7 @@ The extension defines the following data sources in the `dataSources` field of t
 
 ## Modify the Extension
 
-To apply a change to a running local test cluster:
+To apply a change to a running local test cluster, run:
 
 ```shell
 kubectl apply -f config/busola-extension/sap-btp-operator-extension.yaml -n kube-public
