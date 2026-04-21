@@ -39,15 +39,15 @@ Shows details of the `sap-btp-manager` Secret in the `kyma-system` namespace:
 | **Service Manager URL** | Decoded `data.sm_url` |
 | **Token URL** | Decoded `data.tokenurl` |
 
-The **Edit** link navigates directly to the `sap-btp-manager` secret in Busola.
+The **Edit** link navigates directly to the `sap-btp-manager` Secret in Busola.
 
 **SAP BTP Service Operator Secret**
 
-Shows the cluster-wide `sap-btp-service-operator` secret (the default secret injected from the BTP Manager secret). Status is always `Inherited`.
+Shows the cluster-wide `sap-btp-service-operator` Secret (the default Secret injected from the BTP Manager Secret). Its status is always `Inherited`.
 
 ### Namespace-Based Secrets Panel
 
-Lists all secrets whose names match the pattern `*-sap-btp-service-operator` across all namespaces. These secrets provide per-namespace credentials overrides.
+Lists all Secrets whose names match the pattern `*-sap-btp-service-operator` across all namespaces. These Secrets provide per-namespace credentials overrides.
 
 | Column | Description |
 |---|---|
@@ -57,25 +57,25 @@ Lists all secrets whose names match the pattern `*-sap-btp-service-operator` acr
 
 ### Custom Secrets Panel
 
-Lists all ServiceInstance resources that reference a custom secret via `spec.btpAccessCredentialsSecret`. Secrets are grouped by name.
+Lists all ServiceInstance resources that reference a custom secret through `spec.btpAccessCredentialsSecret`. Secrets are grouped by name.
 
 | Column | Description |
 |---|---|
-| Name | Link to the secret in Busola |
+| Name | Link to the Secret in Busola |
 | Namespace | Namespace of the first referencing ServiceInstance |
-| Service Instances | Count of ServiceInstances referencing the secret |
-| Status | `In Use` if the secret namespace matches the credentials namespace; `Not in Use` otherwise |
+| Service Instances | Count of ServiceInstances referencing the Secret |
+| Status | `In Use` if the Secret namespace matches the credentials namespace; `Not in Use` otherwise |
 
 ## Data Sources
 
-The extension defines the following data sources in the `dataSources` field of the ConfigMap:
+The extension defines the following data sources in the **dataSources** field of the ConfigMap:
 
 | Name | Resource | Purpose |
 |---|---|---|
 | `btpSecret` / `btpSecret2` / `btpSecret3` / `btpSecret4` | `sap-btp-manager` Secret | Multiple copies to ensure stable rendering across different panel scopes |
 | `btpManagerDeployment` | `btp-manager-controller-manager` Deployment | BTP Manager version |
 | `btpOperatorDeployment` | `sap-btp-operator-controller-manager` Deployment | BTP Service Operator version |
-| `defaultSecret` | All Secrets named `sap-btp-service-operator` (cluster-wide) | SAP BTP Service Operator Secret sub-panel |
+| `defaultSecret` | All Secrets named `sap-btp-service-operator` (cluster-wide) | **SAP BTP Service Operator Secret** sub-panel |
 | `namespacedSecrets` | All Secrets matching `*-sap-btp-service-operator` (cluster-wide) | **Namespace-Based Secrets** panel |
 | `referencedSecrets` | All ServiceInstances with `spec.btpAccessCredentialsSecret` set | **Custom Secrets** panel |
 | `allServiceInstances` | All ServiceInstances (cluster-wide) | Service instances count |
