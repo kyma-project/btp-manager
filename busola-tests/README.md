@@ -68,7 +68,7 @@ Uploads the extension ConfigMap, verifies the **BTP Operators** menu appears, op
 Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager` to add the `kyma-project.io/skip-reconciliation` label and set `credentials_namespace: test`, then validates the following:
 - The SAP BTP Manager Secret badge switches to **Unmanaged**
 - **Credentials Namespace** shows `test`
-- The **Namespace-Based Secrets** table shows the test secret with In Use status
+- The **Namespace-Based Secrets** table shows the test secret with `In Use` status
 - After uploading a ServiceInstance and ServiceBinding, counts update in the header
 
 ### Custom Secrets
