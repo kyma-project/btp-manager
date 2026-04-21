@@ -58,7 +58,7 @@ All scenarios are in `ext-test-btp-operator.spec.js`.
 
 Uploads the extension ConfigMap, verifies the **BTP Operators** menu appears, opens the `btpoperator` detail view, and validates:
 - The Metadata card shows the Documentation link, Service Instances count, and Service Bindings count
-- The **BTP Operator Secrets** panel renders with **BTP Manager Secret** (Managed badge) and **SAP BTP Service Operator Secret** (Inherited badge)
+- The **SAP BTP Operator Secrets** panel renders with **BTP Manager Secret** (Managed badge) and **SAP BTP Service Operator Secret** (Inherited badge)
 - Credentials Namespace defaults to `kyma-system`
 - The **Edit** ResourceLink navigates to the `sap-btp-manager` secret
 - The Service Instances and Service Bindings count links navigate to the respective CRD pages
