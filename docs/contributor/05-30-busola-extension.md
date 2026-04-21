@@ -74,7 +74,7 @@ The extension defines the following data sources in the **dataSources** field of
 |---|---|---|
 | `btpSecret` / `btpSecret2` / `btpSecret3` / `btpSecret4` | `sap-btp-manager` Secret | Multiple copies to ensure stable rendering across different panel scopes |
 | `btpManagerDeployment` | `btp-manager-controller-manager` Deployment | BTP Manager version |
-| `btpOperatorDeployment` | `sap-btp-operator-controller-manager` Deployment | BTP Service Operator version |
+| `btpOperatorDeployment` | `sap-btp-operator-controller-manager` Deployment | SAP BTP service operator version |
 | `defaultSecret` | All Secrets named `sap-btp-service-operator` (cluster-wide) | **SAP BTP Service Operator Secret** sub-panel |
 | `namespacedSecrets` | All Secrets matching `*-sap-btp-service-operator` (cluster-wide) | **Namespace-Based Secrets** panel |
 | `referencedSecrets` | All ServiceInstances with `spec.btpAccessCredentialsSecret` set | **Custom Secrets** panel |
