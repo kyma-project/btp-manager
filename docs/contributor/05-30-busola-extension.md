@@ -78,7 +78,7 @@ The extension defines the following data sources in the `dataSources` field of t
 | `defaultSecret` | All Secrets named `sap-btp-service-operator` (cluster-wide) | SAP BTP Service Operator Secret sub-panel |
 | `namespacedSecrets` | All Secrets matching `*-sap-btp-service-operator` (cluster-wide) | **Namespace-Based Secrets** panel |
 | `referencedSecrets` | All ServiceInstances with `spec.btpAccessCredentialsSecret` set | **Custom Secrets** panel |
-| `allServiceInstances` | All ServiceInstances (cluster-wide) | Service Instances count |
+| `allServiceInstances` | All ServiceInstances (cluster-wide) | Service instances count |
 | `allSecrets` | All Secrets (cluster-wide) | Creation timestamps in Custom Secrets panel |
 
 > [!NOTE]
