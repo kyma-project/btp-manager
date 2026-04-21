@@ -61,7 +61,7 @@ Uploads the extension ConfigMap, verifies the **BTP Operators** menu appears, op
 - The **SAP BTP Operator Secrets** panel renders with **BTP Manager Secret** (Managed badge) and **SAP BTP Service Operator Secret** (Inherited badge)
 - Credentials Namespace defaults to `kyma-system`
 - The **Edit** ResourceLink navigates to the `sap-btp-manager` secret
-- The Service Instances and Service Bindings count links navigate to the respective CRD pages
+- The service instances and service bindings count links navigate to the respective CRD pages
 
 ###  Configure Custom Credentials Namespace
 
