@@ -1,6 +1,6 @@
 # SAP BTP Operator Busola Extension E2E Tests
 
-Cypress E2E tests for the BTP Operator Busola extension. Tests run against a local k3d cluster and a locally built Busola instance — no external cluster or credentials required.
+Cypress E2E tests for the SAP BTP Operator Busola extension. Tests run against a local k3d cluster and a locally built Busola instance — no external cluster or credentials required.
 
 ## Prerequisites
 
