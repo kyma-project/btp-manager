@@ -63,7 +63,7 @@ Uploads the extension ConfigMap, verifies the **BTP Operators** menu appears, op
 - The **Edit** ResourceLink navigates to the `sap-btp-manager` secret
 - The Service Instances and Service Bindings count links navigate to the respective CRD pages
 
-**2. Configure Custom Credentials Namespace**
+###  Configure Custom Credentials Namespace
 
 Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager` to add the `kyma-project.io/skip-reconciliation` label and set `credentials_namespace: test`, then validates:
 - The **BTP Manager Secret** badge switches to Unmanaged
