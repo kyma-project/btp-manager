@@ -79,7 +79,7 @@ The extension defines the following data sources in the `dataSources` field of t
 | `namespacedSecrets` | All Secrets matching `*-sap-btp-service-operator` (cluster-wide) | **Namespace-Based Secrets** panel |
 | `referencedSecrets` | All ServiceInstances with `spec.btpAccessCredentialsSecret` set | **Custom Secrets** panel |
 | `allServiceInstances` | All ServiceInstances (cluster-wide) | Service instances count |
-| `allSecrets` | All Secrets (cluster-wide) | Creation timestamps in Custom Secrets panel |
+| `allSecrets` | All Secrets (cluster-wide) | Creation timestamps in **Custom Secrets** panel |
 
 > [!NOTE]
 > Multiple copies of the `sap-btp-manager` data source (`btpSecret`, `btpSecret2`, etc.) are intentional. Busola caches data source results per rendering scope, and using the same name across different panel contexts can cause stale data to appear.
