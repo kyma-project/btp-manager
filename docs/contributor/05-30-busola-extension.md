@@ -25,7 +25,7 @@ The header (Metadata card) shows the following:
 
 ### SAP BTP Operator Secrets Panel
 
-The **BTP Operator Secrets** panel aggregates information about secrets used by the SAP BTP service operator. It contains two sub-panels.
+The **SAP BTP Operator Secrets** panel aggregates information about Secrets used by the SAP BTP Operator module. It contains two sub-panels.
 
 **BTP Manager Secret**
 
