@@ -16,12 +16,12 @@ The header (Metadata card) shows the following:
 
 | Field | Description |
 |---|---|
-| Documentation | External link to the [SAP BTP Operator Module](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module) documentation |
-| BTP Manager Version | Image tag of the `btp-manager-controller-manager` deployment |
-| BTP Service Operator Version | `APP_VERSION` environment variable of the `sap-btp-operator-controller-manager` deployment |
-| Custom Resource Definition | Link to the `btpoperators.operator.kyma-project.io` CRD |
-| Service Bindings | Count of all ServiceBinding resources in the cluster, linking to the `servicebindings.services.cloud.sap.com` CRD |
-| Service Instances | Count of all ServiceInstance resources in the cluster, linking to the `serviceinstances.services.cloud.sap.com` CRD |
+| **Documentation** | External link to the [SAP BTP Operator Module](https://help.sap.com/docs/btp/sap-business-technology-platform/sap-btp-operator-module) documentation |
+| **BTP Manager Version** | Image tag of the `btp-manager-controller-manager` deployment |
+| **SAP BTP Service Operator Version** | **APP_VERSION** environment variable of the `sap-btp-operator-controller-manager` deployment |
+| **Custom Resource Definition** | Link to the `btpoperators.operator.kyma-project.io` CRD |
+| **Service Bindings** | Count of all ServiceBinding resources in the cluster, linking to the `servicebindings.services.cloud.sap.com` CRD |
+| **Service Instances** | Count of all ServiceInstance resources in the cluster, linking to the `serviceinstances.services.cloud.sap.com` CRD |
 
 ### SAP BTP Operator Secrets Panel
 
