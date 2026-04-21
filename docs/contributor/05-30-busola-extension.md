@@ -8,7 +8,7 @@ The extension ConfigMap is located at [`config/busola-extension/sap-btp-operator
 
 ## UI Structure
 
-The extension adds a detail view for the `BtpOperator` CR under **Kyma > BTP Operators** in the namespace navigation. The view consists of the following sections.
+The extension adds a detail view for the `BtpOperator` CR under **Kyma > BTP Operators** in the namespace navigation. The view consists of the following sections: Header, BTP Operator Secrets Panel, Namespace-Based Secrets Panel, and Custom Secrets Panel.
 
 ### Header
 
