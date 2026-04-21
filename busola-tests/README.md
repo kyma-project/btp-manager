@@ -54,7 +54,7 @@ kubectl apply -f config/busola-extension/sap-btp-operator-extension.yaml -n kube
 
 All scenarios are in `ext-test-btp-operator.spec.js`.
 
-**1. Upload Extension ConfigMap**
+### Upload Extension ConfigMap
 
 Uploads the extension ConfigMap, verifies the **BTP Operators** menu appears, opens the `btpoperator` detail view, and validates:
 - The Metadata card shows the Documentation link, Service Instances count, and Service Bindings count
