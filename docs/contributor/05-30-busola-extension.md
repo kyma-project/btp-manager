@@ -29,7 +29,7 @@ The **BTP Operator Secrets** panel aggregates information about secrets used by 
 
 **BTP Manager Secret**
 
-Shows details of the `sap-btp-manager` secret in the `kyma-system` namespace:
+Shows details of the `sap-btp-manager` Secret in the `kyma-system` namespace:
 
 | Field | Description |
 |---|---|
