@@ -1,4 +1,4 @@
-# BTP Operator Busola Extension
+# SAP BTP Operator Busola Extension
 
 ## Overview
 
