@@ -82,4 +82,4 @@ Creates a ServiceInstance with `spec.btpAccessCredentialsSecret` set, and valida
 
 Tests run automatically on pull requests that modify `config/busola-extension/**`, `busola-tests/**`, `config/crd/**`, `examples/btp-operator.yaml`, or the workflow file itself.
 
-See [`.github/workflows/btp-operator-e2e.yaml`](../.github/workflows/btp-operator-e2e.yaml) for the full workflow definition. On failure, Cypress videos, screenshots, and Busola logs are uploaded as artifacts with a 7-day retention period.
+For the full workflow definition, see [`.github/workflows/btp-operator-e2e.yaml`](../.github/workflows/btp-operator-e2e.yaml). On failure, Cypress videos, screenshots, and Busola logs are uploaded as artifacts with a 7-day retention period.
