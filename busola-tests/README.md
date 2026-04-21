@@ -69,7 +69,7 @@ Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager
 - The SAP BTP Manager Secret badge switches to **Unmanaged**
 - **Credentials Namespace** shows `test`
 - The **Namespace-Based Secrets** table shows the test secret with `In Use` status
-- After uploading a ServiceInstance and ServiceBinding, counts update in the header
+- After uploading a service instance and service binding, their counts are updated in the header
 
 ### Custom Secrets
 
