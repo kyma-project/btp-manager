@@ -12,7 +12,7 @@ The extension adds a detail view for the `BtpOperator` CR under **Kyma > BTP Ope
 
 ### Header
 
-The header (Metadata card) shows:
+The header (Metadata card) shows the following:
 
 | Field | Description |
 |---|---|
