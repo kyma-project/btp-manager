@@ -76,7 +76,7 @@ Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager
 Creates a ServiceInstance with `spec.btpAccessCredentialsSecret` set, and validates the following:
 - The **Custom Secrets** panel renders with the referenced Secret
 - Status shows `Not in Use` (the Secret namespace differs from the credentials namespace)
-- The Service Instances count is correct
+- The service instances count is correct
 
 ## CI
 
