@@ -33,11 +33,11 @@ Shows details of the `sap-btp-manager` Secret in the `kyma-system` namespace:
 
 | Field | Description |
 |---|---|
-| Status | `Managed` if the secret is controlled by Kyma; `Unmanaged` if `kyma-project.io/skip-reconciliation: true` is set |
-| Credentials Namespace | Namespace where the SAP BTP service operator looks for secrets; decoded from `data.credentials_namespace`, defaults to `kyma-system` |
-| Cluster ID | Decoded `data.cluster_id`, links to the SAP BTP cockpit |
-| Service Manager URL | Decoded `data.sm_url` |
-| Token URL | Decoded `data.tokenurl` |
+| **Status** | `Managed` if the secret is controlled by Kyma; `Unmanaged` if `kyma-project.io/skip-reconciliation: true` is set |
+| **Credentials Namespace** | Namespace where the SAP BTP service operator looks for Secrets; decoded from `data.credentials_namespace`, defaults to `kyma-system` |
+| **Cluster ID** | Decoded `data.cluster_id`, links to the SAP BTP cockpit |
+| **Service Manager URL** | Decoded `data.sm_url` |
+| **Token URL** | Decoded `data.tokenurl` |
 
 The **Edit** link navigates directly to the `sap-btp-manager` secret in Busola.
 
