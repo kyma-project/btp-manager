@@ -23,7 +23,7 @@ The header (Metadata card) shows:
 | Service Bindings | Count of all ServiceBinding resources in the cluster, linking to the `servicebindings.services.cloud.sap.com` CRD |
 | Service Instances | Count of all ServiceInstance resources in the cluster, linking to the `serviceinstances.services.cloud.sap.com` CRD |
 
-### BTP Operator Secrets Panel
+### SAP BTP Operator Secrets Panel
 
 The **BTP Operator Secrets** panel aggregates information about secrets used by the SAP BTP service operator. It contains two sub-panels.
 
