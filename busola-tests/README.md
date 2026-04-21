@@ -71,7 +71,7 @@ Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager
 - The **Namespace-Based Secrets** table shows the test secret with In Use status
 - After uploading a ServiceInstance and ServiceBinding, counts update in the header
 
-**3. Custom Secrets**
+### Custom Secrets
 
 Creates a ServiceInstance with `spec.btpAccessCredentialsSecret` set, then validates:
 - The **Custom Secrets** panel renders with the referenced secret
