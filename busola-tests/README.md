@@ -65,7 +65,7 @@ Uploads the extension ConfigMap, verifies the **BTP Operators** menu appears, op
 
 ###  Configure Custom Credentials Namespace
 
-Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager` to add the `kyma-project.io/skip-reconciliation` label and set `credentials_namespace: test`, then validates:
+Creates a `test` namespace with a namespace-based secret, edits `sap-btp-manager` to add the `kyma-project.io/skip-reconciliation` label and set `credentials_namespace: test`, then validates the following:
 - The SAP BTP Manager Secret badge switches to **Unmanaged**
 - Credentials Namespace shows `test`
 - The **Namespace-Based Secrets** table shows the test secret with In Use status
