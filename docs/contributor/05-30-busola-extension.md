@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SAP BTP Operator Busola extension adds a dedicated UI view for the `BtpOperator` custom resource (CR) in [Busola](https://github.com/kyma-project/busola), the Kyma web console. The extension is defined as a Kubernetes ConfigMap and uses the [Busola extensibility](https://github.com/kyma-project/busola/tree/main/docs/extensibility) mechanism.
+The SAP BTP Operator Busola extension adds a dedicated UI view for the `BtpOperator` custom resource (CR) in [Busola](https://github.com/kyma-project/busola), the Kyma web console. The extension is defined as a Kubernetes ConfigMap and uses the [Busola extensibility](https://github.com/kyma-project/busola/tree/main/docs/contributor/extensibility) mechanism.
 
 The extension ConfigMap is located at [`config/busola-extension/sap-btp-operator-extension.yaml`](../../config/busola-extension/sap-btp-operator-extension.yaml).
 
