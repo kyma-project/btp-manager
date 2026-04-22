@@ -18,7 +18,7 @@ jobs:
     
     steps:
       - name: Checkout btp-manager
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: btp-manager
 
@@ -34,7 +34,7 @@ jobs:
             --wait
 
       - name: Checkout Busola
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: kyma-project/busola
           ref: main
