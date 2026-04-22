@@ -84,6 +84,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator = &v1alpha1.BtpOperator{}
 			btpOperator.Name = "test-btpoperator"
 			btpOperator.Namespace = "kyma-system"
+			Expect(reconciler.cleanupNetworkPolicies(ctx)).To(Succeed())
 		})
 
 		It("Should load and prepare network policies", func() {
