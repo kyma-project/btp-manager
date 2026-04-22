@@ -15,7 +15,7 @@ To disable network policies for SAP BTP Operator, add the following annotation t
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
 ```
 
-> ### Warning  
+> [!WARNING]
 > If you disable the network policies, you allow all ingress/egress traffic to and from the module's Pods.
 
 ## Enable Network Policies
