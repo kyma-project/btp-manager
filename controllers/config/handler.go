@@ -27,10 +27,12 @@ const (
 
 // Configuration options that can be overwritten either by CLI parameter or ConfigMap
 var (
-	ChartNamespace = "kyma-system"
-	SecretName     = "sap-btp-manager"
-	ConfigName     = "sap-btp-manager"
-	DeploymentName = "sap-btp-operator-controller-manager"
+	ChartNamespace       = "kyma-system"
+	SecretName           = "sap-btp-manager"
+	ConfigName           = "sap-btp-manager"
+	DeploymentName       = "sap-btp-operator-controller-manager"
+	OperandConfigMapName = "sap-btp-operator-config"
+	OperandSecretName    = "sap-btp-service-operator"
 
 	ProcessingStateRequeueInterval = time.Minute * 5
 	ReadyStateRequeueInterval      = time.Minute * 15

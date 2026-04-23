@@ -29,7 +29,7 @@ const (
 
 var _ = Describe("BTP Operator controller - updating", func() {
 	var cr *v1alpha1.BtpOperator
-	var initChartVersion, chartUpdatePathForProcess, resourcesUpdatePathForProcess, defaultDeploymentName string
+	var initChartVersion, chartUpdatePathForProcess, resourcesUpdatePathForProcess, defaultDeploymentName, defaultConfigMapName, defaultSecretName string
 	var manifestHandler *manifest.Handler
 	var initApplyObjs []runtime.Object
 	var gvks []schema.GroupVersionKind
@@ -71,6 +71,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		config.ChartPath = chartUpdatePathForProcess
 		config.ResourcesPath = resourcesUpdatePathForProcess
 		defaultDeploymentName = config.DeploymentName
+		defaultConfigMapName = config.OperandConfigMapName
+		defaultSecretName = config.OperandSecretName
 	})
 
 	AfterEach(func() {
@@ -91,6 +93,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		config.ChartPath = defaultChartPath
 		config.ResourcesPath = defaultResourcesPath
 		config.DeploymentName = defaultDeploymentName
+		config.OperandConfigMapName = defaultConfigMapName
+		config.OperandSecretName = defaultSecretName
 	})
 
 	When("update all resources names and bump chart version", Label("test-update"), func() {
@@ -102,6 +106,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(err).To(BeNil())
 
 			config.DeploymentName = defaultDeploymentName + suffix
+			config.OperandConfigMapName = defaultConfigMapName + suffix
+			config.OperandSecretName = defaultSecretName + suffix
 
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
@@ -140,6 +146,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(err).To(BeNil())
 
 			config.DeploymentName = defaultDeploymentName + suffix
+			config.OperandConfigMapName = defaultConfigMapName + suffix
 
 			err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
 			Expect(err).To(BeNil())
