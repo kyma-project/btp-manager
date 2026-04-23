@@ -37,7 +37,18 @@ var _ = Describe("Configuration controller", func() {
 					EnableLimitedCacheConfigMapKey: "false",
 				},
 			}
-			Eventually(func() error { return k8sClient.Create(ctx, configMap) }).Should(Succeed())
+			Eventually(func() error {
+				err := k8sClient.Create(ctx, configMap)
+				if err != nil {
+					existing := &corev1.ConfigMap{}
+					if getErr := k8sClient.Get(ctx, client.ObjectKey{Name: configMap.Name, Namespace: configMap.Namespace}, existing); getErr != nil {
+						return getErr
+					}
+					existing.Data = configMap.Data
+					return k8sClient.Update(ctx, existing)
+				}
+				return nil
+			}).Should(Succeed())
 
 			originalValue = config.EnableLimitedCache
 		})
