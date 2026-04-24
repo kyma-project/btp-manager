@@ -18,7 +18,7 @@ jobs:
     
     steps:
       - name: Checkout btp-manager
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: btp-manager
 
@@ -34,14 +34,14 @@ jobs:
             --wait
 
       - name: Checkout Busola
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: kyma-project/busola
           ref: main
           path: busola
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
@@ -137,7 +137,7 @@ jobs:
 
       - name: Upload test videos
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cypress-videos
           path: busola/tests/integration/cypress/videos/
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload test screenshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cypress-screenshots
           path: busola/tests/integration/cypress/screenshots/
@@ -155,7 +155,7 @@ jobs:
 
       - name: Upload Busola logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: busola-logs
           path: busola/busola.log
