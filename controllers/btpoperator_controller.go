@@ -597,11 +597,11 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 
 	var configMapIndex, secretIndex, deploymentIndex int
 	for i, u := range resourcesToApply {
-		if u.GetName() == config.OperandConfigMapName && u.GetKind() == configMapKind {
+		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
 			configMapIndex = i
 			continue
 		}
-		if u.GetName() == config.OperandSecretName && u.GetKind() == secretKind {
+		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
 			secretIndex = i
 			continue
 		}

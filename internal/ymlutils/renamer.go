@@ -7,7 +7,11 @@ import (
 	"strings"
 )
 
-func AddSuffixToNameInManifests(manifestsDir, suffix string) error {
+func AddSuffixToNameInManifests(manifestsDir, suffix string, excludeNames ...string) error {
+	excluded := make(map[string]bool, len(excludeNames))
+	for _, n := range excludeNames {
+		excluded[n] = true
+	}
 	if err := filepath.Walk(manifestsDir, func(path string, info os.FileInfo, err error) error {
 		if !strings.HasSuffix(info.Name(), ".yml") {
 			return nil
@@ -31,7 +35,10 @@ func AddSuffixToNameInManifests(manifestsDir, suffix string) error {
 				continue
 			}
 			if reachedMetadata && strings.HasPrefix(strings.TrimSpace(line), "name:") {
-				lines[i] = lines[i] + suffix
+				name := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "name:"))
+				if !excluded[name] {
+					lines[i] = lines[i] + suffix
+				}
 				reachedMetadata = false
 				continue
 			}
