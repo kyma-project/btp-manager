@@ -95,6 +95,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 	When("update all resources names and bump chart version", Label("test-update"), func() {
 		It("new resources (with new names) should be created and old ones removed", func() {
+			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+
 			err := ymlutils.CopyManifestsFromYamlsIntoOneYaml(getApplyPath(), getToDeleteYamlPath())
 			Expect(err).To(BeNil())
 
@@ -107,7 +109,6 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
 
-			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 				Namespace: cr.Namespace,
 				Name:      cr.Name,
@@ -125,6 +126,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 	When("update some resources names and bump chart version", Label("test-update"), func() {
 		It("all applied resources should receive new chart version, resources with new names should replace the ones with old names", func() {
+			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
+
 			updateManifestsNum := 3
 			err := moveOrCopyNFilesFromDirToDir(updateManifestsNum, false, getApplyPath(), getTempPath())
 			Expect(err).To(BeNil())
@@ -149,7 +152,6 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
 
-			Eventually(actualWorkqueueSize).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(0))
 			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 				Namespace: cr.Namespace,
 				Name:      cr.Name,
