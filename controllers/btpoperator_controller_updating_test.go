@@ -29,7 +29,7 @@ const (
 
 var _ = Describe("BTP Operator controller - updating", func() {
 	var cr *v1alpha1.BtpOperator
-	var initChartVersion, chartUpdatePathForProcess, resourcesUpdatePathForProcess, defaultDeploymentName string
+	var initChartVersion, chartUpdatePathForProcess, resourcesUpdatePathForProcess string
 	var manifestHandler *manifest.Handler
 	var initApplyObjs []runtime.Object
 	var gvks []schema.GroupVersionKind
@@ -70,7 +70,6 @@ var _ = Describe("BTP Operator controller - updating", func() {
 		copyDirRecursively(config.ResourcesPath, resourcesUpdatePathForProcess)
 		config.ChartPath = chartUpdatePathForProcess
 		config.ResourcesPath = resourcesUpdatePathForProcess
-		defaultDeploymentName = config.DeploymentName
 	})
 
 	AfterEach(func() {
@@ -90,7 +89,6 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 		config.ChartPath = defaultChartPath
 		config.ResourcesPath = defaultResourcesPath
-		config.DeploymentName = defaultDeploymentName
 	})
 
 	When("update all resources names and bump chart version", Label("test-update"), func() {
@@ -101,10 +99,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(err).To(BeNil())
 
 			err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix,
-				sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorSecretName)
+				sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorSecretName, config.DeploymentName)
 			Expect(err).To(BeNil())
-
-			config.DeploymentName = defaultDeploymentName + suffix
 
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
@@ -141,10 +137,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(err).To(BeNil())
 
 			err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix,
-				sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorSecretName)
+				sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorSecretName, config.DeploymentName)
 			Expect(err).To(BeNil())
-
-			config.DeploymentName = defaultDeploymentName + suffix
 
 			err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())
 			Expect(err).To(BeNil())
@@ -172,6 +166,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			stableNames := map[string]bool{
 				sapBtpServiceOperatorConfigMapName: true,
 				sapBtpServiceOperatorSecretName:    true,
+				config.DeploymentName:              true,
 			}
 			var renamedOldUns []*unstructured.Unstructured
 			for _, u := range oldUns {
