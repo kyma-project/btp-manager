@@ -166,7 +166,18 @@ var _ = Describe("BTP Operator controller - updating", func() {
 				Expect(err).To(BeNil())
 				return actualNumOfNewResources
 			}).WithTimeout(time.Second * 5).WithPolling(time.Millisecond * 100).Should(Equal(initResourcesNum))
-			assertResourcesRemoval(oldUns...)
+
+			stableNames := map[string]bool{
+				sapBtpServiceOperatorConfigMapName: true,
+				sapBtpServiceOperatorSecretName:    true,
+			}
+			var renamedOldUns []*unstructured.Unstructured
+			for _, u := range oldUns {
+				if !stableNames[u.GetName()] {
+					renamedOldUns = append(renamedOldUns, u)
+				}
+			}
+			assertResourcesRemoval(renamedOldUns...)
 		})
 	})
 
