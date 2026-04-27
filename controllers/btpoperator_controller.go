@@ -1319,35 +1319,13 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 }
 
 func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
-	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: config.ChartNamespace}, deployment); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
-			return err
-		}
+	toDelete := []client.Object{
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: config.DeploymentName, Namespace: config.ChartNamespace}},
+		&admissionregistrationv1.MutatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: mutatingWebhookName}},
+		&admissionregistrationv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: validatingWebhookName}},
 	}
-
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: config.ChartNamespace}, mutatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
-			return err
-		}
-	}
-
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: config.ChartNamespace}, validatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
+	for _, obj := range toDelete {
+		if err := r.Delete(ctx, obj); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
