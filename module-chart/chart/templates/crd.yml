@@ -193,6 +193,8 @@ spec:
           status:
             description: ServiceBindingStatus defines the observed state of ServiceBinding
             properties:
+              asyncBindFailed:
+                type: boolean
               bindingID:
                 description: The generated ID of the binding, will be automatically
                   filled once the binding is created
@@ -725,6 +727,8 @@ spec:
           status:
             description: ServiceInstanceStatus defines the observed state of ServiceInstance
             properties:
+              asyncProvisionFailed:
+                type: boolean
               conditions:
                 description: Service instance conditions
                 items:
