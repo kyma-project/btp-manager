@@ -220,11 +220,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="",resources="configmaps/status",verbs=get;patch;update
 //+kubebuilder:rbac:groups="",resources="events",verbs=create
 //+kubebuilder:rbac:groups="",resources="secrets",verbs=create;delete;get;list;patch;update;watch
-//+kubebuilder:rbac:groups="authentication.k8s.io",resources="tokenreviews",verbs=create
-//+kubebuilder:rbac:groups="authorization.k8s.io",resources="subjectaccessreviews",verbs=create
 //+kubebuilder:rbac:groups="coordination.k8s.io",resources="leases",verbs=create;get;list;update
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterrolebindings",verbs=delete
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs=delete
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings",verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings/status",verbs=get;patch;update
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="serviceinstances",verbs=create;delete;get;list;patch;update;watch
