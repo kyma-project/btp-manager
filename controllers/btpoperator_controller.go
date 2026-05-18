@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -591,23 +592,29 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	logger := log.FromContext(ctx)
 	logger.Info("preparing module resources to apply")
 
-	var configMapIndex, secretIndex, deploymentIndex int
-	for i, u := range resourcesToApply {
-		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
-			configMapIndex = i
-			continue
-		}
-		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
-			secretIndex = i
-			continue
-		}
-		if u.GetName() == config.DeploymentName && u.GetKind() == deploymentKind {
-			deploymentIndex = i
-			continue
+	var configMap, secret, deployment *unstructured.Unstructured
+	for _, u := range resourcesToApply {
+		switch {
+		case u.GetKind() == configMapKind && u.GetName() == sapBtpServiceOperatorConfigMapName:
+			configMap = u
+		case u.GetKind() == secretKind && u.GetName() == sapBtpServiceOperatorSecretName:
+			secret = u
+		case u.GetKind() == deploymentKind && u.GetName() == config.DeploymentName:
+			deployment = u
 		}
 	}
 
-	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
+	if configMap == nil {
+		return fmt.Errorf("configmap %q not found in resources to apply", sapBtpServiceOperatorConfigMapName)
+	}
+	if secret == nil {
+		return fmt.Errorf("secret %q not found in resources to apply", sapBtpServiceOperatorSecretName)
+	}
+	if deployment == nil {
+		return fmt.Errorf("deployment %q not found in resources to apply", config.DeploymentName)
+	}
+
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(filepath.Join(config.ChartPath, "Chart.yaml"), "version")
 	if err != nil {
 		logger.Error(err, "while getting module chart version")
 		return fmt.Errorf("failed to get module chart version: %w", err)
@@ -619,15 +626,15 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	}
 	r.setNamespace(resourcesToApply...)
 
-	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+	if err := r.setConfigMapValues(s, configMap); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := r.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
+	if err := r.setSecretValues(s, secret); err != nil {
 		logger.Error(err, "while setting Secret values")
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-	if err := r.setDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+	if err := r.setDeploymentImages(deployment); err != nil {
 		logger.Error(err, "while setting container images in Deployment")
 		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
