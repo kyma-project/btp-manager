@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 09c7c5e0c1879aeccc425e783598b20f8d0da670145648cb899a4fcfa1871d2b
+        checksum/config: 2c5129bfeed2e15d29a3d0bdab02c77ea5feaec7eb531aaa97ca1e31075a6fcb
         sidecar.istio.io/inject: "false"
       labels:
         control-plane: controller-manager
@@ -41,7 +41,7 @@ spec:
             - /manager
           env:
             - name: APP_VERSION
-              value: "v0.10.8"
+              value: "v0.11.0"
             - name: GODEBUG
               value: "fips140=only,tlsmlkem=0"
           envFrom:
