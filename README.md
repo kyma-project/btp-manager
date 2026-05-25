@@ -28,6 +28,7 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 
 * [Configuration](./docs/contributor/01-20-configuration.md)
 * [Operations](./docs/contributor/02-10-operations.md)
+* [Architecture](./docs/contributor/02-20-architecture.md)
 * [Release pipeline](./docs/contributor/03-10-release.md)
 * [GitHub Actions workflows](./docs/contributor/04-10-workflows.md)
 * [Unit tests](./docs/contributor/05-10-testing.md)
@@ -64,8 +65,6 @@ In the [`user`](./docs/user) folder, you will find the following documents:
 <!--- mandatory section - do not change this! --->
 
 See the [Contributing](CONTRIBUTING.md) guidelines.
-
-To contribute to this project, follow the general [Kyma contributing rules](https://github.com/kyma-project/community/blob/main/docs/contributing/02-contributing.md). Before you start, make sure you have a running Kubernetes cluster (for example, [k3d](https://k3d.io)) and the required tools installed. See [Install BTP Manager](./docs/contributor/01-10-installation.md) for the local setup steps and [Run Unit Tests](./docs/contributor/05-10-testing.md) for how to run the test suite.
 
 ## Code of Conduct
 <!--- mandatory section - do not change this! --->
