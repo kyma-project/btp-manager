@@ -74,11 +74,6 @@ each PR on the `main` branch. It checks for dead links in the repository.
 
 The [`run-govulncheck`](/.github/workflows/run-govulncheck.yaml) workflow runs the Govulncheck.
 
-## Auto Merge Workflow
-
-The [`auto-merge`](/.github/workflows/auto-merge.yaml) workflow enables the auto-merge functionality on a PR that is not
-a draft.
-
 ## All Checks Passed Workflow
 
 The [`pr-checks`](/.github/workflows/pr-checks.yaml) workflow checks if all jobs, except those excluded in the workflow
