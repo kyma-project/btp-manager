@@ -1,32 +1,10 @@
-# Architecture
+# BTP Manager Architecture
 
 BTP Manager is a Kubernetes operator built on the [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) framework. It manages the lifecycle of the SAP BTP service operator inside a Kyma cluster.
 
 ## Components
 
-```
-┌──────────────────────────────────────────────────────┐
-│                  Kyma Cluster                        │
-│                                                      │
-│  ┌──────────────┐        ┌────────────────────────┐  │
-│  │ BTP Manager  │manages │  SAP BTP Service       │  │
-│  │  (operator)  │───────▶│  Operator              │  │
-│  └──────┬───────┘        └──────────┬─────────────┘  │
-│         │ watches                   │ provisions     │
-│         ▼                           ▼                │
-│  ┌──────────────┐        ┌────────────────────────┐  │
-│  │ BtpOperator  │        │ ServiceInstance /      │  │
-│  │     CR       │        │ ServiceBinding CRs     │  │
-│  └──────────────┘        └──────────┬─────────────┘  │
-│                                     │                │
-│  ┌──────────────┐                   │ API calls      │
-│  │ sap-btp-     │credentials        ▼                │
-│  │ manager      │──────────▶ ┌─────────────────────┐ │
-│  │ Secret       │            │  SAP Service Manager│ │
-│  └──────────────┘            └─────────────────────┘ │
-└──────────────────────────────────────────────────────┘
-```
-<!-- TODO: convert to SVG -->
+![BTP Manager architecture](../assets/module_architecture_contributor.svg)
 
 ## BTP Manager
 
@@ -46,7 +24,7 @@ The `BtpOperator` CR (`operator.kyma-project.io/v1alpha1`) is the reconciliation
 
 ## sap-btp-manager Secret
 
-The `sap-btp-manager` Secret in the `kyma-system` namespace carries the SAP Service Manager credentials required for provisioning: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, and `cluster_id`. It is delivered by KEB on Kyma runtime creation. If the Secret is absent or incomplete, reconciliation is blocked until it is provided.
+The `sap-btp-manager` Secret in the `kyma-system` namespace carries the SAP Service Manager credentials required for provisioning: `clientid`, `clientsecret`, `sm_url`, `tokenurl`, and `cluster_id`. It is delivered by KEB on Kyma runtime creation. BTP Manager reads this Secret and injects the credentials into the `sap-btp-service-operator` Secret, which the SAP BTP service operator uses to authenticate with SAP Service Manager. For details on the Secret format and customization options, see [Preconfigured Secret](../user/03-10-preconfigured-secret.md). If the Secret is absent or incomplete, reconciliation is blocked until it is provided.
 
 ## Related Information
 
