@@ -9,7 +9,14 @@ permissions:
   pull-requests: write
   
 jobs:
+  restricted-gate:
+    runs-on: ubuntu-latest
+    environment: restricted
+    steps:
+      - run: echo "Build approved"
+
   validate-labels:
+    needs: restricted-gate
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
