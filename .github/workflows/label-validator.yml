@@ -1,4 +1,4 @@
-name: Label validatorv2
+name: Label validator
 on:
   pull_request:
     types: ["opened", "labeled", "unlabeled", "synchronize", "reopened", "ready_for_review", "edited"]
