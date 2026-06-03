@@ -1,11 +1,11 @@
-name: Label validator
+name: Label validatorv2
 on:
   pull_request:
     types: ["opened", "labeled", "unlabeled", "synchronize", "reopened", "ready_for_review", "edited"]
     branches: [ "main" ]
 
 jobs:
-  validate-labels: 
+  validate-labelsv2: 
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
