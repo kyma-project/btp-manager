@@ -9,7 +9,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,17 +26,14 @@ var _ = Describe("Configuration controller", func() {
 			cr = createDefaultBtpOperator()
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
+			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
-			configMap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      sapBtpServiceOperatorConfigMapName,
-					Namespace: kymaNamespace,
-				},
-				Data: map[string]string{
-					EnableLimitedCacheConfigMapKey: "false",
-				},
+			existing := &corev1.ConfigMap{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: sapBtpServiceOperatorConfigMapName, Namespace: kymaNamespace}, existing)).To(Succeed())
+			existing.Data = map[string]string{
+				EnableLimitedCacheConfigMapKey: "false",
 			}
-			Eventually(func() error { return k8sClient.Create(ctx, configMap) }).Should(Succeed())
+			Expect(k8sClient.Update(ctx, existing)).To(Succeed())
 
 			originalValue = config.EnableLimitedCache
 		})

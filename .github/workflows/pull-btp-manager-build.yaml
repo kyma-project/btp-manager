@@ -12,9 +12,16 @@ permissions:
    contents: read # This is required for actions/checkout
 
 jobs:
+   restricted-gate:
+      runs-on: ubuntu-latest
+      environment: restricted
+      steps:
+         - run: echo "Build approved"
+
    build-image:
+      needs: restricted-gate
       uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
-      with: 
+      with:
          name: btp-manager
          dockerfile: Dockerfile
          context: .

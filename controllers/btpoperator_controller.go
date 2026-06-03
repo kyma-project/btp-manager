@@ -220,11 +220,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="",resources="configmaps/status",verbs=get;patch;update
 //+kubebuilder:rbac:groups="",resources="events",verbs=create
 //+kubebuilder:rbac:groups="",resources="secrets",verbs=create;delete;get;list;patch;update;watch
-//+kubebuilder:rbac:groups="authentication.k8s.io",resources="tokenreviews",verbs=create
-//+kubebuilder:rbac:groups="authorization.k8s.io",resources="subjectaccessreviews",verbs=create
 //+kubebuilder:rbac:groups="coordination.k8s.io",resources="leases",verbs=create;get;list;update
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterrolebindings",verbs=delete
-//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources="clusterroles",verbs=delete
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings",verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings/status",verbs=get;patch;update
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="serviceinstances",verbs=create;delete;get;list;patch;update;watch
@@ -713,22 +709,20 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 }
 
 func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	if err := unstructured.SetNestedField(u.Object, string(secret.Data[ClusterIdSecretKey]), "data", ClusterIdConfigMapKey); err != nil {
-		return err
+	entries := []struct {
+		key string
+		val any
+	}{
+		{ClusterIdConfigMapKey, string(secret.Data[ClusterIdSecretKey])},
+		{ReleaseNamespaceConfigMapKey, r.credentialsNamespaceFromSapBtpManagerSecret},
+		{ManagementNamespaceConfigMapKey, r.credentialsNamespaceFromSapBtpManagerSecret},
+		{EnableLimitedCacheConfigMapKey, config.EnableLimitedCache},
 	}
-
-	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", ReleaseNamespaceConfigMapKey); err != nil {
-		return err
+	for _, e := range entries {
+		if err := unstructured.SetNestedField(u.Object, e.val, "data", e.key); err != nil {
+			return err
+		}
 	}
-
-	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", ManagementNamespaceConfigMapKey); err != nil {
-		return err
-	}
-
-	if err := unstructured.SetNestedField(u.Object, config.EnableLimitedCache, "data", EnableLimitedCacheConfigMapKey); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -1321,35 +1315,13 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 }
 
 func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
-	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: config.ChartNamespace}, deployment); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
-			return err
-		}
+	toDelete := []client.Object{
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: config.DeploymentName, Namespace: config.ChartNamespace}},
+		&admissionregistrationv1.MutatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: mutatingWebhookName}},
+		&admissionregistrationv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: validatingWebhookName}},
 	}
-
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: config.ChartNamespace}, mutatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
-			return err
-		}
-	}
-
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: config.ChartNamespace}, validatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
+	for _, obj := range toDelete {
+		if err := r.Delete(ctx, obj); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
@@ -1567,39 +1539,36 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate
 	}
 }
 
+func deploymentConditionStatuses(d *appsv1.Deployment) (available, progressing string) {
+	for _, c := range d.Status.Conditions {
+		switch string(c.Type) {
+		case deploymentAvailableConditionType:
+			available = string(c.Status)
+		case deploymentProgressingConditionType:
+			progressing = string(c.Status)
+		}
+	}
+	return
+}
+
 func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
+	isManagedDeployment := func(obj client.Object) bool {
+		return obj.GetName() == config.DeploymentName && obj.GetNamespace() == config.ChartNamespace
+	}
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			obj := e.Object.(*appsv1.Deployment)
-			return obj.Name == config.DeploymentName && obj.Namespace == config.ChartNamespace
+			return isManagedDeployment(e.Object)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			obj := e.Object.(*appsv1.Deployment)
-			return obj.Name == config.DeploymentName && obj.Namespace == config.ChartNamespace
+			return isManagedDeployment(e.Object)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			newObj := e.ObjectNew.(*appsv1.Deployment)
-			oldObj := e.ObjectOld.(*appsv1.Deployment)
-			if !(newObj.Name == config.DeploymentName && newObj.Namespace == config.ChartNamespace) {
+			if !isManagedDeployment(e.ObjectNew) {
 				return false
 			}
-			var newAvailableConditionStatus, newProgressingConditionStatus string
-			for _, condition := range newObj.Status.Conditions {
-				if string(condition.Type) == deploymentProgressingConditionType {
-					newProgressingConditionStatus = string(condition.Status)
-				} else if string(condition.Type) == deploymentAvailableConditionType {
-					newAvailableConditionStatus = string(condition.Status)
-				}
-			}
-			var oldAvailableConditionStatus, oldProgressingConditionStatus string
-			for _, condition := range oldObj.Status.Conditions {
-				if string(condition.Type) == deploymentProgressingConditionType {
-					oldProgressingConditionStatus = string(condition.Status)
-				} else if string(condition.Type) == deploymentAvailableConditionType {
-					oldAvailableConditionStatus = string(condition.Status)
-				}
-			}
-			return newAvailableConditionStatus != oldAvailableConditionStatus || newProgressingConditionStatus != oldProgressingConditionStatus
+			newAvail, newProg := deploymentConditionStatuses(e.ObjectNew.(*appsv1.Deployment))
+			oldAvail, oldProg := deploymentConditionStatuses(e.ObjectOld.(*appsv1.Deployment))
+			return newAvail != oldAvail || newProg != oldProg
 		},
 	}
 }

@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  validate-labelsv2: 
+  validate-labels:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code

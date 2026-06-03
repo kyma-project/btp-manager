@@ -22,7 +22,7 @@ jobs:
         run: | 
           echo "Draft PRs are not checked"
           exit 1
-      - uses: wechuli/allcheckspassed@1d00cf0c34c4b0805db8866d8913f22e7125301e
+      - uses: wechuli/allcheckspassed@204ff63e89eabdc8086f0c50b91f675bcf37c8f6
         with:
           delay: '2'
           retries: '15'
