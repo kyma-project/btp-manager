@@ -104,38 +104,20 @@ function runOnPr() {
 
   supported_labels=()
 
-  help_message="**Add one of following labels** <br/><br/>"
+  help_message="Add one of the following labels:"$'\n'
 
   while IFS= read -r label; do
     parts=$(tr "#" " " <<< "$label")
     set $parts
-    label_part=$1; 
+    label_part=$1;
     shift
     help_message_part=$*
-    help_message="${help_message} - $label_part -> $help_message_part <br/><br/>"
+    help_message="${help_message} - $label_part -> $help_message_part"$'\n'
     supported_labels+=($label_part)
   done <<< "$(yq eval '.changelog.categories.[].labels' ./.github/release.yml | grep "\- kind"| sed -e 's/- //g')"
   supported_labels=$(echo "${supported_labels[*]}" | tr " " "\n" )
-  
 
-  if [[ $EVENT_ACTION == "opened" ]]; then
-
-    payload=$(jq -n \
-      --arg body "$help_message" \
-      '{
-        "body": $body,
-      }') 
-
-    response=$(curl -sL \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/$GITHUB_ORG/btp-manager/issues/${PR_ID}/comments \
-            -d "$payload")
-
-    echo "create comment with help result: $response"
-  fi
+  echo "$help_message"
 
   present_labels=$(curl -sL \
                     -H "Accept: application/vnd.github+json" \
