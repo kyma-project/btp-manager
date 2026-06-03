@@ -1,22 +1,11 @@
 name: Label validator
 on:
-  pull_request_target:
+  pull_request:
     types: ["opened", "labeled", "unlabeled", "synchronize", "reopened", "ready_for_review", "edited"]
     branches: [ "main" ]
 
-permissions:
-  discussions: write
-  pull-requests: write
-  
 jobs:
-  restricted-gate:
-    runs-on: ubuntu-latest
-    environment: restricted
-    steps:
-      - run: echo "Build approved"
-
   validate-labels:
-    needs: restricted-gate
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
