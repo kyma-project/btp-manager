@@ -1,20 +1,20 @@
 module github.com/kyma-project/btp-manager
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/onsi/ginkgo/v2 v2.29.0
-	github.com/onsi/gomega v1.41.0
+	github.com/onsi/ginkgo/v2 v2.31.0
+	github.com/onsi/gomega v1.42.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.36.1
-	k8s.io/apiextensions-apiserver v0.36.1
-	k8s.io/apimachinery v0.36.1
-	k8s.io/client-go v0.36.1
+	k8s.io/api v0.36.2
+	k8s.io/apiextensions-apiserver v0.36.2
+	k8s.io/apimachinery v0.36.2
+	k8s.io/client-go v0.36.2
 	sigs.k8s.io/controller-runtime v0.24.1
 )
 
