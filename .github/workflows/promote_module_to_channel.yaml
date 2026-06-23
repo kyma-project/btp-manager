@@ -80,6 +80,7 @@ jobs:
           git push origin ${BRANCH_NAME}
 
       - name: Create PR if needed
+        id: create_pr
         working-directory: module-manifests
         shell: bash
         env:
@@ -94,15 +95,56 @@ jobs:
 
           if echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
             echo "Opened PR already exists, no need to create new one, PR will be updated by push from previous step"
+            PR_URL=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" --state open --json headRefName,url | jq -r --arg branch "${BRANCH_NAME}" '.[] | select(.headRefName == $branch) | .url')
+          else
+            PR_URL=$(printf '%s\nRisk is Low\n' "${BTP_MANAGER_RELEASES_URL}/${TAG}" \
+              | gh pr create \
+              -B main \
+              -H ${BRANCH_NAME} \
+              -R "${MODULE_MANIFESTS_REPO_URL}" \
+              --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" \
+              --fill \
+              --body-file -)
+            echo "${PR_URL}" | tee $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "pr_url=${PR_URL}" >> $GITHUB_OUTPUT
+
+      - name: Comment on release-management issue
+        shell: bash
+        env:
+          GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
+          GH_HOST: ${{ vars.GH_TOOLS_HOST }}
+          GH_PROMPT_DISABLED: true
+          TAG: ${{ inputs.releaseTag }}
+          CHANNEL: ${{ inputs.channel }}
+          PR_URL: ${{ steps.create_pr.outputs.pr_url }}
+          RELEASE_MANAGEMENT_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/release-management"
+        run: |
+          MAJOR=$(echo "${TAG}" | cut -d. -f1)
+          MINOR=$(echo "${TAG}" | cut -d. -f2)
+          PATCH=$(echo "${TAG}" | cut -d. -f3)
+
+          if [ "${PATCH}" = "0" ]; then
+            echo "New feature release ${TAG}, skipping release-management comment"
             exit 0
           fi
 
-          printf '%s\nRisk is Low\n' "${BTP_MANAGER_RELEASES_URL}/${TAG}" \
-            | gh pr create \
-            -B main \
-            -H ${BRANCH_NAME} \
-            -R "${MODULE_MANIFESTS_REPO_URL}" \
-            --title "Promote BTP Manager ${TAG} to ${CHANNEL} channel" \
-            --fill \
-            --body-file - \
-            | tee $GITHUB_STEP_SUMMARY
+          if [ "${MINOR}" = "3" ]; then
+            ISSUE_PATCH="1"
+          else
+            ISSUE_PATCH="0"
+          fi
+
+          ISSUE_TITLE="kyma-project.io/module/btp-operator v${MAJOR}.${MINOR}.${ISSUE_PATCH}"
+
+          ISSUE_NUMBER=$(gh issue list -R "${RELEASE_MANAGEMENT_REPO_URL}" --state all --search "${ISSUE_TITLE}" --json number,title \
+            | jq -r --arg title "${ISSUE_TITLE}" '.[] | select(.title == $title) | .number')
+
+          if [ -z "${ISSUE_NUMBER}" ]; then
+            echo "No issue found with title: ${ISSUE_TITLE}"
+            exit 1
+          fi
+
+          COMMENT="Patch ${TAG} on ${CHANNEL} channel is approved here: ${PR_URL}"
+          gh issue comment "${ISSUE_NUMBER}" -R "${RELEASE_MANAGEMENT_REPO_URL}" --body "${COMMENT}"
