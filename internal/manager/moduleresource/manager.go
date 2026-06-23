@@ -152,22 +152,20 @@ func (m *Manager) ResourcesOfKinds(resources []*unstructured.Unstructured, kinds
 }
 
 func (m *Manager) PrepareModuleResources(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
-	var configMapIndex, secretIndex, deploymentIndex int
+	configMapIndex, secretIndex, deploymentIndex := -1, -1, -1
 	for i, u := range resourcesToApply {
-		if u.GetName() == SapBtpServiceOperatorName+"-config" && u.GetKind() == "ConfigMap" {
+		switch {
+		case u.GetName() == "sap-btp-operator-config" && u.GetKind() == "ConfigMap":
 			configMapIndex = i
-			continue
-		}
-		if u.GetName() == SapBtpServiceOperatorName && u.GetKind() == "Secret" {
+		case u.GetName() == SapBtpServiceOperatorName && u.GetKind() == "Secret":
 			secretIndex = i
-			continue
-		}
-		if u.GetName() == config.DeploymentName && u.GetKind() == DeploymentKind {
+		case u.GetName() == config.DeploymentName && u.GetKind() == DeploymentKind:
 			deploymentIndex = i
-			continue
 		}
 	}
-
+	if configMapIndex < 0 || secretIndex < 0 || deploymentIndex < 0 {
+		return fmt.Errorf("required module resources not found in manifests (configMapIndex=%d, secretIndex=%d, deploymentIndex=%d)", configMapIndex, secretIndex, deploymentIndex)
+	}
 	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
 	if err != nil {
 		return fmt.Errorf("failed to get module chart version: %w", err)
