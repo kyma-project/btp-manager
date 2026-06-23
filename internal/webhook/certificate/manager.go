@@ -319,8 +319,11 @@ func (m *Manager) validateWebhookCert(webhookCertSecret *corev1.Secret, caCert [
 
 func verifyCASign(caCert, signedCert []byte) error {
 	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCert, signedCert)
-	if err != nil || !ok {
+	if err != nil {
 		return NewCertificateSignError(err.Error())
+	}
+	if !ok {
+		return NewCertificateSignError("certificate is not signed by the provided CA")
 	}
 	return nil
 }
