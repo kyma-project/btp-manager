@@ -337,15 +337,15 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	r.setCredentialsNamespacesAndClusterId(requiredSecret)
 
 	if errWithReason := r.checkDefaultCredentialsSecretNamespace(ctx, logger, requiredSecret); errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
 	}
 
 	if errWithReason := r.checkSapBtpServiceOperatorClusterIdConfigMap(ctx, logger, requiredSecret); errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
 	}
 
 	if errWithReason := r.checkSapBtpServiceOperatorClusterIdSecret(ctx, logger, requiredSecret); errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.reason, errWithReason.message)
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
 	}
 
 	if err := r.deleteOutdatedResources(ctx); err != nil {
@@ -369,7 +369,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
 	logger.Info("secret verification failed: " + errWithReason.Error())
-	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.reason, errWithReason.message)
+	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.Reason, errWithReason.Message)
 }
 
 func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
