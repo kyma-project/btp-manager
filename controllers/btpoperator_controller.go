@@ -1390,6 +1390,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		logger.Error(errWithReason, "secret verification failed")
+		return
 	}
 	r.driftDetector.InitializeFromSecret(secret)
 	if err := r.deleteOutdatedResources(ctx); err != nil {
