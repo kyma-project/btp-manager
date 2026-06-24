@@ -17,15 +17,23 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 waitForBtpOperatorCrReadiness () {
-  echo -e "\n--- Waiting for BtpOperator CR to be ready"
+  local timeout=${1:-300}
+  echo -e "\n--- Waiting for BtpOperator CR to be ready (timeout: ${timeout}s)"
+  local seconds=0
   while true; do
     operator_status=$(kubectl get btpoperators/btpoperator -n kyma-system -o json)
     state_status=$(echo $operator_status | jq -r '.status.state')
     if [[ $state_status == "Ready" ]]; then
       break
-    else
-      echo -e "\n--- Waiting for BtpOperator CR to be ready"; sleep 5;
     fi
+    if [[ ${seconds} -ge ${timeout} ]]; then
+      reason=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .reason')
+      message=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .message')
+      echo -e "\n--- ERROR: BtpOperator CR did not reach Ready within ${timeout}s (state=${state_status}, reason=${reason}, message=${message})"
+      exit 1
+    fi
+    echo -e "\n--- Waiting for BtpOperator CR to be ready (state=${state_status}, ${seconds}s/${timeout}s)"; sleep 5;
+    seconds=$((seconds + 5))
   done
 }
 
@@ -417,6 +425,9 @@ if [[ "${CREDENTIALS}" == "real" ]]; then
   echo -e "\n-- Service Instance has been updated - reconciliation after parameters change succeeded"
 fi
 
+echo -e "\n--- Setting ReadyCheckInterval=5s to speed up readiness polling for the following tests"
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyCheckInterval":"5s"}}'
+
 echo -e "\n--- Testing certificate rotation"
 
 echo -e "\n--- Saving current CA bundle from mutating webhook"
@@ -470,7 +481,7 @@ else
   echo "ERROR: Validating webhook CA bundle does not match mutating webhook CA bundle" && exit 1
 fi
 
-waitForBtpOperatorCrReadiness
+waitForBtpOperatorCrReadiness 120
 echo "Certificate rotation test completed successfully"
 
 echo -e "\n--- Testing sap-btp-manager secret deletion and recovery"
@@ -496,8 +507,11 @@ YAML_DIR="scripts/testing/yaml"
 envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 
 echo -e "\n--- Waiting for BtpOperator CR to recover to Ready state"
-waitForBtpOperatorCrReadiness
+waitForBtpOperatorCrReadiness 120
 echo "BtpOperator CR recovered to Ready after secret recreation"
+
+echo -e "\n--- Restoring ReadyCheckInterval to default"
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyCheckInterval":"30s"}}'
 
 echo -e "\n---Uninstalling..."
 
