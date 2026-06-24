@@ -10,7 +10,7 @@ To apply the multitenancy feature, choose the method that suits your needs and a
 * [Namespace-level mapping](03-22-namespace-level-mapping.md): Connect namespaces to separate subaccounts by configuring dedicated credentials for each namespace.
 * [Instance-level mapping](03-21-instance-level-mapping.md): Define a specific subaccount for each service instance, regardless of the namespace context.
 
-Regardless of the method, you must create Secrets managed in the `kyma-system` namespace.
+Regardless of the method, you must create Secrets in the managed namespace. By default, it is the `kyma-system` namespace. If you want to customize the managed namespace, follow the instructions in [Customize the Default Credentials and Access](03-11-customize_secret.md).
 
 ### Secrets Precedence
 
@@ -20,7 +20,7 @@ SAP BTP Operator searches for the credentials in the following order:
 2. Managed namespace Secret assigned to a given namespace
 3. Managed namespace default Secret
 
-![Secrets precedence](../assets/secrets_precedence_4.drawio.svg) 
+![Secrets precedence](../assets/secrets_precedence.drawio.svg) 
 
 ## Procedure
 

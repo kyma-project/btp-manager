@@ -2,10 +2,13 @@ package config
 
 import (
 	"context"
+	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/metrics"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,7 +50,7 @@ var (
 	ResourcesPath        = "./module-resources"
 	ManagerResourcesPath = "./manager-resources"
 
-	EnableLimitedCache = "false"
+	EnableLimitedCache = "true"
 )
 
 type WatchHandler interface {
@@ -58,13 +61,62 @@ type WatchHandler interface {
 
 type Handler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme        *runtime.Scheme
+	configMetrics *metrics.ConfigMetrics
 }
 
-func NewHandler(client client.Client, scheme *runtime.Scheme) *Handler {
+func configSnapshot() map[string]any {
+	return map[string]any{
+		"ChartNamespace":                 ChartNamespace,
+		"ChartPath":                      ChartPath,
+		"SecretName":                     SecretName,
+		"ConfigName":                     ConfigName,
+		"DeploymentName":                 DeploymentName,
+		"ProcessingStateRequeueInterval": ProcessingStateRequeueInterval,
+		"ReadyStateRequeueInterval":      ReadyStateRequeueInterval,
+		"ReadyTimeout":                   ReadyTimeout,
+		"HardDeleteCheckInterval":        HardDeleteCheckInterval,
+		"HardDeleteTimeout":              HardDeleteTimeout,
+		"ResourcesPath":                  ResourcesPath,
+		"ReadyCheckInterval":             ReadyCheckInterval,
+		"DeleteRequestTimeout":           DeleteRequestTimeout,
+		"CaCertificateExpiration":        CaCertificateExpiration,
+		"WebhookCertificateExpiration":   WebhookCertificateExpiration,
+		"ExpirationBoundary":             ExpirationBoundary,
+		"RsaKeyBits":                     certs.RsaKeyBits(),
+		"EnableLimitedCache":             EnableLimitedCache,
+		"StatusUpdateTimeout":            StatusUpdateTimeout,
+		"StatusUpdateCheckInterval":      StatusUpdateCheckInterval,
+		"ManagerResourcesPath":           ManagerResourcesPath,
+	}
+}
+
+func changedSnapshotKeys(before, after map[string]any) []string {
+	changed := make([]string, 0)
+	keys := make(map[string]struct{}, len(before)+len(after))
+
+	for k := range before {
+		keys[k] = struct{}{}
+	}
+	for k := range after {
+		keys[k] = struct{}{}
+	}
+
+	for k := range keys {
+		if !reflect.DeepEqual(before[k], after[k]) {
+			changed = append(changed, k)
+		}
+	}
+
+	sort.Strings(changed)
+	return changed
+}
+
+func NewHandler(client client.Client, scheme *runtime.Scheme, configMetrics *metrics.ConfigMetrics) *Handler {
 	return &Handler{
-		Client: client,
-		Scheme: scheme,
+		Client:        client,
+		Scheme:        scheme,
+		configMetrics: configMetrics,
 	}
 }
 
@@ -77,19 +129,63 @@ func (r *Handler) Predicates() predicate.Funcs {
 		return o.GetName() == ConfigName && o.GetNamespace() == ChartNamespace
 	}
 	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return nameMatches(e.Object) },
-		DeleteFunc: func(e event.DeleteEvent) bool { return nameMatches(e.Object) },
-		UpdateFunc: func(e event.UpdateEvent) bool { return nameMatches(e.ObjectNew) },
+		CreateFunc: func(e event.CreateEvent) bool {
+			matches := nameMatches(e.Object)
+			if matches {
+				r.configMetrics.ConfigMapApplied()
+			}
+			return matches
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			matches := nameMatches(e.Object)
+			if matches {
+				r.configMetrics.ConfigMapNotApplied()
+			}
+			return matches
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			matches := nameMatches(e.ObjectNew)
+			if matches {
+				r.configMetrics.ConfigMapApplied()
+			}
+			return matches
+		},
 	}
+}
+
+func (r *Handler) Start(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+	cm := &corev1.ConfigMap{}
+	err := r.Get(ctx, types.NamespacedName{Name: ConfigName, Namespace: ChartNamespace}, cm)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		logger.Info("custom configuration ConfigMap not found at startup")
+		return nil
+	}
+	logger.Info("custom configuration ConfigMap found at startup, setting metric to 1")
+	r.configMetrics.ConfigMapApplied()
+	return nil
 }
 
 func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
+	parseDuration := func(raw string, defaultValue time.Duration, key string) time.Duration {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			logger.Info("failed to parse configuration update", key, err)
+			return defaultValue
+		}
+		return parsed
+	}
 
 	cm, ok := obj.(*corev1.ConfigMap)
 	if !ok {
 		return []reconcile.Request{}
 	}
+
+	beforeConfig := configSnapshot()
 
 	logger.Info("reconciling configuration update", "config", cm.Data)
 
@@ -107,27 +203,27 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 		case "DeploymentName":
 			DeploymentName = v
 		case "ProcessingStateRequeueInterval":
-			ProcessingStateRequeueInterval, err = time.ParseDuration(v)
+			ProcessingStateRequeueInterval = parseDuration(v, ProcessingStateRequeueInterval, k)
 		case "ReadyStateRequeueInterval":
-			ReadyStateRequeueInterval, err = time.ParseDuration(v)
+			ReadyStateRequeueInterval = parseDuration(v, ReadyStateRequeueInterval, k)
 		case "ReadyTimeout":
-			ReadyTimeout, err = time.ParseDuration(v)
+			ReadyTimeout = parseDuration(v, ReadyTimeout, k)
 		case "HardDeleteCheckInterval":
-			HardDeleteCheckInterval, err = time.ParseDuration(v)
+			HardDeleteCheckInterval = parseDuration(v, HardDeleteCheckInterval, k)
 		case "HardDeleteTimeout":
-			HardDeleteTimeout, err = time.ParseDuration(v)
+			HardDeleteTimeout = parseDuration(v, HardDeleteTimeout, k)
 		case "ResourcesPath":
 			ResourcesPath = v
 		case "ReadyCheckInterval":
-			ReadyCheckInterval, err = time.ParseDuration(v)
+			ReadyCheckInterval = parseDuration(v, ReadyCheckInterval, k)
 		case "DeleteRequestTimeout":
-			DeleteRequestTimeout, err = time.ParseDuration(v)
+			DeleteRequestTimeout = parseDuration(v, DeleteRequestTimeout, k)
 		case "CaCertificateExpiration":
-			CaCertificateExpiration, err = time.ParseDuration(v)
+			CaCertificateExpiration = parseDuration(v, CaCertificateExpiration, k)
 		case "WebhookCertificateExpiration":
-			WebhookCertificateExpiration, err = time.ParseDuration(v)
+			WebhookCertificateExpiration = parseDuration(v, WebhookCertificateExpiration, k)
 		case "ExpirationBoundary":
-			ExpirationBoundary, err = time.ParseDuration(v)
+			ExpirationBoundary = parseDuration(v, ExpirationBoundary, k)
 		case "RsaKeyBits":
 			var bits int
 			bits, err = strconv.Atoi(v)
@@ -137,9 +233,9 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 		case "EnableLimitedCache":
 			EnableLimitedCache = v
 		case "StatusUpdateTimeout":
-			StatusUpdateTimeout, err = time.ParseDuration(v)
+			StatusUpdateTimeout = parseDuration(v, StatusUpdateTimeout, k)
 		case "StatusUpdateCheckInterval":
-			StatusUpdateCheckInterval, err = time.ParseDuration(v)
+			StatusUpdateCheckInterval = parseDuration(v, StatusUpdateCheckInterval, k)
 		case "ManagerResourcesPath":
 			ManagerResourcesPath = v
 		default:
@@ -149,6 +245,10 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 			logger.Info("failed to parse configuration update", k, err)
 		}
 	}
+
+	afterConfig := configSnapshot()
+	changedFields := changedSnapshotKeys(beforeConfig, afterConfig)
+	logger.Info("configuration snapshot updated", "changedFields", changedFields)
 
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
 }

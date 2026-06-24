@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -104,10 +104,16 @@ jobs:
     name: Stress tests
     needs: build-image
     runs-on: ubuntu-latest
+    env:
+      OPERATOR_POST_STARTUP_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_STARTUP_MEM_THRESHOLD }}
+      OPERATOR_POST_INSTANCES_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_INSTANCES_MEM_THRESHOLD }}
+      OPERATOR_POST_SECRETS_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_SECRETS_MEM_THRESHOLD }}
+      OPERATOR_MEM_EXPECTED_INCREASE: ${{ vars.OPERATOR_MEM_EXPECTED_INCREASE }}
+      MEM_REF_URL: ${{ vars.MEM_REF_URL }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up go environment
         uses: actions/setup-go@v6
@@ -122,24 +128,31 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.name }}"
 
-      - name: Install BTP Manager and SAP BTP Operator
+      - name: Install BTP Manager and SAP BTP Operator - LimitedCache enabled
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy true"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+        run: "./scripts/testing/check_top.sh ${OPERATOR_POST_STARTUP_MEM_THRESHOLD} ${MEM_REF_URL}"
 
       - name: Run stress test - instances and bindings
         run: "./scripts/testing/stress-mem-instances-bindings.sh 500 30"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+        run: "./scripts/testing/check_top.sh ${OPERATOR_POST_INSTANCES_MEM_THRESHOLD} ${MEM_REF_URL}"
 
       - name: Run stress test - secrets and configmaps
-        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120"
+        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120 100"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+        run: "./scripts/testing/check_top.sh ${OPERATOR_POST_SECRETS_MEM_THRESHOLD} ${MEM_REF_URL}"
+
+      - name: Run stress test - large labeled secrets
+        run: "./scripts/testing/stress-mem-large-labeled-secrets.sh 8"
+
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: "./scripts/testing/check_top_increased.sh ${OPERATOR_MEM_EXPECTED_INCREASE}"
+
 
   run-performance-tests:
     name: Performance tests
@@ -189,7 +202,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: git pull
@@ -290,7 +303,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
@@ -365,7 +378,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

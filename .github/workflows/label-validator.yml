@@ -1,19 +1,15 @@
 name: Label validator
 on:
-  pull_request_target:
+  pull_request:
     types: ["opened", "labeled", "unlabeled", "synchronize", "reopened", "ready_for_review", "edited"]
     branches: [ "main" ]
 
-permissions:
-  discussions: write
-  pull-requests: write
-  
 jobs:
-  validate-labels: 
+  validate-labels:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
     - name: Validate labels

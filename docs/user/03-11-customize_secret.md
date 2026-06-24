@@ -28,7 +28,7 @@ To customize the `sap-btp-manager` Secret, modify the credentials in the followi
 * Optionally, add the **credentials_namespace** parameter and provide the name of your existing custom namespace for Secrets with credentials to communicate with the SAP Service Manager.
 
    >[!NOTE]
-   > Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. BTP Manager deletes the Secrets from the default `kyma-system` namespace and creates them in the custom namespace.
+   > Setting the **credentials_namespace** parameter changes the values of **MANAGEMENT_NAMESPACE** and **RELEASE_NAMESPACE** keys in the `sap-btp-operator-config` ConfigMap. The custom namespace replaces the default managed `kyma-system` namespace for `sap-btp-service-operator` and `sap-btp-operator-clusterid` Secrets. BTP Manager deletes the Secrets from the default `kyma-system` namespace and creates them in the custom namespace.
 
 See the following example:
 
@@ -61,3 +61,9 @@ The reconciliation of the Secret stops and your changes are not reverted.
 
 > [!WARNING]
 > If you delete the customized `sap-btp-manager` Secret or remove the `kyma-project.io/skip-reconciliation: 'true'` label from it, the reconciliation starts again, and the preconfigured default `sap-btp-manager` Secret is recreated for your Kyma instance within 24 hours. See [Preconfigured Credentials and Access](./03-10-preconfigured-secret.md#credentials).
+
+## Related Information
+
+[Working with Multiple Subaccounts](03-20-multitenancy.md)
+[Instance-Level Mapping](03-21-instance-level-mapping.md)
+[Namespace-Level Mapping](03-22-namespace-level-mapping.md)

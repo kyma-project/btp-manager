@@ -38,7 +38,7 @@ var expectedPolicyNames = []string{
 	"kyma-project.io--btp-operator-allow-to-apiserver",
 	"kyma-project.io--btp-operator-to-dns",
 	"kyma-project.io--allow-btp-operator-metrics",
-	"kyma-project.io--btp-operator-allow-to-webhook",
+	"kyma-project.io--allow-btp-operator-webhook",
 }
 
 var _ = Describe("BTP Operator Network Policies", func() {
@@ -84,6 +84,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator = &v1alpha1.BtpOperator{}
 			btpOperator.Name = "test-btpoperator"
 			btpOperator.Namespace = "kyma-system"
+			Expect(reconciler.cleanupNetworkPolicies(ctx)).To(Succeed())
 		})
 
 		It("Should load and prepare network policies", func() {
@@ -235,7 +236,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			var err error
 			secret, err = createCorrectSecretFromYaml()
 			Expect(err).To(BeNil())
-			Expect(k8sClient.Patch(ctx, secret, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName))).To(Succeed())
+			Expect(k8sClient.Create(ctx, secret, client.FieldOwner(operatorName))).To(Succeed())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateProcessing, metav1.ConditionFalse, conditions.Initialized)))
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
@@ -327,6 +328,22 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				disableNetworkPoliciesAndWait()
 				verifyNetworkPoliciesDeleted()
 			})
+		})
+	})
+
+	Context("When testing migration logic", func() {
+		It("should delete the old webhook network policy during migration", func() {
+			reconciler := &BtpOperatorReconciler{
+				Client: k8sClient,
+			}
+			oldPolicy := createMockNetworkPolicy("kyma-project.io--btp-operator-allow-to-webhook")
+			Expect(k8sClient.Create(context.Background(), oldPolicy)).To(Succeed())
+			_, err := getNetworkPolicy(context.Background(), "kyma-project.io--btp-operator-allow-to-webhook", "kyma-system")
+			Expect(err).NotTo(HaveOccurred())
+			err = reconciler.deleteOldWebhookNetworkPolicy(context.Background())
+			Expect(err).NotTo(HaveOccurred())
+			_, err = getNetworkPolicy(context.Background(), "kyma-project.io--btp-operator-allow-to-webhook", "kyma-system")
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

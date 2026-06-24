@@ -4,3 +4,7 @@
 # Owners of all .md files and all files within the /docs/ directory
 *.md @kyma-project/technical-writers
 /docs/ @kyma-project/technical-writers
+
+# CLAUDE.md and Claude Code skills are also reviewed by gophers
+CLAUDE.md @kyma-project/technical-writers @kyma-project/gopher
+/.claude/skills/ @kyma-project/technical-writers @kyma-project/gopher

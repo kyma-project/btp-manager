@@ -28,6 +28,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
@@ -44,12 +45,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	// +kubebuilder:scaffold:imports
+	//+kubebuilder:scaffold:imports
 )
 
 const (
 	fakeSapBtpOperatorImage = "local.test/sap/sap-btp-service-operator/controller:v0.0.1"
-	fakeKubeRbacProxyImage  = "local.test/brancz/kube-rbac-proxy:v0.0.1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -175,7 +175,9 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(ctrl.SetupSignalHandler())
 
-	metrics := btpmanagermetrics.NewMetrics()
+	testRegistry := prometheus.NewRegistry()
+	metrics := btpmanagermetrics.NewWebhookMetrics(testRegistry)
+	configMetrics := btpmanagermetrics.NewConfigMetrics(testRegistry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
@@ -184,7 +186,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		cleanupReconciler,
 		metrics,
 		[]config.WatchHandler{
-			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme()),
+			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
 	)
 
@@ -220,9 +222,6 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	if os.Getenv(SapBtpServiceOperatorEnv) == "" {
 		Expect(os.Setenv(SapBtpServiceOperatorEnv, fakeSapBtpOperatorImage)).To(Succeed())
-	}
-	if os.Getenv(KubeRbacProxyEnv) == "" {
-		Expect(os.Setenv(KubeRbacProxyEnv, fakeKubeRbacProxyImage)).To(Succeed())
 	}
 
 	err = reconciler.SetupWithManager(k8sManager)

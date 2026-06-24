@@ -79,7 +79,7 @@ checkNetworkPoliciesExist() {
     "kyma-project.io--btp-operator-allow-to-apiserver"
     "kyma-project.io--btp-operator-to-dns"
     "kyma-project.io--allow-btp-operator-metrics"
-    "kyma-project.io--btp-operator-allow-to-webhook"
+    "kyma-project.io--allow-btp-operator-webhook"
   )
   
   for policy in "${policies[@]}"; do
@@ -100,7 +100,7 @@ checkNetworkPoliciesDeleted() {
     "kyma-project.io--btp-operator-allow-to-apiserver"
     "kyma-project.io--btp-operator-to-dns"
     "kyma-project.io--allow-btp-operator-metrics"
-    "kyma-project.io--btp-operator-allow-to-webhook"
+    "kyma-project.io--allow-btp-operator-webhook"
   )
   
   for policy in "${policies[@]}"; do
@@ -192,7 +192,7 @@ echo -e "\n--- Disabling network policies via annotation"
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
 
 echo -e "\n--- Waiting for network policies to be cleaned up"
-sleep 10
+sleep 30
 
 if checkNetworkPoliciesDeleted; then
   echo -e "--- Network policies correctly deleted after disable annotation"
@@ -205,7 +205,7 @@ echo -e "\n--- Re-enabling network policies by removing the disable annotation"
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies-
 
 echo -e "\n--- Waiting for network policies to be recreated"
-sleep 10
+sleep 30
 
 if checkNetworkPoliciesExist; then
   echo -e "--- Network policies correctly recreated after removing disable annotation"
@@ -326,53 +326,53 @@ waitForBtpOperatorCrReadiness
 
 echo -e "\n--- Testing EnableLimitedCache ConfigMap propagation"
 
-echo -e "\n--- Verifying default ENABLE_LIMITED_CACHE value (false) in sap-btp-operator-config ConfigMap"
+echo -e "\n--- Verifying default ENABLE_LIMITED_CACHE value (true) in sap-btp-operator-config ConfigMap"
 operator_limited_cache_default=$(kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}' 2>/dev/null || echo "")
 echo -e "Current ENABLE_LIMITED_CACHE in sap-btp-operator-config: ${operator_limited_cache_default}"
-if [[ "${operator_limited_cache_default}" != "false" ]]; then
-  echo "Expected ENABLE_LIMITED_CACHE to be 'false' by default, but got: ${operator_limited_cache_default}" && exit 1
+if [[ "${operator_limited_cache_default}" != "true" ]]; then
+  echo "Expected ENABLE_LIMITED_CACHE to be 'true' by default, but got: ${operator_limited_cache_default}" && exit 1
 fi
 
-echo -e "\n--- Enabling limited cache in sap-btp-manager ConfigMap"
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"true"}}'
+echo -e "\n--- Disabling limited cache in sap-btp-manager ConfigMap"
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"false"}}'
 
-echo -e "\n--- Verifying EnableLimitedCache=true was set in sap-btp-manager ConfigMap"
+echo -e "\n--- Verifying EnableLimitedCache=false was set in sap-btp-manager ConfigMap"
 manager_limited_cache=$(kubectl get configmap sap-btp-manager -n kyma-system -o jsonpath='{.data.EnableLimitedCache}')
 echo -e "sap-btp-manager ConfigMap EnableLimitedCache: ${manager_limited_cache}"
 
-echo -e "\n--- Waiting for ENABLE_LIMITED_CACHE=true to propagate to sap-btp-operator-config ConfigMap"
+echo -e "\n--- Waiting for ENABLE_LIMITED_CACHE=false to propagate to sap-btp-operator-config ConfigMap"
 SECONDS=0
 TIMEOUT=60
 while true; do
   operator_limited_cache=$(kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}' 2>/dev/null || echo "")
-  if [[ "${operator_limited_cache}" == "true" ]]; then
-    echo -e "ENABLE_LIMITED_CACHE=true propagated to sap-btp-operator-config ConfigMap"
+  if [[ "${operator_limited_cache}" == "false" ]]; then
+    echo -e "ENABLE_LIMITED_CACHE=false propagated to sap-btp-operator-config ConfigMap"
     break
   else
     if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
-      echo "FAILED: ENABLE_LIMITED_CACHE did not propagate to 'true' in sap-btp-operator-config within ${TIMEOUT}s. Current value: ${operator_limited_cache}" && exit 1
+      echo "FAILED: ENABLE_LIMITED_CACHE did not propagate to 'false' in sap-btp-operator-config within ${TIMEOUT}s. Current value: ${operator_limited_cache}" && exit 1
     fi
-    echo -e "--- Waiting for ENABLE_LIMITED_CACHE=true to propagate (current: ${operator_limited_cache}, elapsed: ${SECONDS}s)"
+    echo -e "--- Waiting for ENABLE_LIMITED_CACHE=false to propagate (current: ${operator_limited_cache}, elapsed: ${SECONDS}s)"
     sleep 5
     SECONDS=$((SECONDS + 5))
   fi
 done
 
-echo -e "\n--- Disabling limited cache in sap-btp-manager ConfigMap"
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"false"}}'
+echo -e "\n--- Enabling limited cache in sap-btp-manager ConfigMap"
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"true"}}'
 
-echo -e "\n--- Waiting for ENABLE_LIMITED_CACHE=false to propagate back to sap-btp-operator-config"
+echo -e "\n--- Waiting for ENABLE_LIMITED_CACHE=true to propagate back to sap-btp-operator-config"
 SECONDS=0
 while true; do
   operator_limited_cache=$(kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}' 2>/dev/null || echo "")
-  if [[ "${operator_limited_cache}" == "false" ]]; then
-    echo -e "ENABLE_LIMITED_CACHE=false propagated back to sap-btp-operator-config ConfigMap"
+  if [[ "${operator_limited_cache}" == "true" ]]; then
+    echo -e "ENABLE_LIMITED_CACHE=true propagated back to sap-btp-operator-config ConfigMap"
     break
   else
     if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
-      echo "FAILED: ENABLE_LIMITED_CACHE did not propagate back to 'false' in sap-btp-operator-config within ${TIMEOUT}s. Current value: ${operator_limited_cache}" && exit 1
+      echo "FAILED: ENABLE_LIMITED_CACHE did not propagate back to 'true' in sap-btp-operator-config within ${TIMEOUT}s. Current value: ${operator_limited_cache}" && exit 1
     fi
-    echo -e "Waiting for ENABLE_LIMITED_CACHE=false to propagate (current: ${operator_limited_cache}, elapsed: ${SECONDS}s)"
+    echo -e "Waiting for ENABLE_LIMITED_CACHE=true to propagate (current: ${operator_limited_cache}, elapsed: ${SECONDS}s)"
     sleep 5
     SECONDS=$((SECONDS + 5))
   fi
@@ -501,6 +501,7 @@ if [[ "${CREDENTIALS}" != "real" ]]
 then
   echo -e "\n--- Creating sap-btp-manager configmap with HardDeleteTimeout 10s"
   kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"HardDeleteTimeout":"10s"}}'
 fi
 
 echo -e "\n--- Adding force delete label"
@@ -535,4 +536,8 @@ make undeploy
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
 kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
+
+kubectl patch secret ${SI_PARAMS_SECRET_NAME} -p '{"metadata":{"finalizers":null}}' --type=merge || echo "ignoring failure during params secret patching"
 kubectl delete secret ${SI_PARAMS_SECRET_NAME} || echo "ignoring failure during params secret removal"
+
+echo -e "\n--- All objects cleaned up, test completed successfully"

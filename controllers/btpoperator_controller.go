@@ -23,10 +23,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -34,8 +36,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
-
-	"github.com/go-logr/logr"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -72,8 +72,6 @@ const (
 )
 
 const (
-	KubeRbacProxyName         = "kube-rbac-proxy"
-	KubeRbacProxyEnv          = "KUBE_RBAC_PROXY"
 	SapBtpServiceOperatorName = "sap-btp-service-operator"
 	SapBtpServiceOperatorEnv  = "SAP_BTP_SERVICE_OPERATOR"
 
@@ -90,7 +88,6 @@ const (
 	mutatingWebhookName   = operandName + "-mutating-webhook-configuration"
 	validatingWebhookName = operandName + "-validating-webhook-configuration"
 
-	kubeRbacProxyContainerName         = KubeRbacProxyName
 	sapBtpServiceOperatorContainerName = "manager"
 
 	forceDeleteLabelKey       = "force-delete"
@@ -123,6 +120,9 @@ const (
 
 	deploymentAvailableConditionType   = "Available"
 	deploymentProgressingConditionType = "Progressing"
+
+	// TODO: remove old webhook network policy name after some time
+	oldWebhookNetworkPolicyName = "kyma-project.io--btp-operator-allow-to-webhook"
 )
 
 const (
@@ -158,7 +158,7 @@ type BtpOperatorReconciler struct {
 	apiServerClient                                     client.Client
 	Scheme                                              *runtime.Scheme
 	manifestHandler                                     *manifest.Handler
-	metrics                                             *metrics.Metrics
+	webhookMetrics                                      *metrics.WebhookMetrics
 	instanceBindingService                              InstanceBindingSerivce
 	workqueueSize                                       int
 	previousCredentialsNamespace                        string
@@ -177,14 +177,14 @@ type ResourceReadiness struct {
 	Ready     bool
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.Metrics, watchHandlers []config.WatchHandler) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
 		Scheme:                 scheme,
 		manifestHandler:        &manifest.Handler{Scheme: scheme},
 		instanceBindingService: instanceBindingSerivice,
-		metrics:                metrics,
+		webhookMetrics:         metrics,
 		watchHandlers:          watchHandlers,
 	}
 }
@@ -221,8 +221,6 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 //+kubebuilder:rbac:groups="",resources="configmaps/status",verbs=get;patch;update
 //+kubebuilder:rbac:groups="",resources="events",verbs=create
 //+kubebuilder:rbac:groups="",resources="secrets",verbs=create;delete;get;list;patch;update;watch
-//+kubebuilder:rbac:groups="authentication.k8s.io",resources="tokenreviews",verbs=create
-//+kubebuilder:rbac:groups="authorization.k8s.io",resources="subjectaccessreviews",verbs=create
 //+kubebuilder:rbac:groups="coordination.k8s.io",resources="leases",verbs=create;get;list;update
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings",verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups="services.cloud.sap.com",resources="servicebindings/status",verbs=get;patch;update
@@ -534,6 +532,10 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 			return err
 		}
 	}
+	if err := r.deleteOldWebhookNetworkPolicy(ctx); err != nil {
+		logger.Error(err, "while deleting old webhook network policy")
+		return fmt.Errorf("failed to delete old webhook network policy: %w", err)
+	}
 
 	if err = r.prepareModuleResourcesFromManifests(ctx, resourcesToApply, s); err != nil {
 		logger.Error(err, "while preparing objects to apply")
@@ -548,7 +550,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	r.deleteCreationTimestamp(resourcesToApply...)
 
 	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
-	if err = r.applyOrUpdateResources(ctx, resourcesToApply); err != nil {
+	if err = r.createOrUpdateResources(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while applying module resources")
 		return fmt.Errorf("failed to apply module resources: %w", err)
 	}
@@ -590,23 +592,29 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	logger := log.FromContext(ctx)
 	logger.Info("preparing module resources to apply")
 
-	var configMapIndex, secretIndex, deploymentIndex int
-	for i, u := range resourcesToApply {
-		if u.GetName() == sapBtpServiceOperatorConfigMapName && u.GetKind() == configMapKind {
-			configMapIndex = i
-			continue
-		}
-		if u.GetName() == sapBtpServiceOperatorSecretName && u.GetKind() == secretKind {
-			secretIndex = i
-			continue
-		}
-		if u.GetName() == config.DeploymentName && u.GetKind() == deploymentKind {
-			deploymentIndex = i
-			continue
+	var configMap, secret, deployment *unstructured.Unstructured
+	for _, u := range resourcesToApply {
+		switch {
+		case u.GetKind() == configMapKind && u.GetName() == sapBtpServiceOperatorConfigMapName:
+			configMap = u
+		case u.GetKind() == secretKind && u.GetName() == sapBtpServiceOperatorSecretName:
+			secret = u
+		case u.GetKind() == deploymentKind && u.GetName() == config.DeploymentName:
+			deployment = u
 		}
 	}
 
-	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
+	if configMap == nil {
+		return fmt.Errorf("configmap %q not found in resources to apply", sapBtpServiceOperatorConfigMapName)
+	}
+	if secret == nil {
+		return fmt.Errorf("secret %q not found in resources to apply", sapBtpServiceOperatorSecretName)
+	}
+	if deployment == nil {
+		return fmt.Errorf("deployment %q not found in resources to apply", config.DeploymentName)
+	}
+
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(filepath.Join(config.ChartPath, "Chart.yaml"), "version")
 	if err != nil {
 		logger.Error(err, "while getting module chart version")
 		return fmt.Errorf("failed to get module chart version: %w", err)
@@ -618,15 +626,15 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 	}
 	r.setNamespace(resourcesToApply...)
 
-	if err := r.setConfigMapValues(s, (resourcesToApply)[configMapIndex]); err != nil {
+	if err := r.setConfigMapValues(s, configMap); err != nil {
 		logger.Error(err, "while setting ConfigMap values")
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := r.setSecretValues(s, (resourcesToApply)[secretIndex]); err != nil {
+	if err := r.setSecretValues(s, secret); err != nil {
 		logger.Error(err, "while setting Secret values")
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-	if err := r.setDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+	if err := r.setDeploymentImages(deployment); err != nil {
 		logger.Error(err, "while setting container images in Deployment")
 		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
@@ -641,6 +649,26 @@ func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) erro
 		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 			return fmt.Errorf("failed to delete network policies: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+	oldPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      oldWebhookNetworkPolicyName,
+			Namespace: config.ChartNamespace,
+		},
+	}
+
+	if err := r.Delete(ctx, oldPolicy); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			logger.Error(err, "failed to delete old webhook network policy during migration", "policyName", oldWebhookNetworkPolicyName)
+			return fmt.Errorf("failed to delete old webhook network policy: %w", err)
+		}
+		logger.Info("old webhook network policy not found, skipping deletion", "policyName", oldWebhookNetworkPolicyName)
 	}
 
 	return nil
@@ -688,22 +716,20 @@ func (r *BtpOperatorReconciler) deleteCreationTimestamp(us ...*unstructured.Unst
 }
 
 func (r *BtpOperatorReconciler) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	if err := unstructured.SetNestedField(u.Object, string(secret.Data[ClusterIdSecretKey]), "data", ClusterIdConfigMapKey); err != nil {
-		return err
+	entries := []struct {
+		key string
+		val any
+	}{
+		{ClusterIdConfigMapKey, string(secret.Data[ClusterIdSecretKey])},
+		{ReleaseNamespaceConfigMapKey, r.credentialsNamespaceFromSapBtpManagerSecret},
+		{ManagementNamespaceConfigMapKey, r.credentialsNamespaceFromSapBtpManagerSecret},
+		{EnableLimitedCacheConfigMapKey, config.EnableLimitedCache},
 	}
-
-	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", ReleaseNamespaceConfigMapKey); err != nil {
-		return err
+	for _, e := range entries {
+		if err := unstructured.SetNestedField(u.Object, e.val, "data", e.key); err != nil {
+			return err
+		}
 	}
-
-	if err := unstructured.SetNestedField(u.Object, r.credentialsNamespaceFromSapBtpManagerSecret, "data", ManagementNamespaceConfigMapKey); err != nil {
-		return err
-	}
-
-	if err := unstructured.SetNestedField(u.Object, config.EnableLimitedCache, "data", EnableLimitedCacheConfigMapKey); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -722,12 +748,8 @@ func (r *BtpOperatorReconciler) setSecretValues(secret *corev1.Secret, u *unstru
 
 func (r *BtpOperatorReconciler) setDeploymentImages(u *unstructured.Unstructured) error {
 	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
-	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
 	if err := r.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
 		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
-	}
-	if err := r.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
-		return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
 	}
 
 	return nil
@@ -756,7 +778,7 @@ func (r *BtpOperatorReconciler) setContainerImage(u *unstructured.Unstructured, 
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
 }
 
-func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (r *BtpOperatorReconciler) createOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	for _, u := range us {
 		preExistingResource := &unstructured.Unstructured{}
@@ -765,9 +787,9 @@ func (r *BtpOperatorReconciler) applyOrUpdateResources(ctx context.Context, us [
 			if !k8serrors.IsNotFound(err) {
 				return fmt.Errorf("while trying to get %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			logger.Info(fmt.Sprintf("applying %s - %s", u.GetKind(), u.GetName()))
-			if err := r.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(operatorName)); err != nil {
-				return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+			logger.Info(fmt.Sprintf("creating %s - %s", u.GetKind(), u.GetName()))
+			if err := r.Create(ctx, u, client.FieldOwner(operatorName)); err != nil {
+				return fmt.Errorf("while creating %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
 		} else {
 			logger.Info(fmt.Sprintf("updating %s - %s", u.GetKind(), u.GetName()))
@@ -1300,35 +1322,13 @@ func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces
 }
 
 func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
-	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: config.ChartNamespace}, deployment); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, deployment); client.IgnoreNotFound(err) != nil {
-			return err
-		}
+	toDelete := []client.Object{
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: config.DeploymentName, Namespace: config.ChartNamespace}},
+		&admissionregistrationv1.MutatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: mutatingWebhookName}},
+		&admissionregistrationv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: validatingWebhookName}},
 	}
-
-	mutatingWebhook := &admissionregistrationv1.MutatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: mutatingWebhookName, Namespace: config.ChartNamespace}, mutatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, mutatingWebhook); client.IgnoreNotFound(err) != nil {
-			return err
-		}
-	}
-
-	validatingWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
-	if err := r.Get(ctx, client.ObjectKey{Name: validatingWebhookName, Namespace: config.ChartNamespace}, validatingWebhook); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := r.Delete(ctx, validatingWebhook); client.IgnoreNotFound(err) != nil {
+	for _, obj := range toDelete {
+		if err := r.Delete(ctx, obj); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
@@ -1546,39 +1546,36 @@ func (r *BtpOperatorReconciler) watchSecretPredicates() predicate.TypedPredicate
 	}
 }
 
+func deploymentConditionStatuses(d *appsv1.Deployment) (available, progressing string) {
+	for _, c := range d.Status.Conditions {
+		switch string(c.Type) {
+		case deploymentAvailableConditionType:
+			available = string(c.Status)
+		case deploymentProgressingConditionType:
+			progressing = string(c.Status)
+		}
+	}
+	return
+}
+
 func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
+	isManagedDeployment := func(obj client.Object) bool {
+		return obj.GetName() == config.DeploymentName && obj.GetNamespace() == config.ChartNamespace
+	}
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			obj := e.Object.(*appsv1.Deployment)
-			return obj.Name == config.DeploymentName && obj.Namespace == config.ChartNamespace
+			return isManagedDeployment(e.Object)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			obj := e.Object.(*appsv1.Deployment)
-			return obj.Name == config.DeploymentName && obj.Namespace == config.ChartNamespace
+			return isManagedDeployment(e.Object)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			newObj := e.ObjectNew.(*appsv1.Deployment)
-			oldObj := e.ObjectOld.(*appsv1.Deployment)
-			if !(newObj.Name == config.DeploymentName && newObj.Namespace == config.ChartNamespace) {
+			if !isManagedDeployment(e.ObjectNew) {
 				return false
 			}
-			var newAvailableConditionStatus, newProgressingConditionStatus string
-			for _, condition := range newObj.Status.Conditions {
-				if string(condition.Type) == deploymentProgressingConditionType {
-					newProgressingConditionStatus = string(condition.Status)
-				} else if string(condition.Type) == deploymentAvailableConditionType {
-					newAvailableConditionStatus = string(condition.Status)
-				}
-			}
-			var oldAvailableConditionStatus, oldProgressingConditionStatus string
-			for _, condition := range oldObj.Status.Conditions {
-				if string(condition.Type) == deploymentProgressingConditionType {
-					oldProgressingConditionStatus = string(condition.Status)
-				} else if string(condition.Type) == deploymentAvailableConditionType {
-					oldAvailableConditionStatus = string(condition.Status)
-				}
-			}
-			return newAvailableConditionStatus != oldAvailableConditionStatus || newProgressingConditionStatus != oldProgressingConditionStatus
+			newAvail, newProg := deploymentConditionStatuses(e.ObjectNew.(*appsv1.Deployment))
+			oldAvail, oldProg := deploymentConditionStatuses(e.ObjectOld.(*appsv1.Deployment))
+			return newAvail != oldAvail || newProg != oldProg
 		},
 	}
 }
@@ -1786,7 +1783,7 @@ func (r *BtpOperatorReconciler) regenerateCertificates(ctx context.Context, reso
 	}
 
 	logger.Info("certificates regeneration succeeded")
-	r.metrics.IncreaseCertsRegenerationsCounter()
+	r.webhookMetrics.IncrementCertsRegenerationCounter()
 
 	return nil
 }
@@ -1811,7 +1808,7 @@ func (r *BtpOperatorReconciler) regenerateWebhookCertificate(ctx context.Context
 	}
 
 	logger.Info("webhook certificate regeneration succeeded")
-	r.metrics.IncreaseCertsRegenerationsCounter()
+	r.webhookMetrics.IncrementCertsRegenerationCounter()
 
 	return nil
 }

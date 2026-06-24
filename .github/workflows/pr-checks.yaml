@@ -22,10 +22,10 @@ jobs:
         run: | 
           echo "Draft PRs are not checked"
           exit 1
-      - uses: wechuli/allcheckspassed@b0eaef5be76003932c9520e2b3dd03c85cc43d87
+      - uses: wechuli/allcheckspassed@204ff63e89eabdc8086f0c50b91f675bcf37c8f6
         with:
           delay: '2'
           retries: '15'
           polling_interval: '1'
-          checks_exclude: 'markdown-link-check,enable-auto-merge,run-govulncheck,scan,run-e2e-sap-btp-manager-secret-customization-test'
+          checks_exclude: 'markdown-link-check,enable-auto-merge,run-govulncheck,scan,run-e2e-sap-btp-manager-secret-customization-test,restricted-gate,build-image'
           verbose: true

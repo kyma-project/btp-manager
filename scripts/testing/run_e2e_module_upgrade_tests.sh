@@ -43,6 +43,13 @@ NEW_IMAGE_REF=${REGISTRY}:${NEW_TAG}
 
 YAML_DIR="scripts/testing/yaml"
 
+echo -e "\n--- Running base version: ${BASE_RELEASE}"
+
+# Temporarily check out the base release so all installed files match that version
+git fetch origin tag "${BASE_RELEASE}" --no-tags
+CURRENT_COMMIT=$(git rev-parse HEAD)
+git checkout "${BASE_RELEASE}"
+
 # installing prerequisites, on production environment these are present before chart is used
 kubectl apply -f ./deployments/prerequisites.yaml
 
@@ -50,18 +57,7 @@ kubectl apply -f ./deployments/prerequisites.yaml
 [ -n "${SM_CLIENT_ID}" ] && [ -n "${SM_CLIENT_SECRET}" ] && [ -n "${SM_URL}" ] && [ -n "${SM_TOKEN_URL}" ] || (echo "Missing credentials - failing test" && exit 1)
 envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 
-# fetch the latest manifest and install btp-manager in current cluster
-echo -e "\n--- Running base version: ${BASE_RELEASE}"
-
-BASE_MANIFEST_FILE="btp-manager.base.yaml"
-scripts/get_manifest.sh "${BASE_RELEASE}" >${BASE_MANIFEST_FILE}
-
-if head ${BASE_MANIFEST_FILE}|grep -q "Not Found"; then
-  echo "::error ::Cannot get manifest for base release: ${BASE_RELEASE}" && exit 1
-fi
-
-kubectl apply -f ${BASE_MANIFEST_FILE}
-rm ${BASE_MANIFEST_FILE}
+scripts/get_manifest.sh "${BASE_RELEASE}" | kubectl apply -f -
 
 # check if deployment is available
 while [[ $(kubectl get deployment/btp-manager-controller-manager -n kyma-system -o 'jsonpath={..status.conditions[?(@.type=="Available")].status}') != "True" ]];
@@ -107,6 +103,9 @@ while [[ $(kubectl get servicebindings.services.cloud.sap.com/${SB_NAME} -o 'jso
 do echo -e "\n--- Waiting for ServiceBinding to be ready"; sleep 5; done
 
 echo -e "\n--- ServiceBinding is ready"
+
+# Restore the current version for the upgrade
+git checkout "${CURRENT_COMMIT}"
 
 echo -e "\n--- Upgrading the module"
 echo -e "\n--- Running version: ${NEW_TAG}"
