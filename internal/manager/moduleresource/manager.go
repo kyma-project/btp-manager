@@ -11,6 +11,7 @@ import (
 
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/manifest"
+	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -49,105 +50,55 @@ const (
 
 	sapBtpServiceOperatorContainerName = "manager"
 	kubeRbacProxyContainerName         = KubeRbacProxyName
-
-	operatorLabelPrefix                       = "operator.kyma-project.io/"
-	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 )
+
+// CredentialsProvider gives the module resource manager the authoritative credential
+// values it needs to configure the operand's ConfigMap and Secret.
+// drift.DriftDetector satisfies this interface via Go's structural typing.
+type CredentialsProvider interface {
+	CredentialsNamespaceFromManager() string
+	ClusterIdFromManager() string
+}
 
 type Metadata struct {
 	Kind string
 	Name string
 }
 
-type credentialsContext struct {
-	previousCredentialsNamespace                        string
-	clusterIdFromSapBtpManagerSecret                    string
-	clusterIdFromSapBtpServiceOperatorConfigMap         string
-	clusterIdFromSapBtpServiceOperatorClusterIdSecret   string
-	credentialsNamespaceFromSapBtpManagerSecret         string
-	credentialsNamespaceFromSapBtpServiceOperatorSecret string
+type ResourceManager interface {
+	CreateUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error)
+	ResourcesOfKinds(resources []*unstructured.Unstructured, kinds ...string) (matching, rest []*unstructured.Unstructured)
+	PrepareModuleResources(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error
+	ApplyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error
+	WaitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error
+	DeleteOutdatedResources(ctx context.Context) error
+	DeleteResources(ctx context.Context, us []*unstructured.Unstructured) error
+	DeleteCreationTimestamp(us ...*unstructured.Unstructured)
+	GetResourcesToApplyPath() string
+	GetResourcesToDeletePath() string
 }
 
 type Manager struct {
-	client             client.Client
-	scheme             *runtime.Scheme
-	manifestHandler    *manifest.Handler
-	resourceIndices    map[Metadata]int
-	credentialsContext credentialsContext
+	client          client.Client
+	scheme          *runtime.Scheme
+	manifestHandler *manifest.Handler
+	resourceIndices map[Metadata]int
+	driftDetector   CredentialsProvider
 }
 
-func NewManager(client client.Client, scheme *runtime.Scheme) *Manager {
+func NewManager(client client.Client, scheme *runtime.Scheme, driftDetector CredentialsProvider) *Manager {
 	return &Manager{
 		client:          client,
 		scheme:          scheme,
 		manifestHandler: &manifest.Handler{Scheme: scheme},
 		resourceIndices: make(map[Metadata]int),
+		driftDetector:   driftDetector,
 	}
 }
 
-func (m *Manager) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: config.ChartNamespace, Name: config.SecretName}
-	if err := m.client.Get(ctx, objKey, secret); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, errors.Join(err, fmt.Errorf("%s Secret in %s namespace not found", config.SecretName, config.ChartNamespace))
-		}
-		return nil, fmt.Errorf("unable to get Secret: %w", err)
-	}
+var _ ResourceManager = (*Manager)(nil)
 
-	return secret, nil
-}
-
-func (m *Manager) verifySecret(secret *corev1.Secret) error {
-	missingKeys := make([]string, 0)
-	missingValues := make([]string, 0)
-	errs := make([]string, 0)
-	requiredKeys := []string{ClientIdSecretKey, ClientSecretKey, SmUrlSecretKey, TokenUrlSecretKey, ClusterIdSecretKey}
-	for _, key := range requiredKeys {
-		value, exists := secret.Data[key]
-		if !exists {
-			missingKeys = append(missingKeys, key)
-			continue
-		}
-		if len(value) == 0 {
-			missingValues = append(missingValues, key)
-		}
-	}
-	if len(missingKeys) > 0 {
-		missingKeysMsg := fmt.Sprintf("key(s) %s not found", strings.Join(missingKeys, ", "))
-		errs = append(errs, missingKeysMsg)
-	}
-	if len(missingValues) > 0 {
-		missingValuesMsg := fmt.Sprintf("missing value(s) for %s key(s)", strings.Join(missingValues, ", "))
-		errs = append(errs, missingValuesMsg)
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, ", "))
-	}
-	return nil
-}
-
-func (m *Manager) setCredentialsContext(s *corev1.Secret) {
-	m.setClusterID(s)
-	m.setCredentialsNamespace(s)
-}
-
-func (m *Manager) setCredentialsNamespace(s *corev1.Secret) {
-	credentialsNamespace := config.ChartNamespace
-	if s != nil {
-		if v, ok := s.Data[CredentialsNamespaceSecretKey]; ok && len(v) > 0 {
-			credentialsNamespace = string(v)
-		}
-		m.credentialsContext.previousCredentialsNamespace = s.Annotations[previousCredentialsNamespaceAnnotationKey]
-	}
-	m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret = credentialsNamespace
-}
-
-func (m *Manager) setClusterID(s *corev1.Secret) {
-	m.credentialsContext.clusterIdFromSapBtpManagerSecret = string(s.Data[ClusterIdSecretKey])
-}
-
-func (m *Manager) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
+func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
 	objects, err := m.manifestHandler.CollectObjectsFromDir(manifestsDir)
 	if err != nil {
 		return nil, fmt.Errorf("while collecting objects from directory %s: %w", manifestsDir, err)
@@ -173,7 +124,78 @@ func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstr
 	}
 }
 
-func (m *Manager) addLabels(chartVersion string, us ...*unstructured.Unstructured) error {
+// ResourcesOfKinds partitions resources into two slices: those whose kind is
+// listed in kinds (matching) and everything else (rest). The partition is based
+// on the index built during manifest loading, so resources appended after
+// loading (e.g. network policies) are always placed in rest regardless of kind.
+func (m *Manager) ResourcesOfKinds(resources []*unstructured.Unstructured, kinds ...string) (matching, rest []*unstructured.Unstructured) {
+	kindSet := make(map[string]struct{}, len(kinds))
+	for _, k := range kinds {
+		kindSet[k] = struct{}{}
+	}
+
+	matchingIndices := make(map[int]struct{})
+	for meta, idx := range m.resourceIndices {
+		if _, ok := kindSet[meta.Kind]; ok {
+			matchingIndices[idx] = struct{}{}
+		}
+	}
+
+	for i, r := range resources {
+		if _, ok := matchingIndices[i]; ok {
+			matching = append(matching, r)
+		} else {
+			rest = append(rest, r)
+		}
+	}
+	return
+}
+
+func (m *Manager) PrepareModuleResources(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
+	configMapIndex, secretIndex, deploymentIndex := -1, -1, -1
+	for i, u := range resourcesToApply {
+		switch {
+		case u.GetName() == "sap-btp-operator-config" && u.GetKind() == "ConfigMap":
+			configMapIndex = i
+		case u.GetName() == SapBtpServiceOperatorName && u.GetKind() == "Secret":
+			secretIndex = i
+		case u.GetName() == config.DeploymentName && u.GetKind() == DeploymentKind:
+			deploymentIndex = i
+		}
+	}
+	if configMapIndex < 0 || secretIndex < 0 || deploymentIndex < 0 {
+		return fmt.Errorf("required module resources not found in manifests (configMapIndex=%d, secretIndex=%d, deploymentIndex=%d)", configMapIndex, secretIndex, deploymentIndex)
+	}
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
+	if err != nil {
+		return fmt.Errorf("failed to get module chart version: %w", err)
+	}
+
+	if err := m.AddLabels(chartVer, resourcesToApply...); err != nil {
+		return fmt.Errorf("failed to add labels to resources: %w", err)
+	}
+	m.SetNamespace(resourcesToApply)
+
+	if err := m.SetConfigMapValues(resourcesToApply[configMapIndex]); err != nil {
+		return fmt.Errorf("failed to set ConfigMap values: %w", err)
+	}
+	if err := m.SetSecretValues(s, resourcesToApply[secretIndex]); err != nil {
+		return fmt.Errorf("failed to set Secret values: %w", err)
+	}
+	if err := m.SetDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+		return fmt.Errorf("failed to set container images in Deployment: %w", err)
+	}
+
+	return nil
+}
+
+func (m *Manager) DeleteCreationTimestamp(us ...*unstructured.Unstructured) {
+	for _, u := range us {
+		unstructured.RemoveNestedField(u.Object, "metadata", "creationTimestamp")
+	}
+}
+
+func (m *Manager) AddLabels(chartVersion string, us ...*unstructured.Unstructured) error {
 	for _, u := range us {
 		labels := u.GetLabels()
 		if len(labels) == 0 {
@@ -208,22 +230,25 @@ func (m *Manager) addLabelsInPodTemplate(u *unstructured.Unstructured) error {
 	return nil
 }
 
-func (m *Manager) setNamespace(us []*unstructured.Unstructured) {
+func (m *Manager) SetNamespace(us []*unstructured.Unstructured) {
 	for _, u := range us {
 		u.SetNamespace(config.ChartNamespace)
 	}
 }
 
-func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	if err := unstructured.SetNestedField(u.Object, string(secret.Data[ClusterIdSecretKey]), "data", clusterIdConfigMapKey); err != nil {
+func (m *Manager) SetConfigMapValues(u *unstructured.Unstructured) error {
+	credentialsNamespace := m.driftDetector.CredentialsNamespaceFromManager()
+	clusterId := m.driftDetector.ClusterIdFromManager()
+
+	if err := unstructured.SetNestedField(u.Object, clusterId, "data", clusterIdConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set cluster_id: %w", err)
 	}
 
-	if err := unstructured.SetNestedField(u.Object, m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret, "data", releaseNamespaceConfigMapKey); err != nil {
+	if err := unstructured.SetNestedField(u.Object, credentialsNamespace, "data", releaseNamespaceConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set release namespace: %w", err)
 	}
 
-	if err := unstructured.SetNestedField(u.Object, m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret, "data", managementNamespaceConfigMapKey); err != nil {
+	if err := unstructured.SetNestedField(u.Object, credentialsNamespace, "data", managementNamespaceConfigMapKey); err != nil {
 		return fmt.Errorf("failed to set management namespace: %w", err)
 	}
 
@@ -234,8 +259,8 @@ func (m *Manager) setConfigMapValues(secret *corev1.Secret, u *unstructured.Unst
 	return nil
 }
 
-func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
-	u.SetNamespace(m.credentialsContext.credentialsNamespaceFromSapBtpManagerSecret)
+func (m *Manager) SetSecretValues(secret *corev1.Secret, u *unstructured.Unstructured) error {
+	u.SetNamespace(m.driftDetector.CredentialsNamespaceFromManager())
 
 	for k := range secret.Data {
 		if k == ClusterIdSecretKey || k == CredentialsNamespaceSecretKey {
@@ -249,7 +274,7 @@ func (m *Manager) setSecretValues(secret *corev1.Secret, u *unstructured.Unstruc
 	return nil
 }
 
-func (m *Manager) setDeploymentImages(u *unstructured.Unstructured) error {
+func (m *Manager) SetDeploymentImages(u *unstructured.Unstructured) error {
 	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
 	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
 	if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
@@ -293,19 +318,31 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 }
 
 func (m *Manager) applyModuleResources(ctx context.Context) error {
-	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToApplyPath())
+	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(GetResourcesToApplyPath())
 	if err != nil {
 		return nil
 	}
 
-	return m.applyOrUpdateResources(ctx, objects)
+	return m.ApplyOrUpdateResources(ctx, objects)
 }
 
-func resourcesToApplyPath() string {
+func GetResourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
 }
 
-func (m *Manager) applyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func GetResourcesToDeletePath() string {
+	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
+}
+
+func (m *Manager) GetResourcesToApplyPath() string {
+	return GetResourcesToApplyPath()
+}
+
+func (m *Manager) GetResourcesToDeletePath() string {
+	return GetResourcesToDeletePath()
+}
+
+func (m *Manager) ApplyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	for _, u := range us {
 		if err := m.applyOrUpdateResource(ctx, u); err != nil {
 			return err
@@ -341,20 +378,16 @@ func (m *Manager) updateResource(ctx context.Context, u *unstructured.Unstructur
 	return nil
 }
 
-func (m *Manager) deleteOutdatedResources(ctx context.Context) error {
-	objects, err := m.createUnstructuredObjectsFromManifestsDir(resourcesToDeletePath())
+func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
+	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(GetResourcesToDeletePath())
 	if err != nil {
 		return nil
 	}
 
-	return m.deleteResources(ctx, objects)
+	return m.DeleteResources(ctx, objects)
 }
 
-func resourcesToDeletePath() string {
-	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
-}
-
-func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
+func (m *Manager) DeleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
 	var errs []string
 	for _, u := range us {
 		if err := m.client.Delete(ctx, u); err != nil {
@@ -369,7 +402,7 @@ func (m *Manager) deleteResources(ctx context.Context, us []*unstructured.Unstru
 	return nil
 }
 
-func (m *Manager) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
+func (m *Manager) WaitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
 	ctx, cancel := context.WithTimeout(ctx, config.ReadyTimeout)
 	defer cancel()
 
