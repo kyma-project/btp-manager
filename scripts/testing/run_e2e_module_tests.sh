@@ -417,6 +417,88 @@ if [[ "${CREDENTIALS}" == "real" ]]; then
   echo -e "\n-- Service Instance has been updated - reconciliation after parameters change succeeded"
 fi
 
+echo -e "\n--- Testing certificate rotation"
+
+echo -e "\n--- Saving current CA bundle from mutating webhook"
+CA_BUNDLE_BEFORE=$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')
+if [[ -z "${CA_BUNDLE_BEFORE}" ]]; then
+  echo "ERROR: caBundle is empty before cert rotation test" && exit 1
+fi
+
+echo -e "\n--- Deleting ca-server-cert secret to trigger cert rotation"
+kubectl delete secret ca-server-cert -n kyma-system
+
+echo -e "\n--- Waiting for ca-server-cert to be recreated"
+SECONDS=0
+TIMEOUT=60
+until kubectl get secret ca-server-cert -n kyma-system >/dev/null 2>&1; do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "ERROR: ca-server-cert was not recreated within ${TIMEOUT}s" && exit 1
+  fi
+  echo "Waiting for ca-server-cert to be recreated (${SECONDS}s/${TIMEOUT}s)"
+  sleep 5
+  SECONDS=$((SECONDS + 5))
+done
+echo "ca-server-cert recreated"
+
+echo -e "\n--- Waiting for CA bundle in webhook configuration to be updated"
+SECONDS=0
+until [[ "$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')" != "${CA_BUNDLE_BEFORE}" ]]; do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "ERROR: CA bundle in webhook was not updated within ${TIMEOUT}s" && exit 1
+  fi
+  echo "Waiting for CA bundle to be updated (${SECONDS}s/${TIMEOUT}s)"
+  sleep 5
+  SECONDS=$((SECONDS + 5))
+done
+echo "CA bundle updated in mutating webhook"
+
+echo -e "\n--- Verifying CA bundle in webhook is a valid certificate (not a private key)"
+CA_BUNDLE_AFTER=$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')
+CA_BUNDLE_DECODED=$(echo "${CA_BUNDLE_AFTER}" | base64 -d)
+if echo "${CA_BUNDLE_DECODED}" | grep -q "BEGIN CERTIFICATE"; then
+  echo "CA bundle contains a valid certificate"
+else
+  echo "ERROR: CA bundle does not contain a certificate - may contain a private key instead" && exit 1
+fi
+
+echo -e "\n--- Verifying validating webhook also has the updated CA bundle"
+CA_BUNDLE_VALIDATING=$(kubectl get validatingwebhookconfiguration sap-btp-operator-validating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')
+if [[ "${CA_BUNDLE_VALIDATING}" == "${CA_BUNDLE_AFTER}" ]]; then
+  echo "Validating webhook CA bundle matches mutating webhook CA bundle"
+else
+  echo "ERROR: Validating webhook CA bundle does not match mutating webhook CA bundle" && exit 1
+fi
+
+waitForBtpOperatorCrReadiness
+echo "Certificate rotation test completed successfully"
+
+echo -e "\n--- Testing sap-btp-manager secret deletion and recovery"
+
+echo -e "\n--- Deleting sap-btp-manager secret while CR is in Ready state"
+kubectl delete secret sap-btp-manager -n kyma-system
+
+echo -e "\n--- Waiting for BtpOperator CR to leave Ready state"
+SECONDS=0
+TIMEOUT=60
+until [[ "$(kubectl get btpoperators/btpoperator -n kyma-system -o jsonpath='{.status.state}')" != "Ready" ]]; do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "ERROR: BtpOperator CR did not leave Ready state within ${TIMEOUT}s after secret deletion" && exit 1
+  fi
+  echo "Waiting for CR to leave Ready state (${SECONDS}s/${TIMEOUT}s)"
+  sleep 5
+  SECONDS=$((SECONDS + 5))
+done
+echo "BtpOperator CR left Ready state after secret deletion"
+
+echo -e "\n--- Recreating sap-btp-manager secret"
+YAML_DIR="scripts/testing/yaml"
+envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
+
+echo -e "\n--- Waiting for BtpOperator CR to recover to Ready state"
+waitForBtpOperatorCrReadiness
+echo "BtpOperator CR recovered to Ready after secret recreation"
+
 echo -e "\n---Uninstalling..."
 
 # remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
