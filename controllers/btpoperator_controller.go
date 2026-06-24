@@ -34,6 +34,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1765,7 +1766,7 @@ func (r *BtpOperatorReconciler) prepareAdmissionWebhooks(ctx context.Context, re
 	}
 	if err := r.validateWebhookCert(webhookCertSecret, caBundle); err != nil {
 		logger.Info(fmt.Sprintf("webhook cert is not valid: %s", err))
-		var certSignErr CertificateSignError
+		var certSignErr certificate.CertificateSignError
 		if errors.As(err, &certSignErr) {
 			return r.regenerateCertificates(ctx, resourcesToApply)
 		}
@@ -2317,8 +2318,11 @@ func (r *BtpOperatorReconciler) validateWebhookCert(webhookCertSecret *corev1.Se
 
 func (r *BtpOperatorReconciler) verifyCASign(caCert []byte, signedCert []byte) error {
 	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCert, signedCert)
-	if err != nil || !ok {
-		return NewCertificateSignError(err.Error())
+	if err != nil {
+		return certificate.NewCertificateSignError(err.Error())
+	}
+	if !ok {
+		return certificate.NewCertificateSignError("certificate is not signed by the provided CA")
 	}
 	return nil
 }
