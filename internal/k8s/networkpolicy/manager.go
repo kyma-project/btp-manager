@@ -26,7 +26,7 @@ const (
 	oldWebhookNetworkPolicyName = "kyma-project.io--btp-operator-allow-to-webhook"
 )
 
-var managedLabelsFilter = client.MatchingLabels{managedByLabelKey: operatorName, kymaProjectModuleLabelKey: moduleName}
+var managedLabelsFilter = client.MatchingLabels{managedByLabelKey: operatorName}
 
 type NetworkPolicyManager interface {
 	CleanupNetworkPolicies(ctx context.Context) error

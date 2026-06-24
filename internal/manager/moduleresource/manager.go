@@ -34,8 +34,6 @@ const (
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
 
-	KubeRbacProxyName         = "kube-rbac-proxy"
-	KubeRbacProxyEnv          = "KUBE_RBAC_PROXY"
 	SapBtpServiceOperatorName = "sap-btp-service-operator"
 	SapBtpServiceOperatorEnv  = "SAP_BTP_SERVICE_OPERATOR"
 
@@ -49,7 +47,6 @@ const (
 	enableLimitedCacheConfigMapKey  = "ENABLE_LIMITED_CACHE"
 
 	sapBtpServiceOperatorContainerName = "manager"
-	kubeRbacProxyContainerName         = KubeRbacProxyName
 )
 
 // CredentialsProvider gives the module resource manager the authoritative credential
@@ -352,8 +349,8 @@ func (m *Manager) applyOrUpdateResource(ctx context.Context, u *unstructured.Uns
 }
 
 func (m *Manager) applyResource(ctx context.Context, u *unstructured.Unstructured) error {
-	if err := m.client.Patch(ctx, u, client.Apply, client.ForceOwnership, client.FieldOwner(OperatorName)); err != nil {
-		return fmt.Errorf("while applying %s %s: %w", u.GetName(), u.GetKind(), err)
+	if err := m.client.Create(ctx, u, client.FieldOwner(OperatorName)); err != nil {
+		return fmt.Errorf("while creating %s %s: %w", u.GetName(), u.GetKind(), err)
 	}
 	return nil
 }
@@ -368,7 +365,7 @@ func (m *Manager) updateResource(ctx context.Context, u *unstructured.Unstructur
 func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
 	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(m.GetResourcesToDeletePath())
 	if err != nil {
-		return nil
+		return fmt.Errorf("failed to create deletable objects from manifests: %w", err)
 	}
 
 	return m.DeleteResources(ctx, objects)

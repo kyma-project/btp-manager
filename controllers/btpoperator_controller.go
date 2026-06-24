@@ -1072,14 +1072,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	}
 
 	if defaultCredentialsSecret != nil {
-		operatorNs := r.driftDetector.CredentialsNamespaceFromOperator()
 		managerNs := r.driftDetector.CredentialsNamespaceFromManager()
 		if managerNs != defaultCredentialsSecret.Namespace {
 			msg := fmt.Sprintf("credentials namespace changed from %s to %s", defaultCredentialsSecret.Namespace, managerNs)
 			logger.Info(msg)
 			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.CredentialsNamespaceChanged, msg)
 		}
-		_ = operatorNs
 	}
 
 	sapBtpOperatorConfigMap, err := r.driftDetector.GetSapBtpServiceOperatorConfigMap(ctx)
