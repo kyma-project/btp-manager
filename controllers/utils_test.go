@@ -257,6 +257,11 @@ func assertResourcesRemoval(uns ...*unstructured.Unstructured) {
 }
 
 func moveOrCopyNFilesFromDirToDir(filesNum int, deleteFiles bool, srcDir, targetDir string) error {
+	stableFiles := map[string]bool{
+		"configmap.yml":  true,
+		"deployment.yml": true,
+		"secret.yml":     true,
+	}
 	if err := os.Mkdir(targetDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -264,8 +269,12 @@ func moveOrCopyNFilesFromDirToDir(filesNum int, deleteFiles bool, srcDir, target
 	if err != nil {
 		return err
 	}
-	for i, f := range files {
-		if i >= filesNum {
+	copied := 0
+	for _, f := range files {
+		if stableFiles[f.Name()] {
+			continue
+		}
+		if copied >= filesNum {
 			break
 		}
 		input, err := os.ReadFile(fmt.Sprintf("%s%c%s", srcDir, os.PathSeparator, f.Name()))
@@ -280,6 +289,7 @@ func moveOrCopyNFilesFromDirToDir(filesNum int, deleteFiles bool, srcDir, target
 				return err
 			}
 		}
+		copied++
 	}
 
 	return nil
@@ -615,7 +625,7 @@ func checkIfNoBindingSecretExists() {
 }
 
 func checkIfNoBtpResourceExists() {
-	gvks, err := ymlutils.GatherChartGvks(config.ChartPath)
+	gvks, err := ymlutils.GatherChartGvks(os.DirFS(config.ChartPath))
 	Expect(err).To(BeNil())
 
 	found := false

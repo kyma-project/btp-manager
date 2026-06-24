@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up go environment
         uses: actions/setup-go@v6
@@ -30,7 +30,7 @@ jobs:
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@1d00cf0c34c4b0805db8866d8913f22e7125301e
+        uses: wechuli/allcheckspassed@204ff63e89eabdc8086f0c50b91f675bcf37c8f6
         with:
           delay: '1'
           retries: '15'

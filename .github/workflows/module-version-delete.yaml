@@ -13,17 +13,12 @@ env:
   FULL_MODULE_NAME: kyma-project.io/module/btp-operator
 
   # GitHub repositories
-  MODULE_MANIFESTS_WITH_USER: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
-
   BTP_MANAGER_API_URL: "https://api.github.com/repos/kyma-project/btp-manager"
   BTP_MANAGER_RELEASES_URL: "https://github.com/kyma-project/btp-manager/releases"
   BTP_MANAGER_REPO: "kyma-project/btp-manager"
 
   # File names
   MODULE_CONFIG_FILENAME: module-config.yaml
-
-  # needed by gh cli for GitHub enterprise
-  GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
 
   # needed by gh cli for local repo
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,6 +33,11 @@ on:
 jobs:
   promote:
     runs-on: ubuntu-latest
+    environment: release
+    env:
+      MODULE_MANIFESTS_WITH_USER: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
+      # needed by gh cli for GitHub enterprise
+      GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
 
     steps:
       - name: Validate required environment variables
@@ -68,8 +68,6 @@ jobs:
         run: echo "BRANCH_NAME=btp-manager-module-removal-${TAG}" >> $GITHUB_ENV
 
       - name: Setup git and clone repo
-        env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
         run: |
           git config --global user.email ${{ vars.GIT_USER_EMAIL }}
           git config --global user.name ${{ vars.GIT_USER_NAME }}
