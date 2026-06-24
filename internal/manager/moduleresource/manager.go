@@ -276,14 +276,9 @@ func (m *Manager) SetSecretValues(secret *corev1.Secret, u *unstructured.Unstruc
 
 func (m *Manager) SetDeploymentImages(u *unstructured.Unstructured) error {
 	sapBtpServiceOperatorImage := os.Getenv(SapBtpServiceOperatorEnv)
-	kubeRbacProxyImage := os.Getenv(KubeRbacProxyEnv)
 	if err := m.setContainerImage(u, sapBtpServiceOperatorContainerName, sapBtpServiceOperatorImage); err != nil {
 		return fmt.Errorf("failed to set container image for %s: %w", SapBtpServiceOperatorName, err)
 	}
-	if err := m.setContainerImage(u, kubeRbacProxyContainerName, kubeRbacProxyImage); err != nil {
-		return fmt.Errorf("failed to set container image for %s: %w", kubeRbacProxyContainerName, err)
-	}
-
 	return nil
 }
 
@@ -318,7 +313,7 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 }
 
 func (m *Manager) applyModuleResources(ctx context.Context) error {
-	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(GetResourcesToApplyPath())
+	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(m.GetResourcesToApplyPath())
 	if err != nil {
 		return nil
 	}
@@ -326,20 +321,12 @@ func (m *Manager) applyModuleResources(ctx context.Context) error {
 	return m.ApplyOrUpdateResources(ctx, objects)
 }
 
-func GetResourcesToApplyPath() string {
+func (m *Manager) GetResourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
 }
 
-func GetResourcesToDeletePath() string {
-	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
-}
-
-func (m *Manager) GetResourcesToApplyPath() string {
-	return GetResourcesToApplyPath()
-}
-
 func (m *Manager) GetResourcesToDeletePath() string {
-	return GetResourcesToDeletePath()
+	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
 }
 
 func (m *Manager) ApplyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error {
@@ -379,7 +366,7 @@ func (m *Manager) updateResource(ctx context.Context, u *unstructured.Unstructur
 }
 
 func (m *Manager) DeleteOutdatedResources(ctx context.Context) error {
-	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(GetResourcesToDeletePath())
+	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(m.GetResourcesToDeletePath())
 	if err != nil {
 		return nil
 	}

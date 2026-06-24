@@ -167,7 +167,7 @@ func (m *Manager) regenerateWebhookCertificate(ctx context.Context, webhookResou
 
 	preparedWebhooks, err := m.prepareWebhooksManifests(ctx, webhookResources, caCertSecretData[caCertSecretCertField])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("while preparing webhooks manifests: %w", err)
 	}
 
 	logger.Info("webhook certificate regeneration succeeded")

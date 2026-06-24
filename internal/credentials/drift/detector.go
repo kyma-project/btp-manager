@@ -30,8 +30,8 @@ const (
 	previousClusterIdAnnotationKey            = operatorLabelPrefix + "previous-cluster-id"
 	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
 
-	managedByLabelKey    = "app.kubernetes.io/managed-by"
-	instanceLabelKey     = "app.kubernetes.io/instance"
+	managedByLabelKey = "app.kubernetes.io/managed-by"
+	instanceLabelKey  = "app.kubernetes.io/instance"
 )
 
 type Detector interface {
@@ -42,14 +42,14 @@ type Detector interface {
 	ClusterIdFromOperatorConfigMap() string
 	ClusterIdFromOperatorClusterIdSecret() string
 	PreviousCredentialsNamespace() string
-	SetCredentialsNamespaceFromOperator(ns string)
-	SetClusterIdFromOperatorConfigMap(id string)
 	CheckCredentialsNamespaceDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason
 	CheckClusterIdConfigMapDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason
 	CheckClusterIdSecretDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason
 	GetDefaultCredentialsSecret(ctx context.Context) (*corev1.Secret, error)
 	GetSapBtpServiceOperatorConfigMap(ctx context.Context) (*corev1.ConfigMap, error)
 	DeleteClusterIdSecret(ctx context.Context) error
+	// DeleteChangedResources must be called after InitializeFromSecret and the Check* methods;
+	// it operates on state accumulated by those calls.
 	DeleteChangedResources(ctx context.Context) error
 }
 

@@ -19,11 +19,11 @@ import (
 const (
 	kymaNamespace = "kyma-system"
 
-	sapBtpManagerSecretName                 = "sap-btp-manager"
-	sapBtpServiceOperatorSecretName         = "sap-btp-service-operator"
+	sapBtpManagerSecretName                  = "sap-btp-manager"
+	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
 	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
-	sapBtpServiceOperatorConfigMapName      = "sap-btp-operator-config"
-	operandName                             = "sap-btp-operator"
+	sapBtpServiceOperatorConfigMapName       = "sap-btp-operator-config"
+	operandName                              = "sap-btp-operator"
 
 	managedByLabelKey = "app.kubernetes.io/managed-by"
 	instanceLabelKey  = "app.kubernetes.io/instance"

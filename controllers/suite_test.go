@@ -27,8 +27,16 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
+	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
+	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	ginkgotypes "github.com/onsi/ginkgo/v2/types"
@@ -179,6 +187,12 @@ var _ = SynchronizedBeforeSuite(func() {
 	metrics := btpmanagermetrics.NewWebhookMetrics(testRegistry)
 	configMetrics := btpmanagermetrics.NewConfigMetrics(testRegistry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
+	manifestHandler := &manifest.Handler{Scheme: k8sManager.GetScheme()}
+	driftDetector := drift.NewDetector(k8sManager.GetClient(), k8sClient)
+	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient()), secrets.NewRequiredSecretVerifier())
+	certManager := certificate.NewManager(secretsManager, metrics)
+	networkPolicyManager := networkpolicy.NewManager(k8sManager.GetClient(), manifestHandler)
+	moduleResourceManager := moduleresource.NewManager(k8sManager.GetClient(), k8sManager.GetScheme(), driftDetector)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
@@ -188,6 +202,10 @@ var _ = SynchronizedBeforeSuite(func() {
 		[]config.WatchHandler{
 			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
+		driftDetector,
+		moduleResourceManager,
+		networkPolicyManager,
+		certManager,
 	)
 
 	k8sClientFromManager = k8sManager.GetClient()

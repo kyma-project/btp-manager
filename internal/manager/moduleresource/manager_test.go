@@ -43,9 +43,9 @@ const (
 )
 
 var (
-	fakeClient           client.Client
-	scheme               *runtime.Scheme
-	defaultStubDetector  *stubCredentialsProvider
+	fakeClient          client.Client
+	scheme              *runtime.Scheme
+	defaultStubDetector *stubCredentialsProvider
 )
 
 func TestModuleResource(t *testing.T) {
@@ -78,7 +78,6 @@ var _ = Describe("Module Resource Manager", func() {
 
 		manager = NewManager(fakeClient, scheme, defaultStubDetector)
 	})
-
 
 	Describe("partition resources by kind", func() {
 		It("should return resources of the requested kind in matching and the rest in rest", func() {
@@ -274,20 +273,17 @@ var _ = Describe("Module Resource Manager", func() {
 	Describe("set Deployment images", func() {
 		const (
 			sapBtpOperatorImage = "local.test/kyma-project/sap-btp-operator:v0.0.1"
-			kubeRbacProxyImage  = "local.test/kyma-project/kube-rbac-proxy:v0.0.1"
 		)
 
 		BeforeEach(func() {
-			Expect(os.Setenv(KubeRbacProxyEnv, kubeRbacProxyImage)).To(Succeed())
 			Expect(os.Setenv(SapBtpServiceOperatorEnv, sapBtpOperatorImage)).To(Succeed())
 		})
 
 		AfterEach(func() {
-			Expect(os.Unsetenv(KubeRbacProxyEnv)).To(Succeed())
 			Expect(os.Unsetenv(SapBtpServiceOperatorEnv)).To(Succeed())
 		})
 
-		It("should set container images for manager and kube-rbac-proxy", func() {
+		It("should set container image for sap-btp-service-operator", func() {
 			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -301,17 +297,11 @@ var _ = Describe("Module Resource Manager", func() {
 			containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
-			Expect(containers).To(HaveLen(2))
 
 			managerContainer, ok := containers[0].(map[string]interface{})
 			Expect(ok).To(BeTrue())
 			Expect(managerContainer["name"]).To(Equal("manager"))
 			Expect(managerContainer["image"]).To(Equal(sapBtpOperatorImage))
-
-			proxyContainer, ok := containers[1].(map[string]interface{})
-			Expect(ok).To(BeTrue())
-			Expect(proxyContainer["name"]).To(Equal("kube-rbac-proxy"))
-			Expect(proxyContainer["image"]).To(Equal(kubeRbacProxyImage))
 		})
 
 		It("should return error if container not found", func() {
@@ -559,8 +549,10 @@ type stubCredentialsProvider struct {
 	clusterId            string
 }
 
-func (s *stubCredentialsProvider) CredentialsNamespaceFromManager() string { return s.credentialsNamespace }
-func (s *stubCredentialsProvider) ClusterIdFromManager() string            { return s.clusterId }
+func (s *stubCredentialsProvider) CredentialsNamespaceFromManager() string {
+	return s.credentialsNamespace
+}
+func (s *stubCredentialsProvider) ClusterIdFromManager() string { return s.clusterId }
 
 type errorOnDeleteClient struct {
 	client.Client

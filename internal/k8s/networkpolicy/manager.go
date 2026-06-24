@@ -26,13 +26,13 @@ const (
 	oldWebhookNetworkPolicyName = "kyma-project.io--btp-operator-allow-to-webhook"
 )
 
-var managedByLabelFilter = client.MatchingLabels{managedByLabelKey: operatorName}
+var managedLabelsFilter = client.MatchingLabels{managedByLabelKey: operatorName, kymaProjectModuleLabelKey: moduleName}
 
 type NetworkPolicyManager interface {
-	LoadNetworkPolicies() ([]*unstructured.Unstructured, error)
 	CleanupNetworkPolicies(ctx context.Context) error
 	DeleteOldWebhookNetworkPolicy(ctx context.Context) error
-	IsManaged(obj *networkingv1.NetworkPolicy) bool
+	IsManaged(obj *networkingv1.NetworkPolicy) (bool, error)
+	LoadNetworkPolicies() ([]*unstructured.Unstructured, error)
 }
 
 type Manager struct {
@@ -64,7 +64,7 @@ func (m *Manager) LoadNetworkPolicies() ([]*unstructured.Unstructured, error) {
 func (m *Manager) CleanupNetworkPolicies(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 	logger.Info("deleting all managed network policies")
-	if err := m.client.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, client.InNamespace(config.ChartNamespace), managedByLabelFilter); err != nil {
+	if err := m.client.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, client.InNamespace(config.ChartNamespace), managedLabelsFilter); err != nil {
 		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
 			return fmt.Errorf("failed to delete network policies: %w", err)
 		}
@@ -90,19 +90,19 @@ func (m *Manager) DeleteOldWebhookNetworkPolicy(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) IsManaged(obj *networkingv1.NetworkPolicy) bool {
+func (m *Manager) IsManaged(obj *networkingv1.NetworkPolicy) (bool, error) {
 	labels := obj.GetLabels()
 	if labels != nil {
 		if labels[managedByLabelKey] == operatorName && labels[kymaProjectModuleLabelKey] == moduleName {
-			return true
+			return true, nil
 		}
 	}
 	nameSet, err := m.getNetworkPolicyNamesFromManifests()
 	if err != nil {
-		return false
+		return false, err
 	}
 	_, ok := nameSet[obj.GetName()]
-	return ok
+	return ok, nil
 }
 
 func (m *Manager) getNetworkPolicyNamesFromManifests() (map[string]struct{}, error) {

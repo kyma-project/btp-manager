@@ -54,33 +54,43 @@ var _ = Describe("Network Policy Manager", func() {
 		It("should return true for a policy with managed-by and module labels", func() {
 			policy := managedNetworkPolicy("any-name")
 
-			Expect(mgr.IsManaged(policy)).To(BeTrue())
+			managed, err := mgr.IsManaged(policy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(managed).To(BeTrue())
 		})
 
 		It("should return true for a policy whose name appears in the manifests, even without labels", func() {
 			policy := unmanagedNetworkPolicy(policyName1)
 
-			Expect(mgr.IsManaged(policy)).To(BeTrue())
+			managed, err := mgr.IsManaged(policy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(managed).To(BeTrue())
 		})
 
 		It("should return false for a policy without managed-by labels and whose name is not in manifests", func() {
 			policy := unmanagedNetworkPolicy("some-other-policy")
 
-			Expect(mgr.IsManaged(policy)).To(BeFalse())
+			managed, err := mgr.IsManaged(policy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(managed).To(BeFalse())
 		})
 
 		It("should return false for a policy with only the managed-by label but not the module label", func() {
 			policy := unmanagedNetworkPolicy("partial-label-policy")
 			policy.Labels = map[string]string{managedByLabelKey: operatorName}
 
-			Expect(mgr.IsManaged(policy)).To(BeFalse())
+			managed, err := mgr.IsManaged(policy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(managed).To(BeFalse())
 		})
 
 		It("should return false for a policy with only the module label but not the managed-by label", func() {
 			policy := unmanagedNetworkPolicy("partial-label-policy")
 			policy.Labels = map[string]string{kymaProjectModuleLabelKey: moduleName}
 
-			Expect(mgr.IsManaged(policy)).To(BeFalse())
+			managed, err := mgr.IsManaged(policy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(managed).To(BeFalse())
 		})
 	})
 
