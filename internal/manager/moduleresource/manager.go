@@ -309,15 +309,6 @@ func (m *Manager) setContainerImage(u *unstructured.Unstructured, containerName,
 	return unstructured.SetNestedSlice(u.Object, containers, "spec", "template", "spec", "containers")
 }
 
-func (m *Manager) applyModuleResources(ctx context.Context) error {
-	objects, err := m.CreateUnstructuredObjectsFromManifestsDir(m.GetResourcesToApplyPath())
-	if err != nil {
-		return nil
-	}
-
-	return m.ApplyOrUpdateResources(ctx, objects)
-}
-
 func (m *Manager) GetResourcesToApplyPath() string {
 	return fmt.Sprintf("%s%capply", config.ResourcesPath, os.PathSeparator)
 }
