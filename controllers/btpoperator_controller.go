@@ -33,7 +33,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
-	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -114,7 +113,6 @@ const (
 const (
 	secretKind                         = "Secret"
 	configMapKind                      = "ConfigMap"
-	deploymentKind                     = "Deployment"
 	mutatingWebhookConfigurationKind   = "MutatingWebhookConfiguration"
 	validatingWebhookConfigurationKind = "ValidatingWebhookConfiguration"
 
@@ -157,7 +155,6 @@ type BtpOperatorReconciler struct {
 	*rest.Config
 	apiServerClient        client.Client
 	Scheme                 *runtime.Scheme
-	manifestHandler        *manifest.Handler
 	webhookMetrics         *metrics.WebhookMetrics
 	instanceBindingService InstanceBindingSerivce
 	workqueueSize          int
@@ -166,13 +163,6 @@ type BtpOperatorReconciler struct {
 	networkPolicyManager   networkpolicy.NetworkPolicyManager
 	certManager            certificate.CertificateManager
 	watchHandlers          []config.WatchHandler
-}
-
-type ResourceReadiness struct {
-	Name      string
-	Namespace string
-	Kind      string
-	Ready     bool
 }
 
 func NewBtpOperatorReconciler(
@@ -191,7 +181,6 @@ func NewBtpOperatorReconciler(
 		Client:                 k8sClient,
 		apiServerClient:        apiServerClient,
 		Scheme:                 scheme,
-		manifestHandler:        &manifest.Handler{Scheme: scheme},
 		instanceBindingService: instanceBindingService,
 		webhookMetrics:         webhookMetrics,
 		watchHandlers:          watchHandlers,
@@ -523,7 +512,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 	}
 
 	logger.Info("waiting for module resources readiness")
-	if err = r.waitForResourcesReadiness(ctx, resourcesToApply); err != nil {
+	if err = r.moduleResourceManager.WaitForResourcesReadiness(ctx, resourcesToApply); err != nil {
 		logger.Error(err, "while waiting for module resources readiness")
 		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
 	}
@@ -1455,79 +1444,4 @@ func certFieldFromSecretBySecretName(secretName string) (string, error) {
 		return webhookCertSecretCertField, nil
 	}
 	return "", fmt.Errorf("unknown secret %q - cert field undefined", secretName)
-}
-
-func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
-	numOfResources := len(us)
-	readinessCh := make(chan ResourceReadiness, numOfResources)
-	for _, u := range us {
-		if u.GetKind() == deploymentKind {
-			go r.checkDeploymentReadiness(ctx, u, readinessCh)
-			continue
-		}
-		go r.checkResourceExistence(ctx, u, readinessCh)
-	}
-	for i := 0; i < numOfResources; i++ {
-		if rr := <-readinessCh; !rr.Ready {
-			return fmt.Errorf("%s %s in namespace %s readiness timeout reached", rr.Kind, rr.Name, rr.Namespace)
-		}
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
-	logger := log.FromContext(ctx)
-
-	var err error
-	var availableStatus, progressingStatus string
-	got := &appsv1.Deployment{}
-	now := time.Now()
-	for {
-		if time.Since(now) >= config.ReadyTimeout {
-			logger.Error(err, fmt.Sprintf("timed out while checking %s %s readiness", u.GetName(), u.GetKind()))
-			c <- ResourceReadiness{Name: u.GetName(), Namespace: u.GetNamespace(), Kind: u.GetKind(), Ready: false}
-			return
-		}
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
-		err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got)
-		cancel()
-		if err == nil {
-			for _, cond := range got.Status.Conditions {
-				if string(cond.Type) == deploymentProgressingConditionType {
-					progressingStatus = string(cond.Status)
-				} else if string(cond.Type) == deploymentAvailableConditionType {
-					availableStatus = string(cond.Status)
-				}
-			}
-			if progressingStatus == "True" && availableStatus == "True" {
-				c <- ResourceReadiness{Ready: true}
-				return
-			}
-		}
-		time.Sleep(config.ReadyCheckInterval)
-	}
-}
-
-func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
-	logger := log.FromContext(ctx)
-
-	var err error
-	now := time.Now()
-	got := &unstructured.Unstructured{}
-	got.SetGroupVersionKind(u.GroupVersionKind())
-	for {
-		if time.Since(now) >= config.ReadyTimeout {
-			logger.Error(err, fmt.Sprintf("timed out while checking %s %s existence", u.GetName(), u.GetKind()))
-			c <- ResourceReadiness{Name: u.GetName(), Namespace: u.GetNamespace(), Kind: u.GetKind(), Ready: false}
-			return
-		}
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
-		err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got)
-		cancel()
-		if err == nil {
-			c <- ResourceReadiness{Ready: true}
-			return
-		}
-		time.Sleep(config.ReadyCheckInterval)
-	}
 }

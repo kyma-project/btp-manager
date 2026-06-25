@@ -79,7 +79,6 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			reconciler = &BtpOperatorReconciler{
 				Client:               k8sClient,
 				Scheme:               k8sClient.Scheme(),
-				manifestHandler:      &manifest.Handler{Scheme: k8sManager.GetScheme()},
 				networkPolicyManager: npMgr,
 			}
 			btpOperator = &v1alpha1.BtpOperator{}
