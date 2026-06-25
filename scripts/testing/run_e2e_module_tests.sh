@@ -388,9 +388,6 @@ done
 
 echo -e "\n--- EnableLimitedCache ConfigMap propagation test completed successfully"
 
-echo -e "\n--- Setting ReadyCheckInterval=5s to speed up readiness polling for the following tests"
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyCheckInterval":"5s"}}'
-
 echo -e "\n--- Removing sap-btp-manager configmap"
 kubectl delete -f ${YAML_DIR}/e2e-test-configmap.yaml
 
@@ -488,7 +485,7 @@ echo -e "\n--- Testing sap-btp-manager secret deletion and recovery"
 
 echo -e "\n--- Saving sap-btp-manager secret before deletion"
 SECRET_JSON=$(kubectl get secret sap-btp-manager -n kyma-system -o json | \
-  jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp, .metadata.annotations, .metadata.managedFields)')
+  jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp, .metadata.annotations, .metadata.managedFields, .metadata.ownerReferences)')
 
 echo -e "\n--- Deleting sap-btp-manager secret while CR is in Ready state"
 kubectl delete secret sap-btp-manager -n kyma-system
