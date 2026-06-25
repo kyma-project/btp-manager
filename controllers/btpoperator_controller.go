@@ -442,10 +442,6 @@ func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
 	return nil
 }
 
-func (r *BtpOperatorReconciler) deleteOutdatedResources(ctx context.Context) error {
-	return r.moduleResourceManager.DeleteOutdatedResources(ctx)
-}
-
 func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
 	return r.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(manifestsDir)
 }
@@ -468,10 +464,6 @@ func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Contex
 	*resourcesToApply = append(*resourcesToApply, networkPolicies...)
 	logger.Info(fmt.Sprintf("added %d network policies to resources to apply", len(networkPolicies)))
 	return nil
-}
-
-func (r *BtpOperatorReconciler) deleteResources(ctx context.Context, us []*unstructured.Unstructured) error {
-	return r.moduleResourceManager.DeleteResources(ctx, us)
 }
 
 func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, s *corev1.Secret) error {
