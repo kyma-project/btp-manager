@@ -405,22 +405,33 @@ func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructu
 	ticker := time.NewTicker(config.ReadyCheckInterval)
 	defer ticker.Stop()
 
+	check := func() (bool, error) {
+		current := &unstructured.Unstructured{}
+		current.SetGroupVersionKind(u.GroupVersionKind())
+		if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, current); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
+		}
+		return m.isResourceReady(current), nil
+	}
+
+	// Check immediately before waiting for the first tick.
+	if ready, err := check(); err != nil {
+		return err
+	} else if ready {
+		return nil
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
 		case <-ticker.C:
-			current := &unstructured.Unstructured{}
-			current.SetGroupVersionKind(u.GroupVersionKind())
-
-			if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, current); err != nil {
-				if k8serrors.IsNotFound(err) {
-					continue
-				}
-				return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
-			}
-
-			if m.isResourceReady(current) {
+			if ready, err := check(); err != nil {
+				return err
+			} else if ready {
 				return nil
 			}
 		}
