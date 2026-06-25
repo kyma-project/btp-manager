@@ -1393,7 +1393,7 @@ func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx con
 		return
 	}
 	r.driftDetector.InitializeFromSecret(secret)
-	if err := r.deleteOutdatedResources(ctx); err != nil {
+	if err := r.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
 		logger.Error(err, "outdated resources deletion failed")
 	}
 	if err := r.reconcileResources(ctx, cr, secret); err != nil {

@@ -441,5 +441,5 @@ func (m *Manager) isResourceReady(u *unstructured.Unstructured) bool {
 func (m *Manager) isDeploymentReady(u *unstructured.Unstructured) bool {
 	replicas, _, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
 	readyReplicas, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
-	return replicas == readyReplicas && replicas > 0
+	return readyReplicas >= replicas
 }
