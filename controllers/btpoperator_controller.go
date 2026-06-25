@@ -1512,6 +1512,7 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 				return
 			}
 		}
+		time.Sleep(config.ReadyCheckInterval)
 	}
 }
 
@@ -1535,5 +1536,6 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 			c <- ResourceReadiness{Ready: true}
 			return
 		}
+		time.Sleep(config.ReadyCheckInterval)
 	}
 }
