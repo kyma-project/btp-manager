@@ -451,7 +451,8 @@ echo "ca-server-cert recreated"
 echo -e "\n--- Waiting for CA bundle in webhook configuration to be updated"
 SECONDS=0
 TIMEOUT=60
-until [[ "$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')" != "${CA_BUNDLE_BEFORE}" ]]; do
+until [[ -n "$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}' 2>/dev/null)" ]] && \
+  [[ "$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')" != "${CA_BUNDLE_BEFORE}" ]]; do
   if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
     echo "ERROR: CA bundle in webhook was not updated within ${TIMEOUT}s" && exit 1
   fi
