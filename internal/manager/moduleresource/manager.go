@@ -112,6 +112,7 @@ func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string)
 }
 
 func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
+	m.resourceIndices = make(map[Metadata]int, len(unstructuredObjects))
 	for i, u := range unstructuredObjects {
 		resource := Metadata{
 			Kind: u.GetKind(),
@@ -389,13 +390,15 @@ func (m *Manager) WaitForResourcesReadiness(ctx context.Context, us []*unstructu
 		}(u)
 	}
 
+	var firstErr error
 	for range us {
-		if err := <-errChan; err != nil {
-			return err
+		if err := <-errChan; err != nil && firstErr == nil {
+			firstErr = err
+			cancel()
 		}
 	}
 
-	return nil
+	return firstErr
 }
 
 func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructured) error {

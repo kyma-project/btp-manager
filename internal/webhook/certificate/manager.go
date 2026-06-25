@@ -305,7 +305,7 @@ func (m *Manager) validateCert(secret *corev1.Secret) error {
 		return err
 	}
 	if certs.CertificateExpires(cert, config.ExpirationBoundary) {
-		return fmt.Errorf("CA cert expires soon")
+		return fmt.Errorf("cert expires soon")
 	}
 	return nil
 }
