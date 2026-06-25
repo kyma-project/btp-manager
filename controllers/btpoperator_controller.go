@@ -1485,8 +1485,6 @@ func (r *BtpOperatorReconciler) waitForResourcesReadiness(ctx context.Context, u
 
 func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
-	defer cancel()
 
 	var err error
 	var availableStatus, progressingStatus string
@@ -1498,7 +1496,10 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 			c <- ResourceReadiness{Name: u.GetName(), Namespace: u.GetNamespace(), Kind: u.GetKind(), Ready: false}
 			return
 		}
-		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
+		err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got)
+		cancel()
+		if err == nil {
 			for _, cond := range got.Status.Conditions {
 				if string(cond.Type) == deploymentProgressingConditionType {
 					progressingStatus = string(cond.Status)
@@ -1516,8 +1517,6 @@ func (r *BtpOperatorReconciler) checkDeploymentReadiness(ctx context.Context, u 
 
 func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *unstructured.Unstructured, c chan<- ResourceReadiness) {
 	logger := log.FromContext(ctx)
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
-	defer cancel()
 
 	var err error
 	now := time.Now()
@@ -1529,7 +1528,10 @@ func (r *BtpOperatorReconciler) checkResourceExistence(ctx context.Context, u *u
 			c <- ResourceReadiness{Name: u.GetName(), Namespace: u.GetNamespace(), Kind: u.GetKind(), Ready: false}
 			return
 		}
-		if err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got); err == nil {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
+		err = r.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, got)
+		cancel()
+		if err == nil {
 			c <- ResourceReadiness{Ready: true}
 			return
 		}
