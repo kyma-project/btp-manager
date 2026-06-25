@@ -486,6 +486,10 @@ echo "Certificate rotation test completed successfully"
 
 echo -e "\n--- Testing sap-btp-manager secret deletion and recovery"
 
+echo -e "\n--- Saving sap-btp-manager secret before deletion"
+SECRET_JSON=$(kubectl get secret sap-btp-manager -n kyma-system -o json | \
+  jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp, .metadata.annotations, .metadata.managedFields)')
+
 echo -e "\n--- Deleting sap-btp-manager secret while CR is in Ready state"
 kubectl delete secret sap-btp-manager -n kyma-system
 
@@ -502,9 +506,8 @@ until [[ "$(kubectl get btpoperators/btpoperator -n kyma-system -o jsonpath='{.s
 done
 echo "BtpOperator CR left Ready state after secret deletion"
 
-echo -e "\n--- Recreating sap-btp-manager secret"
-YAML_DIR="scripts/testing/yaml"
-envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
+echo -e "\n--- Recreating sap-btp-manager secret from saved copy"
+echo "${SECRET_JSON}" | kubectl apply -f -
 
 echo -e "\n--- Waiting for BtpOperator CR to recover to Ready state"
 waitForBtpOperatorCrReadiness 120
