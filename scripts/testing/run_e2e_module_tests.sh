@@ -445,19 +445,18 @@ until kubectl get secret ca-server-cert -n kyma-system >/dev/null 2>&1; do
   fi
   echo "Waiting for ca-server-cert to be recreated (${SECONDS}s/${TIMEOUT}s)"
   sleep 5
-  SECONDS=$((SECONDS + 5))
 done
 echo "ca-server-cert recreated"
 
 echo -e "\n--- Waiting for CA bundle in webhook configuration to be updated"
 SECONDS=0
+TIMEOUT=60
 until [[ "$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')" != "${CA_BUNDLE_BEFORE}" ]]; do
   if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
     echo "ERROR: CA bundle in webhook was not updated within ${TIMEOUT}s" && exit 1
   fi
   echo "Waiting for CA bundle to be updated (${SECONDS}s/${TIMEOUT}s)"
   sleep 5
-  SECONDS=$((SECONDS + 5))
 done
 echo "CA bundle updated in mutating webhook"
 
@@ -499,7 +498,6 @@ until [[ "$(kubectl get btpoperators/btpoperator -n kyma-system -o jsonpath='{.s
   fi
   echo "Waiting for CR to leave Ready state (${SECONDS}s/${TIMEOUT}s)"
   sleep 5
-  SECONDS=$((SECONDS + 5))
 done
 echo "BtpOperator CR left Ready state after secret deletion"
 
