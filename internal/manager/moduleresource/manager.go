@@ -398,28 +398,25 @@ func (m *Manager) WaitForResourcesReadiness(ctx context.Context, us []*unstructu
 }
 
 func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructured) error {
-	deadline := time.Now().Add(config.ReadyTimeout)
-
+	now := time.Now()
 	for {
+		if time.Since(now) >= config.ReadyTimeout {
+			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
+		}
+
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, config.ReadyCheckInterval)
 		current := &unstructured.Unstructured{}
 		current.SetGroupVersionKind(u.GroupVersionKind())
-		if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, current); err != nil {
-			if !k8serrors.IsNotFound(err) {
-				return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
-			}
-		} else if m.isResourceReady(current) {
+		err := m.client.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, current)
+		cancel()
+		if err == nil && m.isResourceReady(current) {
 			return nil
 		}
-
-		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
+		if err != nil && !k8serrors.IsNotFound(err) && ctx.Err() == nil {
+			return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
 		}
 
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
-		case <-time.After(config.ReadyCheckInterval):
-		}
+		time.Sleep(config.ReadyCheckInterval)
 	}
 }
 
