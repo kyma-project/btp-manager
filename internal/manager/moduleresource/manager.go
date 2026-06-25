@@ -379,9 +379,6 @@ func (m *Manager) DeleteResources(ctx context.Context, us []*unstructured.Unstru
 }
 
 func (m *Manager) WaitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error {
-	ctx, cancel := context.WithTimeout(ctx, config.ReadyTimeout)
-	defer cancel()
-
 	errChan := make(chan error, len(us))
 
 	for _, u := range us {
@@ -394,7 +391,6 @@ func (m *Manager) WaitForResourcesReadiness(ctx context.Context, us []*unstructu
 	for range us {
 		if err := <-errChan; err != nil && firstErr == nil {
 			firstErr = err
-			cancel()
 		}
 	}
 
@@ -402,38 +398,27 @@ func (m *Manager) WaitForResourcesReadiness(ctx context.Context, us []*unstructu
 }
 
 func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructured) error {
-	ticker := time.NewTicker(config.ReadyCheckInterval)
-	defer ticker.Stop()
+	deadline := time.Now().Add(config.ReadyTimeout)
 
-	check := func() (bool, error) {
+	for {
 		current := &unstructured.Unstructured{}
 		current.SetGroupVersionKind(u.GroupVersionKind())
 		if err := m.client.Get(ctx, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, current); err != nil {
-			if k8serrors.IsNotFound(err) {
-				return false, nil
+			if !k8serrors.IsNotFound(err) {
+				return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
 			}
-			return false, fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
+		} else if m.isResourceReady(current) {
+			return nil
 		}
-		return m.isResourceReady(current), nil
-	}
 
-	// Check immediately before waiting for the first tick.
-	if ready, err := check(); err != nil {
-		return err
-	} else if ready {
-		return nil
-	}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
+		}
 
-	for {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
-		case <-ticker.C:
-			if ready, err := check(); err != nil {
-				return err
-			} else if ready {
-				return nil
-			}
+		case <-time.After(config.ReadyCheckInterval):
 		}
 	}
 }
