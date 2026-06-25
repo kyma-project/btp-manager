@@ -388,6 +388,9 @@ done
 
 echo -e "\n--- EnableLimitedCache ConfigMap propagation test completed successfully"
 
+echo -e "\n--- Setting ReadyCheckInterval=5s to speed up readiness polling for the following tests"
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyCheckInterval":"5s"}}'
+
 echo -e "\n--- Removing sap-btp-manager configmap"
 kubectl delete -f ${YAML_DIR}/e2e-test-configmap.yaml
 
@@ -424,9 +427,6 @@ if [[ "${CREDENTIALS}" == "real" ]]; then
 
   echo -e "\n-- Service Instance has been updated - reconciliation after parameters change succeeded"
 fi
-
-echo -e "\n--- Setting ReadyCheckInterval=5s to speed up readiness polling for the following tests"
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyCheckInterval":"5s"}}'
 
 echo -e "\n--- Testing certificate rotation"
 
@@ -509,9 +509,6 @@ envsubst <${YAML_DIR}/e2e-test-secret.yaml | kubectl apply -f -
 echo -e "\n--- Waiting for BtpOperator CR to recover to Ready state"
 waitForBtpOperatorCrReadiness 120
 echo "BtpOperator CR recovered to Ready after secret recreation"
-
-echo -e "\n--- Restoring ReadyCheckInterval to default"
-kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ReadyCheckInterval":"30s"}}'
 
 echo -e "\n---Uninstalling..."
 
