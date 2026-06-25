@@ -1,0 +1,42 @@
+name: Run CA bundle probe E2E tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-ca-bundle-probe-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Prepare K3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Build and push BTP Manager image to local registry
+        run: ./scripts/testing/build-and-push-image.sh localhost:5000/btp-manager:latest
+
+      - name: Install BTP operator (dummy credentials)
+        run: "./scripts/testing/install_module.sh localhost:5000/btp-manager:latest dummy"
+
+      - name: Build and push probe images to local registry
+        run: |
+          docker build -t localhost:5000/ca-bundle-probe:latest -f tests/probe/Dockerfile .
+          docker push localhost:5000/ca-bundle-probe:latest
+          docker build -t localhost:5000/fake-server:latest -f tests/fake-server/Dockerfile .
+          docker push localhost:5000/fake-server:latest
+          docker build -t localhost:5000/ca-bundle-webhook:latest -f tests/webhook/Dockerfile .
+          docker push localhost:5000/ca-bundle-webhook:latest
+
+      - name: Run CA bundle probe E2E tests
+        env:
+          PROBE_IMAGE: localhost:5000/ca-bundle-probe:latest
+          FAKE_SERVER_IMAGE: localhost:5000/fake-server:latest
+          WEBHOOK_IMAGE: localhost:5000/ca-bundle-webhook:latest
+        run: "./scripts/testing/run_e2e_ca_bundle_probe_test.sh"

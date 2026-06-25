@@ -1,0 +1,234 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
+	btpv1alpha1 "github.com/kyma-project/btp-manager/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	caBundlePath   = "/etc/ssl/certs/ca-certificates.crt"
+	tlsResultOK    = "ok"
+	tlsResultX509  = "failed-x509"
+	tlsResultOther = "failed-other"
+	signalAlert    = "alert"
+	signalWarning  = "warning"
+	signalNone     = ""
+)
+
+type config struct {
+	Namespace        string
+	BtpOperatorName  string
+	TLSSecret        string
+	TokenURLOverride string
+}
+
+func loadConfig() config {
+	return config{
+		Namespace:        getEnv("PROBE_NAMESPACE", "kyma-system"),
+		BtpOperatorName:  getEnv("PROBE_BTPOPERATOR_NAME", "btpoperator"),
+		TLSSecret:        getEnv("PROBE_TLS_SECRET", "sap-btp-manager"),
+		TokenURLOverride: getEnv("PROBE_TOKENURL_OVERRIDE", ""),
+	}
+}
+
+func getEnv(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+type mountSignal struct {
+	Present bool
+	Hash    string
+	Content []byte
+}
+
+func collectMount() mountSignal {
+	return collectMountFromPath(caBundlePath)
+}
+
+func collectMountFromPath(path string) mountSignal {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return mountSignal{}
+	}
+	sum := sha256.Sum256(data)
+	return mountSignal{Present: true, Hash: fmt.Sprintf("%x", sum), Content: data}
+}
+
+func buildCertPool(m mountSignal) *x509.CertPool {
+	if m.Present {
+		pool := x509.NewCertPool()
+		pool.AppendCertsFromPEM(m.Content)
+		return pool
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		return x509.NewCertPool()
+	}
+	return pool
+}
+
+func dialTLS(addr string, pool *x509.CertPool) string {
+	conn, err := tls.DialWithDialer(
+		&net.Dialer{Timeout: 10 * time.Second},
+		"tcp",
+		addr,
+		&tls.Config{RootCAs: pool},
+	)
+	if err != nil {
+		var x509Err *tls.CertificateVerificationError
+		if errors.As(err, &x509Err) {
+			return tlsResultX509
+		}
+		if isTLSCertError(err.Error()) {
+			return tlsResultX509
+		}
+		return tlsResultOther
+	}
+	conn.Close()
+	return tlsResultOK
+}
+
+func dialTLSWithEmptyPool(addr string) string {
+	return dialTLS(addr, x509.NewCertPool())
+}
+
+func isTLSCertError(errStr string) bool {
+	return strings.Contains(errStr, "x509") || strings.Contains(errStr, "certificate")
+}
+
+func resolveTokenURL(ctx context.Context, cl client.Client, cfg config) (string, error) {
+	if cfg.TokenURLOverride != "" {
+		return cfg.TokenURLOverride, nil
+	}
+	secret := &corev1.Secret{}
+	if err := cl.Get(ctx, types.NamespacedName{Namespace: cfg.Namespace, Name: cfg.TLSSecret}, secret); err != nil {
+		return "", fmt.Errorf("reading secret %s: %w", cfg.TLSSecret, err)
+	}
+	tokenURL := string(secret.Data["tokenurl"])
+	if tokenURL == "" {
+		return "", fmt.Errorf("secret %s missing tokenurl key", cfg.TLSSecret)
+	}
+	return tokenURL, nil
+}
+
+func computeSignal(mountPresent bool, tlsResult string) string {
+	switch tlsResult {
+	case tlsResultOK:
+		return signalNone
+	case tlsResultX509:
+		if mountPresent {
+			return signalAlert
+		}
+		return signalWarning
+	default: // failed-other
+		return signalWarning
+	}
+}
+
+func patchBtpOperatorAnnotations(ctx context.Context, cl client.Client, cfg config, annotations map[string]string) error {
+	cr := &btpv1alpha1.BtpOperator{}
+	if err := cl.Get(ctx, types.NamespacedName{Namespace: cfg.Namespace, Name: cfg.BtpOperatorName}, cr); err != nil {
+		return fmt.Errorf("get BtpOperator: %w", err)
+	}
+	patch := client.MergeFrom(cr.DeepCopy())
+	if cr.Annotations == nil {
+		cr.Annotations = map[string]string{}
+	}
+	for k, v := range annotations {
+		cr.Annotations[k] = v
+	}
+	return cl.Patch(ctx, cr, patch)
+}
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	cfg := loadConfig()
+	ctx := context.Background()
+
+	restCfg, err := rest.InClusterConfig()
+	if err != nil {
+		logger.Error("in-cluster config", "err", err)
+		return
+	}
+
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = btpv1alpha1.AddToScheme(scheme)
+
+	cl, err := client.New(restCfg, client.Options{Scheme: scheme})
+	if err != nil {
+		logger.Error("k8s client", "err", err)
+		return
+	}
+
+	annotations, err := runProbe(ctx, cl, cfg)
+	if err != nil {
+		logger.Error("probe error", "err", err)
+		annotations = map[string]string{
+			"tls-probe-error": err.Error(),
+		}
+	}
+
+	if patchErr := patchBtpOperatorAnnotations(ctx, cl, cfg, annotations); patchErr != nil {
+		logger.Error("patch BtpOperator annotations", "err", patchErr)
+	}
+
+	if err == nil {
+		logger.Info("probe run complete",
+			"mount", annotations["tls-probe-mount"],
+			"hash", annotations["tls-probe-hash"],
+			"tls_result", annotations["tls-probe-tls-result"],
+			"signal", annotations["tls-probe-signal"],
+		)
+	}
+}
+
+func runProbe(ctx context.Context, cl client.Client, cfg config) (map[string]string, error) {
+	mount := collectMount()
+	pool := buildCertPool(mount)
+
+	tokenURL, err := resolveTokenURL(ctx, cl, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("resolve token URL: %w", err)
+	}
+
+	u, err := url.Parse(tokenURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse token URL: %w", err)
+	}
+	host := u.Host
+	if u.Port() == "" {
+		host = u.Hostname() + ":443"
+	}
+
+	tlsResult := dialTLS(host, pool)
+	signal := computeSignal(mount.Present, tlsResult)
+
+	return map[string]string{
+		"tls-probe-mount":      fmt.Sprintf("%t", mount.Present),
+		"tls-probe-tls-result": tlsResult,
+		"tls-probe-hash":       mount.Hash,
+		"tls-probe-signal":     signal,
+	}, nil
+}
