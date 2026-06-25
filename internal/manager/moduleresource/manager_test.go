@@ -305,7 +305,7 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 
 		It("should return error if container not found", func() {
-			deployment := unstructuredDeployment(0, 0)
+			deployment := unstructuredDeployment(false, false)
 			deployment.Object["spec"] = map[string]interface{}{
 				"template": map[string]interface{}{
 					"spec": map[string]interface{}{
@@ -475,7 +475,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 		It("should successfully wait for Deployment readiness", func() {
 			ctx := context.Background()
-			deployment := unstructuredDeployment(2, 2)
+			deployment := unstructuredDeployment(true, true)
 
 			err := fakeClient.Create(ctx, deployment)
 			Expect(err).NotTo(HaveOccurred())
@@ -487,7 +487,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 		It("should timeout when Deployment is not ready", func() {
 			ctx := context.Background()
-			deployment := unstructuredDeployment(2, 1)
+			deployment := unstructuredDeployment(false, false)
 
 			err := fakeClient.Create(ctx, deployment)
 			Expect(err).NotTo(HaveOccurred())
@@ -512,7 +512,7 @@ var _ = Describe("Module Resource Manager", func() {
 
 		It("should handle multiple resources concurrently", func() {
 			ctx := context.Background()
-			deployment := unstructuredDeployment(1, 1)
+			deployment := unstructuredDeployment(true, true)
 			configmap := unstructuredConfigmap()
 
 			err := fakeClient.Create(ctx, deployment)
@@ -566,7 +566,13 @@ func (e *errorOnDeleteClient) Delete(ctx context.Context, obj client.Object, opt
 	return fmt.Errorf("expected delete error")
 }
 
-func unstructuredDeployment(replicas, readyReplicas int) *unstructured.Unstructured {
+func unstructuredDeployment(available, progressing bool) *unstructured.Unstructured {
+	condStatus := func(v bool) string {
+		if v {
+			return "True"
+		}
+		return "False"
+	}
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "apps/v1",
@@ -576,11 +582,13 @@ func unstructuredDeployment(replicas, readyReplicas int) *unstructured.Unstructu
 				"namespace": testNamespace,
 			},
 			"spec": map[string]interface{}{
-				"replicas": replicas,
+				"replicas": int64(1),
 			},
 			"status": map[string]interface{}{
-				"replicas":      replicas,
-				"readyReplicas": readyReplicas,
+				"conditions": []interface{}{
+					map[string]interface{}{"type": "Available", "status": condStatus(available)},
+					map[string]interface{}{"type": "Progressing", "status": condStatus(progressing)},
+				},
 			},
 		},
 	}

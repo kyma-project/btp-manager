@@ -439,7 +439,24 @@ func (m *Manager) isResourceReady(u *unstructured.Unstructured) bool {
 }
 
 func (m *Manager) isDeploymentReady(u *unstructured.Unstructured) bool {
-	replicas, _, _ := unstructured.NestedInt64(u.Object, "spec", "replicas")
-	readyReplicas, _, _ := unstructured.NestedInt64(u.Object, "status", "readyReplicas")
-	return readyReplicas >= replicas
+	conditions, found, err := unstructured.NestedSlice(u.Object, "status", "conditions")
+	if err != nil || !found {
+		return false
+	}
+	var available, progressing bool
+	for _, c := range conditions {
+		cond, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		condType, _ := cond["type"].(string)
+		condStatus, _ := cond["status"].(string)
+		switch condType {
+		case "Available":
+			available = condStatus == "True"
+		case "Progressing":
+			progressing = condStatus == "True"
+		}
+	}
+	return available && progressing
 }
