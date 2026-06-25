@@ -20,7 +20,7 @@ checkResourcesReconciliation () {
   local RESOURCES_CHANGED=false
 
   SECONDS=0
-  TIMEOUT=120
+  TIMEOUT=60
   until $RESOURCES_CHANGED
   do
     if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
