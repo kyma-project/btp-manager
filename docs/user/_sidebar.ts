@@ -1,5 +1,4 @@
 export default [
-  { text: 'SAP BTP Operator Module', link: './README' },
   { text: 'Create the <code>sap-btp-manager</code> Secret', link: './03-00-create-btp-manager-secret' },
   { text: 'Install the SAP BTP Operator Module', link: './03-05-install-module' },
   { text: 'Preconfigured Credentials and Access', link: './03-10-preconfigured-secret' },
