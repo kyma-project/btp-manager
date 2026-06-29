@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fake-server
+  namespace: kyma-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fake-server
+  template:
+    metadata:
+      labels:
+        app: fake-server
+    spec:
+      containers:
+        - name: fake-server
+          image: FAKE_SERVER_IMAGE
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/tls
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: fake-server-tls
