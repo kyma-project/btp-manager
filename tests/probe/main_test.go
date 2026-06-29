@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
+	"path/filepath"
 	"testing"
 
 	btpv1alpha1 "github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -35,12 +35,8 @@ func TestLoadConfig_Defaults(t *testing.T) {
 }
 
 func TestLoadConfig_EnvOverride(t *testing.T) {
-	os.Setenv("PROBE_NAMESPACE", "test-ns")
-	os.Setenv("PROBE_TOKENURL_OVERRIDE", "https://fake.local/health")
-	defer func() {
-		os.Unsetenv("PROBE_NAMESPACE")
-		os.Unsetenv("PROBE_TOKENURL_OVERRIDE")
-	}()
+	t.Setenv("PROBE_NAMESPACE", "test-ns")
+	t.Setenv("PROBE_TOKENURL_OVERRIDE", "https://fake.local/health")
 	cfg := loadConfig()
 	assert.Equal(t, "test-ns", cfg.Namespace)
 	assert.Equal(t, "https://fake.local/health", cfg.TokenURLOverride)
@@ -56,7 +52,7 @@ func TestCollectMount_Present(t *testing.T) {
 	defer os.Remove(caFile.Name())
 
 	// Write a fake mountinfo that lists the CA file's directory as a mountpoint
-	mntDir := strings.TrimSuffix(caFile.Name(), "/"+strings.Split(caFile.Name(), "/")[len(strings.Split(caFile.Name(), "/"))-1])
+	mntDir := filepath.Dir(caFile.Name())
 	mountInfo, err := os.CreateTemp("", "mountinfo-*")
 	require.NoError(t, err)
 	defer os.Remove(mountInfo.Name())
