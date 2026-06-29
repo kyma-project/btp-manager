@@ -29,12 +29,12 @@ const (
 	caBundlePath    = "/etc/ssl/certs/ca-certificates.crt"
 	caBundleMntPath = "/etc/ssl/certs"
 	mountInfoPath   = "/proc/self/mountinfo"
-	tlsResultOK    = "ok"
-	tlsResultX509  = "failed-x509"
-	tlsResultOther = "failed-other"
-	signalAlert    = "alert"
-	signalWarning  = "warning"
-	signalNone     = ""
+	tlsResultOK     = "ok"
+	tlsResultX509   = "failed-x509"
+	tlsResultOther  = "failed-other"
+	signalAlert     = "alert"
+	signalWarning   = "warning"
+	signalNone      = ""
 )
 
 type config struct {
