@@ -30,7 +30,6 @@ func testScheme() *runtime.Scheme {
 func TestLoadConfig_Defaults(t *testing.T) {
 	cfg := loadConfig()
 	assert.Equal(t, "kyma-system", cfg.Namespace)
-	assert.Equal(t, "btpoperator", cfg.BtpOperatorName)
 	assert.Equal(t, "sap-btp-manager", cfg.TLSSecret)
 	assert.Equal(t, "", cfg.TokenURLOverride)
 }
@@ -141,7 +140,7 @@ func TestPatchBtpOperatorAnnotations(t *testing.T) {
 	}
 	cl := fake.NewClientBuilder().WithScheme(testScheme()).WithObjects(cr).Build()
 
-	cfg := config{Namespace: "kyma-system", BtpOperatorName: "btpoperator"}
+	cfg := config{Namespace: "kyma-system"}
 	err := patchBtpOperatorAnnotations(context.Background(), cl, cfg, map[string]string{
 		"tls-probe-mount":      "true",
 		"tls-probe-tls-result": tlsResultOK,
