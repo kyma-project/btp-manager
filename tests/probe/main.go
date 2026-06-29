@@ -39,7 +39,6 @@ const (
 
 type config struct {
 	Namespace        string
-	BtpOperatorName  string
 	TLSSecret        string
 	TokenURLOverride string
 }
@@ -47,7 +46,6 @@ type config struct {
 func loadConfig() config {
 	return config{
 		Namespace:        getEnv("PROBE_NAMESPACE", "kyma-system"),
-		BtpOperatorName:  getEnv("PROBE_BTPOPERATOR_NAME", "btpoperator"),
 		TLSSecret:        getEnv("PROBE_TLS_SECRET", "sap-btp-manager"),
 		TokenURLOverride: getEnv("PROBE_TOKENURL_OVERRIDE", ""),
 	}
@@ -176,7 +174,7 @@ func computeSignal(mountPresent bool, tlsResult string) string {
 
 func patchBtpOperatorAnnotations(ctx context.Context, cl client.Client, cfg config, annotations map[string]string) error {
 	cr := &btpv1alpha1.BtpOperator{}
-	if err := cl.Get(ctx, types.NamespacedName{Namespace: cfg.Namespace, Name: cfg.BtpOperatorName}, cr); err != nil {
+	if err := cl.Get(ctx, types.NamespacedName{Namespace: cfg.Namespace, Name: "btpoperator"}, cr); err != nil {
 		return fmt.Errorf("get BtpOperator: %w", err)
 	}
 	patch := client.MergeFrom(cr.DeepCopy())
