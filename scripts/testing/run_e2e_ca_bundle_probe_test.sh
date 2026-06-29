@@ -22,6 +22,7 @@ BTPOPERATOR_NAME="btpoperator"
 BTP_MANAGER_DEPLOYMENT="btp-manager-controller-manager"
 BTP_OPERATOR_DEPLOYMENT="sap-btp-operator-controller-manager"
 CERTS_DIR="/tmp/ca-bundle-probe-certs"
+FORCE_REGEN=${FORCE_REGEN:-"false"}
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -127,13 +128,6 @@ kubectl delete mutatingwebhookconfiguration/ca-bundle-webhook --ignore-not-found
 for job in probe-a1 probe-b1 probe-b2 probe-c1 probe-d1 probe-e1; do
   kubectl delete job/"$job" -n "$NAMESPACE" --ignore-not-found 2>/dev/null
 done
-# Restore fake-server TLS to server-A (ca-A-signed) as baseline
-if [[ -f "$CERTS_DIR/server-A.crt" ]]; then
-  TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-A.crt")
-  TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-A.key")
-  TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
-    envsubst < scripts/testing/yaml/ca-bundle-probe/fake-server-tls-secret.yaml | kubectl apply -f - 2>/dev/null || true
-fi
 
 kubectl apply -f tests/webhook/manifests/rbac.yaml
 kubectl apply -f tests/webhook/manifests/service.yaml
@@ -143,13 +137,29 @@ kubectl apply -f tests/fake-server/manifests/service.yaml
 kubectl apply -f tests/probe/manifests/rbac.yaml
 kubectl apply -f tests/webhook/manifests/mutatingwebhookconfiguration.yaml
 
-# Generate certs: ca-A, ca-B, server-A (signed by ca-A), server-B (signed by ca-B), webhook TLS
-./tests/probe/setup-certs.sh "$NAMESPACE"
-
-# Restart webhook so it picks up the freshly generated TLS secret
-kubectl rollout restart deployment/ca-bundle-webhook -n "$NAMESPACE"
-waitForDeploymentReady ca-bundle-webhook
-waitForDeploymentReady fake-server
+if [[ "$FORCE_REGEN" == "true" || ! -f "$CERTS_DIR/ca-A.crt" ]]; then
+  echo "--- Generating certs (FORCE_REGEN=$FORCE_REGEN)"
+  ./tests/probe/setup-certs.sh "$NAMESPACE"
+  kubectl rollout restart deployment/ca-bundle-webhook -n "$NAMESPACE"
+  kubectl rollout restart deployment/fake-server -n "$NAMESPACE"
+  waitForDeploymentReady ca-bundle-webhook
+  waitForDeploymentReady fake-server
+else
+  echo "--- Reusing cached certs from $CERTS_DIR (set FORCE_REGEN=true to regenerate)"
+  # Patch MWC caBundle from the cached webhook cert so API server can verify the webhook TLS
+  CA_BUNDLE_B64=$(base64 -w0 < "$CERTS_DIR/ca-bundle-webhook.crt" 2>/dev/null || \
+    kubectl get secret ca-bundle-webhook-tls -n "$NAMESPACE" -o jsonpath='{.data.tls\.crt}')
+  kubectl patch mutatingwebhookconfiguration ca-bundle-webhook \
+    --type=json -p="[{\"op\":\"replace\",\"path\":\"/webhooks/0/clientConfig/caBundle\",\"value\":\"${CA_BUNDLE_B64}\"}]"
+  # Restore fake-server to server-A baseline in case a previous run left it on server-B
+  TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-A.crt")
+  TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-A.key")
+  TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
+    envsubst < scripts/testing/yaml/ca-bundle-probe/fake-server-tls-secret.yaml | kubectl apply -f -
+  kubectl rollout restart deployment/fake-server -n "$NAMESPACE"
+  waitForDeploymentReady ca-bundle-webhook
+  waitForDeploymentReady fake-server
+fi
 
 # Ensure btp-manager has no stale rt-bootstrapper-certs mount from a previous run
 kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
@@ -192,7 +202,8 @@ TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-B.crt")
 TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-B.key")
 TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
   envsubst < scripts/testing/yaml/ca-bundle-probe/fake-server-tls-secret.yaml | kubectl apply -f -
-sleep 3  # give fake-server time to reload cert
+kubectl rollout restart deployment/fake-server -n "$NAMESPACE"
+waitForDeploymentReady fake-server
 
 BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 runProbeJob "probe-b2"
@@ -225,6 +236,8 @@ TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-A.crt")
 TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-A.key")
 TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
   envsubst < scripts/testing/yaml/ca-bundle-probe/fake-server-tls-secret.yaml | kubectl apply -f -
+kubectl rollout restart deployment/fake-server -n "$NAMESPACE"
+waitForDeploymentReady fake-server
 
 openssl req -x509 -newkey rsa:2048 -keyout /tmp/ca-B2.key -out /tmp/ca-B2.crt \
   -days 365 -nodes -subj "/CN=test-ca-B2" 2>/dev/null
@@ -233,7 +246,6 @@ CA_BUNDLE_B64=$CA_B2_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bund
 
 kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
-sleep 3  # give fake-server time to reload cert
 
 echo "--- Step 6 (row 6): mount=customCA2-bad, hash changed, TLS x509 → alert, no restart"
 BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
