@@ -188,10 +188,6 @@ BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 CA_A_B64=$(base64 -w0 < "$CERTS_DIR/ca-A.crt")
 CA_BUNDLE_B64=$CA_A_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
 
-# Restart btp-manager so webhook fires and injects rt-bootstrapper-certs mount
-kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
-waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
-
 waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "ok"
@@ -223,9 +219,6 @@ BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 CA_B_B64=$(base64 -w0 < "$CERTS_DIR/ca-B.crt")
 CA_BUNDLE_B64=$CA_B_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
 
-kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
-waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
-
 waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "ok"
@@ -249,9 +242,6 @@ openssl req -x509 -newkey rsa:2048 -keyout /tmp/ca-B2.key -out /tmp/ca-B2.crt \
   -days 365 -nodes -subj "/CN=test-ca-B2" 2>/dev/null
 CA_B2_B64=$(base64 -w0 < /tmp/ca-B2.crt)
 CA_BUNDLE_B64=$CA_B2_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
-
-kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
-waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
 waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "true"
