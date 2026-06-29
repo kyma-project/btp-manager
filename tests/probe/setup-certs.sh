@@ -59,5 +59,6 @@ cp $TMPDIR/server-A.key /tmp/ca-bundle-probe-certs/server-A.key
 cp $TMPDIR/server-B.crt /tmp/ca-bundle-probe-certs/server-B.crt
 cp $TMPDIR/server-B.key /tmp/ca-bundle-probe-certs/server-B.key
 cp $TMPDIR/webhook.crt /tmp/ca-bundle-probe-certs/ca-bundle-webhook.crt
+cp $TMPDIR/webhook.key /tmp/ca-bundle-probe-certs/ca-bundle-webhook.key
 
 echo "--- Cert setup complete. CA certs in /tmp/ca-bundle-probe-certs/"

@@ -99,12 +99,23 @@ signal='$signal' hash=${hash:0:16}... lastHash=${lastHash:0:16}..."
   # Empty lastHash means first probe run (initialization) — no restart.
   if [[ "$signal" == "" && -n "$hash" && -n "$lastHash" && "$hash" != "$lastHash" ]]; then
     echo "[sim] hash changed, TLS ok — restarting $BTP_OPERATOR_DEPLOYMENT"
-    kubectl rollout restart deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE"
+    kubectl delete pod -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
+      --wait=false 2>/dev/null || true
   fi
 
   # Advance last-hash unconditionally
   kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
     --overwrite "tls-probe-last-hash=$hash" 2>/dev/null
+
+  # Increment run-id so E2E script can detect cycle completion
+  local runId
+  runId=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    -o jsonpath='{.metadata.annotations.tls-probe-run-id}' 2>/dev/null || echo "0")
+  runId=${runId:-0}
+  local nextRunId=$(( runId + 1 ))
+  kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    --overwrite "tls-probe-run-id=$nextRunId" 2>/dev/null
+  echo "[sim] run-id=$nextRunId"
 }
 
 runCycle() {

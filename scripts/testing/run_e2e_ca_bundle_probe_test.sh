@@ -3,6 +3,9 @@
 # Preconditions: k3d cluster running, btp-manager + btp-operator installed via install_module.sh
 # Usage: ./run_e2e_ca_bundle_probe_test.sh
 #
+# Requires simulate_btp_manager.sh --loop running in a separate terminal:
+#   INTERVAL=5 ./scripts/testing/simulate_btp_manager.sh --loop
+#
 # Environment variables:
 #   PROBE_IMAGE       — probe Job image (default: localhost:5000/ca-bundle-probe:latest)
 #   FAKE_SERVER_IMAGE — fake HTTPS server image (default: localhost:5000/fake-server:latest)
@@ -26,55 +29,6 @@ FORCE_REGEN=${FORCE_REGEN:-"false"}
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
-waitForJobCompletion() {
-  local job=$1 timeout=${2:-120} seconds=0
-  echo "--- Waiting for job $job to complete"
-  while [[ $seconds -lt $timeout ]]; do
-    local status
-    status=$(kubectl get job/"$job" -n "$NAMESPACE" \
-      -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null || echo "")
-    [[ "$status" == "True" ]] && echo "--- Job $job completed" && return 0
-    local failed
-    failed=$(kubectl get job/"$job" -n "$NAMESPACE" \
-      -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || echo "")
-    if [[ "$failed" == "True" ]]; then
-      echo "--- ERROR: job $job failed"
-      kubectl logs job/"$job" -n "$NAMESPACE" || true
-      return 1
-    fi
-    sleep 5; seconds=$((seconds + 5))
-  done
-  echo "--- ERROR: job $job timed out after ${timeout}s"
-  kubectl logs job/"$job" -n "$NAMESPACE" || true
-  return 1
-}
-
-runProbeJob() {
-  local run_name=$1
-  kubectl delete job/"$run_name" -n "$NAMESPACE" --ignore-not-found 2>/dev/null
-  kubectl create -f - <<EOF
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: $run_name
-  namespace: $NAMESPACE
-spec:
-  template:
-    spec:
-      serviceAccountName: ca-bundle-probe
-      restartPolicy: Never
-      containers:
-        - name: probe
-          image: $PROBE_IMAGE
-          env:
-            - name: PROBE_NAMESPACE
-              value: "$NAMESPACE"
-            - name: PROBE_TOKENURL_OVERRIDE
-              value: "$FAKE_SERVER_URL"
-EOF
-  waitForJobCompletion "$run_name"
-}
-
 assertCRAnnotation() {
   local key=$1 expected=$2
   local actual
@@ -88,37 +42,65 @@ assertCRAnnotation() {
 }
 
 assertBtpOperatorRestarted() {
-  local before_restart_at=$1
-  local ts
-  ts=$(kubectl get deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE" \
-    -o jsonpath='{.spec.template.metadata.annotations.kubectl\.kubernetes\.io/restartedAt}' \
-    2>/dev/null || echo "")
-  if [[ "$ts" != "$before_restart_at" ]]; then
-    echo "--- PASS: btp-operator restarted (restartedAt changed to '$ts')"
-    return 0
-  fi
-  echo "--- FAIL: btp-operator not restarted (restartedAt='$ts' unchanged)"
+  local before_pod=$1 timeout=60 seconds=0
+  echo "--- Waiting for btp-operator pod to change from '$before_pod'"
+  while [[ $seconds -lt $timeout ]]; do
+    local current_pod
+    current_pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
+      --field-selector=status.phase=Running \
+      --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+    if [[ -n "$current_pod" && "$current_pod" != "$before_pod" ]]; then
+      echo "--- PASS: btp-operator restarted (new pod: '$current_pod')"
+      return 0
+    fi
+    sleep 5; seconds=$((seconds + 5))
+  done
+  echo "--- FAIL: btp-operator not restarted within ${timeout}s (pod unchanged: '$before_pod')"
   return 1
 }
 
 assertBtpOperatorNotRestarted() {
-  local before_restart_at=$1
-  local ts
-  ts=$(kubectl get deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE" \
-    -o jsonpath='{.spec.template.metadata.annotations.kubectl\.kubernetes\.io/restartedAt}' \
-    2>/dev/null || echo "")
-  if [[ "$ts" == "$before_restart_at" ]]; then
+  local before_pod=$1
+  local current_pod
+  current_pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
+    --field-selector=status.phase=Running \
+    --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+  if [[ "$current_pod" == "$before_pod" ]]; then
     echo "--- PASS: btp-operator not restarted"
     return 0
   fi
-  echo "--- FAIL: btp-operator was restarted unexpectedly (restartedAt changed to '$ts')"
+  echo "--- FAIL: btp-operator was restarted unexpectedly (new pod: '$current_pod')"
   return 1
 }
 
 getBtpOperatorRestartedAt() {
-  kubectl get deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE" \
-    -o jsonpath='{.spec.template.metadata.annotations.kubectl\.kubernetes\.io/restartedAt}' \
-    2>/dev/null || echo ""
+  kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
+    --field-selector=status.phase=Running \
+    --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo ""
+}
+
+getRunId() {
+  local val
+  val=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    -o jsonpath='{.metadata.annotations.tls-probe-run-id}' 2>/dev/null || echo "")
+  echo "${val:-0}"
+}
+
+waitForNextCycle() {
+  local beforeRunId=$1 timeout=${2:-180} seconds=0
+  echo "--- Waiting for simulate loop cycle (run-id currently $beforeRunId)"
+  while [[ $seconds -lt $timeout ]]; do
+    local current
+    current=$(getRunId)
+    if [[ "$current" -gt "$beforeRunId" ]]; then
+      echo "--- Simulate loop cycle complete (run-id=$current)"
+      return 0
+    fi
+    sleep 5; seconds=$((seconds + 5))
+  done
+  echo "--- ERROR: timed out waiting for simulate loop (run-id stuck at $beforeRunId after ${timeout}s)"
+  echo "--- Is 'INTERVAL=5 ./scripts/testing/simulate_btp_manager.sh --loop' running?"
+  return 1
 }
 
 waitForDeploymentReady() {
@@ -126,38 +108,16 @@ waitForDeploymentReady() {
   kubectl rollout status deployment/"$dep" -n "$NAMESPACE" --timeout="${timeout}s"
 }
 
-# TODO: remove simulateBtpManagerReconcile and all runProbeJob calls once btp-manager
-# implements probe Job creation and annotation-driven reconciliation.
-simulateBtpManagerReconcile() {
-  local signal hash lastHash
-  signal=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.metadata.annotations.tls-probe-signal}' 2>/dev/null || echo "")
-  hash=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
-  lastHash=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.metadata.annotations.tls-probe-last-hash}' 2>/dev/null || echo "")
-
-  # Restart btp-operator when: TLS ok, mount present, hash changed from last known value.
-  # Empty lastHash means this is the first probe run (initialization) — no restart.
-  if [[ "$signal" == "" && -n "$hash" && -n "$lastHash" && "$hash" != "$lastHash" ]]; then
-    echo "--- [sim] hash changed ($lastHash → $hash), TLS ok: restarting btp-operator"
-    kubectl rollout restart deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE"
-  fi
-
-  # Advance last-hash unconditionally (btp-manager does this after every reconcile)
-  kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    --overwrite "tls-probe-last-hash=$hash" 2>/dev/null
-}
-
 # ─── setup ────────────────────────────────────────────────────────────────────
 
 echo "=== SETUP ==="
+echo "--- NOTE: requires simulate_btp_manager.sh --loop in a separate terminal:"
+echo "---   INTERVAL=5 PROBE_IMAGE=$PROBE_IMAGE FAKE_SERVER_URL=$FAKE_SERVER_URL \\"
+echo "---     ./scripts/testing/simulate_btp_manager.sh --loop"
+
 # Clean up any leftover state from a previous run
 kubectl delete secret/ca-bundle -n "$NAMESPACE" --ignore-not-found
 kubectl delete mutatingwebhookconfiguration/ca-bundle-webhook --ignore-not-found
-for job in probe-a1 probe-b1 probe-b2 probe-c1 probe-d1 probe-e1; do
-  kubectl delete job/"$job" -n "$NAMESPACE" --ignore-not-found 2>/dev/null
-done
 
 kubectl apply -f tests/webhook/manifests/rbac.yaml
 kubectl apply -f tests/webhook/manifests/service.yaml
@@ -167,7 +127,7 @@ kubectl apply -f tests/fake-server/manifests/service.yaml
 kubectl apply -f tests/probe/manifests/rbac.yaml
 kubectl apply -f tests/webhook/manifests/mutatingwebhookconfiguration.yaml
 
-if [[ "$FORCE_REGEN" == "true" || ! -f "$CERTS_DIR/ca-A.crt" ]]; then
+if [[ "$FORCE_REGEN" == "true" || ! -f "$CERTS_DIR/ca-A.crt" || ! -f "$CERTS_DIR/ca-bundle-webhook.key" ]]; then
   echo "--- Generating certs (FORCE_REGEN=$FORCE_REGEN)"
   ./tests/probe/setup-certs.sh "$NAMESPACE"
   kubectl rollout restart deployment/ca-bundle-webhook -n "$NAMESPACE"
@@ -176,9 +136,12 @@ if [[ "$FORCE_REGEN" == "true" || ! -f "$CERTS_DIR/ca-A.crt" ]]; then
   waitForDeploymentReady fake-server
 else
   echo "--- Reusing cached certs from $CERTS_DIR (set FORCE_REGEN=true to regenerate)"
+  # Recreate webhook TLS secret from cached cert (deleted during teardown)
+  kubectl create secret tls ca-bundle-webhook-tls \
+    --cert="$CERTS_DIR/ca-bundle-webhook.crt" --key="$CERTS_DIR/ca-bundle-webhook.key" \
+    --namespace="$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
   # Patch MWC caBundle from the cached webhook cert so API server can verify the webhook TLS
-  CA_BUNDLE_B64=$(base64 -w0 < "$CERTS_DIR/ca-bundle-webhook.crt" 2>/dev/null || \
-    kubectl get secret ca-bundle-webhook-tls -n "$NAMESPACE" -o jsonpath='{.data.tls\.crt}')
+  CA_BUNDLE_B64=$(base64 -w0 < "$CERTS_DIR/ca-bundle-webhook.crt")
   kubectl patch mutatingwebhookconfiguration ca-bundle-webhook \
     --type=json -p="[{\"op\":\"replace\",\"path\":\"/webhooks/0/clientConfig/caBundle\",\"value\":\"${CA_BUNDLE_B64}\"}]"
   # Restore fake-server to server-A baseline in case a previous run left it on server-B
@@ -195,6 +158,12 @@ fi
 kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
+# Flush any in-flight simulate loop cycle (probe may have run during setup against a
+# partially-ready environment). Wait for one clean cycle to complete before testing.
+echo "--- Flushing setup-time simulate loop cycles"
+waitForNextCycle "$(getRunId)"
+echo "--- Setup complete, environment ready"
+
 # ─── phase A: baseline, no mount, distroless system CA ──────────────────────
 # The probe runs in a distroless container whose x509.SystemCertPool() reads the CA bundle
 # baked into the image layer. That bundle contains real root CAs and will never trust our
@@ -202,9 +171,9 @@ waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 # This tests that the mount detection and signal logic work correctly when no volume is injected.
 
 echo "=== PHASE A: no mount, distroless system CA doesn't trust self-signed fake-server ==="
+BEFORE_RUN_ID=$(getRunId)
 BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
-runProbeJob "probe-a1"
-simulateBtpManagerReconcile
+waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "false"
 assertCRAnnotation "tls-probe-tls-result" "failed-x509"
 assertCRAnnotation "tls-probe-signal" "warning"
@@ -213,6 +182,9 @@ assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 # ─── phase B: mount injected (customCA1 = ca-A) ──────────────────────────────
 
 echo "=== PHASE B: mount injected (customCA1 = ca-A) ==="
+echo "--- Step 3 (row 3): mount=customCA1, TLS ok — first hash written, no restart"
+BEFORE_RUN_ID=$(getRunId)
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 CA_A_B64=$(base64 -w0 < "$CERTS_DIR/ca-A.crt")
 CA_BUNDLE_B64=$CA_A_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
 
@@ -220,16 +192,15 @@ CA_BUNDLE_B64=$CA_A_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundl
 kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
-echo "--- Step 3 (row 3): mount=customCA1, TLS ok — first hash written, no restart"
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
-runProbeJob "probe-b1"
-simulateBtpManagerReconcile
+waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "ok"
 assertCRAnnotation "tls-probe-signal" ""
 assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 
 echo "--- Step 4 (row 5): mount=customCA1, server cert signed by ca-B → TLS x509"
+BEFORE_RUN_ID=$(getRunId)
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-B.crt")
 TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-B.key")
 TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
@@ -237,9 +208,7 @@ TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
 kubectl rollout restart deployment/fake-server -n "$NAMESPACE"
 waitForDeploymentReady fake-server
 
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
-runProbeJob "probe-b2"
-simulateBtpManagerReconcile
+waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "failed-x509"
 assertCRAnnotation "tls-probe-signal" "alert"
@@ -248,16 +217,16 @@ assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 # ─── phase C: bundle rotation (customCA2 = ca-B), TLS ok ─────────────────────
 
 echo "=== PHASE C: bundle rotation to customCA2 (ca-B), TLS ok ==="
+echo "--- Step 5 (row 4): mount=customCA2, hash changed, TLS ok → btp-operator restarted"
+BEFORE_RUN_ID=$(getRunId)
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 CA_B_B64=$(base64 -w0 < "$CERTS_DIR/ca-B.crt")
 CA_BUNDLE_B64=$CA_B_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
 
 kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
-echo "--- Step 5 (row 4): mount=customCA2, hash changed, TLS ok → btp-operator restarted"
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
-runProbeJob "probe-c1"
-simulateBtpManagerReconcile
+waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "ok"
 assertCRAnnotation "tls-probe-signal" ""
@@ -266,6 +235,9 @@ assertBtpOperatorRestarted "$BEFORE_RESTART_AT"
 # ─── phase D: new bundle doesn't trust server ────────────────────────────────
 
 echo "=== PHASE D: new bundle (ca-B2) that doesn't trust server (signed by ca-A) ==="
+echo "--- Step 6 (row 6): mount=customCA2-bad, hash changed, TLS x509 → alert, no restart"
+BEFORE_RUN_ID=$(getRunId)
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-A.crt")
 TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-A.key")
 TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
@@ -281,10 +253,7 @@ CA_BUNDLE_B64=$CA_B2_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bund
 kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
-echo "--- Step 6 (row 6): mount=customCA2-bad, hash changed, TLS x509 → alert, no restart"
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
-runProbeJob "probe-d1"
-simulateBtpManagerReconcile
+waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "failed-x509"
 assertCRAnnotation "tls-probe-signal" "alert"
@@ -293,13 +262,14 @@ assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 # ─── phase E: connectivity failure ───────────────────────────────────────────
 
 echo "=== PHASE E: connectivity failure ==="
-kubectl scale deployment/fake-server -n "$NAMESPACE" --replicas=0
-sleep 5
-
 echo "--- Step 7 (row 7): server unreachable → warning, no restart"
+kubectl scale deployment/fake-server -n "$NAMESPACE" --replicas=0
+# Wait for fake-server pod to terminate before recording BEFORE_RUN_ID
+kubectl wait --for=delete pod -l app=fake-server -n "$NAMESPACE" --timeout=60s 2>/dev/null || true
+BEFORE_RUN_ID=$(getRunId)
 BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
-runProbeJob "probe-e1"
-simulateBtpManagerReconcile
+
+waitForNextCycle "$BEFORE_RUN_ID"
 assertCRAnnotation "tls-probe-signal" "warning"
 assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 
@@ -316,8 +286,5 @@ kubectl delete secret/ca-bundle secret/fake-server-tls secret/ca-bundle-webhook-
 kubectl delete clusterrole/ca-bundle-probe clusterrole/ca-bundle-webhook --ignore-not-found
 kubectl delete clusterrolebinding/ca-bundle-probe clusterrolebinding/ca-bundle-webhook --ignore-not-found
 kubectl delete serviceaccount/ca-bundle-probe serviceaccount/ca-bundle-webhook -n "$NAMESPACE" --ignore-not-found
-for job in probe-a1 probe-b1 probe-b2 probe-c1 probe-d1 probe-e1; do
-  kubectl delete job/"$job" -n "$NAMESPACE" --ignore-not-found
-done
 
 echo "=== ALL TESTS PASSED ==="
