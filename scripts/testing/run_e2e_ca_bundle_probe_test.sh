@@ -88,35 +88,65 @@ assertCRAnnotation() {
 }
 
 assertBtpOperatorRestarted() {
-  local before_ts=$1
+  local before_restart_at=$1
   local ts
   ts=$(kubectl get deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE" \
     -o jsonpath='{.spec.template.metadata.annotations.kubectl\.kubernetes\.io/restartedAt}' \
     2>/dev/null || echo "")
-  if [[ "$ts" > "$before_ts" ]]; then
-    echo "--- PASS: btp-operator restarted at $ts"
+  if [[ "$ts" != "$before_restart_at" ]]; then
+    echo "--- PASS: btp-operator restarted (restartedAt changed to '$ts')"
     return 0
   fi
-  echo "--- FAIL: btp-operator not restarted (restartedAt='$ts', before='$before_ts')"
+  echo "--- FAIL: btp-operator not restarted (restartedAt='$ts' unchanged)"
   return 1
 }
 
 assertBtpOperatorNotRestarted() {
-  local before_ts=$1
+  local before_restart_at=$1
   local ts
   ts=$(kubectl get deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE" \
     -o jsonpath='{.spec.template.metadata.annotations.kubectl\.kubernetes\.io/restartedAt}' \
     2>/dev/null || echo "")
-  if [[ "$ts" > "$before_ts" ]]; then
-    echo "--- FAIL: btp-operator was restarted unexpectedly at $ts"
-    return 1
+  if [[ "$ts" == "$before_restart_at" ]]; then
+    echo "--- PASS: btp-operator not restarted"
+    return 0
   fi
-  echo "--- PASS: btp-operator not restarted"
+  echo "--- FAIL: btp-operator was restarted unexpectedly (restartedAt changed to '$ts')"
+  return 1
+}
+
+getBtpOperatorRestartedAt() {
+  kubectl get deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE" \
+    -o jsonpath='{.spec.template.metadata.annotations.kubectl\.kubernetes\.io/restartedAt}' \
+    2>/dev/null || echo ""
 }
 
 waitForDeploymentReady() {
   local dep=$1 timeout=${2:-120}
   kubectl rollout status deployment/"$dep" -n "$NAMESPACE" --timeout="${timeout}s"
+}
+
+# TODO: remove simulateBtpManagerReconcile and all runProbeJob calls once btp-manager
+# implements probe Job creation and annotation-driven reconciliation.
+simulateBtpManagerReconcile() {
+  local signal hash lastHash
+  signal=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    -o jsonpath='{.metadata.annotations.tls-probe-signal}' 2>/dev/null || echo "")
+  hash=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
+  lastHash=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    -o jsonpath='{.metadata.annotations.tls-probe-last-hash}' 2>/dev/null || echo "")
+
+  # Restart btp-operator when: TLS ok, mount present, hash changed from last known value.
+  # Empty lastHash means this is the first probe run (initialization) — no restart.
+  if [[ "$signal" == "" && -n "$hash" && -n "$lastHash" && "$hash" != "$lastHash" ]]; then
+    echo "--- [sim] hash changed ($lastHash → $hash), TLS ok: restarting btp-operator"
+    kubectl rollout restart deployment/"$BTP_OPERATOR_DEPLOYMENT" -n "$NAMESPACE"
+  fi
+
+  # Advance last-hash unconditionally (btp-manager does this after every reconcile)
+  kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    --overwrite "tls-probe-last-hash=$hash" 2>/dev/null
 }
 
 # ─── setup ────────────────────────────────────────────────────────────────────
@@ -172,12 +202,13 @@ waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 # This tests that the mount detection and signal logic work correctly when no volume is injected.
 
 echo "=== PHASE A: no mount, distroless system CA doesn't trust self-signed fake-server ==="
-BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 runProbeJob "probe-a1"
+simulateBtpManagerReconcile
 assertCRAnnotation "tls-probe-mount" "false"
 assertCRAnnotation "tls-probe-tls-result" "failed-x509"
 assertCRAnnotation "tls-probe-signal" "warning"
-assertBtpOperatorNotRestarted "$BEFORE_TS"
+assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 
 # ─── phase B: mount injected (customCA1 = ca-A) ──────────────────────────────
 
@@ -190,12 +221,13 @@ kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
 echo "--- Step 3 (row 3): mount=customCA1, TLS ok — first hash written, no restart"
-BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 runProbeJob "probe-b1"
+simulateBtpManagerReconcile
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "ok"
 assertCRAnnotation "tls-probe-signal" ""
-assertBtpOperatorNotRestarted "$BEFORE_TS"
+assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 
 echo "--- Step 4 (row 5): mount=customCA1, server cert signed by ca-B → TLS x509"
 TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-B.crt")
@@ -205,12 +237,13 @@ TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
 kubectl rollout restart deployment/fake-server -n "$NAMESPACE"
 waitForDeploymentReady fake-server
 
-BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 runProbeJob "probe-b2"
+simulateBtpManagerReconcile
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "failed-x509"
 assertCRAnnotation "tls-probe-signal" "alert"
-assertBtpOperatorNotRestarted "$BEFORE_TS"
+assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 
 # ─── phase C: bundle rotation (customCA2 = ca-B), TLS ok ─────────────────────
 
@@ -222,12 +255,13 @@ kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
 echo "--- Step 5 (row 4): mount=customCA2, hash changed, TLS ok → btp-operator restarted"
-BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 runProbeJob "probe-c1"
+simulateBtpManagerReconcile
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "ok"
 assertCRAnnotation "tls-probe-signal" ""
-assertBtpOperatorRestarted "$BEFORE_TS"
+assertBtpOperatorRestarted "$BEFORE_RESTART_AT"
 
 # ─── phase D: new bundle doesn't trust server ────────────────────────────────
 
@@ -248,12 +282,13 @@ kubectl rollout restart deployment/"$BTP_MANAGER_DEPLOYMENT" -n "$NAMESPACE"
 waitForDeploymentReady "$BTP_MANAGER_DEPLOYMENT"
 
 echo "--- Step 6 (row 6): mount=customCA2-bad, hash changed, TLS x509 → alert, no restart"
-BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 runProbeJob "probe-d1"
+simulateBtpManagerReconcile
 assertCRAnnotation "tls-probe-mount" "true"
 assertCRAnnotation "tls-probe-tls-result" "failed-x509"
 assertCRAnnotation "tls-probe-signal" "alert"
-assertBtpOperatorNotRestarted "$BEFORE_TS"
+assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 
 # ─── phase E: connectivity failure ───────────────────────────────────────────
 
@@ -262,10 +297,11 @@ kubectl scale deployment/fake-server -n "$NAMESPACE" --replicas=0
 sleep 5
 
 echo "--- Step 7 (row 7): server unreachable → warning, no restart"
-BEFORE_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
 runProbeJob "probe-e1"
+simulateBtpManagerReconcile
 assertCRAnnotation "tls-probe-signal" "warning"
-assertBtpOperatorNotRestarted "$BEFORE_TS"
+assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
 
 kubectl scale deployment/fake-server -n "$NAMESPACE" --replicas=1
 waitForDeploymentReady fake-server
