@@ -135,10 +135,6 @@ func dialTLS(addr string, pool *x509.CertPool) string {
 	return tlsResultOK
 }
 
-func dialTLSWithEmptyPool(addr string) string {
-	return dialTLS(addr, x509.NewCertPool())
-}
-
 func isTLSCertError(errStr string) bool {
 	return strings.Contains(errStr, "x509") || strings.Contains(errStr, "certificate")
 }
