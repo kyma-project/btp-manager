@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	btpv1alpha1 "github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -46,22 +48,37 @@ func TestLoadConfig_EnvOverride(t *testing.T) {
 }
 
 func TestCollectMount_Present(t *testing.T) {
-	f, err := os.CreateTemp("", "ca-*.crt")
+	caFile, err := os.CreateTemp("", "ca-*.crt")
 	require.NoError(t, err)
 	content := []byte("-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n")
-	_, err = f.Write(content)
+	_, err = caFile.Write(content)
 	require.NoError(t, err)
-	f.Close()
-	defer os.Remove(f.Name())
+	caFile.Close()
+	defer os.Remove(caFile.Name())
 
-	m := collectMountFromPath(f.Name())
+	// Write a fake mountinfo that lists the CA file's directory as a mountpoint
+	mntDir := strings.TrimSuffix(caFile.Name(), "/"+strings.Split(caFile.Name(), "/")[len(strings.Split(caFile.Name(), "/"))-1])
+	mountInfo, err := os.CreateTemp("", "mountinfo-*")
+	require.NoError(t, err)
+	defer os.Remove(mountInfo.Name())
+	fmt.Fprintf(mountInfo, "100 99 0:1 / %s rw - tmpfs tmpfs rw\n", mntDir)
+	mountInfo.Close()
+
+	m := collectMountFromPath(caFile.Name(), mntDir, mountInfo.Name())
 	assert.True(t, m.Present)
 	assert.NotEmpty(t, m.Hash)
 	assert.Equal(t, content, m.Content)
 }
 
-func TestCollectMount_Absent(t *testing.T) {
-	m := collectMountFromPath("/nonexistent/path/ca.crt")
+func TestCollectMount_Absent_NoMount(t *testing.T) {
+	// mountinfo does not list /etc/ssl/certs → no injected bundle
+	mountInfo, err := os.CreateTemp("", "mountinfo-*")
+	require.NoError(t, err)
+	defer os.Remove(mountInfo.Name())
+	fmt.Fprintf(mountInfo, "100 99 0:1 / / rw - overlay overlay rw\n")
+	mountInfo.Close()
+
+	m := collectMountFromPath("/etc/ssl/certs/ca-certificates.crt", "/etc/ssl/certs", mountInfo.Name())
 	assert.False(t, m.Present)
 	assert.Empty(t, m.Hash)
 	assert.Nil(t, m.Content)

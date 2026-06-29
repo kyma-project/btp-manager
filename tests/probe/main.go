@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
@@ -24,7 +26,9 @@ import (
 )
 
 const (
-	caBundlePath   = "/etc/ssl/certs/ca-certificates.crt"
+	caBundlePath    = "/etc/ssl/certs/ca-certificates.crt"
+	caBundleMntPath = "/etc/ssl/certs"
+	mountInfoPath   = "/proc/self/mountinfo"
 	tlsResultOK    = "ok"
 	tlsResultX509  = "failed-x509"
 	tlsResultOther = "failed-other"
@@ -63,16 +67,40 @@ type mountSignal struct {
 }
 
 func collectMount() mountSignal {
-	return collectMountFromPath(caBundlePath)
+	return collectMountFromPath(caBundlePath, caBundleMntPath, mountInfoPath)
 }
 
-func collectMountFromPath(path string) mountSignal {
-	data, err := os.ReadFile(path)
+// collectMountFromPath is the testable inner implementation.
+// It considers the CA bundle injected only when caBundleMntDir is an explicit
+// mountpoint in mountInfoFile — distinguishing an injected volume from the CA
+// bundle that ships in the base image.
+func collectMountFromPath(caFile, caBundleMntDir, mountInfoFile string) mountSignal {
+	if !isMountPoint(caBundleMntDir, mountInfoFile) {
+		return mountSignal{}
+	}
+	data, err := os.ReadFile(caFile)
 	if err != nil {
 		return mountSignal{}
 	}
 	sum := sha256.Sum256(data)
 	return mountSignal{Present: true, Hash: fmt.Sprintf("%x", sum), Content: data}
+}
+
+// isMountPoint reports whether path appears as a mount destination in mountInfoFile.
+// Field 5 (0-indexed) of each /proc/self/mountinfo line is the mount point.
+func isMountPoint(path, mountInfoFile string) bool {
+	data, err := os.ReadFile(mountInfoFile)
+	if err != nil {
+		return false
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) >= 5 && fields[4] == path {
+			return true
+		}
+	}
+	return false
 }
 
 func buildCertPool(m mountSignal) *x509.CertPool {
