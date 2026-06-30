@@ -84,7 +84,7 @@ assertBtpOperatorNotRestarted() {
   echo "--- PASS: btp-operator not restarted within ${window}s"
 }
 
-getBtpOperatorRestartedAt() {
+getBtpOperatorPodName() {
   kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
     --field-selector=status.phase=Running \
     --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo ""
@@ -190,10 +190,10 @@ echo "║  Expected: mount=false, tls=failed-x509, signal=error            ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo "--- World state: no ca-bundle Secret, webhook not injecting mount"
 BEFORE_UPDATED_AT=$(getUpdatedAt)
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
+BEFORE_POD=$(getBtpOperatorPodName)
 waitForNextCycle "$BEFORE_UPDATED_AT"
 assertCRAnnotation "tls-probe-status" "error"
-assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
+assertBtpOperatorNotRestarted "$BEFORE_POD"
 printAnnotations
 
 echo ""
@@ -201,15 +201,16 @@ echo "╔═══════════════════════�
 echo "║  PHASE B step 1: mount injected (customCA1=ca-A), TLS ok         ║"
 echo "║  Expected: status=ok, no restart                                 ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
-BEFORE_UPDATED_AT=$(getUpdatedAt)
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
+BEFORE_POD=$(getBtpOperatorPodName)
 echo "--- World state: applying ca-bundle Secret with ca-A (webhook will inject mount)"
 CA_A_B64=$(base64 -w0 < "$CERTS_DIR/ca-A.crt")
 CA_BUNDLE_B64=$CA_A_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
+# Capture timestamp AFTER Secret is applied so the next cycle probes with the mount already injected
+BEFORE_UPDATED_AT=$(getUpdatedAt)
 
 waitForNextCycle "$BEFORE_UPDATED_AT"
 assertCRAnnotation "tls-probe-status" "ok"
-assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
+assertBtpOperatorNotRestarted "$BEFORE_POD"
 printAnnotations
 
 echo ""
@@ -218,7 +219,7 @@ echo "║  PHASE B step 2: customCA1 mounted, server cert rotated to ca-B  ║"
 echo "║  Expected: status=alert, no restart                              ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo "--- World state: rotating fake-server TLS cert to one signed by ca-B (not trusted by ca-A)"
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
+BEFORE_POD=$(getBtpOperatorPodName)
 TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-B.crt")
 TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-B.key")
 TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
@@ -230,7 +231,7 @@ BEFORE_UPDATED_AT=$(getUpdatedAt)
 
 waitForNextCycle "$BEFORE_UPDATED_AT"
 assertCRAnnotation "tls-probe-status" "alert"
-assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
+assertBtpOperatorNotRestarted "$BEFORE_POD"
 printAnnotations
 
 echo ""
@@ -240,13 +241,13 @@ echo "║  Expected: status=ok, btp-operator RESTARTED                     ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo "--- World state: updating ca-bundle Secret to ca-B (matches server cert)"
 BEFORE_UPDATED_AT=$(getUpdatedAt)
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
+BEFORE_POD=$(getBtpOperatorPodName)
 CA_B_B64=$(base64 -w0 < "$CERTS_DIR/ca-B.crt")
 CA_BUNDLE_B64=$CA_B_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
 
 waitForNextCycle "$BEFORE_UPDATED_AT"
 assertCRAnnotation "tls-probe-status" "ok"
-assertBtpOperatorRestarted "$BEFORE_RESTART_AT"
+assertBtpOperatorRestarted "$BEFORE_POD"
 printAnnotations
 
 echo ""
@@ -255,7 +256,7 @@ echo "║  PHASE D: new bundle (ca-B2) that doesn't trust server           ║"
 echo "║  Expected: status=alert, no restart                              ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo "--- World state: rotating server cert back to ca-A, deploying unrelated ca-B2 bundle"
-BEFORE_RESTART_AT=$(getBtpOperatorRestartedAt)
+BEFORE_POD=$(getBtpOperatorPodName)
 TLS_CRT_B64=$(base64 -w0 < "$CERTS_DIR/server-A.crt")
 TLS_KEY_B64=$(base64 -w0 < "$CERTS_DIR/server-A.key")
 TLS_CRT_B64=$TLS_CRT_B64 TLS_KEY_B64=$TLS_KEY_B64 \
@@ -272,7 +273,7 @@ BEFORE_UPDATED_AT=$(getUpdatedAt)
 
 waitForNextCycle "$BEFORE_UPDATED_AT"
 assertCRAnnotation "tls-probe-status" "alert"
-assertBtpOperatorNotRestarted "$BEFORE_RESTART_AT"
+assertBtpOperatorNotRestarted "$BEFORE_POD"
 printAnnotations
 
 # ─── teardown ─────────────────────────────────────────────────────────────────

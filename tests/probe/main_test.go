@@ -131,21 +131,14 @@ func TestComputeSignal(t *testing.T) {
 }
 
 func TestRunProbe_UpdatedAt(t *testing.T) {
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-	}))
-	defer srv.Close()
-
-	pool := srv.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs
+	// No mount in test environment, TLS will fail (nothing listening) → signal=error → non-silent path.
+	// Verifies that tls-probe-updated-at is written whenever the probe annotates the CR.
 	cr := &btpv1alpha1.BtpOperator{
 		ObjectMeta: metav1.ObjectMeta{Name: "btpoperator", Namespace: "kyma-system"},
 		Status:     btpv1alpha1.Status{State: btpv1alpha1.StateReady},
 	}
 	cl := fake.NewClientBuilder().WithScheme(testScheme()).WithObjects(cr).Build()
-	cfg := config{Namespace: "kyma-system", TokenURLOverride: "https://" + srv.Listener.Addr().String() + "/token"}
-
-	// Temporarily override buildCertPool to use the test server's pool
-	_ = pool // pool used via TokenURLOverride → dialTLS uses system pool; patch mount instead
+	cfg := config{Namespace: "kyma-system", TokenURLOverride: "https://127.0.0.1:19999/token"}
 
 	before := time.Now().UTC().Truncate(time.Second)
 	annotations, err := runProbe(context.Background(), cl, cfg)
