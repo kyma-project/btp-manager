@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"time"
 	"testing"
+	"time"
 
 	btpv1alpha1 "github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
