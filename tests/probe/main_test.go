@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"time"
 	"testing"
 
 	btpv1alpha1 "github.com/kyma-project/btp-manager/api/v1alpha1"
@@ -117,16 +118,45 @@ func TestComputeSignal(t *testing.T) {
 		tls      string
 		expected string
 	}{
-		{false, tlsResultOK, signalNone},
-		{false, tlsResultX509, signalWarning},
-		{false, tlsResultOther, signalWarning},
-		{true, tlsResultOK, signalNone},
+		{false, tlsResultOK, signalOK},
+		{false, tlsResultX509, signalError},
+		{false, tlsResultOther, signalError},
+		{true, tlsResultOK, signalOK},
 		{true, tlsResultX509, signalAlert},
 		{true, tlsResultOther, signalWarning},
 	}
 	for _, c := range cases {
 		assert.Equal(t, c.expected, computeSignal(c.mount, c.tls), "mount=%v tls=%s", c.mount, c.tls)
 	}
+}
+
+func TestRunProbe_UpdatedAt(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer srv.Close()
+
+	pool := srv.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs
+	cr := &btpv1alpha1.BtpOperator{
+		ObjectMeta: metav1.ObjectMeta{Name: "btpoperator", Namespace: "kyma-system"},
+		Status:     btpv1alpha1.Status{State: btpv1alpha1.StateReady},
+	}
+	cl := fake.NewClientBuilder().WithScheme(testScheme()).WithObjects(cr).Build()
+	cfg := config{Namespace: "kyma-system", TokenURLOverride: "https://" + srv.Listener.Addr().String() + "/token"}
+
+	// Temporarily override buildCertPool to use the test server's pool
+	_ = pool // pool used via TokenURLOverride → dialTLS uses system pool; patch mount instead
+
+	before := time.Now().UTC().Truncate(time.Second)
+	annotations, err := runProbe(context.Background(), cl, cfg)
+	require.NoError(t, err)
+	require.NotNil(t, annotations)
+
+	ts, ok := annotations["tls-probe-updated-at"]
+	require.True(t, ok, "tls-probe-updated-at missing")
+	parsed, err := time.Parse(time.RFC3339, ts)
+	require.NoError(t, err)
+	assert.False(t, parsed.Before(before), "updated-at should be >= test start time")
 }
 
 func TestPatchBtpOperatorAnnotations(t *testing.T) {
@@ -138,17 +168,13 @@ func TestPatchBtpOperatorAnnotations(t *testing.T) {
 
 	cfg := config{Namespace: "kyma-system"}
 	err := patchBtpOperatorAnnotations(context.Background(), cl, cfg, map[string]string{
-		"tls-probe-mount":      "true",
-		"tls-probe-tls-result": tlsResultOK,
-		"tls-probe-hash":       "abc123",
-		"tls-probe-signal":     signalNone,
+		"tls-probe-status": signalOK,
+		"tls-probe-hash":   "abc123",
 	})
 	require.NoError(t, err)
 
 	updated := &btpv1alpha1.BtpOperator{}
 	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: "kyma-system", Name: "btpoperator"}, updated))
-	assert.Equal(t, "true", updated.Annotations["tls-probe-mount"])
-	assert.Equal(t, tlsResultOK, updated.Annotations["tls-probe-tls-result"])
+	assert.Equal(t, signalOK, updated.Annotations["tls-probe-status"])
 	assert.Equal(t, "abc123", updated.Annotations["tls-probe-hash"])
-	assert.Equal(t, signalNone, updated.Annotations["tls-probe-signal"])
 }

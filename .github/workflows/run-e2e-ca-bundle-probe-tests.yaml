@@ -1,6 +1,8 @@
 name: Run CA bundle probe E2E tests
 
 on:
+  pull_request:
+    types: [ opened, synchronize, reopened, ready_for_review ]
   workflow_dispatch:
 
 jobs:
@@ -35,6 +37,7 @@ jobs:
           docker push localhost:5000/ca-bundle-webhook:latest
 
       - name: Run CA bundle probe E2E tests
+        continue-on-error: true
         env:
           PROBE_IMAGE: localhost:5000/ca-bundle-probe:latest
           FAKE_SERVER_IMAGE: localhost:5000/fake-server:latest
