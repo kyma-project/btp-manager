@@ -28,6 +28,7 @@ If you want to provide new features for BTP Manager, visit the [`contributor`](.
 
 * [Configuration](./docs/contributor/01-20-configuration.md)
 * [Operations](./docs/contributor/02-10-operations.md)
+* [Architecture](./docs/contributor/02-20-architecture.md)
 * [Release pipeline](./docs/contributor/03-10-release.md)
 * [GitHub Actions workflows](./docs/contributor/04-10-workflows.md)
 * [Unit tests](./docs/contributor/05-10-testing.md)
