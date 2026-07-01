@@ -14,6 +14,7 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 )
 
@@ -53,10 +54,8 @@ var _ = Describe("BTP Operator Network Policies", func() {
 
 	Context("When testing loadNetworkPolicies function", func() {
 		It("Should load network policies from manager-resources directory", func() {
-			reconciler := &BtpOperatorReconciler{
-				manifestHandler: &manifest.Handler{Scheme: k8sManager.GetScheme()},
-			}
-			policies, err := reconciler.loadNetworkPolicies()
+			npMgr := networkpolicy.NewManager(k8sClient, &manifest.Handler{Scheme: k8sManager.GetScheme()})
+			policies, err := npMgr.LoadNetworkPolicies()
 			Expect(err).NotTo(HaveOccurred())
 			expectedPolicyCount := 4
 			Expect(policies).To(HaveLen(expectedPolicyCount))
@@ -76,10 +75,11 @@ var _ = Describe("BTP Operator Network Policies", func() {
 
 		BeforeEach(func() {
 			ctx = context.Background()
+			npMgr := networkpolicy.NewManager(k8sClient, &manifest.Handler{Scheme: k8sManager.GetScheme()})
 			reconciler = &BtpOperatorReconciler{
-				Client:          k8sClient,
-				Scheme:          k8sClient.Scheme(),
-				manifestHandler: &manifest.Handler{Scheme: k8sManager.GetScheme()},
+				Client:               k8sClient,
+				Scheme:               k8sClient.Scheme(),
+				networkPolicyManager: npMgr,
 			}
 			btpOperator = &v1alpha1.BtpOperator{}
 			btpOperator.Name = "test-btpoperator"
@@ -88,7 +88,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		})
 
 		It("Should load and prepare network policies", func() {
-			policies, err := reconciler.loadNetworkPolicies()
+			policies, err := reconciler.networkPolicyManager.LoadNetworkPolicies()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(policies).To(HaveLen(4))
 			for _, policy := range policies {
@@ -109,10 +109,10 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		It("Should call cleanupNetworkPolicies", func() {
 			for _, name := range expectedPolicyNames {
 				policy := createMockNetworkPolicy(name)
-				labels := map[string]string{
-					managedByLabelKey: operatorName,
-				}
-				policy.SetLabels(labels)
+				policy.SetLabels(map[string]string{
+					managedByLabelKey:         operatorName,
+					kymaProjectModuleLabelKey: moduleName,
+				})
 				Expect(k8sClient.Create(ctx, policy)).To(Succeed())
 			}
 			err := reconciler.cleanupNetworkPolicies(ctx)
@@ -154,22 +154,26 @@ var _ = Describe("BTP Operator Network Policies", func() {
 
 	Context("When testing cleanupNetworkPolicies", func() {
 		It("Should not fail when no managed network policies exist", func() {
+			npMgr := networkpolicy.NewManager(k8sClient, &manifest.Handler{Scheme: k8sManager.GetScheme()})
 			reconciler := &BtpOperatorReconciler{
-				Client: k8sClient,
+				Client:               k8sClient,
+				networkPolicyManager: npMgr,
 			}
 			err := reconciler.cleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("Should cleanup existing network policies with managed-by btp-manager label", func() {
+		It("Should cleanup existing network policies with both managed-by and module labels", func() {
+			npMgr := networkpolicy.NewManager(k8sClient, &manifest.Handler{Scheme: k8sManager.GetScheme()})
 			reconciler := &BtpOperatorReconciler{
-				Client: k8sClient,
+				Client:               k8sClient,
+				networkPolicyManager: npMgr,
 			}
 			testPolicy := createMockNetworkPolicy("test-cleanup-policy")
-			labels := map[string]string{
-				managedByLabelKey: operatorName,
-			}
-			testPolicy.SetLabels(labels)
+			testPolicy.SetLabels(map[string]string{
+				managedByLabelKey:         operatorName,
+				kymaProjectModuleLabelKey: moduleName,
+			})
 			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
 			err := reconciler.cleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
@@ -178,8 +182,10 @@ var _ = Describe("BTP Operator Network Policies", func() {
 		})
 
 		It("Should not cleanup network policies without managed-by btp-manager label", func() {
+			npMgr := networkpolicy.NewManager(k8sClient, &manifest.Handler{Scheme: k8sManager.GetScheme()})
 			reconciler := &BtpOperatorReconciler{
-				Client: k8sClient,
+				Client:               k8sClient,
+				networkPolicyManager: npMgr,
 			}
 			testPolicy := createMockNetworkPolicy("test-unmanaged-policy")
 			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
@@ -333,8 +339,10 @@ var _ = Describe("BTP Operator Network Policies", func() {
 
 	Context("When testing migration logic", func() {
 		It("should delete the old webhook network policy during migration", func() {
+			npMgr := networkpolicy.NewManager(k8sClient, &manifest.Handler{Scheme: k8sManager.GetScheme()})
 			reconciler := &BtpOperatorReconciler{
-				Client: k8sClient,
+				Client:               k8sClient,
+				networkPolicyManager: npMgr,
 			}
 			oldPolicy := createMockNetworkPolicy("kyma-project.io--btp-operator-allow-to-webhook")
 			Expect(k8sClient.Create(context.Background(), oldPolicy)).To(Succeed())
