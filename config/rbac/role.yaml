@@ -117,6 +117,14 @@ rules:
   verbs:
   - create
 - apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
