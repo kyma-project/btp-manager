@@ -164,7 +164,7 @@ func (m *Manager) PrepareModuleResources(ctx context.Context, resourcesToApply [
 	if configMapIndex < 0 || secretIndex < 0 || deploymentIndex < 0 {
 		return fmt.Errorf("required module resources not found in manifests (configMapIndex=%d, secretIndex=%d, deploymentIndex=%d)", configMapIndex, secretIndex, deploymentIndex)
 	}
-	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s/Chart.yaml", config.ChartPath), "version")
+	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s%cChart.yaml", config.ChartPath, os.PathSeparator), "version")
 	if err != nil {
 		return fmt.Errorf("failed to get module chart version: %w", err)
 	}
@@ -416,7 +416,11 @@ func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructu
 			return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
 		}
 
-		time.Sleep(config.ReadyCheckInterval)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for %s %s to be ready", u.GetName(), u.GetKind())
+		case <-time.After(config.ReadyCheckInterval):
+		}
 	}
 }
 
