@@ -412,7 +412,7 @@ func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructu
 		if err == nil && m.isResourceReady(current) {
 			return nil
 		}
-		if err != nil && !k8serrors.IsNotFound(err) && ctx.Err() == nil {
+		if err != nil && !k8serrors.IsNotFound(err) && ctxWithTimeout.Err() == nil && ctx.Err() == nil {
 			return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
 		}
 
