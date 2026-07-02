@@ -23,14 +23,13 @@ import (
 //+kubebuilder:rbac:groups="batch",resources="jobs",verbs=get;create;delete
 
 const (
-	probeJobName             = "ca-bundle-probe"
-	probeAnnotationTLSResult = "tls-probe-tls-result"
-	probeAnnotationHash      = "tls-probe-hash"
-	probeAnnotationLastHash  = "tls-probe-last-hash"
-	probeAnnotationSignal    = "tls-probe-signal"
+	probeJobName              = "ca-bundle-probe"
+	probeAnnotationStatus     = "tls-probe-status"
+	probeAnnotationHash       = "tls-probe-hash"
+	probeAnnotationLastHash   = "tls-probe-last-hash"
+	probeAnnotationUpdatedAt  = "tls-probe-updated-at"
 
-	probeSignalAlert = "alert"
-	probeTLSResultOK = "ok"
+	probeStatusOK = "ok"
 )
 
 // ProbeRunner is a controller-runtime Runnable that periodically spawns a tls-probe Job
@@ -51,7 +50,7 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 	gauge := promauto.With(registry).NewGauge(prometheus.GaugeOpts{
 		Namespace: "btpmanager",
 		Name:      "credential_probe_status",
-		Help:      "CA bundle probe status: 0=healthy, 1=unhealthy (alert-level signal)",
+		Help:      "CA bundle probe status: 0=ok, 1=any problem signal (alert/warning/error)",
 	})
 
 	return &ProbeRunner{
@@ -109,6 +108,13 @@ func (r *ProbeRunner) runCycle(ctx context.Context) error {
 		return fmt.Errorf("deleting old probe job: %w", err)
 	}
 
+	// Record tls-probe-updated-at before running the job so we can detect whether the probe
+	// wrote new annotations this cycle (it silently exits without writing when no mount + TLS ok).
+	prevUpdatedAt, err := r.getUpdatedAt(ctx)
+	if err != nil {
+		return fmt.Errorf("reading tls-probe-updated-at: %w", err)
+	}
+
 	if err := r.createJob(ctx); err != nil {
 		return fmt.Errorf("creating probe job: %w", err)
 	}
@@ -130,34 +136,44 @@ func (r *ProbeRunner) runCycle(ctx context.Context) error {
 		annotations = map[string]string{}
 	}
 
-	signal := annotations[probeAnnotationSignal]
-	tlsResult := annotations[probeAnnotationTLSResult]
+	status := annotations[probeAnnotationStatus]
 	hash := annotations[probeAnnotationHash]
 	lastHash := annotations[probeAnnotationLastHash]
+	updatedAt := annotations[probeAnnotationUpdatedAt]
 
 	logger.Info("probe cycle result",
-		"signal", signal,
-		"tls-result", tlsResult,
+		"status", status,
 		"hash", hash,
 		"lastHash", lastHash,
+		"updatedAt", updatedAt,
 	)
 
-	// Update metric: 1 if alert, 0 otherwise.
-	if signal == probeSignalAlert {
-		r.statusGauge.Set(1)
-	} else {
-		r.statusGauge.Set(0)
+	// If tls-probe-updated-at did not advance, the probe silently exited (no mount + TLS ok).
+	// Nothing to process this cycle.
+	if updatedAt == prevUpdatedAt {
+		return nil
 	}
 
-	// Restart btp-operator pods when: hash changed, TLS ok, and lastHash was non-empty (not first run).
-	if tlsResult == probeTLSResultOK && hash != lastHash && lastHash != "" {
+	// Update metric: 0 if TLS healthy (ok), 1 if any problem signal (alert/warning/error).
+	if status == probeStatusOK {
+		r.statusGauge.Set(0)
+	} else {
+		r.statusGauge.Set(1)
+	}
+
+	// Restart btp-operator pods when: TLS ok (status=ok), hash changed, and lastHash was non-empty (not first run).
+	if status == probeStatusOK && hash != lastHash && lastHash != "" {
 		logger.Info("CA bundle hash changed with healthy TLS — restarting btp-operator pods")
 		if err := r.restartBtpOperatorPods(ctx); err != nil {
 			logger.Error(err, "failed to restart btp-operator pods")
 		}
 	}
 
-	// Advance tls-probe-last-hash after processing.
+	// Advance tls-probe-last-hash only when probe wrote a non-empty hash.
+	// Overwriting with empty would erase the previous hash and suppress future restart detection.
+	if hash == "" {
+		return nil
+	}
 	patch := client.MergeFrom(cr.DeepCopy())
 	if cr.Annotations == nil {
 		cr.Annotations = map[string]string{}
@@ -168,6 +184,17 @@ func (r *ProbeRunner) runCycle(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *ProbeRunner) getUpdatedAt(ctx context.Context) (string, error) {
+	cr := &v1alpha1.BtpOperator{}
+	if err := r.client.Get(ctx, types.NamespacedName{
+		Name:      config.BtpOperatorCrName,
+		Namespace: config.KymaSystemNamespaceName,
+	}, cr); err != nil {
+		return "", fmt.Errorf("getting BtpOperator CR: %w", err)
+	}
+	return cr.GetAnnotations()[probeAnnotationUpdatedAt], nil
 }
 
 func (r *ProbeRunner) deleteOldJob(ctx context.Context) error {
