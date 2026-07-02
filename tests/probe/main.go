@@ -32,10 +32,9 @@ const (
 	tlsResultOK     = "ok"
 	tlsResultX509   = "failed-x509"
 	tlsResultOther  = "failed-other"
-	signalOK        = "ok"
-	signalAlert     = "alert"
-	signalError     = "error"
-	signalWarning   = "warning"
+	signalOK    = "ok"
+	signalAlert = "alert"
+	signalError = "error"
 )
 
 type config struct {
@@ -165,9 +164,6 @@ func computeSignal(mountPresent bool, tlsResult string) string {
 		}
 		return signalError
 	default: // failed-other
-		if mountPresent {
-			return signalWarning
-		}
 		return signalError
 	}
 }

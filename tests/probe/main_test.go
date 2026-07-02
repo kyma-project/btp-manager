@@ -123,7 +123,7 @@ func TestComputeSignal(t *testing.T) {
 		{false, tlsResultOther, signalError},
 		{true, tlsResultOK, signalOK},
 		{true, tlsResultX509, signalAlert},
-		{true, tlsResultOther, signalWarning},
+		{true, tlsResultOther, signalError},
 	}
 	for _, c := range cases {
 		assert.Equal(t, c.expected, computeSignal(c.mount, c.tls), "mount=%v tls=%s", c.mount, c.tls)
