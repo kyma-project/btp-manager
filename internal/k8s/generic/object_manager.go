@@ -3,6 +3,7 @@ package generic
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -18,9 +19,20 @@ func NewObjectManager[T client.Object, U client.ObjectList](k8sClient client.Cli
 	}
 }
 
+func kindOf[T client.Object](object T) string {
+	if k := object.GetObjectKind().GroupVersionKind().Kind; k != "" {
+		return k
+	}
+	t := reflect.TypeOf(object)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t.Name()
+}
+
 func (m *ObjectManager[T, U]) Create(ctx context.Context, object T, opts ...client.CreateOption) error {
 	logger := log.FromContext(ctx)
-	kind := object.GetObjectKind().GroupVersionKind().Kind
+	kind := kindOf(object)
 	logger.Info("Creating object", "kind", kind, "name", object.GetName())
 	if err := m.client.Create(ctx, object, opts...); err != nil {
 		return fmt.Errorf("while creating %s %q: %w", kind, object.GetName(), err)
@@ -30,7 +42,7 @@ func (m *ObjectManager[T, U]) Create(ctx context.Context, object T, opts ...clie
 
 func (m *ObjectManager[T, U]) Apply(ctx context.Context, object T, opts ...client.PatchOption) error {
 	logger := log.FromContext(ctx)
-	kind := object.GetObjectKind().GroupVersionKind().Kind
+	kind := kindOf(object)
 	logger.Info("Applying object", "kind", kind, "name", object.GetName())
 	if err := m.client.Patch(ctx, object, client.Apply, opts...); err != nil {
 		return fmt.Errorf("while applying %s %q: %w", kind, object.GetName(), err)
@@ -40,7 +52,7 @@ func (m *ObjectManager[T, U]) Apply(ctx context.Context, object T, opts ...clien
 
 func (m *ObjectManager[T, U]) Get(ctx context.Context, key client.ObjectKey, object T, opts ...client.GetOption) error {
 	logger := log.FromContext(ctx)
-	kind := object.GetObjectKind().GroupVersionKind().Kind
+	kind := kindOf(object)
 	logger.Info("Getting object", "kind", kind, "name", key.Name)
 	if err := m.client.Get(ctx, key, object, opts...); err != nil {
 		return fmt.Errorf("while getting %s %q: %w", kind, key.Name, err)
@@ -59,7 +71,7 @@ func (m *ObjectManager[T, U]) List(ctx context.Context, list U, opts ...client.L
 
 func (m *ObjectManager[T, U]) Update(ctx context.Context, object T, opts ...client.UpdateOption) error {
 	logger := log.FromContext(ctx)
-	kind := object.GetObjectKind().GroupVersionKind().Kind
+	kind := kindOf(object)
 	logger.Info("Updating object", "kind", kind, "name", object.GetName())
 	if err := m.client.Update(ctx, object, opts...); err != nil {
 		return fmt.Errorf("while updating %s %q: %w", kind, object.GetName(), err)
@@ -69,7 +81,7 @@ func (m *ObjectManager[T, U]) Update(ctx context.Context, object T, opts ...clie
 
 func (m *ObjectManager[T, U]) Delete(ctx context.Context, object T, opts ...client.DeleteOption) error {
 	logger := log.FromContext(ctx)
-	kind := object.GetObjectKind().GroupVersionKind().Kind
+	kind := kindOf(object)
 	logger.Info("Deleting object", "kind", kind, "name", object.GetName())
 	if err := m.client.Delete(ctx, object, opts...); err != nil {
 		return fmt.Errorf("while deleting %s %q: %w", kind, object.GetName(), err)
