@@ -29,7 +29,8 @@ const (
 	probeAnnotationLastHash   = "tls-probe-last-hash"
 	probeAnnotationUpdatedAt  = "tls-probe-updated-at"
 
-	probeStatusOK = "ok"
+	probeStatusOK    = "ok"
+	probeStatusAlert = "alert"
 )
 
 // ProbeRunner is a controller-runtime Runnable that periodically spawns a tls-probe Job
@@ -50,7 +51,7 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 	gauge := promauto.With(registry).NewGauge(prometheus.GaugeOpts{
 		Namespace: "btpmanager",
 		Name:      "credential_probe_status",
-		Help:      "CA bundle probe status: 0=ok, 1=any problem signal (alert/warning/error)",
+		Help:      "CA bundle probe status: 0=ok or error, 1=alert (CA mounted but cert not trusted)",
 	})
 
 	return &ProbeRunner{
@@ -154,11 +155,12 @@ func (r *ProbeRunner) runCycle(ctx context.Context) error {
 		return nil
 	}
 
-	// Update metric: 0 if TLS healthy (ok), 1 if any problem signal (alert/warning/error).
-	if status == probeStatusOK {
-		r.statusGauge.Set(0)
-	} else {
+	// Update metric: 1 if alert (CA mounted but cert not trusted — actionable), 0 otherwise.
+	// error signals (connectivity failures, no mount) are logged but do not fire the metric.
+	if status == probeStatusAlert {
 		r.statusGauge.Set(1)
+	} else {
+		r.statusGauge.Set(0)
 	}
 
 	// Restart btp-operator pods when: TLS ok (status=ok), hash changed, and lastHash was non-empty (not first run).
