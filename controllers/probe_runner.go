@@ -23,15 +23,17 @@ import (
 //+kubebuilder:rbac:groups="batch",resources="jobs",verbs=get;create;delete
 
 const (
-	probeJobName              = "ca-bundle-probe"
-	probeAnnotationStatus     = "tls-probe-status"
-	probeAnnotationHash       = "tls-probe-hash"
-	probeAnnotationLastHash   = "tls-probe-last-hash"
-	probeAnnotationUpdatedAt  = "tls-probe-updated-at"
+	probeJobName             = "ca-bundle-probe"
+	probeAnnotationStatus    = "tls-probe-status"
+	probeAnnotationHash      = "tls-probe-hash"
+	probeAnnotationLastHash  = "tls-probe-last-hash"
+	probeAnnotationUpdatedAt = "tls-probe-updated-at"
 
 	probeStatusOK    = "ok"
 	probeStatusAlert = "alert"
 )
+
+var jobWaitTimeout = 5 * time.Minute
 
 // ProbeRunner is a controller-runtime Runnable that periodically spawns a tls-probe Job
 // and reads back signals from BtpOperator CR annotations. It is disabled when ProbeInterval is 0.
@@ -212,9 +214,33 @@ func (r *ProbeRunner) deleteOldJob(ctx context.Context) error {
 		return err
 	}
 	propagation := metav1.DeletePropagationBackground
-	return r.client.Delete(ctx, job, &client.DeleteOptions{
+	if err := r.client.Delete(ctx, job, &client.DeleteOptions{
 		PropagationPolicy: &propagation,
-	})
+	}); err != nil {
+		return err
+	}
+	// Poll until the object is fully removed so the subsequent createJob call does not
+	// receive an "object is being deleted" AlreadyExists error.
+	deleteCtx, cancel := context.WithTimeout(ctx, jobWaitTimeout)
+	defer cancel()
+	for {
+		select {
+		case <-deleteCtx.Done():
+			return deleteCtx.Err()
+		default:
+		}
+		err := r.client.Get(deleteCtx, types.NamespacedName{
+			Name:      probeJobName,
+			Namespace: config.KymaSystemNamespaceName,
+		}, &batchv1.Job{})
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func (r *ProbeRunner) createJob(ctx context.Context) error {
@@ -252,16 +278,18 @@ func (r *ProbeRunner) createJob(ctx context.Context) error {
 
 func (r *ProbeRunner) waitForJob(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("probe-runner")
-	// Poll until the job completes (succeeded or failed) or context is cancelled.
+	waitCtx, cancel := context.WithTimeout(ctx, jobWaitTimeout)
+	defer cancel()
+	// Poll until the job completes (succeeded or failed) or the deadline is exceeded.
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-waitCtx.Done():
+			return waitCtx.Err()
 		default:
 		}
 
 		job := &batchv1.Job{}
-		if err := r.client.Get(ctx, types.NamespacedName{
+		if err := r.client.Get(waitCtx, types.NamespacedName{
 			Name:      probeJobName,
 			Namespace: config.KymaSystemNamespaceName,
 		}, job); err != nil {
