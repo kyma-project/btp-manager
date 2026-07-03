@@ -178,12 +178,22 @@ func (r *ProbeRunner) runCycle(ctx context.Context) error {
 	if hash == "" {
 		return nil
 	}
-	patch := client.MergeFrom(cr.DeepCopy())
-	if cr.Annotations == nil {
-		cr.Annotations = map[string]string{}
+	// Re-fetch the CR immediately before patching to avoid overwriting the probe-written
+	// annotations (tls-probe-status, tls-probe-hash, tls-probe-updated-at) with the stale
+	// base captured before the Job ran.
+	freshCR := &v1alpha1.BtpOperator{}
+	if err := r.client.Get(ctx, types.NamespacedName{
+		Name:      config.BtpOperatorCrName,
+		Namespace: config.KymaSystemNamespaceName,
+	}, freshCR); err != nil {
+		return fmt.Errorf("re-fetching BtpOperator CR for patch: %w", err)
 	}
-	cr.Annotations[probeAnnotationLastHash] = hash
-	if err := r.client.Patch(ctx, cr, patch); err != nil {
+	patch := client.MergeFrom(freshCR.DeepCopy())
+	if freshCR.Annotations == nil {
+		freshCR.Annotations = map[string]string{}
+	}
+	freshCR.Annotations[probeAnnotationLastHash] = hash
+	if err := r.client.Patch(ctx, freshCR, patch); err != nil {
 		return fmt.Errorf("patching tls-probe-last-hash: %w", err)
 	}
 
@@ -321,7 +331,7 @@ func (r *ProbeRunner) restartBtpOperatorPods(ctx context.Context) error {
 	podList := &corev1.PodList{}
 	if err := r.client.List(ctx, podList,
 		client.InNamespace(config.KymaSystemNamespaceName),
-		client.MatchingLabels{"control-plane": "controller-manager"},
+		client.MatchingLabels{"app.kubernetes.io/instance": "sap-btp-operator"},
 	); err != nil {
 		return err
 	}
