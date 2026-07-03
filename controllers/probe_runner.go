@@ -239,7 +239,11 @@ func (r *ProbeRunner) deleteOldJob(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		time.Sleep(2 * time.Second)
+		select {
+		case <-deleteCtx.Done():
+			return deleteCtx.Err()
+		case <-time.After(2 * time.Second):
+		}
 	}
 }
 
@@ -305,7 +309,11 @@ func (r *ProbeRunner) waitForJob(ctx context.Context) error {
 			return nil
 		}
 
-		time.Sleep(2 * time.Second)
+		select {
+		case <-waitCtx.Done():
+			return waitCtx.Err()
+		case <-time.After(2 * time.Second):
+		}
 	}
 }
 
