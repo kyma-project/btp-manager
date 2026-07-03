@@ -32,9 +32,9 @@ const (
 	tlsResultOK     = "ok"
 	tlsResultX509   = "failed-x509"
 	tlsResultOther  = "failed-other"
-	signalOK    = "ok"
-	signalAlert = "alert"
-	signalError = "error"
+	signalOK        = "ok"
+	signalAlert     = "alert"
+	signalError     = "error"
 )
 
 type config struct {
