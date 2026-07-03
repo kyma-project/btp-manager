@@ -1221,33 +1221,10 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 	}
 }
 
-func (r *BtpOperatorReconciler) getNetworkPolicyNamesFromManifests() (map[string]struct{}, error) {
-	names := make(map[string]struct{})
-	us, err := r.networkPolicyManager.LoadNetworkPolicies()
-	if err != nil {
-		return names, err
-	}
-	for _, u := range us {
-		if n := u.GetName(); n != "" {
-			names[n] = struct{}{}
-		}
-	}
-	return names, nil
-}
-
 func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
-	nameSet, _ := r.getNetworkPolicyNamesFromManifests()
 	isManaged := func(obj *networkingv1.NetworkPolicy) bool {
-		labels := obj.GetLabels()
-		if labels != nil {
-			if labels[managedByLabelKey] == operatorName && labels[kymaProjectModuleLabelKey] == moduleName {
-				return true
-			}
-		}
-		if _, ok := nameSet[obj.GetName()]; ok {
-			return true
-		}
-		return false
+		managed, _ := r.networkPolicyManager.IsManaged(obj)
+		return managed
 	}
 
 	return predicate.Funcs{
