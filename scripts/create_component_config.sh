@@ -11,7 +11,7 @@ set -o errexit
 set -E
 set -o pipefail
 
-CONTROLLER_TAG=$(yq '.images[0].source' external-images.yaml | awk -F':' '{print $NF}')
+CONTROLLER_SOURCE=$(yq '.images[0].source' external-images.yaml)
 
 echo "Updating component-config.yaml for release ${TAG}:"
 
@@ -20,5 +20,5 @@ name: kyma-project.io/kyma-runtime/kcp-components/btp-manager
 team: kyma/gophers
 images:
 - europe-docker.pkg.dev/kyma-project/prod/btp-manager:${TAG}
-- europe-docker.pkg.dev/kyma-project/prod/external/controller:${CONTROLLER_TAG}
+- europe-docker.pkg.dev/kyma-project/prod/external/${CONTROLLER_SOURCE}
 EOF
