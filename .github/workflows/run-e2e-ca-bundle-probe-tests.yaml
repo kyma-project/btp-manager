@@ -56,8 +56,11 @@ jobs:
       - name: Dump debug info on failure
         if: failure()
         run: |
-          echo "=== btp-manager logs ==="
-          kubectl logs -n kyma-system -l app.kubernetes.io/name=btp-manager --tail=100 || true
+          echo "=== btp-manager pods ==="
+          kubectl get pods -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io || true
+          echo "=== btp-manager logs (current + previous) ==="
+          kubectl logs -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --tail=150 || true
+          kubectl logs -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --tail=150 -p 2>/dev/null || true
           echo "=== probe jobs ==="
           kubectl get jobs -n kyma-system || true
           kubectl describe jobs/ca-bundle-probe -n kyma-system 2>/dev/null || true
