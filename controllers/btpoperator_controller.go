@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -438,6 +439,10 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 	return r.moduleResourceManager.GetResourcesToDeletePath()
 }
 
+func (r *BtpOperatorReconciler) getNetworkPoliciesPath() string {
+	return fmt.Sprintf("%s%cnetwork-policies", config.ManagerResourcesPath, os.PathSeparator)
+}
+
 func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
 	networkPolicies, err := r.networkPolicyManager.LoadNetworkPolicies()
@@ -521,6 +526,10 @@ func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
 
 func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
 	return r.networkPolicyManager.CleanupNetworkPolicies(ctx)
+}
+
+func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Context) error {
+	return r.networkPolicyManager.DeleteOldWebhookNetworkPolicy(ctx)
 }
 
 func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
@@ -1397,6 +1406,25 @@ func (r *BtpOperatorReconciler) isWebhookCertSignedBySelfSignedCa(ctx context.Co
 		return false, err
 	}
 	return certs.VerifyIfLeafIsSignedByGivenCA(caCert, webhookCert)
+}
+
+func (r *BtpOperatorReconciler) getDataFromSecret(ctx context.Context, name string) (map[string][]byte, error) {
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: config.ChartNamespace, Name: name}, secret); err != nil {
+		return nil, err
+	}
+	return secret.Data, nil
+}
+
+func (r *BtpOperatorReconciler) getSecretDataValueByKey(key string, data map[string][]byte) ([]byte, error) {
+	value, ok := data[key]
+	if !ok {
+		return nil, fmt.Errorf("missing key: %s", key)
+	}
+	if len(value) == 0 {
+		return nil, fmt.Errorf("empty value for key: %s", key)
+	}
+	return value, nil
 }
 
 func certFieldFromSecretBySecretName(secretName string) (string, error) {
