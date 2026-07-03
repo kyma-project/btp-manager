@@ -1222,12 +1222,23 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 }
 
 func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
+	// Load manifest names once at startup to avoid per-event filesystem reads.
+	nameSet := make(map[string]struct{})
+	if policies, err := r.networkPolicyManager.LoadNetworkPolicies(); err == nil {
+		for _, p := range policies {
+			if n := p.GetName(); n != "" {
+				nameSet[n] = struct{}{}
+			}
+		}
+	}
+
 	isManaged := func(obj *networkingv1.NetworkPolicy) bool {
-		managed, err := r.networkPolicyManager.IsManaged(obj)
-		if err != nil {
+		labels := obj.GetLabels()
+		if labels != nil && labels[moduleresource.ManagedByLabelKey] == moduleresource.OperatorName {
 			return true
 		}
-		return managed
+		_, ok := nameSet[obj.GetName()]
+		return ok
 	}
 
 	return predicate.Funcs{
