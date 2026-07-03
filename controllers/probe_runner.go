@@ -20,7 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-//+kubebuilder:rbac:groups="batch",resources="jobs",verbs=get;create;delete
+//+kubebuilder:rbac:groups="batch",resources="jobs",verbs=get;list;watch;create;delete
 
 const (
 	probeJobName             = "ca-bundle-probe"
