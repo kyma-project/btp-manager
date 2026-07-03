@@ -42,7 +42,8 @@ jobs:
             -n kyma-system \
             -c manager \
             PROBE_IMAGE=localhost:5000/ca-bundle-probe:latest \
-            PROBE_INTERVAL=10s
+            PROBE_INTERVAL=10s \
+            PROBE_TOKENURL_OVERRIDE=https://fake-server.kyma-system.svc.cluster.local/health
           kubectl rollout status deployment/btp-manager-controller-manager \
             -n kyma-system --timeout=120s
 
