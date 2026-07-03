@@ -1223,7 +1223,10 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 
 func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
 	isManaged := func(obj *networkingv1.NetworkPolicy) bool {
-		managed, _ := r.networkPolicyManager.IsManaged(obj)
+		managed, err := r.networkPolicyManager.IsManaged(obj)
+		if err != nil {
+			return true
+		}
 		return managed
 	}
 

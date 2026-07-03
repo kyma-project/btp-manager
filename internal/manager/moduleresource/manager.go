@@ -408,11 +408,12 @@ func (m *Manager) waitForResource(ctx context.Context, u *unstructured.Unstructu
 		current := &unstructured.Unstructured{}
 		current.SetGroupVersionKind(u.GroupVersionKind())
 		err := m.client.Get(ctxWithTimeout, client.ObjectKey{Name: u.GetName(), Namespace: u.GetNamespace()}, current)
+		timedOut := ctxWithTimeout.Err() != nil
 		cancel()
 		if err == nil && m.isResourceReady(current) {
 			return nil
 		}
-		if err != nil && !k8serrors.IsNotFound(err) && ctxWithTimeout.Err() == nil && ctx.Err() == nil {
+		if err != nil && !k8serrors.IsNotFound(err) && !timedOut && ctx.Err() == nil {
 			return fmt.Errorf("while checking readiness of %s %s: %w", u.GetName(), u.GetKind(), err)
 		}
 
