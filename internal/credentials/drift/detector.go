@@ -346,6 +346,7 @@ func (d *DriftDetector) restartSapBtpServiceOperatorPodIfNotReady(ctx context.Co
 					logger.Error(err, fmt.Sprintf("while deleting not ready %s pod", pod.Name))
 					return err
 				}
+				break
 			}
 		}
 	}
