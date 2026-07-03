@@ -52,3 +52,20 @@ jobs:
           FAKE_SERVER_IMAGE: localhost:5000/fake-server:latest
           WEBHOOK_IMAGE: localhost:5000/ca-bundle-webhook:latest
         run: "./scripts/testing/run_e2e_ca_bundle_probe_test.sh"
+
+      - name: Dump debug info on failure
+        if: failure()
+        run: |
+          echo "=== btp-manager logs ==="
+          kubectl logs -n kyma-system -l app.kubernetes.io/name=btp-manager --tail=100 || true
+          echo "=== probe jobs ==="
+          kubectl get jobs -n kyma-system || true
+          kubectl describe jobs/ca-bundle-probe -n kyma-system 2>/dev/null || true
+          echo "=== probe job pods ==="
+          kubectl get pods -n kyma-system -l job-name=ca-bundle-probe || true
+          kubectl logs -n kyma-system -l job-name=ca-bundle-probe --tail=50 || true
+          echo "=== BtpOperator annotations ==="
+          kubectl get btpoperator/btpoperator -n kyma-system -o jsonpath='{.metadata.annotations}' | tr ',' '\n' || true
+          echo "=== btp-manager deployment env ==="
+          kubectl get deployment/btp-manager-controller-manager -n kyma-system \
+            -o jsonpath='{.spec.template.spec.containers[0].env}' | tr ',' '\n' || true
