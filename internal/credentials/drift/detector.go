@@ -177,7 +177,7 @@ func (d *DriftDetector) CheckClusterIdSecretDrift(ctx context.Context, requiredS
 		if clusterIdFromSecret, ok := clusterIdSecret.Data[initialClusterIdSecretKey]; ok && len(clusterIdFromSecret) > 0 {
 			d.clusterIdFromSapBtpServiceOperatorClusterIdSecret = string(clusterIdFromSecret)
 		}
-		if d.clusterIdFromSapBtpManagerSecret != d.clusterIdFromSapBtpServiceOperatorClusterIdSecret {
+		if d.clusterIdFromSapBtpServiceOperatorConfigMap != d.clusterIdFromSapBtpServiceOperatorClusterIdSecret {
 			logger.Info(fmt.Sprintf("cluster IDs between %s configmap and %s secret don't match", sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorClusterIdSecretName))
 			if err = d.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, d.clusterIdFromSapBtpServiceOperatorClusterIdSecret); err != nil {
 				logger.Error(err, fmt.Sprintf("while annotating %s secret", requiredSecret.Name))
