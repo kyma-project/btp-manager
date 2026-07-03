@@ -36,6 +36,16 @@ jobs:
           docker build -t localhost:5000/ca-bundle-webhook:latest -f tests/webhook/Dockerfile .
           docker push localhost:5000/ca-bundle-webhook:latest
 
+      - name: Configure probe runner in BTP Manager deployment
+        run: |
+          kubectl set env deployment/btp-manager-controller-manager \
+            -n kyma-system \
+            -c manager \
+            PROBE_IMAGE=localhost:5000/ca-bundle-probe:latest \
+            PROBE_INTERVAL=10s
+          kubectl rollout status deployment/btp-manager-controller-manager \
+            -n kyma-system --timeout=120s
+
       - name: Run CA bundle probe E2E tests
         env:
           PROBE_IMAGE: localhost:5000/ca-bundle-probe:latest
