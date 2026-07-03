@@ -261,7 +261,8 @@ func (r *ProbeRunner) createJob(ctx context.Context) error {
 			BackoffLimit: &backoffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
+					RestartPolicy:      corev1.RestartPolicyNever,
+					ServiceAccountName: probeJobName,
 					Containers: []corev1.Container{
 						{
 							Name:  "probe",
