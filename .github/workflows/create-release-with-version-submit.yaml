@@ -211,6 +211,10 @@ jobs:
         if: ${{ !inputs.skip-sec-file-bump }}
         run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
 
+      - name: Update component-config.yaml
+        if: ${{ !inputs.skip-sec-file-bump }}
+        run: scripts/create_component_config.sh ${{ inputs.name }}
+
       - name: Check if any PR was merged during release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
