@@ -16,7 +16,7 @@ CONTROLLER_SOURCE=$(yq '.images[] | select(.source | contains("sap-btp-service-o
 echo "Updating component-config.yaml for release ${TAG}:"
 
 cat <<EOF | tee component-config.yaml
-name: kyma-project.io/kyma-runtime/kcp-components/btp-manager
+name: kyma-project.io/module/btp-manager
 team: kyma/gophers
 images:
 - europe-docker.pkg.dev/kyma-project/prod/btp-manager:${TAG}
