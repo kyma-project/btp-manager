@@ -17,7 +17,7 @@ echo "Updating component-config.yaml for release ${TAG}:"
 
 cat <<EOF | tee component-config.yaml
 name: kyma-project.io/module/btp-manager
-team: kyma/gophers
+team: kyma/gopher
 images:
 - europe-docker.pkg.dev/kyma-project/prod/btp-manager:${TAG}
 - europe-docker.pkg.dev/kyma-project/prod/external/${CONTROLLER_SOURCE}
