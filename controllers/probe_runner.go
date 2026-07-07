@@ -66,7 +66,10 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 }
 
 func parseProbeInterval(raw string) time.Duration {
-	if raw == "" || raw == "0" || raw == "0s" {
+	if raw == "" {
+		return 30 * time.Minute
+	}
+	if raw == "0" || raw == "0s" {
 		return 0
 	}
 	d, err := time.ParseDuration(raw)
