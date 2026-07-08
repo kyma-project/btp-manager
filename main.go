@@ -164,6 +164,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	probeRunner := controllers.NewProbeRunner(mgr.GetClient(), ctrlmetrics.Registry)
+	if err := mgr.Add(probeRunner); err != nil {
+		setupLog.Error(err, "unable to register probe runner as runnable")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
