@@ -26,3 +26,11 @@ jobs:
          name: btp-manager
          dockerfile: Dockerfile
          context: .
+
+   build-probe-image:
+      needs: restricted-gate
+      uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+      with:
+         name: ca-bundle-probe
+         dockerfile: tests/probe/Dockerfile
+         context: .
