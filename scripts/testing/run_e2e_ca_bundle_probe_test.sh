@@ -112,6 +112,23 @@ waitForNextCycle() {
   return 1
 }
 
+# waitForLastHashToBe waits for tls-probe-last-hash to equal the expected value.
+# When this is true, probe_runner has finished processing the cycle (restart was already triggered).
+waitForLastHashToBe() {
+  local expected=$1 timeout=${2:-30} seconds=0
+  while [[ $seconds -lt $timeout ]]; do
+    local current
+    current=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+      -o jsonpath='{.metadata.annotations.tls-probe-last-hash}' 2>/dev/null || echo "")
+    if [[ "$current" == "$expected" ]]; then
+      return 0
+    fi
+    sleep 2; seconds=$((seconds + 2))
+  done
+  echo "--- WARN: tls-probe-last-hash did not reach '$expected' within ${timeout}s (got '$current')"
+  return 0
+}
+
 waitForDeploymentReady() {
   local dep=$1 timeout=${2:-120}
   kubectl rollout status deployment/"$dep" -n "$NAMESPACE" --timeout="${timeout}s"
@@ -247,6 +264,12 @@ CA_BUNDLE_B64=$CA_B_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundl
 
 waitForNextCycle "$BEFORE_UPDATED_AT"
 assertCRAnnotation "tls-probe-status" "ok"
+# Read the new hash from the CR and wait for probe_runner to finish processing the cycle.
+# probe_runner sets tls-probe-last-hash after triggering the restart, so when last-hash equals
+# the current hash, the restart has already been triggered.
+EXPECTED_HASH=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+  -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
+waitForLastHashToBe "$EXPECTED_HASH"
 assertBtpOperatorRestarted "$BEFORE_POD"
 printAnnotations
 
