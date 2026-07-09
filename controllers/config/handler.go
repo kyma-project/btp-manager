@@ -51,6 +51,8 @@ var (
 	ManagerResourcesPath = "./manager-resources"
 
 	EnableLimitedCache = "true"
+
+	ProbeInterval = time.Duration(0)
 )
 
 type WatchHandler interface {
@@ -85,6 +87,7 @@ func configSnapshot() map[string]any {
 		"ExpirationBoundary":             ExpirationBoundary,
 		"RsaKeyBits":                     certs.RsaKeyBits(),
 		"EnableLimitedCache":             EnableLimitedCache,
+		"ProbeInterval":                  ProbeInterval,
 		"StatusUpdateTimeout":            StatusUpdateTimeout,
 		"StatusUpdateCheckInterval":      StatusUpdateCheckInterval,
 		"ManagerResourcesPath":           ManagerResourcesPath,
@@ -232,6 +235,8 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 			}
 		case "EnableLimitedCache":
 			EnableLimitedCache = v
+		case "ProbeInterval":
+			ProbeInterval = parseDuration(v, ProbeInterval, k)
 		case "StatusUpdateTimeout":
 			StatusUpdateTimeout = parseDuration(v, StatusUpdateTimeout, k)
 		case "StatusUpdateCheckInterval":

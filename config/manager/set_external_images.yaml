@@ -11,3 +11,5 @@ spec:
           env:
             - name: SAP_BTP_SERVICE_OPERATOR
               value: europe-docker.pkg.dev/kyma-project/prod/external/ghcr.io/sap/sap-btp-service-operator/controller:v0.11.6
+            - name: PROBE_IMAGE
+              value: europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:latest

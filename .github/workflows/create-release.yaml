@@ -84,6 +84,16 @@ jobs:
       context: .
       tags: ${{ inputs.name }}
 
+  build-probe-image:
+    name: Build probe image
+    needs: [validate-release]
+    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+    with:
+      name: ca-bundle-probe
+      dockerfile: tests/probe/Dockerfile
+      context: .
+      tags: ${{ inputs.name }}
+
   run-unit-tests:
     name: Unit tests
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
@@ -196,7 +206,7 @@ jobs:
 
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test]
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, build-probe-image]
     runs-on: ubuntu-latest
 
     steps:
@@ -349,7 +359,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          IMG=$IMAGE_REPO:${{ inputs.name }} make create-manifest
+          IMG=$IMAGE_REPO:${{ inputs.name }} PROBE_IMG=europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.name }} make create-manifest
           MANIFEST_FILE="./manifests/btp-operator/btp-manager.yaml"
           DEFAULT_CR_FILE="./examples/btp-operator.yaml"
           [[ ! -e ${MANIFEST_FILE} ]] && echo "::error ::Manifest file does not exist" && exit 1

@@ -46,7 +46,6 @@ type ProbeRunner struct {
 }
 
 func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunner {
-	interval := parseProbeInterval(os.Getenv("PROBE_INTERVAL"))
 	image := os.Getenv("PROBE_IMAGE")
 	override := os.Getenv("PROBE_TOKENURL_OVERRIDE")
 
@@ -58,25 +57,11 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 
 	return &ProbeRunner{
 		client:           c,
-		probeInterval:    interval,
+		probeInterval:    config.ProbeInterval,
 		probeImage:       image,
 		tokenURLOverride: override,
 		statusGauge:      gauge,
 	}
-}
-
-func parseProbeInterval(raw string) time.Duration {
-	if raw == "" {
-		return 30 * time.Minute
-	}
-	if raw == "0" || raw == "0s" {
-		return 0
-	}
-	d, err := time.ParseDuration(raw)
-	if err != nil || d <= 0 {
-		return 0
-	}
-	return d
 }
 
 // Start implements manager.Runnable. Returns immediately if probe is disabled.
