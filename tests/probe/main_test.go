@@ -171,3 +171,53 @@ func TestPatchBtpOperatorAnnotations(t *testing.T) {
 	assert.Equal(t, signalOK, updated.Annotations["tls-probe-status"])
 	assert.Equal(t, "abc123", updated.Annotations["tls-probe-hash"])
 }
+
+func TestClearBtpOperatorProbeAnnotations_ClearsAll(t *testing.T) {
+	cr := &btpv1alpha1.BtpOperator{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "btpoperator",
+			Namespace: "kyma-system",
+			Annotations: map[string]string{
+				"tls-probe-status":      "error",
+				"tls-probe-hash":        "abc123",
+				"tls-probe-updated-at":  "2026-07-09T06:52:48Z",
+				"tls-probe-last-hash":   "abc123",
+				"some-other-annotation": "keep-me",
+			},
+		},
+		Status: btpv1alpha1.Status{State: btpv1alpha1.StateReady},
+	}
+	cl := fake.NewClientBuilder().WithScheme(testScheme()).WithObjects(cr).Build()
+
+	cfg := config{Namespace: "kyma-system"}
+	require.NoError(t, clearBtpOperatorProbeAnnotations(context.Background(), cl, cfg))
+
+	updated := &btpv1alpha1.BtpOperator{}
+	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: "kyma-system", Name: "btpoperator"}, updated))
+	assert.Empty(t, updated.Annotations["tls-probe-status"])
+	assert.Empty(t, updated.Annotations["tls-probe-hash"])
+	assert.Empty(t, updated.Annotations["tls-probe-updated-at"])
+	assert.Empty(t, updated.Annotations["tls-probe-last-hash"])
+	assert.Equal(t, "keep-me", updated.Annotations["some-other-annotation"])
+}
+
+func TestClearBtpOperatorProbeAnnotations_NoOp(t *testing.T) {
+	cr := &btpv1alpha1.BtpOperator{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "btpoperator",
+			Namespace: "kyma-system",
+			Annotations: map[string]string{
+				"some-other-annotation": "keep-me",
+			},
+		},
+		Status: btpv1alpha1.Status{State: btpv1alpha1.StateReady},
+	}
+	cl := fake.NewClientBuilder().WithScheme(testScheme()).WithObjects(cr).Build()
+
+	cfg := config{Namespace: "kyma-system"}
+	require.NoError(t, clearBtpOperatorProbeAnnotations(context.Background(), cl, cfg))
+
+	updated := &btpv1alpha1.BtpOperator{}
+	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: "kyma-system", Name: "btpoperator"}, updated))
+	assert.Equal(t, "keep-me", updated.Annotations["some-other-annotation"])
+}

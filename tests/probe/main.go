@@ -183,6 +183,36 @@ func patchBtpOperatorAnnotations(ctx context.Context, cl client.Client, cfg conf
 	return cl.Patch(ctx, cr, patch)
 }
 
+var probeAnnotationKeys = []string{
+	"tls-probe-status",
+	"tls-probe-hash",
+	"tls-probe-updated-at",
+	"tls-probe-last-hash",
+}
+
+func clearBtpOperatorProbeAnnotations(ctx context.Context, cl client.Client, cfg config) error {
+	cr := &btpv1alpha1.BtpOperator{}
+	if err := cl.Get(ctx, types.NamespacedName{Namespace: cfg.Namespace, Name: "btpoperator"}, cr); err != nil {
+		return fmt.Errorf("get BtpOperator: %w", err)
+	}
+	annotations := cr.GetAnnotations()
+	hasProbeAnnotations := false
+	for _, k := range probeAnnotationKeys {
+		if _, ok := annotations[k]; ok {
+			hasProbeAnnotations = true
+			break
+		}
+	}
+	if !hasProbeAnnotations {
+		return nil
+	}
+	patch := client.MergeFrom(cr.DeepCopy())
+	for _, k := range probeAnnotationKeys {
+		delete(annotations, k)
+	}
+	return cl.Patch(ctx, cr, patch)
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg := loadConfig()
@@ -206,7 +236,10 @@ func main() {
 
 	annotations, err := runProbe(ctx, cl, cfg)
 	if annotations == nil && err == nil {
-		logger.Info("no rt-bootstrapper mount detected — skipping CR annotation")
+		logger.Info("no rt-bootstrapper mount detected — clearing stale probe annotations")
+		if clearErr := clearBtpOperatorProbeAnnotations(ctx, cl, cfg); clearErr != nil {
+			logger.Error("clear probe annotations", "err", clearErr)
+		}
 		return
 	}
 	if err != nil {
