@@ -269,7 +269,7 @@ assertCRAnnotation "tls-probe-status" "ok"
 # the current hash, the restart has already been triggered.
 EXPECTED_HASH=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
   -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
-waitForLastHashToBe "$EXPECTED_HASH"
+waitForLastHashToBe "$EXPECTED_HASH" 60
 assertBtpOperatorRestarted "$BEFORE_POD"
 printAnnotations
 
