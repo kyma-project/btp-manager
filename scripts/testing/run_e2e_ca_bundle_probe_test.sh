@@ -125,8 +125,8 @@ waitForLastHashToBe() {
     fi
     sleep 2; seconds=$((seconds + 2))
   done
-  echo "--- WARN: tls-probe-last-hash did not reach '$expected' within ${timeout}s (got '$current')"
-  return 0
+  echo "--- FAIL: tls-probe-last-hash did not reach '$expected' within ${timeout}s (got '$current')"
+  return 1
 }
 
 waitForDeploymentReady() {
