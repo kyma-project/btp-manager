@@ -65,6 +65,14 @@ type mountSignal struct {
 }
 
 func collectMount() mountSignal {
+	// PROBE_FORCE_HASH bypasses mount detection and file reading entirely.
+	// Useful for testing the restart-on-hash-change path on distroless images
+	// without modifying the image or filesystem. Set to any hex string; change
+	// the value between probe cycles to simulate CA bundle rotation.
+	// REMOVE before promoting to a stable release.
+	if hash := os.Getenv("PROBE_FORCE_HASH"); hash != "" {
+		return mountSignal{Present: true, Hash: hash}
+	}
 	return collectMountFromPath(caBundlePath, caBundleMntPath, mountInfoPath)
 }
 
