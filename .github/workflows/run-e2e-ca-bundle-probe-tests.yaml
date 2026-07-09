@@ -42,8 +42,10 @@ jobs:
             -n kyma-system \
             -c manager \
             PROBE_IMAGE=localhost:5000/ca-bundle-probe:latest \
-            PROBE_INTERVAL=10s \
             PROBE_TOKENURL_OVERRIDE=https://fake-server.kyma-system.svc.cluster.local/health
+          kubectl patch configmap sap-btp-manager -n kyma-system \
+            --type merge -p '{"data":{"ProbeInterval":"10s"}}'
+          kubectl rollout restart deployment/btp-manager-controller-manager -n kyma-system
           kubectl rollout status deployment/btp-manager-controller-manager \
             -n kyma-system --timeout=120s
 
