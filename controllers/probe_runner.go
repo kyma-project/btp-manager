@@ -39,7 +39,6 @@ var jobWaitTimeout = 5 * time.Minute
 // and reads back signals from BtpOperator CR annotations. It is disabled when ProbeInterval is 0.
 type ProbeRunner struct {
 	client           client.Client
-	probeInterval    time.Duration
 	probeImage       string
 	tokenURLOverride string
 	statusGauge      prometheus.Gauge
@@ -57,7 +56,6 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 
 	return &ProbeRunner{
 		client:           c,
-		probeInterval:    config.ProbeInterval,
 		probeImage:       image,
 		tokenURLOverride: override,
 		statusGauge:      gauge,
@@ -70,14 +68,15 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 func (r *ProbeRunner) Start(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("probe-runner")
 
-	if r.probeInterval == 0 || r.probeImage == "" {
-		logger.Info("CA bundle probe disabled", "interval", r.probeInterval, "image", r.probeImage)
+	interval := config.ProbeInterval
+	if interval == 0 || r.probeImage == "" {
+		logger.Info("CA bundle probe disabled", "interval", interval, "image", r.probeImage)
 		return nil
 	}
 
-	logger.Info("CA bundle probe runner started", "interval", r.probeInterval, "image", r.probeImage)
+	logger.Info("CA bundle probe runner started", "interval", interval, "image", r.probeImage)
 
-	ticker := time.NewTicker(r.probeInterval)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {

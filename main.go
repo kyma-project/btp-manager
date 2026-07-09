@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"os"
@@ -145,6 +146,12 @@ func main() {
 	if err := mgr.Add(configHandler); err != nil {
 		setupLog.Error(err, "unable to register config handler as runnable")
 		os.Exit(1)
+	}
+
+	// Apply ConfigMap config synchronously before starting the manager so that
+	// runnables like ProbeRunner read the correct config values at startup.
+	if applyErr := configHandler.ApplyFromAPI(context.Background(), mgr.GetAPIReader()); applyErr != nil {
+		setupLog.Info("config ConfigMap not applied at startup (will be applied on first reconcile)", "reason", applyErr)
 	}
 
 	probeRunner := controllers.NewProbeRunner(mgr.GetClient(), ctrlmetrics.Registry)

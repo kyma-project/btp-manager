@@ -172,6 +172,18 @@ func (r *Handler) Start(ctx context.Context) error {
 	return nil
 }
 
+// ApplyFromAPI reads the config ConfigMap using a direct API reader (bypassing the cache)
+// and applies its values. Intended to be called before mgr.Start() to ensure config vars
+// are set before runnables start.
+func (r *Handler) ApplyFromAPI(ctx context.Context, reader client.Reader) error {
+	cm := &corev1.ConfigMap{}
+	if err := reader.Get(ctx, types.NamespacedName{Name: ConfigName, Namespace: ChartNamespace}, cm); err != nil {
+		return err
+	}
+	r.Reconcile(ctx, cm)
+	return nil
+}
+
 func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
 	parseDuration := func(raw string, defaultValue time.Duration, key string) time.Duration {
