@@ -220,6 +220,10 @@ jobs:
         if: ${{ !inputs.skip-sec-file-bump }}
         run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
 
+      - name: Bump probe image tag in set_external_images.yaml
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.name }}|g" config/manager/set_external_images.yaml
+
       - name: Update component-config.yaml
         if: ${{ !inputs.skip-sec-file-bump }}
         run: scripts/create_component_config.sh ${{ inputs.name }}
@@ -359,7 +363,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          IMG=$IMAGE_REPO:${{ inputs.name }} PROBE_IMG=europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.name }} make create-manifest
+          IMG=$IMAGE_REPO:${{ inputs.name }} make create-manifest
           MANIFEST_FILE="./manifests/btp-operator/btp-manager.yaml"
           DEFAULT_CR_FILE="./examples/btp-operator.yaml"
           [[ ! -e ${MANIFEST_FILE} ]] && echo "::error ::Manifest file does not exist" && exit 1

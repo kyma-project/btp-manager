@@ -18,7 +18,6 @@ MANIFEST_FILE=btp-manager.yaml
 IMG_REGISTRY_PORT ?= 5001
 IMG_REGISTRY ?= k3d-kyma-registry:$(IMG_REGISTRY_PORT)
 IMG ?= $(IMG_REGISTRY)/btp-manager:$(MODULE_VERSION)
-PROBE_IMG ?= $(IMG_REGISTRY)/ca-bundle-probe:$(MODULE_VERSION)
 
 COMPONENT_CLI_VERSION ?= latest
 
@@ -124,7 +123,6 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: create-manifest
 create-manifest: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|${PROBE_IMG}|g" config/manager/set_external_images.yaml
 	mkdir -p ${MANIFEST_PATH}
 	$(KUSTOMIZE) build config/default > ${MANIFEST_PATH}/${MANIFEST_FILE}
 	@grep "image:" ${MANIFEST_PATH}/${MANIFEST_FILE}
