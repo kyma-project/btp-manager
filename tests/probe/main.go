@@ -208,7 +208,7 @@ func clearBtpOperatorProbeAnnotations(ctx context.Context, cl client.Client, cfg
 	}
 	patch := client.MergeFrom(cr.DeepCopy())
 	for _, k := range probeAnnotationKeys {
-		delete(cr.Annotations, k)
+		delete(annotations, k)
 	}
 	return cl.Patch(ctx, cr, patch)
 }
