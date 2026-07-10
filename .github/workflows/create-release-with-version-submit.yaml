@@ -11,6 +11,7 @@ env:
 permissions:
   contents: write
   id-token: write
+  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -209,6 +210,8 @@ jobs:
     name: Bump sec-scanners-config
     needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, build-probe-image]
     runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: -1
 
     steps:
       - name: Checkout code
@@ -256,7 +259,18 @@ jobs:
             echo "PR_NUMBER=-1" >> $GITHUB_ENV
           else
             PR_STATUS=$(scripts/create_sec_scanner_bump_pr.sh ${{ inputs.name }})
-            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV          
+            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV
+          fi
+
+      - name: Label PR
+        if: ${{ !inputs.skip-sec-file-bump }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$PR_NUMBER" -gt 0 ]; then
+            gh pr edit "$PR_NUMBER" --add-label kind/enhancement
+          else
+            echo "Step skipped"
           fi
 
       - name: Merge PR
