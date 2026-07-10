@@ -41,12 +41,14 @@ type ProbeRunner struct {
 	client           client.Client
 	probeImage       string
 	tokenURLOverride string
+	forceHash        string
 	statusGauge      prometheus.Gauge
 }
 
 func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunner {
 	image := os.Getenv("PROBE_IMAGE")
 	override := os.Getenv("PROBE_TOKENURL_OVERRIDE")
+	forceHash := os.Getenv("PROBE_FORCE_HASH")
 
 	gauge := promauto.With(registry).NewGauge(prometheus.GaugeOpts{
 		Namespace: "btpmanager",
@@ -58,6 +60,7 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 		client:           c,
 		probeImage:       image,
 		tokenURLOverride: override,
+		forceHash:        forceHash,
 		statusGauge:      gauge,
 	}
 }
@@ -251,6 +254,9 @@ func (r *ProbeRunner) createJob(ctx context.Context) error {
 	}
 	if r.tokenURLOverride != "" {
 		env = append(env, corev1.EnvVar{Name: "PROBE_TOKENURL_OVERRIDE", Value: r.tokenURLOverride})
+	}
+	if r.forceHash != "" {
+		env = append(env, corev1.EnvVar{Name: "PROBE_FORCE_HASH", Value: r.forceHash})
 	}
 
 	job := &batchv1.Job{
