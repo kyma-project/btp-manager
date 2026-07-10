@@ -110,7 +110,7 @@ func isMountPoint(path, mountInfoFile string) bool {
 }
 
 func buildCertPool(m mountSignal) *x509.CertPool {
-	if m.Present {
+	if m.Present && len(m.Content) > 0 {
 		pool := x509.NewCertPool()
 		pool.AppendCertsFromPEM(m.Content)
 		return pool
