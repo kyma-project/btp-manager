@@ -139,7 +139,7 @@ waitForHashToChange() {
     current=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
       -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
     if [[ -n "$current" && "$current" != "$old_hash" ]]; then
-      echo "--- Hash changed to '$current'"
+      echo "--- Hash changed to '$current'" >&2
       echo "$current"
       return 0
     fi
