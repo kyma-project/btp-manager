@@ -3,6 +3,8 @@ name: Run CA bundle probe E2E tests
 on:
   pull_request:
     types: [ opened, synchronize, reopened, ready_for_review ]
+    branches-ignore:
+      - sec-scanners-config-*
   workflow_dispatch:
 
 jobs:
