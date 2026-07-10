@@ -39,16 +39,16 @@ var jobWaitTimeout = 5 * time.Minute
 // and reads back signals from BtpOperator CR annotations. It is disabled when ProbeInterval is 0.
 type ProbeRunner struct {
 	client           client.Client
-	probeInterval    time.Duration
 	probeImage       string
 	tokenURLOverride string
+	forceHash        string
 	statusGauge      prometheus.Gauge
 }
 
 func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunner {
-	interval := parseProbeInterval(os.Getenv("PROBE_INTERVAL"))
 	image := os.Getenv("PROBE_IMAGE")
 	override := os.Getenv("PROBE_TOKENURL_OVERRIDE")
+	forceHash := os.Getenv("PROBE_FORCE_HASH")
 
 	gauge := promauto.With(registry).NewGauge(prometheus.GaugeOpts{
 		Namespace: "btpmanager",
@@ -58,25 +58,11 @@ func NewProbeRunner(c client.Client, registry prometheus.Registerer) *ProbeRunne
 
 	return &ProbeRunner{
 		client:           c,
-		probeInterval:    interval,
 		probeImage:       image,
 		tokenURLOverride: override,
+		forceHash:        forceHash,
 		statusGauge:      gauge,
 	}
-}
-
-func parseProbeInterval(raw string) time.Duration {
-	if raw == "" {
-		return 30 * time.Minute
-	}
-	if raw == "0" || raw == "0s" {
-		return 0
-	}
-	d, err := time.ParseDuration(raw)
-	if err != nil || d <= 0 {
-		return 0
-	}
-	return d
 }
 
 // Start implements manager.Runnable. Returns immediately if probe is disabled.
@@ -85,14 +71,15 @@ func parseProbeInterval(raw string) time.Duration {
 func (r *ProbeRunner) Start(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("probe-runner")
 
-	if r.probeInterval == 0 || r.probeImage == "" {
-		logger.Info("CA bundle probe disabled", "interval", r.probeInterval, "image", r.probeImage)
+	interval := config.ProbeInterval
+	if interval == 0 || r.probeImage == "" {
+		logger.Info("CA bundle probe disabled", "interval", interval, "image", r.probeImage)
 		return nil
 	}
 
-	logger.Info("CA bundle probe runner started", "interval", r.probeInterval, "image", r.probeImage)
+	logger.Info("CA bundle probe runner started", "interval", interval, "image", r.probeImage)
 
-	ticker := time.NewTicker(r.probeInterval)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -267,6 +254,9 @@ func (r *ProbeRunner) createJob(ctx context.Context) error {
 	}
 	if r.tokenURLOverride != "" {
 		env = append(env, corev1.EnvVar{Name: "PROBE_TOKENURL_OVERRIDE", Value: r.tokenURLOverride})
+	}
+	if r.forceHash != "" {
+		env = append(env, corev1.EnvVar{Name: "PROBE_FORCE_HASH", Value: r.forceHash})
 	}
 
 	job := &batchv1.Job{

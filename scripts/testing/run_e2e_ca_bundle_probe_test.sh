@@ -125,8 +125,28 @@ waitForLastHashToBe() {
     fi
     sleep 2; seconds=$((seconds + 2))
   done
-  echo "--- WARN: tls-probe-last-hash did not reach '$expected' within ${timeout}s (got '$current')"
-  return 0
+  echo "--- FAIL: tls-probe-last-hash did not reach '$expected' within ${timeout}s (got '$current')"
+  return 1
+}
+
+# waitForHashToChange waits for tls-probe-hash to differ from the given value.
+# Used in Phase C to ensure the probe has read the new ca-bundle before we
+# check for the restart — Secret propagation may lag one probe cycle.
+waitForHashToChange() {
+  local old_hash=$1 timeout=${2:-180} seconds=0
+  while [[ $seconds -lt $timeout ]]; do
+    local current
+    current=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+      -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
+    if [[ -n "$current" && "$current" != "$old_hash" ]]; then
+      echo "--- Hash changed to '$current'" >&2
+      echo "$current"
+      return 0
+    fi
+    sleep 5; seconds=$((seconds + 5))
+  done
+  echo "--- ERROR: tls-probe-hash did not change from '$old_hash' within ${timeout}s" >&2
+  return 1
 }
 
 waitForDeploymentReady() {
@@ -257,19 +277,21 @@ echo "║  PHASE C: CA bundle rotated to customCA2 (ca-B), TLS ok          ║"
 echo "║  Expected: status=ok, btp-operator RESTARTED                     ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo "--- World state: updating ca-bundle Secret to ca-B (matches server cert)"
-BEFORE_UPDATED_AT=$(getUpdatedAt)
+BEFORE_HASH=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+  -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
 BEFORE_POD=$(getBtpOperatorPodName)
 CA_B_B64=$(base64 -w0 < "$CERTS_DIR/ca-B.crt")
 CA_BUNDLE_B64=$CA_B_B64 envsubst < scripts/testing/yaml/ca-bundle-probe/ca-bundle-secret.yaml | kubectl apply -f -
 
-waitForNextCycle "$BEFORE_UPDATED_AT"
+# Secret propagation into the probe Job pod may lag one probe cycle.
+# Wait until tls-probe-hash actually changes — only then has the probe
+# read the new ca-B bundle.
+EXPECTED_HASH=$(waitForHashToChange "$BEFORE_HASH")
 assertCRAnnotation "tls-probe-status" "ok"
-# Read the new hash from the CR and wait for probe_runner to finish processing the cycle.
-# probe_runner sets tls-probe-last-hash after triggering the restart, so when last-hash equals
-# the current hash, the restart has already been triggered.
-EXPECTED_HASH=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-  -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
-waitForLastHashToBe "$EXPECTED_HASH"
+# Wait for probe_runner to finish processing: it sets tls-probe-last-hash after
+# triggering the restart, so when last-hash equals the current hash the restart
+# has already been triggered.
+waitForLastHashToBe "$EXPECTED_HASH" 60
 assertBtpOperatorRestarted "$BEFORE_POD"
 printAnnotations
 

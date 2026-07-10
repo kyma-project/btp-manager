@@ -194,10 +194,10 @@ func TestClearBtpOperatorProbeAnnotations_ClearsAll(t *testing.T) {
 
 	updated := &btpv1alpha1.BtpOperator{}
 	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: "kyma-system", Name: "btpoperator"}, updated))
-	assert.Empty(t, updated.Annotations["tls-probe-status"])
-	assert.Empty(t, updated.Annotations["tls-probe-hash"])
-	assert.Empty(t, updated.Annotations["tls-probe-updated-at"])
-	assert.Empty(t, updated.Annotations["tls-probe-last-hash"])
+	assert.NotContains(t, updated.Annotations, "tls-probe-status")
+	assert.NotContains(t, updated.Annotations, "tls-probe-hash")
+	assert.NotContains(t, updated.Annotations, "tls-probe-updated-at")
+	assert.NotContains(t, updated.Annotations, "tls-probe-last-hash")
 	assert.Equal(t, "keep-me", updated.Annotations["some-other-annotation"])
 }
 
