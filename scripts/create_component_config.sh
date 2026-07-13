@@ -21,4 +21,5 @@ team: kyma/gopher
 images:
 - europe-docker.pkg.dev/kyma-project/prod/btp-manager:${TAG}
 - europe-docker.pkg.dev/kyma-project/prod/external/${CONTROLLER_SOURCE}
+- europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${TAG}
 EOF
