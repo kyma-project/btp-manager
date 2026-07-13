@@ -85,10 +85,10 @@ jobs:
           kubectl logs -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --tail=150 -p 2>/dev/null || true
           echo "=== probe jobs ==="
           kubectl get jobs -n kyma-system || true
-          kubectl describe jobs/ca-bundle-probe -n kyma-system 2>/dev/null || true
+          kubectl describe jobs/btp-manager-ca-bundle-probe -n kyma-system 2>/dev/null || true
           echo "=== probe job pods ==="
-          kubectl get pods -n kyma-system -l job-name=ca-bundle-probe || true
-          kubectl logs -n kyma-system -l job-name=ca-bundle-probe --tail=50 || true
+          kubectl get pods -n kyma-system -l job-name=btp-manager-ca-bundle-probe || true
+          kubectl logs -n kyma-system -l job-name=btp-manager-ca-bundle-probe --tail=50 || true
           echo "=== BtpOperator annotations ==="
           kubectl get btpoperator/btpoperator -n kyma-system -o jsonpath='{.metadata.annotations}' | tr ',' '\n' || true
           echo "=== btp-manager deployment env ==="

@@ -66,7 +66,7 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: ca-bundle-probe
+      serviceAccountName: btp-manager-ca-bundle-probe
       restartPolicy: Never
       containers:
         - name: probe
