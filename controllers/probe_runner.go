@@ -23,7 +23,7 @@ import (
 //+kubebuilder:rbac:groups="batch",resources="jobs",verbs=get;list;watch;create;delete
 
 const (
-	probeJobName             = "ca-bundle-probe"
+	probeJobName             = "btp-manager-ca-bundle-probe"
 	probeAnnotationStatus    = "tls-probe-status"
 	probeAnnotationHash      = "tls-probe-hash"
 	probeAnnotationLastHash  = "tls-probe-last-hash"
