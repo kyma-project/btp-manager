@@ -1,0 +1,5 @@
+name: kyma-project.io/module/btp-operator
+team: kyma/gopher
+images:
+- europe-docker.pkg.dev/kyma-project/prod/btp-manager:1.3.10
+- europe-docker.pkg.dev/kyma-project/prod/external/ghcr.io/sap/sap-btp-service-operator/controller:v0.11.6

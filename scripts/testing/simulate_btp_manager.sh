@@ -78,26 +78,24 @@ spec:
               value: "$FAKE_SERVER_URL"
 EOF
   waitForJobCompletion "$JOB_NAME"
+  echo "[sim] probe output:"
+  kubectl logs job/"$JOB_NAME" -n "$NAMESPACE" 2>/dev/null | sed 's/^/  [probe] /' || true
 }
 
 reconcile() {
-  local signal hash lastHash
-  signal=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.metadata.annotations.tls-probe-signal}' 2>/dev/null || echo "")
+  local status hash lastHash
+  status=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+    -o jsonpath='{.metadata.annotations.tls-probe-status}' 2>/dev/null || echo "")
   hash=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
     -o jsonpath='{.metadata.annotations.tls-probe-hash}' 2>/dev/null || echo "")
   lastHash=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
     -o jsonpath='{.metadata.annotations.tls-probe-last-hash}' 2>/dev/null || echo "")
 
-  echo "[sim] mount=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.metadata.annotations.tls-probe-mount}' 2>/dev/null) \
-tls=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.metadata.annotations.tls-probe-tls-result}' 2>/dev/null) \
-signal='$signal' hash=${hash:0:16}... lastHash=${lastHash:0:16}..."
+  echo "[sim] status='$status' hash=${hash:0:16}... lastHash=${lastHash:0:16}..."
 
   # Restart sap-btp-operator when: TLS ok, mount present, hash changed from last known value.
   # Empty lastHash means first probe run (initialization) — no restart.
-  if [[ "$signal" == "" && -n "$hash" && -n "$lastHash" && "$hash" != "$lastHash" ]]; then
+  if [[ "$status" == "ok" && -n "$hash" && -n "$lastHash" && "$hash" != "$lastHash" ]]; then
     echo "[sim] hash changed, TLS ok — restarting $BTP_OPERATOR_DEPLOYMENT"
     kubectl delete pod -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
       --wait=false 2>/dev/null || true
@@ -106,16 +104,6 @@ signal='$signal' hash=${hash:0:16}... lastHash=${lastHash:0:16}..."
   # Advance last-hash unconditionally
   kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
     --overwrite "tls-probe-last-hash=$hash" 2>/dev/null
-
-  # Increment run-id so E2E script can detect cycle completion
-  local runId
-  runId=$(kubectl get btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    -o jsonpath='{.metadata.annotations.tls-probe-run-id}' 2>/dev/null || echo "0")
-  runId=${runId:-0}
-  local nextRunId=$(( runId + 1 ))
-  kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    --overwrite "tls-probe-run-id=$nextRunId" 2>/dev/null
-  echo "[sim] run-id=$nextRunId"
 }
 
 runCycle() {

@@ -30,6 +30,7 @@ type configState struct {
 	statusUpdateTimeout            time.Duration
 	statusUpdateCheckInterval      time.Duration
 	managerResourcesPath           string
+	probeInterval                  time.Duration
 }
 
 func captureConfigState() configState {
@@ -55,6 +56,7 @@ func captureConfigState() configState {
 		statusUpdateTimeout:            StatusUpdateTimeout,
 		statusUpdateCheckInterval:      StatusUpdateCheckInterval,
 		managerResourcesPath:           ManagerResourcesPath,
+		probeInterval:                  ProbeInterval,
 	}
 }
 
@@ -80,6 +82,7 @@ func restoreConfigState(state configState) {
 	StatusUpdateTimeout = state.statusUpdateTimeout
 	StatusUpdateCheckInterval = state.statusUpdateCheckInterval
 	ManagerResourcesPath = state.managerResourcesPath
+	ProbeInterval = state.probeInterval
 }
 
 func TestConfigSnapshot(t *testing.T) {
@@ -109,6 +112,7 @@ func TestConfigSnapshot(t *testing.T) {
 	StatusUpdateTimeout = 21 * time.Second
 	StatusUpdateCheckInterval = 22 * time.Millisecond
 	ManagerResourcesPath = "./custom-manager-resources"
+	ProbeInterval = 23 * time.Minute
 
 	got := configSnapshot()
 	want := map[string]any{
@@ -133,6 +137,7 @@ func TestConfigSnapshot(t *testing.T) {
 		"StatusUpdateTimeout":            21 * time.Second,
 		"StatusUpdateCheckInterval":      22 * time.Millisecond,
 		"ManagerResourcesPath":           "./custom-manager-resources",
+		"ProbeInterval":                  23 * time.Minute,
 	}
 
 	if !reflect.DeepEqual(want, got) {

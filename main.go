@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"os"
@@ -81,6 +82,7 @@ func main() {
 	flag.DurationVar(&config.HardDeleteTimeout, "hard-delete-timeout", config.HardDeleteTimeout, "Hard delete timeout.")
 	flag.DurationVar(&config.DeleteRequestTimeout, "delete-request-timeout", config.DeleteRequestTimeout, "Delete request timeout in hard delete.")
 	flag.StringVar(&config.EnableLimitedCache, "enable-limited-cache", config.EnableLimitedCache, "Enable limited cache for sap-btp-operator.")
+	flag.DurationVar(&config.ProbeInterval, "probe-interval", config.ProbeInterval, "CA bundle probe interval. 0 disables the probe.")
 	flag.DurationVar(&config.StatusUpdateTimeout, "status-update-timeout", config.StatusUpdateTimeout, "Status update timeout.")
 	flag.DurationVar(&config.StatusUpdateCheckInterval, "status-update-check-interval", config.StatusUpdateCheckInterval, "Status update retry interval.")
 	flag.StringVar(&config.ManagerResourcesPath, "manager-resources-path", config.ManagerResourcesPath, "Path to the directory with BTP Manager resources.")
@@ -143,6 +145,18 @@ func main() {
 
 	if err := mgr.Add(configHandler); err != nil {
 		setupLog.Error(err, "unable to register config handler as runnable")
+		os.Exit(1)
+	}
+
+	// Apply ConfigMap config synchronously before starting the manager so that
+	// runnables like ProbeRunner read the correct config values at startup.
+	if applyErr := configHandler.ApplyFromAPI(context.Background(), mgr.GetAPIReader()); applyErr != nil {
+		setupLog.Info("config ConfigMap not applied at startup (will be applied on first reconcile)", "reason", applyErr)
+	}
+
+	probeRunner := controllers.NewProbeRunner(mgr.GetClient(), ctrlmetrics.Registry)
+	if err := mgr.Add(probeRunner); err != nil {
+		setupLog.Error(err, "unable to register probe runner as runnable")
 		os.Exit(1)
 	}
 

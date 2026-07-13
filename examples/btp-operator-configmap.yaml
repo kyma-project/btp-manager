@@ -16,3 +16,4 @@ data:
   HardDeleteCheckInterval: 10s
   HardDeleteTimeout: 20m
   EnableLimitedCache: "false"
+  ProbeInterval: "0"

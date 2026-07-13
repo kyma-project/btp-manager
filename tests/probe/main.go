@@ -32,9 +32,9 @@ const (
 	tlsResultOK     = "ok"
 	tlsResultX509   = "failed-x509"
 	tlsResultOther  = "failed-other"
+	signalOK        = "ok"
 	signalAlert     = "alert"
-	signalWarning   = "warning"
-	signalNone      = ""
+	signalError     = "error"
 )
 
 type config struct {
@@ -65,6 +65,14 @@ type mountSignal struct {
 }
 
 func collectMount() mountSignal {
+	// PROBE_FORCE_HASH bypasses mount detection and file reading entirely.
+	// Useful for testing the restart-on-hash-change path on distroless images
+	// without modifying the image or filesystem. Set to any hex string; change
+	// the value between probe cycles to simulate CA bundle rotation.
+	// REMOVE before promoting to a stable release.
+	if hash := os.Getenv("PROBE_FORCE_HASH"); hash != "" {
+		return mountSignal{Present: true, Hash: hash}
+	}
 	return collectMountFromPath(caBundlePath, caBundleMntPath, mountInfoPath)
 }
 
@@ -102,7 +110,7 @@ func isMountPoint(path, mountInfoFile string) bool {
 }
 
 func buildCertPool(m mountSignal) *x509.CertPool {
-	if m.Present {
+	if m.Present && len(m.Content) > 0 {
 		pool := x509.NewCertPool()
 		pool.AppendCertsFromPEM(m.Content)
 		return pool
@@ -157,14 +165,14 @@ func resolveTokenURL(ctx context.Context, cl client.Client, cfg config) (string,
 func computeSignal(mountPresent bool, tlsResult string) string {
 	switch tlsResult {
 	case tlsResultOK:
-		return signalNone
+		return signalOK
 	case tlsResultX509:
 		if mountPresent {
 			return signalAlert
 		}
-		return signalWarning
+		return signalError
 	default: // failed-other
-		return signalWarning
+		return signalError
 	}
 }
 
@@ -179,6 +187,36 @@ func patchBtpOperatorAnnotations(ctx context.Context, cl client.Client, cfg conf
 	}
 	for k, v := range annotations {
 		cr.Annotations[k] = v
+	}
+	return cl.Patch(ctx, cr, patch)
+}
+
+var probeAnnotationKeys = []string{
+	"tls-probe-status",
+	"tls-probe-hash",
+	"tls-probe-updated-at",
+	"tls-probe-last-hash",
+}
+
+func clearBtpOperatorProbeAnnotations(ctx context.Context, cl client.Client, cfg config) error {
+	cr := &btpv1alpha1.BtpOperator{}
+	if err := cl.Get(ctx, types.NamespacedName{Namespace: cfg.Namespace, Name: "btpoperator"}, cr); err != nil {
+		return fmt.Errorf("get BtpOperator: %w", err)
+	}
+	annotations := cr.GetAnnotations()
+	hasProbeAnnotations := false
+	for _, k := range probeAnnotationKeys {
+		if _, ok := annotations[k]; ok {
+			hasProbeAnnotations = true
+			break
+		}
+	}
+	if !hasProbeAnnotations {
+		return nil
+	}
+	patch := client.MergeFrom(cr.DeepCopy())
+	for _, k := range probeAnnotationKeys {
+		delete(annotations, k)
 	}
 	return cl.Patch(ctx, cr, patch)
 }
@@ -205,6 +243,13 @@ func main() {
 	}
 
 	annotations, err := runProbe(ctx, cl, cfg)
+	if annotations == nil && err == nil {
+		logger.Info("no rt-bootstrapper mount detected — clearing stale probe annotations")
+		if clearErr := clearBtpOperatorProbeAnnotations(ctx, cl, cfg); clearErr != nil {
+			logger.Error("clear probe annotations", "err", clearErr)
+		}
+		return
+	}
 	if err != nil {
 		logger.Error("probe error", "err", err)
 		annotations = map[string]string{
@@ -216,12 +261,10 @@ func main() {
 		logger.Error("patch BtpOperator annotations", "err", patchErr)
 	}
 
-	if err == nil {
+	if err == nil && annotations != nil {
 		logger.Info("probe run complete",
-			"mount", annotations["tls-probe-mount"],
+			"status", annotations["tls-probe-status"],
 			"hash", annotations["tls-probe-hash"],
-			"tls_result", annotations["tls-probe-tls-result"],
-			"signal", annotations["tls-probe-signal"],
 		)
 	}
 }
@@ -247,10 +290,15 @@ func runProbe(ctx context.Context, cl client.Client, cfg config) (map[string]str
 	tlsResult := dialTLS(host, pool)
 	signal := computeSignal(mount.Present, tlsResult)
 
+	// No mount and TLS healthy — rt-bootstrapper not active, system CA works fine.
+	// No need to annotate the CR; probe exits silently.
+	if !mount.Present && tlsResult == tlsResultOK {
+		return nil, nil
+	}
+
 	return map[string]string{
-		"tls-probe-mount":      fmt.Sprintf("%t", mount.Present),
-		"tls-probe-tls-result": tlsResult,
+		"tls-probe-status":     signal,
 		"tls-probe-hash":       mount.Hash,
-		"tls-probe-signal":     signal,
+		"tls-probe-updated-at": time.Now().UTC().Format(time.RFC3339),
 	}, nil
 }

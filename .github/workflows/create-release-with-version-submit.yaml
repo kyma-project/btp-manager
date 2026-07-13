@@ -11,6 +11,7 @@ env:
 permissions:
   contents: write
   id-token: write
+  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -81,6 +82,16 @@ jobs:
     with:
       name: btp-manager
       dockerfile: Dockerfile
+      context: .
+      tags: ${{ inputs.name }}
+
+  build-probe-image:
+    name: Build probe image
+    needs: [validate-release]
+    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+    with:
+      name: ca-bundle-probe
+      dockerfile: tests/probe/Dockerfile
       context: .
       tags: ${{ inputs.name }}
 
@@ -197,8 +208,10 @@ jobs:
 
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test]
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, build-probe-image]
     runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: -1
 
     steps:
       - name: Checkout code
@@ -210,6 +223,14 @@ jobs:
       - name: Update sec-scanners-config.yaml
         if: ${{ !inputs.skip-sec-file-bump }}
         run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
+
+      - name: Bump probe image tag in set_external_images.yaml
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.name }}|g" config/manager/set_external_images.yaml
+
+      - name: Update component-config.yaml
+        if: ${{ !inputs.skip-sec-file-bump }}
+        run: scripts/create_component_config.sh ${{ inputs.name }}
 
       - name: Check if any PR was merged during release
         env:
@@ -238,7 +259,18 @@ jobs:
             echo "PR_NUMBER=-1" >> $GITHUB_ENV
           else
             PR_STATUS=$(scripts/create_sec_scanner_bump_pr.sh ${{ inputs.name }})
-            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV          
+            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV
+          fi
+
+      - name: Label PR
+        if: ${{ !inputs.skip-sec-file-bump }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$PR_NUMBER" -gt 0 ]; then
+            gh pr edit "$PR_NUMBER" --add-label kind/enhancement
+          else
+            echo "Step skipped"
           fi
 
       - name: Merge PR
