@@ -3,8 +3,12 @@ name: Run CA bundle probe E2E tests
 on:
   pull_request:
     types: [ opened, synchronize, reopened, ready_for_review ]
-    branches-ignore:
-      - sec-scanners-config-*
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
+      - "component-config.yaml"
+      - "external-images.yaml"
+      - "module-chart/**"
   workflow_dispatch:
 
 jobs:
