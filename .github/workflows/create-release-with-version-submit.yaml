@@ -208,9 +208,19 @@ jobs:
       image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       image-tag: ${{ github.event.inputs.name }}
 
+  run-ca-bundle-probe-e2e:
+    name: CA bundle probe E2E tests
+    needs: [build-image, build-probe-image]
+    secrets: inherit
+    uses: "./.github/workflows/run-e2e-ca-bundle-probe-tests-reusable.yaml"
+    with:
+      release: "true"
+      image-tag: ${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, build-probe-image]
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, run-ca-bundle-probe-e2e, build-probe-image]
     runs-on: ubuntu-latest
 
     steps:
