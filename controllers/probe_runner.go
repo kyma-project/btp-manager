@@ -155,16 +155,10 @@ func (r *ProbeRunner) runCycle(ctx context.Context) error {
 		r.statusGauge.Set(0)
 	}
 
-	// Restart btp-operator pods when: TLS ok (status=ok), hash changed, and lastHash was non-empty (not first run).
-	if status == probeStatusOK && hash != lastHash && lastHash != "" {
-		logger.Info("CA bundle hash changed with healthy TLS — restarting btp-operator pods")
-		if err := r.restartBtpOperatorPods(ctx); err != nil {
-			logger.Error(err, "failed to restart btp-operator pods")
-		}
-	}
-
 	// Advance tls-probe-last-hash only when probe wrote a non-empty hash.
 	// Overwriting with empty would erase the previous hash and suppress future restart detection.
+	// Patch before triggering the restart: deleting pods wakes the main reconciler which updates
+	// the CR, and a concurrent patch here would then fail with a resource-version conflict.
 	if hash == "" {
 		return nil
 	}
@@ -185,6 +179,14 @@ func (r *ProbeRunner) runCycle(ctx context.Context) error {
 	freshCR.Annotations[probeAnnotationLastHash] = hash
 	if err := r.client.Patch(ctx, freshCR, patch); err != nil {
 		return fmt.Errorf("patching tls-probe-last-hash: %w", err)
+	}
+
+	// Restart btp-operator pods when: TLS ok (status=ok), hash changed, and lastHash was non-empty (not first run).
+	if status == probeStatusOK && hash != lastHash && lastHash != "" {
+		logger.Info("CA bundle hash changed with healthy TLS — restarting btp-operator pods")
+		if err := r.restartBtpOperatorPods(ctx); err != nil {
+			logger.Error(err, "failed to restart btp-operator pods")
+		}
 	}
 
 	return nil
