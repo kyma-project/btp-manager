@@ -22,6 +22,7 @@ TAG=$1
 # add changed files to stage
 git add sec-scanners-config.yaml
 git add component-config.yaml
+git add config/manager/set_external_images.yaml
 
 #stash staged changes
 git stash push --staged
@@ -34,18 +35,19 @@ git checkout -B ${BRANCH_NAME}
 git stash apply
 git add sec-scanners-config.yaml
 git add component-config.yaml
+git add config/manager/set_external_images.yaml
 
 #configure git
 git config --global user.email ${GIT_EMAIL}
 git config --global user.name ${GIT_NAME}
 
 #commit and push changes
-git commit -m "Bump sec-scanners-config.yaml and component-config.yaml to ${TAG}"
+git commit -m "Bump sec-scanners-config.yaml, component-config.yaml and set_external_images.yaml to ${TAG}"
 git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${KYMA_BTP_MANAGER_REPO}.git
 git push --set-upstream origin ${BRANCH_NAME} -f
 
 #create PR
-pr_link=$(gh pr create -B main --title "Bump sec-scanners-config.yaml and component-config.yaml to ${TAG}" --body "" | tail -n 1)
+pr_link=$(gh pr create -B main --title "Bump sec-scanners-config.yaml, component-config.yaml and set_external_images.yaml to ${TAG}" --body "" | tail -n 1)
 echo "Link for created PR: ${pr_link}"
 
 pr_number=$(echo "$pr_link" | awk -F'/' '{print $NF}')
