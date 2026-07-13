@@ -400,6 +400,6 @@ jobs:
 
       - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }} # We do use bot token here to trigger workflow uploading logs
         run: |
           gh release edit ${{ inputs.name }} --draft=false
