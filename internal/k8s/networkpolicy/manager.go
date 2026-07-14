@@ -18,10 +18,8 @@ import (
 
 const (
 	operatorName = "btp-manager"
-	moduleName   = "btp-operator"
 
-	managedByLabelKey         = "app.kubernetes.io/managed-by"
-	kymaProjectModuleLabelKey = "kyma-project.io/module"
+	managedByLabelKey = "app.kubernetes.io/managed-by"
 
 	oldWebhookNetworkPolicyName = "kyma-project.io--btp-operator-allow-to-webhook"
 )
@@ -31,7 +29,6 @@ var managedLabelsFilter = client.MatchingLabels{managedByLabelKey: operatorName}
 type NetworkPolicyManager interface {
 	CleanupNetworkPolicies(ctx context.Context) error
 	DeleteOldWebhookNetworkPolicy(ctx context.Context) error
-	IsManaged(obj *networkingv1.NetworkPolicy) (bool, error)
 	LoadNetworkPolicies() ([]*unstructured.Unstructured, error)
 }
 
@@ -88,33 +85,4 @@ func (m *Manager) DeleteOldWebhookNetworkPolicy(ctx context.Context) error {
 		logger.Info("old webhook network policy not found, skipping deletion", "policyName", oldWebhookNetworkPolicyName)
 	}
 	return nil
-}
-
-func (m *Manager) IsManaged(obj *networkingv1.NetworkPolicy) (bool, error) {
-	labels := obj.GetLabels()
-	if labels != nil {
-		if labels[managedByLabelKey] == operatorName && labels[kymaProjectModuleLabelKey] == moduleName {
-			return true, nil
-		}
-	}
-	nameSet, err := m.getNetworkPolicyNamesFromManifests()
-	if err != nil {
-		return false, err
-	}
-	_, ok := nameSet[obj.GetName()]
-	return ok, nil
-}
-
-func (m *Manager) getNetworkPolicyNamesFromManifests() (map[string]struct{}, error) {
-	names := make(map[string]struct{})
-	us, err := m.LoadNetworkPolicies()
-	if err != nil {
-		return names, err
-	}
-	for _, u := range us {
-		if n := u.GetName(); n != "" {
-			names[n] = struct{}{}
-		}
-	}
-	return names, nil
 }
