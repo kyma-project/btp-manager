@@ -111,10 +111,6 @@ func (d *DriftDetector) PreviousCredentialsNamespace() string {
 	return d.previousCredentialsNamespace
 }
 
-func (d *DriftDetector) SetCredentialsNamespaceFromOperator(ns string) {
-	d.credentialsNamespaceFromSapBtpServiceOperatorSecret = ns
-}
-
 func (d *DriftDetector) SetClusterIdFromOperatorConfigMap(id string) {
 	d.clusterIdFromSapBtpServiceOperatorConfigMap = id
 }
