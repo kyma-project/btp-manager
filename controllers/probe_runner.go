@@ -309,6 +309,9 @@ func (r *ProbeRunner) waitForJob(ctx context.Context) error {
 			Name:      probeJobName,
 			Namespace: config.KymaSystemNamespaceName,
 		}, job); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 
