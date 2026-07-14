@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+  namespace: test-namespace
+data:
+  key: "value"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+  namespace: test-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: manager
+        image: old-image:latest
+      - name: kube-rbac-proxy
+        image: old-proxy:latest
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret
+  namespace: test-namespace
+type: Opaque
+data:
+  clientid: ""
+  clientsecret: ""
+  sm_url: ""
+  tokenurl: ""
+  tokenurlsuffix: "L29hdXRoL3Rva2Vu"
