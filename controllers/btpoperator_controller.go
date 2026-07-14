@@ -33,6 +33,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
@@ -120,9 +121,6 @@ const (
 
 	deploymentAvailableConditionType   = "Available"
 	deploymentProgressingConditionType = "Progressing"
-
-	// TODO: remove old webhook network policy name after some time
-	oldWebhookNetworkPolicyName = "kyma-project.io--btp-operator-allow-to-webhook"
 )
 
 const (
@@ -161,6 +159,7 @@ type BtpOperatorReconciler struct {
 	webhookMetrics                                      *metrics.WebhookMetrics
 	instanceBindingService                              InstanceBindingSerivce
 	workqueueSize                                       int
+	networkPolicyManager                                networkpolicy.NetworkPolicyManager
 	previousCredentialsNamespace                        string
 	clusterIdFromSapBtpManagerSecret                    string
 	clusterIdFromSapBtpServiceOperatorConfigMap         string
@@ -177,7 +176,7 @@ type ResourceReadiness struct {
 	Ready     bool
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
@@ -186,6 +185,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 		instanceBindingService: instanceBindingSerivice,
 		webhookMetrics:         metrics,
 		watchHandlers:          watchHandlers,
+		networkPolicyManager:   networkPolicyManager,
 	}
 }
 
@@ -466,17 +466,9 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 	return fmt.Sprintf("%s%cdelete", config.ResourcesPath, os.PathSeparator)
 }
 
-func (r *BtpOperatorReconciler) getNetworkPoliciesPath() string {
-	return fmt.Sprintf("%s%cnetwork-policies", config.ManagerResourcesPath, os.PathSeparator)
-}
-
-func (r *BtpOperatorReconciler) loadNetworkPolicies() ([]*unstructured.Unstructured, error) {
-	return r.createUnstructuredObjectsFromManifestsDir(r.getNetworkPoliciesPath())
-}
-
 func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
 	logger := log.FromContext(ctx)
-	networkPolicies, err := r.loadNetworkPolicies()
+	networkPolicies, err := r.networkPolicyManager.LoadNetworkPolicies()
 	if err != nil {
 		logger.Error(err, "while loading network policies")
 		return fmt.Errorf("failed to load network policies: %w", err)
@@ -643,35 +635,11 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 }
 
 func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-	logger.Info("deleting all managed network policies")
-	if err := r.DeleteAllOf(ctx, &networkingv1.NetworkPolicy{}, client.InNamespace(config.ChartNamespace), managedByLabelFilter); err != nil {
-		if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
-			return fmt.Errorf("failed to delete network policies: %w", err)
-		}
-	}
-
-	return nil
+	return r.networkPolicyManager.CleanupNetworkPolicies(ctx)
 }
 
 func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-	oldPolicy := &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      oldWebhookNetworkPolicyName,
-			Namespace: config.ChartNamespace,
-		},
-	}
-
-	if err := r.Delete(ctx, oldPolicy); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			logger.Error(err, "failed to delete old webhook network policy during migration", "policyName", oldWebhookNetworkPolicyName)
-			return fmt.Errorf("failed to delete old webhook network policy: %w", err)
-		}
-		logger.Info("old webhook network policy not found, skipping deletion", "policyName", oldWebhookNetworkPolicyName)
-	}
-
-	return nil
+	return r.networkPolicyManager.DeleteOldWebhookNetworkPolicy(ctx)
 }
 
 func (r *BtpOperatorReconciler) addLabels(chartVer string, us ...*unstructured.Unstructured) error {
@@ -1580,33 +1548,24 @@ func (r *BtpOperatorReconciler) watchDeploymentPredicates() predicate.Funcs {
 	}
 }
 
-func (r *BtpOperatorReconciler) getNetworkPolicyNamesFromManifests() (map[string]struct{}, error) {
-	names := make(map[string]struct{})
-	us, err := r.loadNetworkPolicies()
-	if err != nil {
-		return names, err
-	}
-	for _, u := range us {
-		if n := u.GetName(); n != "" {
-			names[n] = struct{}{}
-		}
-	}
-	return names, nil
-}
-
 func (r *BtpOperatorReconciler) watchNetworkPolicyPredicates() predicate.Funcs {
-	nameSet, _ := r.getNetworkPolicyNamesFromManifests()
-	isManaged := func(obj *networkingv1.NetworkPolicy) bool {
-		labels := obj.GetLabels()
-		if labels != nil {
-			if labels[managedByLabelKey] == operatorName && labels[kymaProjectModuleLabelKey] == moduleName {
-				return true
+	nameSet := make(map[string]struct{})
+	if r.networkPolicyManager != nil {
+		if policies, err := r.networkPolicyManager.LoadNetworkPolicies(); err == nil {
+			for _, p := range policies {
+				if n := p.GetName(); n != "" {
+					nameSet[n] = struct{}{}
+				}
 			}
 		}
-		if _, ok := nameSet[obj.GetName()]; ok {
+	}
+	isManaged := func(obj *networkingv1.NetworkPolicy) bool {
+		labels := obj.GetLabels()
+		if labels != nil && labels[managedByLabelKey] == operatorName && labels[kymaProjectModuleLabelKey] == moduleName {
 			return true
 		}
-		return false
+		_, ok := nameSet[obj.GetName()]
+		return ok
 	}
 
 	return predicate.Funcs{

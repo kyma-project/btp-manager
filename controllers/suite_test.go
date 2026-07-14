@@ -27,6 +27,8 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -179,6 +181,8 @@ var _ = SynchronizedBeforeSuite(func() {
 	metrics := btpmanagermetrics.NewWebhookMetrics(testRegistry)
 	configMetrics := btpmanagermetrics.NewConfigMetrics(testRegistry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
+	manifestHandler := &manifest.Handler{Scheme: k8sManager.GetScheme()}
+	networkPolicyManager := networkpolicy.NewManager(k8sManager.GetClient(), manifestHandler)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
@@ -188,6 +192,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		[]config.WatchHandler{
 			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
+		networkPolicyManager,
 	)
 
 	k8sClientFromManager = k8sManager.GetClient()
