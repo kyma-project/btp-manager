@@ -467,6 +467,9 @@ func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
 }
 
 func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
+	if r.networkPolicyManager == nil {
+		return nil
+	}
 	logger := log.FromContext(ctx)
 	networkPolicies, err := r.networkPolicyManager.LoadNetworkPolicies()
 	if err != nil {
@@ -635,10 +638,16 @@ func (r *BtpOperatorReconciler) prepareModuleResourcesFromManifests(ctx context.
 }
 
 func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
+	if r.networkPolicyManager == nil {
+		return nil
+	}
 	return r.networkPolicyManager.CleanupNetworkPolicies(ctx)
 }
 
 func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Context) error {
+	if r.networkPolicyManager == nil {
+		return nil
+	}
 	return r.networkPolicyManager.DeleteOldWebhookNetworkPolicy(ctx)
 }
 
