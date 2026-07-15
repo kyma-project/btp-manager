@@ -355,8 +355,11 @@ data:
                 name: Service Instances
               - source: >-
                   (
+                    $secretExists := $exists($allSecrets().items[metadata.name = $item.secretName][0]);
                     $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
-                    $item.instances[0].namespace = $managedNamespace ? 'In Use' : 'Not in Use';
+                    $secretExists
+                      ? ($item.instances[0].namespace = $managedNamespace ? 'In Use' : 'Not in Use')
+                      : 'Not Found';
                   )
                 name: Status
                 widget: Badge
@@ -365,12 +368,17 @@ data:
                     - In Use
                   warning:
                     - Not in Use
+                  critical:
+                    - Not Found
                 description: >-
                   (
+                    $secretExists := $exists($allSecrets().items[metadata.name = $item.secretName][0]);
                     $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
-                    $item.instances[0].namespace = $managedNamespace
-                    ? 'Ok'
-                    : 'This secret is not in the credentials namespace "' & $managedNamespace & '". Service instances referencing it will fail to provision. To resolve this, either move the secret to the credentials namespace or update the credentials namespace in the BTP Manager secret.'
+                    $secretExists
+                      ? ($item.instances[0].namespace = $managedNamespace
+                          ? 'Ok'
+                          : 'This secret is not in the credentials namespace "' & $managedNamespace & '". Service instances referencing it will fail to provision. To resolve this, either move the secret to the credentials namespace or update the credentials namespace in the BTP Manager secret.')
+                      : 'Secret "' & $item.secretName & '" does not exist. Create it or correct the btpAccessCredentialsSecret field on the referencing Service Instance.';
                   )
               - source: >-
                   (
