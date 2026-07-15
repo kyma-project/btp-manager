@@ -3,75 +3,16 @@ name: Run CA bundle probe E2E tests
 on:
   pull_request:
     types: [ opened, synchronize, reopened, ready_for_review ]
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
+      - "component-config.yaml"
   workflow_dispatch:
 
 jobs:
   run-ca-bundle-probe-e2e:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-
-      - name: Prepare K3s cluster and docker registry
-        run: "./scripts/testing/k3s-setup.sh --wait"
-
-      - name: Build and push BTP Manager image to local registry
-        run: ./scripts/testing/build-and-push-image.sh localhost:5000/btp-manager:latest
-
-      - name: Install BTP operator (dummy credentials)
-        run: "./scripts/testing/install_module.sh localhost:5000/btp-manager:latest dummy"
-
-      - name: Build and push probe images to local registry
-        run: |
-          docker build -t localhost:5000/ca-bundle-probe:latest -f tests/probe/Dockerfile .
-          docker push localhost:5000/ca-bundle-probe:latest
-          docker build -t localhost:5000/fake-server:latest -f tests/fake-server/Dockerfile .
-          docker push localhost:5000/fake-server:latest
-          docker build -t localhost:5000/ca-bundle-webhook:latest -f tests/webhook/Dockerfile .
-          docker push localhost:5000/ca-bundle-webhook:latest
-
-      - name: Configure probe runner in BTP Manager deployment
-        run: |
-          kubectl patch configmap sap-btp-manager -n kyma-system \
-            --type merge -p '{"data":{"ProbeInterval":"10s"}}'
-          kubectl set env deployment/btp-manager-controller-manager \
-            -n kyma-system \
-            -c manager \
-            PROBE_IMAGE=localhost:5000/ca-bundle-probe:latest \
-            PROBE_TOKENURL_OVERRIDE=https://fake-server.kyma-system.svc.cluster.local/health
-          kubectl rollout restart deployment/btp-manager-controller-manager -n kyma-system
-          kubectl rollout status deployment/btp-manager-controller-manager \
-            -n kyma-system --timeout=120s
-
-      - name: Run CA bundle probe E2E tests
-        env:
-          PROBE_IMAGE: localhost:5000/ca-bundle-probe:latest
-          FAKE_SERVER_IMAGE: localhost:5000/fake-server:latest
-          WEBHOOK_IMAGE: localhost:5000/ca-bundle-webhook:latest
-        run: "./scripts/testing/run_e2e_ca_bundle_probe_test.sh"
-
-      - name: Dump debug info on failure
-        if: failure()
-        run: |
-          echo "=== btp-manager pods ==="
-          kubectl get pods -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io || true
-          echo "=== btp-manager logs (current + previous) ==="
-          kubectl logs -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --tail=150 || true
-          kubectl logs -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --tail=150 -p 2>/dev/null || true
-          echo "=== probe jobs ==="
-          kubectl get jobs -n kyma-system || true
-          kubectl describe jobs/ca-bundle-probe -n kyma-system 2>/dev/null || true
-          echo "=== probe job pods ==="
-          kubectl get pods -n kyma-system -l job-name=ca-bundle-probe || true
-          kubectl logs -n kyma-system -l job-name=ca-bundle-probe --tail=50 || true
-          echo "=== BtpOperator annotations ==="
-          kubectl get btpoperator/btpoperator -n kyma-system -o jsonpath='{.metadata.annotations}' | tr ',' '\n' || true
-          echo "=== btp-manager deployment env ==="
-          kubectl get deployment/btp-manager-controller-manager -n kyma-system \
-            -o jsonpath='{.spec.template.spec.containers[0].env}' | tr ',' '\n' || true
+    uses: "./.github/workflows/run-e2e-ca-bundle-probe-tests-reusable.yaml"
+    with:
+      release: "false"
+      image-tag: latest
+      image-repo: localhost:5000/btp-manager

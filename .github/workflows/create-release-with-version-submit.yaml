@@ -11,7 +11,6 @@ env:
 permissions:
   contents: write
   id-token: write
-  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -101,7 +100,7 @@ jobs:
 
   run-e2e-tests:
     name: E2E tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -113,7 +112,7 @@ jobs:
 
   run-stress-tests:
     name: Stress tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     runs-on: ubuntu-latest
     env:
       OPERATOR_POST_STARTUP_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_STARTUP_MEM_THRESHOLD }}
@@ -138,6 +137,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.name }}"
+
+      - name: Bump probe image tag
+        run: sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.name }}|g" config/manager/set_external_images.yaml
 
       - name: Install BTP Manager and SAP BTP Operator - LimitedCache enabled
         timeout-minutes: 2
@@ -167,7 +169,7 @@ jobs:
 
   run-performance-tests:
     name: Performance tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     uses: "./.github/workflows/run-performance-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -178,7 +180,7 @@ jobs:
 
   run-e2e-upgrade-tests:
     name: E2E upgrade tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     secrets: inherit
     if: ${{ inputs.credentials == 'real' }}
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
@@ -188,7 +190,7 @@ jobs:
 
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     secrets: inherit
     uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
     with:
@@ -198,7 +200,7 @@ jobs:
 
   run-e2e-sap-btp-manager-secret-customization-test:
     name: E2E BTP Manager secret customization test
-    needs: build-image
+    needs: [build-image, build-probe-image]
     secrets: inherit
     uses: "./.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml"
     with:
@@ -206,12 +208,20 @@ jobs:
       image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       image-tag: ${{ github.event.inputs.name }}
 
+  run-ca-bundle-probe-e2e:
+    name: CA bundle probe E2E tests
+    needs: [build-image, build-probe-image]
+    secrets: inherit
+    uses: "./.github/workflows/run-e2e-ca-bundle-probe-tests-reusable.yaml"
+    with:
+      release: "true"
+      image-tag: ${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, build-probe-image]
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, run-ca-bundle-probe-e2e, build-probe-image]
     runs-on: ubuntu-latest
-    env:
-      PR_NUMBER: -1
 
     steps:
       - name: Checkout code
@@ -259,18 +269,7 @@ jobs:
             echo "PR_NUMBER=-1" >> $GITHUB_ENV
           else
             PR_STATUS=$(scripts/create_sec_scanner_bump_pr.sh ${{ inputs.name }})
-            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV
-          fi
-
-      - name: Label PR
-        if: ${{ !inputs.skip-sec-file-bump }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ "$PR_NUMBER" -gt 0 ]; then
-            gh pr edit "$PR_NUMBER" --add-label kind/enhancement
-          else
-            echo "Step skipped"
+            echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV          
           fi
 
       - name: Merge PR
@@ -416,7 +415,7 @@ jobs:
 
       - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }} # We do use bot token here to trigger workflow uploading logs
         run: |
           gh release edit ${{ inputs.name }} --draft=false
 

@@ -331,9 +331,9 @@ kubectl delete deployment/ca-bundle-webhook deployment/fake-server -n "$NAMESPAC
 kubectl delete service/ca-bundle-webhook service/fake-server -n "$NAMESPACE" --ignore-not-found
 kubectl delete mutatingwebhookconfiguration/ca-bundle-webhook --ignore-not-found
 kubectl delete secret/ca-bundle secret/fake-server-tls secret/ca-bundle-webhook-tls -n "$NAMESPACE" --ignore-not-found
-kubectl delete clusterrole/ca-bundle-probe clusterrole/ca-bundle-webhook --ignore-not-found
-kubectl delete clusterrolebinding/ca-bundle-probe clusterrolebinding/ca-bundle-webhook --ignore-not-found
-kubectl delete serviceaccount/ca-bundle-probe serviceaccount/ca-bundle-webhook -n "$NAMESPACE" --ignore-not-found
+kubectl delete clusterrole/btp-manager-ca-bundle-probe clusterrole/ca-bundle-webhook --ignore-not-found
+kubectl delete clusterrolebinding/btp-manager-ca-bundle-probe clusterrolebinding/ca-bundle-webhook --ignore-not-found
+kubectl delete serviceaccount/btp-manager-ca-bundle-probe serviceaccount/ca-bundle-webhook -n "$NAMESPACE" --ignore-not-found
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"

@@ -1,0 +1,96 @@
+name: Run CA bundle probe E2E tests (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      release:
+        description: Determines if the workflow is called from release
+        default: "false"
+        type: string
+      image-tag:
+        description: BTP Manager and probe image tag
+        required: true
+        type: string
+      image-repo:
+        description: BTP Manager image registry reference
+        required: true
+        type: string
+
+jobs:
+  run-ca-bundle-probe-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Prepare K3s cluster and docker registry
+        run: "./scripts/testing/k3s-setup.sh --wait"
+
+      - name: Build and push BTP Manager image to local registry
+        if: ${{ inputs.release == 'false' }}
+        run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
+
+      - name: Build and push probe image to local registry
+        if: ${{ inputs.release == 'false' }}
+        run: ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Build and push fake-server and webhook images to local registry
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/fake-server:${{ inputs.image-tag }} tests/fake-server/Dockerfile
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-webhook:${{ inputs.image-tag }} tests/webhook/Dockerfile
+
+      - name: Install BTP operator
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} dummy"
+
+      - name: Configure probe runner in BTP Manager deployment
+        env:
+          PROBE_IMAGE: ${{ inputs.release == 'true' && format('europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:{0}', inputs.image-tag) || format('localhost:5000/ca-bundle-probe:{0}', inputs.image-tag) }}
+        run: |
+          kubectl patch configmap sap-btp-manager -n kyma-system \
+            --type merge -p '{"data":{"ProbeInterval":"10s"}}'
+          kubectl set env deployment/btp-manager-controller-manager \
+            -n kyma-system \
+            -c manager \
+            PROBE_IMAGE=${PROBE_IMAGE} \
+            PROBE_TOKENURL_OVERRIDE=https://fake-server.kyma-system.svc.cluster.local/health
+          kubectl rollout restart deployment/btp-manager-controller-manager -n kyma-system
+          kubectl rollout status deployment/btp-manager-controller-manager \
+            -n kyma-system --timeout=120s
+
+      - name: Run CA bundle probe E2E tests
+        env:
+          PROBE_IMAGE: ${{ inputs.release == 'true' && format('europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:{0}', inputs.image-tag) || format('localhost:5000/ca-bundle-probe:{0}', inputs.image-tag) }}
+          FAKE_SERVER_IMAGE: localhost:5000/fake-server:${{ inputs.image-tag }}
+          WEBHOOK_IMAGE: localhost:5000/ca-bundle-webhook:${{ inputs.image-tag }}
+        run: "./scripts/testing/run_e2e_ca_bundle_probe_test.sh"
+
+      - name: Dump debug info on failure
+        if: failure()
+        run: |
+          echo "=== btp-manager pods ==="
+          kubectl get pods -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io || true
+          echo "=== btp-manager logs (current + previous) ==="
+          kubectl logs -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --tail=150 || true
+          kubectl logs -n kyma-system -l app.kubernetes.io/component=btp-manager.kyma-project.io --tail=150 -p 2>/dev/null || true
+          echo "=== probe jobs ==="
+          kubectl get jobs -n kyma-system || true
+          kubectl describe jobs/btp-manager-ca-bundle-probe -n kyma-system 2>/dev/null || true
+          echo "=== probe job pods ==="
+          kubectl get pods -n kyma-system -l job-name=btp-manager-ca-bundle-probe || true
+          kubectl logs -n kyma-system -l job-name=btp-manager-ca-bundle-probe --tail=50 || true
+          echo "=== BtpOperator annotations ==="
+          kubectl get btpoperator/btpoperator -n kyma-system -o jsonpath='{.metadata.annotations}' | tr ',' '\n' || true
+          echo "=== btp-manager deployment env ==="
+          kubectl get deployment/btp-manager-controller-manager -n kyma-system \
+            -o jsonpath='{.spec.template.spec.containers[0].env}' | tr ',' '\n' || true

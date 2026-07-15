@@ -39,12 +39,23 @@ jobs:
         if: ${{ inputs.release == 'false' }}
         run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
+      - name: Build and push probe image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
       - name: Install BTP Manager and SAP BTP Operator
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SM_URL: ${{ secrets.SM_URL }}
-          SM_TOKEN_URL: ${{ secrets.TOKENURL }}  
+          SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
         run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
@@ -105,6 +116,17 @@ jobs:
       - name: Build and push BTP Manager image to k3s registry
         if: ${{ inputs.release == 'false' }}
         run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
+
+      - name: Build and push probe image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
 
       - name: Install BTP Manager and SAP BTP Operator
         env:
@@ -186,6 +208,17 @@ jobs:
         if: ${{ inputs.release == 'false' }}
         run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
+      - name: Build and push probe image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
       - name: Install BTP Manager and SAP BTP Operator
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -263,6 +296,11 @@ jobs:
         run: |
           kubectl apply -f ./deployments/prerequisites.yaml
           kubectl apply -f ./examples/btp-manager-secret.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
 
       - name: Build BTP Manager
         timeout-minutes: 2

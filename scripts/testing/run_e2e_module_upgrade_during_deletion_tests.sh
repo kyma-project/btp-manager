@@ -81,6 +81,16 @@ echo -e "\n--- Current ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment resource v
 # Restore the current version for the upgrade
 git checkout "${CURRENT_COMMIT}"
 
+# Patch set_external_images.yaml so kustomize deploys the correct probe image.
+UPGRADE_IMAGE_TAG="${UPGRADE_IMAGE##*:}"
+if [[ "${UPGRADE_IMAGE_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  # release: use the prod registry image at the release tag
+  sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${UPGRADE_IMAGE_TAG}|g" config/manager/set_external_images.yaml
+else
+  # PR/dev: use the locally built image pushed to the k3s registry
+  sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${UPGRADE_IMAGE_TAG}|g" config/manager/set_external_images.yaml
+fi
+
 echo -e "\n--- UPGRADING MODULE"
 
 # deploy upgrade image

@@ -107,6 +107,15 @@ echo -e "\n--- ServiceBinding is ready"
 # Restore the current version for the upgrade
 git checkout "${CURRENT_COMMIT}"
 
+# Patch set_external_images.yaml so kustomize deploys the correct probe image.
+if [[ "${NEW_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  # release: use the prod registry image at the release tag
+  sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${NEW_TAG}|g" config/manager/set_external_images.yaml
+else
+  # PR/dev: use the locally built image pushed to the k3s registry
+  sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${NEW_TAG}|g" config/manager/set_external_images.yaml
+fi
+
 echo -e "\n--- Upgrading the module"
 echo -e "\n--- Running version: ${NEW_TAG}"
 

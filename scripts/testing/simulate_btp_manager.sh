@@ -66,7 +66,7 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: ca-bundle-probe
+      serviceAccountName: btp-manager-ca-bundle-probe
       restartPolicy: Never
       containers:
         - name: probe
@@ -101,9 +101,11 @@ reconcile() {
       --wait=false 2>/dev/null || true
   fi
 
-  # Advance last-hash unconditionally
-  kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
-    --overwrite "tls-probe-last-hash=$hash" 2>/dev/null
+  # Advance last-hash only when probe wrote a non-empty hash (matches probe_runner.go behaviour)
+  if [[ -n "$hash" ]]; then
+    kubectl annotate btpoperator/"$BTPOPERATOR_NAME" -n "$NAMESPACE" \
+      --overwrite "tls-probe-last-hash=$hash" 2>/dev/null
+  fi
 }
 
 runCycle() {
