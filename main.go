@@ -44,6 +44,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
+	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
 	//+kubebuilder:scaffold:imports
@@ -133,6 +134,7 @@ func main() {
 	manifestHandler := &manifest.Handler{Scheme: scheme}
 	networkPolicyManager := networkpolicy.NewManager(mgr.GetClient(), manifestHandler)
 	driftDetector := drift.NewDetector(mgr.GetClient(), apiServerClient)
+	moduleResourceManager := moduleresource.NewManager(mgr.GetClient(), scheme, driftDetector)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
@@ -144,6 +146,7 @@ func main() {
 		},
 		networkPolicyManager,
 		driftDetector,
+		moduleResourceManager,
 	)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
