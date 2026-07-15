@@ -338,7 +338,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
 	}
 
-	if errWithReason := r.driftDetector.CheckClusterIdSecretDrift(ctx, requiredSecret); errWithReason != nil {
+	if errWithReason := r.driftDetector.ResolveClusterIdSecretDrift(ctx, requiredSecret); errWithReason != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
 	}
 

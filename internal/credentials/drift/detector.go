@@ -3,6 +3,7 @@ package drift
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -44,7 +45,7 @@ type Detector interface {
 	PreviousCredentialsNamespace() string
 	CheckCredentialsNamespaceDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason
 	CheckClusterIdConfigMapDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason
-	CheckClusterIdSecretDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason
+	ResolveClusterIdSecretDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason
 	GetDefaultCredentialsSecret(ctx context.Context) (*corev1.Secret, error)
 	GetSapBtpServiceOperatorConfigMap(ctx context.Context) (*corev1.ConfigMap, error)
 	DeleteClusterIdSecret(ctx context.Context) error
@@ -160,7 +161,7 @@ func (d *DriftDetector) CheckClusterIdConfigMapDrift(ctx context.Context, requir
 	return nil
 }
 
-func (d *DriftDetector) CheckClusterIdSecretDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason {
+func (d *DriftDetector) ResolveClusterIdSecretDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason {
 	logger := log.FromContext(ctx)
 
 	clusterIdSecret, err := d.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, d.credentialsNamespaceFromSapBtpServiceOperatorSecret)
@@ -258,11 +259,19 @@ func (d *DriftDetector) GetDefaultCredentialsSecret(ctx context.Context) (*corev
 	if len(secrets.Items) == 0 {
 		return nil, nil
 	}
+	// Sort by namespace so that, when more than one operator secret exists, the
+	// fallback pick is deterministic rather than dependent on List ordering.
+	sort.Slice(secrets.Items, func(i, j int) bool {
+		return secrets.Items[i].Namespace < secrets.Items[j].Namespace
+	})
 	for i, s := range secrets.Items {
-		if s.Name == sapBtpServiceOperatorSecretName && s.Namespace == d.previousCredentialsNamespace {
-			defaultCredentialsSecret = &secrets.Items[i]
-			break
-		} else if s.Name == sapBtpServiceOperatorSecretName {
+		if s.Name != sapBtpServiceOperatorSecretName {
+			continue
+		}
+		if s.Namespace == d.previousCredentialsNamespace {
+			return &secrets.Items[i], nil
+		}
+		if defaultCredentialsSecret == nil {
 			defaultCredentialsSecret = &secrets.Items[i]
 		}
 	}

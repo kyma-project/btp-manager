@@ -118,6 +118,22 @@ var _ = Describe("Drift Detector", func() {
 			Expect(secret.Namespace).To(Equal("other-ns"))
 		})
 
+		It("should deterministically pick the lowest namespace when multiple secrets match and none is the previous namespace", func() {
+			secretInB := operatorSecret("ns-b")
+			secretInA := operatorSecret("ns-a")
+			secretInC := operatorSecret("ns-c")
+			k8sClient = newFakeClient(secretInB, secretInA, secretInC)
+			detector = drift.NewDetector(k8sClient, k8sClient)
+
+			detector.InitializeFromSecret(nil)
+
+			secret, err := detector.GetDefaultCredentialsSecret(ctx)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(secret).NotTo(BeNil())
+			Expect(secret.Namespace).To(Equal("ns-a"))
+		})
+
 		It("should ignore secrets with a different name", func() {
 			unrelatedSecret := &corev1.Secret{}
 			unrelatedSecret.Name = "some-other-secret"
@@ -344,7 +360,7 @@ var _ = Describe("Drift Detector", func() {
 		})
 	})
 
-	Describe("CheckClusterIdSecretDrift", func() {
+	Describe("ResolveClusterIdSecretDrift", func() {
 		var requiredSecret *corev1.Secret
 
 		BeforeEach(func() {
@@ -359,7 +375,7 @@ var _ = Describe("Drift Detector", func() {
 			})
 
 			It("should return nil (no drift)", func() {
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).To(BeNil())
 			})
@@ -375,13 +391,13 @@ var _ = Describe("Drift Detector", func() {
 			})
 
 			It("should return nil (no drift)", func() {
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).To(BeNil())
 			})
 
 			It("should track the cluster ID secret's value", func() {
-				Expect(detector.CheckClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
+				Expect(detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
 
 				Expect(detector.ClusterIdFromOperatorClusterIdSecret()).To(Equal("cluster-1"))
 			})
@@ -400,7 +416,7 @@ var _ = Describe("Drift Detector", func() {
 			})
 
 			It("should annotate the required secret with the stale cluster ID", func() {
-				Expect(detector.CheckClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
+				Expect(detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
 
 				Expect(requiredSecret.Annotations).To(HaveKeyWithValue(
 					previousClusterIdAnnotationKey, "stale-cluster-id",
@@ -408,7 +424,7 @@ var _ = Describe("Drift Detector", func() {
 			})
 
 			It("should delete the stale cluster ID secret", func() {
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).To(BeNil())
 
@@ -418,7 +434,7 @@ var _ = Describe("Drift Detector", func() {
 			})
 
 			It("should restart the not-ready operator pod", func() {
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).To(BeNil())
 
@@ -439,7 +455,7 @@ var _ = Describe("Drift Detector", func() {
 			})
 
 			It("should not delete the ready pod", func() {
-				Expect(detector.CheckClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
+				Expect(detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
 
 				pods := &corev1.PodList{}
 				Expect(k8sClient.List(ctx, pods, client.MatchingLabels{instanceLabelKey: operandName})).To(Succeed())
@@ -458,7 +474,7 @@ var _ = Describe("Drift Detector", func() {
 			})
 
 			It("should not restart a pod outside ChartNamespace", func() {
-				Expect(detector.CheckClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
+				Expect(detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
 
 				pods := &corev1.PodList{}
 				Expect(k8sClient.List(ctx, pods, client.MatchingLabels{instanceLabelKey: operandName})).To(Succeed())
@@ -472,7 +488,7 @@ var _ = Describe("Drift Detector", func() {
 				detector = drift.NewDetector(k8sClient, badApiClient)
 				detector.InitializeFromSecret(requiredSecret)
 
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).NotTo(BeNil())
 				Expect(result.Reason).To(Equal(conditions.GettingSapBtpServiceOperatorClusterIdSecretFailed))
@@ -487,7 +503,7 @@ var _ = Describe("Drift Detector", func() {
 				detector.InitializeFromSecret(requiredSecret)
 				detector.SetClusterIdFromOperatorConfigMap("cluster-1")
 
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).NotTo(BeNil())
 				Expect(result.Reason).To(Equal(conditions.AnnotatingSecretFailed))
@@ -502,7 +518,7 @@ var _ = Describe("Drift Detector", func() {
 				detector.InitializeFromSecret(requiredSecret)
 				detector.SetClusterIdFromOperatorConfigMap("cluster-1")
 
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).NotTo(BeNil())
 				Expect(result.Reason).To(Equal(conditions.DeletionOfOrphanedResourcesFailed))
@@ -518,7 +534,7 @@ var _ = Describe("Drift Detector", func() {
 				detector.InitializeFromSecret(requiredSecret)
 				detector.SetClusterIdFromOperatorConfigMap("cluster-1")
 
-				result := detector.CheckClusterIdSecretDrift(ctx, requiredSecret)
+				result := detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)
 
 				Expect(result).NotTo(BeNil())
 				Expect(result.Reason).To(Equal(conditions.ResourceRemovalFailed))
@@ -544,7 +560,7 @@ var _ = Describe("Drift Detector", func() {
 				detector.InitializeFromSecret(requiredSecret)
 				Expect(detector.CheckCredentialsNamespaceDrift(ctx, requiredSecret)).To(Succeed())
 				Expect(detector.CheckClusterIdConfigMapDrift(ctx, requiredSecret)).To(Succeed())
-				Expect(detector.CheckClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
+				Expect(detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
 			})
 
 			It("should not delete any resources", func() {
@@ -579,7 +595,7 @@ var _ = Describe("Drift Detector", func() {
 				detector.InitializeFromSecret(requiredSecret)
 				Expect(detector.CheckCredentialsNamespaceDrift(ctx, requiredSecret)).To(Succeed())
 				Expect(detector.CheckClusterIdConfigMapDrift(ctx, requiredSecret)).To(Succeed())
-				Expect(detector.CheckClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
+				Expect(detector.ResolveClusterIdSecretDrift(ctx, requiredSecret)).To(Succeed())
 			})
 
 			It("should delete the cluster ID secret and the operator pod", func() {
