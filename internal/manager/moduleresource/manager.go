@@ -102,19 +102,19 @@ func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string)
 }
 
 func (m *Manager) PrepareModuleResources(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
-	configMapIndex, secretIndex, deploymentIndex := -1, -1, -1
-	for i, u := range resourcesToApply {
+	var configMap, secret, deployment *unstructured.Unstructured
+	for _, u := range resourcesToApply {
 		switch {
 		case u.GetName() == "sap-btp-operator-config" && u.GetKind() == "ConfigMap":
-			configMapIndex = i
+			configMap = u
 		case u.GetName() == SapBtpServiceOperatorName && u.GetKind() == "Secret":
-			secretIndex = i
+			secret = u
 		case u.GetName() == config.DeploymentName && u.GetKind() == DeploymentKind:
-			deploymentIndex = i
+			deployment = u
 		}
 	}
-	if configMapIndex < 0 || secretIndex < 0 || deploymentIndex < 0 {
-		return fmt.Errorf("required module resources not found in manifests (configMapIndex=%d, secretIndex=%d, deploymentIndex=%d)", configMapIndex, secretIndex, deploymentIndex)
+	if configMap == nil || secret == nil || deployment == nil {
+		return fmt.Errorf("required module resources not found in manifests (configMap=%t, secret=%t, deployment=%t)", configMap != nil, secret != nil, deployment != nil)
 	}
 	chartVer, err := ymlutils.ExtractStringValueFromYamlForGivenKey(fmt.Sprintf("%s%cChart.yaml", config.ChartPath, os.PathSeparator), "version")
 	if err != nil {
@@ -126,13 +126,13 @@ func (m *Manager) PrepareModuleResources(ctx context.Context, resourcesToApply [
 	}
 	m.SetNamespace(resourcesToApply)
 
-	if err := m.SetConfigMapValues(resourcesToApply[configMapIndex]); err != nil {
+	if err := m.SetConfigMapValues(configMap); err != nil {
 		return fmt.Errorf("failed to set ConfigMap values: %w", err)
 	}
-	if err := m.SetSecretValues(s, resourcesToApply[secretIndex]); err != nil {
+	if err := m.SetSecretValues(s, secret); err != nil {
 		return fmt.Errorf("failed to set Secret values: %w", err)
 	}
-	if err := m.SetDeploymentImages(resourcesToApply[deploymentIndex]); err != nil {
+	if err := m.SetDeploymentImages(deployment); err != nil {
 		return fmt.Errorf("failed to set container images in Deployment: %w", err)
 	}
 
