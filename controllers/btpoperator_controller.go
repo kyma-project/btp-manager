@@ -474,14 +474,7 @@ func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1al
 		return fmt.Errorf("failed to prepare objects to apply: %w", err)
 	}
 
-	var webhookResources, nonWebhookResources []*unstructured.Unstructured
-	for _, u := range resourcesToApply {
-		if certificate.IsAdmissionWebhook(u.GetKind()) {
-			webhookResources = append(webhookResources, u)
-		} else {
-			nonWebhookResources = append(nonWebhookResources, u)
-		}
-	}
+	webhookResources, nonWebhookResources := certificate.PartitionWebhooks(resourcesToApply)
 	preparedWebhooks, err := r.certManager.PrepareAdmissionWebhooks(ctx, webhookResources)
 	if err != nil {
 		logger.Error(err, "while preparing admission webhooks")

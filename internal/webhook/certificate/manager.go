@@ -61,6 +61,19 @@ func IsAdmissionWebhook(kind string) bool {
 	return kind == MutatingWebhookConfigurationKind || kind == ValidatingWebhookConfigurationKind
 }
 
+// PartitionWebhooks splits resources into admission webhook configurations and
+// everything else, so the webhook set can be handed to PrepareAdmissionWebhooks.
+func PartitionWebhooks(resources []*unstructured.Unstructured) (webhooks, rest []*unstructured.Unstructured) {
+	for _, u := range resources {
+		if IsAdmissionWebhook(u.GetKind()) {
+			webhooks = append(webhooks, u)
+		} else {
+			rest = append(rest, u)
+		}
+	}
+	return webhooks, rest
+}
+
 type Manager struct {
 	secretsManager secrets.Manager
 	webhookMetrics WebhookMetrics

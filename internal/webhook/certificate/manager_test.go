@@ -209,4 +209,37 @@ var _ = Describe("Certificate Manager", func() {
 			})
 		})
 	})
+
+	Describe("PartitionWebhooks", func() {
+		It("splits webhook configurations from other resources", func() {
+			mutating := mutatingWebhookConfig("test-mutating")
+			validating := validatingWebhookConfig("test-validating")
+			other := &unstructured.Unstructured{}
+			other.SetKind("ConfigMap")
+			other.SetName("test-config")
+
+			webhooks, rest := certificate.PartitionWebhooks([]*unstructured.Unstructured{mutating, other, validating})
+
+			Expect(webhooks).To(ConsistOf(mutating, validating))
+			Expect(rest).To(ConsistOf(other))
+		})
+
+		It("returns nil slices when there are no resources", func() {
+			webhooks, rest := certificate.PartitionWebhooks(nil)
+
+			Expect(webhooks).To(BeNil())
+			Expect(rest).To(BeNil())
+		})
+
+		It("places all resources in rest when none are webhooks", func() {
+			cm := &unstructured.Unstructured{}
+			cm.SetKind("ConfigMap")
+			cm.SetName("test-config")
+
+			webhooks, rest := certificate.PartitionWebhooks([]*unstructured.Unstructured{cm})
+
+			Expect(webhooks).To(BeNil())
+			Expect(rest).To(ConsistOf(cm))
+		})
+	})
 })
