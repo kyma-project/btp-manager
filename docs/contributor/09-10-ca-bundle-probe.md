@@ -56,7 +56,7 @@ After each Job completes, BTP Manager reads the probe annotations and acts as fo
 | Yes | failed (x509) | Any | Alert metric set to 1 |
 | Any | failed (other) | Any | No action (probe logs internally; no annotation written) |
 
-Mount detection is based solely on the presence of the `rt-bootstrapper-certs` volume mount on the BTP Manager pod (via `POD_NAME` env var).
+Mount detection is based solely on the presence of the `rt-bootstrapper-certs` volume mount on the BTP Manager Pod (using **POD_NAME** environment variable).
 
 ## Configuration
 
