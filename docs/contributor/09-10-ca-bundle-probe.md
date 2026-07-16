@@ -22,7 +22,7 @@ BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On each int
 
 ## Probe Job
 
-The probe Job runs a single container using the image configured via `PROBE_IMAGE`. The Job:
+The probe Job runs a single container using the image configured with **PROBE_IMAGE**. The Job performs the following steps:
 
 - Runs with `RestartPolicy: Never` and `BackoffLimit: 0`.
 - Runs with Istio sidecar injection disabled (`sidecar.istio.io/inject: "false"`).
