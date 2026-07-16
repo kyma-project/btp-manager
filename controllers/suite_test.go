@@ -28,10 +28,13 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	"github.com/prometheus/client_golang/prometheus"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -39,6 +42,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -187,6 +191,8 @@ var _ = SynchronizedBeforeSuite(func() {
 	networkPolicyManager := networkpolicy.NewManager(k8sManager.GetClient(), manifestHandler)
 	driftDetector := drift.NewDetector(k8sManager.GetClient(), k8sClient)
 	moduleResourceManager := moduleresource.NewManager(k8sManager.GetClient(), k8sManager.GetScheme(), driftDetector)
+	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient()), secrets.NewRequiredSecretVerifier())
+	certManager := certificate.NewManager(secretsManager, metrics)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
@@ -199,6 +205,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		networkPolicyManager,
 		driftDetector,
 		moduleResourceManager,
+		certManager,
 	)
 
 	k8sClientFromManager = k8sManager.GetClient()

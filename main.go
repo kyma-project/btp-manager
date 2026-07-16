@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -43,10 +44,13 @@ import (
 	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -135,6 +139,8 @@ func main() {
 	networkPolicyManager := networkpolicy.NewManager(mgr.GetClient(), manifestHandler)
 	driftDetector := drift.NewDetector(mgr.GetClient(), apiServerClient)
 	moduleResourceManager := moduleresource.NewManager(mgr.GetClient(), scheme, driftDetector)
+	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](mgr.GetClient()), secrets.NewRequiredSecretVerifier())
+	certManager := certificate.NewManager(secretsManager, webhookMetrics)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
@@ -147,6 +153,7 @@ func main() {
 		networkPolicyManager,
 		driftDetector,
 		moduleResourceManager,
+		certManager,
 	)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
