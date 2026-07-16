@@ -45,16 +45,16 @@ The probe Job runs a single container using the image configured via `PROBE_IMAG
 
 ## Decision Logic
 
-BTP Manager reads the probe annotations after each Job completes and takes the following actions:
+After each Job completes, BTP Manager reads the probe annotations and acts as follows. "No action" means BTP Manager takes no action; the probe Job itself may log internally.
 
-| Mount present | TLS result | Hash changed | Action |
+| Mount present | TLS result | Hash changed | BTP Manager action |
 |---|---|---|---|
 | No | ok | n/a | No action (public landscape, all good) |
-| No | failed (x509) | n/a | Warning log (system CA doesn't trust tokenurl) |
+| No | failed (x509) | n/a | No action (probe logs internally; no annotation written) |
 | Yes | ok | No | No action (TLS healthy, no rotation) |
 | Yes | ok | Yes | Restart `sap-btp-operator` pods |
 | Yes | failed (x509) | Any | Alert metric set to 1 |
-| Any | failed (other) | Any | Warning log (connectivity/DNS issue) |
+| Any | failed (other) | Any | No action (probe logs internally; no annotation written) |
 
 Mount detection is based solely on the presence of the `rt-bootstrapper-certs` volume mount on the BTP Manager pod (via `POD_NAME` env var).
 
