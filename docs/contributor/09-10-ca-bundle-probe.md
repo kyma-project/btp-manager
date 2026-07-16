@@ -75,7 +75,7 @@ Mount detection is based solely on the presence of the `rt-bootstrapper-certs` v
 
 ## RBAC
 
-The probe Job pod uses the `btp-manager-ca-bundle-probe` ServiceAccount, which has:
+The probe Job Pod uses the `btp-manager-ca-bundle-probe` ServiceAccount, which has the following permissions:
 - `get` and `patch` on `btpoperators.operator.kyma-project.io` (to write result annotations)
 - `get` on `secrets` in `kyma-system` (to read the CA bundle)
 
