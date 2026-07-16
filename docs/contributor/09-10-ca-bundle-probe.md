@@ -17,7 +17,7 @@ BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On each int
 3. Waits for the Job to complete (up to 5 minutes).
 4. Reads the results from annotations on the `BtpOperator` CR.
 5. Updates the `btpmanager_credential_probe_status` Prometheus metric.
-6. If the CA bundle hash changed and TLS is healthy, restarts the `sap-btp-operator` pods.
+6. If the CA bundle hash changed and TLS is healthy, restarts the `sap-btp-operator` Pods.
 7. Updates the `tls-probe-last-hash` annotation on the `BtpOperator` CR.
 
 ## Probe Job
