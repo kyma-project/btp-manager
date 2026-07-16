@@ -4,7 +4,7 @@
 
 The CA bundle probe is a periodic background job that checks whether the TLS certificate of the SAP Service Manager token URL is trusted by the CA bundle currently mounted on the BTP Manager Pod.
 
-It is designed for Kyma clusters where the `rt-bootstrapper` module is active. In such clusters, a custom CA bundle is injected into pods via a volume mount named `rt-bootstrapper-certs`. The probe detects this mount and uses the custom bundle as the certificate pool for TLS verification.
+It is designed for Kyma clusters where the `rt-bootstrapper` module is active. In such clusters, a custom CA bundle is injected into Pods using a volume mount named `rt-bootstrapper-certs`. The probe detects this mount and uses the custom bundle as the certificate pool for TLS verification.
 
 The probe is disabled by default (`ProbeInterval: 0s`). It requires a probe image to be configured using the **PROBE_IMAGE** environment variable.
 
