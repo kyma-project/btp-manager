@@ -329,9 +329,13 @@ data:
               (
                 $instances := $referencedSecrets().items;
                 $uniqueSecrets := $distinct($instances.spec.btpAccessCredentialsSecret);
+                $allSecretsItems := $allSecrets().items;
+                $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
                 $map($uniqueSecrets, function($secretName) {
                   {
                     "secretName": $secretName,
+                    "secretExists": $exists($filter($allSecretsItems, function($s) { $s.metadata.name = $secretName })[0]),
+                    "managedNamespace": $managedNamespace,
                     "instanceCount": $count($filter($instances, function($i) { $i.spec.btpAccessCredentialsSecret = $secretName })),
                     "instances": $filter($instances, function($i) { $i.spec.btpAccessCredentialsSecret = $secretName }).{
                       "name": metadata.name,
@@ -355,10 +359,8 @@ data:
                 name: Service Instances
               - source: >-
                   (
-                    $secretExists := $exists($allSecrets().items[metadata.name = $item.secretName][0]);
-                    $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
-                    $secretExists
-                      ? ($item.instances[0].namespace = $managedNamespace ? 'In Use' : 'Not in Use')
+                    $item.secretExists
+                      ? ($item.instances[0].namespace = $item.managedNamespace ? 'In Use' : 'Not in Use')
                       : 'Not Found';
                   )
                 name: Status
@@ -372,12 +374,10 @@ data:
                     - Not Found
                 description: >-
                   (
-                    $secretExists := $exists($allSecrets().items[metadata.name = $item.secretName][0]);
-                    $managedNamespace := ($exists($btpSecret().data.credentials_namespace) ? $base64decode($btpSecret().data.credentials_namespace) : 'kyma-system');
-                    $secretExists
-                      ? ($item.instances[0].namespace = $managedNamespace
+                    $item.secretExists
+                      ? ($item.instances[0].namespace = $item.managedNamespace
                           ? 'Ok'
-                          : 'This secret is not in the credentials namespace "' & $managedNamespace & '". Service instances referencing it will fail to provision. To resolve this, either move the secret to the credentials namespace or update the credentials namespace in the BTP Manager secret.')
+                          : 'This secret is not in the credentials namespace "' & $item.managedNamespace & '". Service instances referencing it will fail to provision. To resolve this, either move the secret to the credentials namespace or update the credentials namespace in the BTP Manager secret.')
                       : 'Secret "' & $item.secretName & '" does not exist. Create it or correct the btpAccessCredentialsSecret field on the referencing Service Instance.';
                   )
               - source: >-
