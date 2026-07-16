@@ -65,7 +65,10 @@ Mount detection is based solely on the presence of the `rt-bootstrapper-certs` v
 | `ProbeInterval` | ConfigMap `sap-btp-manager` / CLI flag `--probe-interval` | `0s` (disabled) | How often to run the probe. Set to `0` to disable. |
 | `PROBE_IMAGE` | Environment variable | — | Container image for the probe Job. Required to enable the probe. |
 | `PROBE_TOKENURL_OVERRIDE` | Environment variable | — | Override the token URL used by the probe (for testing). |
-| `PROBE_FORCE_HASH` | Environment variable | — | Force a specific hash value (for testing). |
+| **ProbeInterval** | ConfigMap `sap-btp-manager` / CLI flag `--probe-interval` | `0s` (disabled) | How often to run the probe. Set to `0` to disable. |
+| **PROBE_IMAGE** | Environment variable | None | Container image for the probe Job. Required to enable the probe. |
+| **PROBE_TOKENURL_OVERRIDE** | Environment variable | None | Override the token URL used by the probe (for testing). |
+| **PROBE_FORCE_HASH** | Environment variable | None | Force a specific hash value (for testing). |
 
 ## Metric
 
