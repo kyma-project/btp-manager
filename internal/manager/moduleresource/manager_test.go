@@ -79,82 +79,23 @@ var _ = Describe("Module Resource Manager", func() {
 		manager = NewManager(fakeClient, scheme, defaultStubDetector)
 	})
 
-	Describe("partition resources by kind", func() {
-		It("should return resources of the requested kind in matching and the rest in rest", func() {
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
-			Expect(err).NotTo(HaveOccurred())
-
-			matching, rest := manager.ResourcesOfKinds(objects, configmapKind)
-
-			Expect(matching).To(HaveLen(1))
-			Expect(matching[0].GetKind()).To(Equal(configmapKind))
-			Expect(rest).To(HaveLen(2))
-			for _, r := range rest {
-				Expect(r.GetKind()).NotTo(Equal(configmapKind))
-			}
-		})
-
-		It("should place resources appended after loading into rest regardless of kind", func() {
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
-			Expect(err).NotTo(HaveOccurred())
-
-			extra := &unstructured.Unstructured{}
-			extra.SetKind(configmapKind)
-			extra.SetName("extra-configmap")
-			objects = append(objects, extra)
-
-			matching, rest := manager.ResourcesOfKinds(objects, configmapKind)
-
-			Expect(matching).To(HaveLen(1))
-			Expect(matching[0].GetName()).To(Equal(configmapName))
-			Expect(rest).To(HaveLen(3))
-		})
-
-		It("should return all resources in rest when no kind matches", func() {
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
-			Expect(err).NotTo(HaveOccurred())
-
-			matching, rest := manager.ResourcesOfKinds(objects, "NetworkPolicy")
-
-			Expect(matching).To(BeEmpty())
-			Expect(rest).To(HaveLen(len(objects)))
-		})
-
-		It("should return all resources in rest when no kinds are specified", func() {
-			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
-			Expect(err).NotTo(HaveOccurred())
-
-			matching, rest := manager.ResourcesOfKinds(objects)
-
-			Expect(matching).To(BeEmpty())
-			Expect(rest).To(HaveLen(len(objects)))
-		})
-	})
-
 	Describe("create unstructured objects from manifests directory", func() {
 		It("should load and convert manifests to unstructured objects", func() {
 			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objects).To(HaveLen(3))
-			Expect(manager.resourceIndices).To(HaveLen(3))
 
-			configmapIndex := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
-			configmap := objects[configmapIndex]
-			Expect(configmap.GetKind()).To(Equal(configmapKind))
-			Expect(configmap.GetName()).To(Equal(configmapName))
+			configmap := findByKindAndName(objects, configmapKind, configmapName)
+			Expect(configmap).NotTo(BeNil())
 			Expect(configmap.GetNamespace()).To(Equal(testNamespace))
 
-			deploymentIndex := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
-			deployment := objects[deploymentIndex]
-			Expect(deployment.GetKind()).To(Equal(DeploymentKind))
-			Expect(deployment.GetName()).To(Equal(deploymentName))
+			deployment := findByKindAndName(objects, DeploymentKind, deploymentName)
+			Expect(deployment).NotTo(BeNil())
 			Expect(deployment.GetNamespace()).To(Equal(testNamespace))
 
-			secretIndex := manager.resourceIndices[Metadata{Kind: secretKind, Name: secretName}]
-			secret := objects[secretIndex]
-			Expect(secret.GetKind()).To(Equal(secretKind))
-			Expect(secret.GetName()).To(Equal(secretName))
+			secret := findByKindAndName(objects, secretKind, secretName)
+			Expect(secret).NotTo(BeNil())
 			Expect(secret.GetNamespace()).To(Equal(testNamespace))
 		})
 
@@ -181,8 +122,9 @@ var _ = Describe("Module Resource Manager", func() {
 				Expect(labels[ChartVersionLabelKey]).To(Equal(chartVersion))
 			}
 
-			deploymentIndex := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
-			spec, found, err := unstructured.NestedMap(objects[deploymentIndex].Object, "spec", "template", "metadata", "labels")
+			deployment := findByKindAndName(objects, DeploymentKind, deploymentName)
+			Expect(deployment).NotTo(BeNil())
+			spec, found, err := unstructured.NestedMap(deployment.Object, "spec", "template", "metadata", "labels")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
 			Expect(spec[KymaProjectModuleLabelKey]).To(Equal(ModuleName))
@@ -225,9 +167,8 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			configmapIndex, found := manager.resourceIndices[Metadata{Kind: configmapKind, Name: configmapName}]
-			Expect(found).To(BeTrue())
-			configmap := objects[configmapIndex]
+			configmap := findByKindAndName(objects, configmapKind, configmapName)
+			Expect(configmap).NotTo(BeNil())
 
 			err = manager.SetConfigMapValues(configmap)
 			Expect(err).NotTo(HaveOccurred())
@@ -287,9 +228,8 @@ var _ = Describe("Module Resource Manager", func() {
 			objects, err := manager.CreateUnstructuredObjectsFromManifestsDir(moduleResourcesPathToApply)
 			Expect(err).NotTo(HaveOccurred())
 
-			deploymentIndex, found := manager.resourceIndices[Metadata{Kind: DeploymentKind, Name: deploymentName}]
-			Expect(found).To(BeTrue())
-			deployment := objects[deploymentIndex]
+			deployment := findByKindAndName(objects, DeploymentKind, deploymentName)
+			Expect(deployment).NotTo(BeNil())
 
 			err = manager.SetDeploymentImages(deployment)
 			Expect(err).NotTo(HaveOccurred())
@@ -526,6 +466,15 @@ var _ = Describe("Module Resource Manager", func() {
 		})
 	})
 })
+
+func findByKindAndName(objects []*unstructured.Unstructured, kind, name string) *unstructured.Unstructured {
+	for _, o := range objects {
+		if o.GetKind() == kind && o.GetName() == name {
+			return o
+		}
+	}
+	return nil
+}
 
 func requiredSecret() *corev1.Secret {
 	secret := &corev1.Secret{

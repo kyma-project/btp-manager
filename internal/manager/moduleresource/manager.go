@@ -57,14 +57,8 @@ type CredentialsProvider interface {
 	ClusterIdFromManager() string
 }
 
-type Metadata struct {
-	Kind string
-	Name string
-}
-
 type ResourceManager interface {
 	CreateUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error)
-	ResourcesOfKinds(resources []*unstructured.Unstructured, kinds ...string) (matching, rest []*unstructured.Unstructured)
 	PrepareModuleResources(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error
 	ApplyOrUpdateResources(ctx context.Context, us []*unstructured.Unstructured) error
 	WaitForResourcesReadiness(ctx context.Context, us []*unstructured.Unstructured) error
@@ -79,7 +73,6 @@ type Manager struct {
 	client          client.Client
 	scheme          *runtime.Scheme
 	manifestHandler *manifest.Handler
-	resourceIndices map[Metadata]int
 	driftDetector   CredentialsProvider
 }
 
@@ -88,7 +81,6 @@ func NewManager(client client.Client, scheme *runtime.Scheme, driftDetector Cred
 		client:          client,
 		scheme:          scheme,
 		manifestHandler: &manifest.Handler{Scheme: scheme},
-		resourceIndices: make(map[Metadata]int),
 		driftDetector:   driftDetector,
 	}
 }
@@ -106,47 +98,7 @@ func (m *Manager) CreateUnstructuredObjectsFromManifestsDir(manifestsDir string)
 		return nil, fmt.Errorf("while converting to unstructured: %w", err)
 	}
 
-	m.indexModuleResources(unstructuredObjects)
-
 	return unstructuredObjects, nil
-}
-
-func (m *Manager) indexModuleResources(unstructuredObjects []*unstructured.Unstructured) {
-	m.resourceIndices = make(map[Metadata]int, len(unstructuredObjects))
-	for i, u := range unstructuredObjects {
-		resource := Metadata{
-			Kind: u.GetKind(),
-			Name: u.GetName(),
-		}
-		m.resourceIndices[resource] = i
-	}
-}
-
-// ResourcesOfKinds partitions resources into two slices: those whose kind is
-// listed in kinds (matching) and everything else (rest). The partition is based
-// on the index built during manifest loading, so resources appended after
-// loading (e.g. network policies) are always placed in rest regardless of kind.
-func (m *Manager) ResourcesOfKinds(resources []*unstructured.Unstructured, kinds ...string) (matching, rest []*unstructured.Unstructured) {
-	kindSet := make(map[string]struct{}, len(kinds))
-	for _, k := range kinds {
-		kindSet[k] = struct{}{}
-	}
-
-	matchingIndices := make(map[int]struct{})
-	for meta, idx := range m.resourceIndices {
-		if _, ok := kindSet[meta.Kind]; ok {
-			matchingIndices[idx] = struct{}{}
-		}
-	}
-
-	for i, r := range resources {
-		if _, ok := matchingIndices[i]; ok {
-			matching = append(matching, r)
-		} else {
-			rest = append(rest, r)
-		}
-	}
-	return
 }
 
 func (m *Manager) PrepareModuleResources(ctx context.Context, resourcesToApply []*unstructured.Unstructured, s *corev1.Secret) error {
