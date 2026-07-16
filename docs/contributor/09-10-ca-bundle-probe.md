@@ -15,7 +15,7 @@ BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On each int
 1. Deletes any leftover probe Job from a previous cycle.
 2. Creates a new Kubernetes Job (`btp-manager-ca-bundle-probe`) in `kyma-system`.
 3. Waits for the Job to complete (up to 5 minutes).
-4. Reads the results from annotations on the `BtpOperator` CR.
+4. Reads the results from annotations on the `BtpOperator` custom resource (CR).
 5. Updates the `btpmanager_credential_probe_status` Prometheus metric.
 6. If the CA bundle hash changed and TLS is healthy, restarts the `sap-btp-operator` Pods.
 7. Updates the `tls-probe-last-hash` annotation on the `BtpOperator` CR.
