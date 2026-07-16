@@ -162,15 +162,16 @@ func (m *manager) getSecretsByLabels(ctx context.Context, labels map[string]stri
 
 func (m *manager) findSecretInList(secrets []corev1.Secret, secretName, preferredNamespace string) *corev1.Secret {
 	var fallbackSecret *corev1.Secret
-	for _, s := range secrets {
+	for i := range secrets {
+		s := &secrets[i]
 		if s.Name != secretName {
 			continue
 		}
 		if s.Namespace == preferredNamespace {
-			return &s
+			return s
 		}
 		if fallbackSecret == nil {
-			fallbackSecret = &s
+			fallbackSecret = s
 		}
 	}
 
