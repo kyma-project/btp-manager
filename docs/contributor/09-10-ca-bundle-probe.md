@@ -71,7 +71,7 @@ Mount detection is based solely on the presence of the `rt-bootstrapper-certs` v
 
 | Metric | Type | Description |
 |---|---|---|
-| `btpmanager_credential_probe_status` | Gauge | `1` when alert (CA mounted but cert not trusted). Set to `0` when the probe writes a non-alert result. **Not updated** on silent-exit cycles (no mount + TLS ok), so the gauge retains its last written value until the next cycle, where the probe writes annotations. |
+| `btpmanager_credential_probe_status` | Gauge | BTP Manager sets this to `1` when the probe reports an alert (CA mounted but cert not trusted), and to `0` when the probe writes a non-alert result. On silent-exit cycles (no mount + TLS ok), BTP Manager does not update the gauge, so it retains its last written value. |
 
 ## RBAC
 
