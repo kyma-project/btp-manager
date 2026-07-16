@@ -11,17 +11,11 @@ import (
 )
 
 const (
-	operatorName                             = "btp-manager"
-	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
-	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
-	caServerCertSecretName                   = "ca-server-cert"
-	webhookServerCertSecretName              = "webhook-server-cert"
-	managedByLabel                           = "app.kubernetes.io/managed-by"
-	managedByBTPOperatorLabel                = "services.cloud.sap.com/managed-by-sap-btp-operator"
+	caServerCertSecretName      = "ca-server-cert"
+	webhookServerCertSecretName = "webhook-server-cert"
 
 	logKeyName      = "name"
 	logKeyNamespace = "namespace"
-	logKeyLabels    = "labels"
 )
 
 type Reader interface {
@@ -29,23 +23,7 @@ type Reader interface {
 	List(ctx context.Context, list *corev1.SecretList, opts ...client.ListOption) error
 }
 
-type Writer interface {
-	Create(ctx context.Context, object *corev1.Secret, opts ...client.CreateOption) error
-	Apply(ctx context.Context, object *corev1.Secret, opts ...client.PatchOption) error
-	Update(ctx context.Context, object *corev1.Secret, opts ...client.UpdateOption) error
-	Delete(ctx context.Context, object *corev1.Secret, opts ...client.DeleteOption) error
-}
-
-type SecretClient interface {
-	Reader
-	Writer
-}
-
 type Manager interface {
-	// GetRequiredSecret retrieves the required sap-btp-manager secret.
-	// Returns an error if the secret is not found.
-	GetRequiredSecret(ctx context.Context) (*corev1.Secret, error)
-
 	// GetCaServerCertSecret retrieves the CA server certificate secret.
 	// Returns nil if the secret is not found (optional secret).
 	GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error)
@@ -53,42 +31,16 @@ type Manager interface {
 	// GetWebhookServerCertSecret retrieves the webhook server certificate secret.
 	// Returns nil if the secret is not found (optional secret).
 	GetWebhookServerCertSecret(ctx context.Context) (*corev1.Secret, error)
-
-	// GetSapBtpServiceOperatorSecret retrieves the SAP BTP service operator secret.
-	// Returns nil if no matching secret is found.
-	GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error)
-
-	// GetSapBtpServiceOperatorClusterIdSecret retrieves the cluster ID secret.
-	// Returns nil if no matching secret is found.
-	GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error)
 }
 
 type manager struct {
-	SecretClient
-	Verifier
+	Reader
 }
 
-func NewManager(secretClient SecretClient, secretVerifier Verifier) Manager {
+func NewManager(secretReader Reader) Manager {
 	return &manager{
-		SecretClient: secretClient,
-		Verifier:     secretVerifier,
+		Reader: secretReader,
 	}
-}
-
-func (m *manager) GetRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Getting the required secret", logKeyName, config.SecretName, logKeyNamespace, config.KymaSystemNamespaceName)
-	secret, err := m.getSecretByNameAndNamespace(ctx, config.SecretName, config.KymaSystemNamespaceName)
-	if err != nil {
-		logger.Error(err, "Failed to get the required secret")
-		return nil, err
-	}
-	if err := m.Verify(secret); err != nil {
-		logger.Error(err, "Secret is invalid")
-		return nil, err
-	}
-
-	return secret, nil
 }
 
 func (m *manager) GetCaServerCertSecret(ctx context.Context) (*corev1.Secret, error) {
@@ -103,8 +55,8 @@ func (m *manager) getOptionalSecretByNameAndNamespace(ctx context.Context, name,
 	logger := log.FromContext(ctx)
 	logger.Info("Getting secret", logKeyName, name, logKeyNamespace, namespace)
 
-	secret, err := m.getSecretByNameAndNamespace(ctx, name, namespace)
-	if err != nil {
+	secret := &corev1.Secret{}
+	if err := m.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, secret); err != nil {
 		if k8serrors.IsNotFound(err) {
 			logger.Info("Secret not found", logKeyName, name)
 			return nil, nil
@@ -113,67 +65,4 @@ func (m *manager) getOptionalSecretByNameAndNamespace(ctx context.Context, name,
 		return nil, err
 	}
 	return secret, nil
-}
-
-func (m *manager) getSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	if err := m.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, secret); err != nil {
-		return nil, err
-	}
-	return secret, nil
-}
-
-func (m *manager) GetSapBtpServiceOperatorSecret(ctx context.Context) (*corev1.Secret, error) {
-	labels := map[string]string{managedByLabel: operatorName}
-	return m.getSecretByNameAndLabels(ctx, sapBtpServiceOperatorSecretName, labels)
-}
-
-func (m *manager) GetSapBtpServiceOperatorClusterIdSecret(ctx context.Context) (*corev1.Secret, error) {
-	labels := map[string]string{managedByBTPOperatorLabel: "true"}
-	return m.getSecretByNameAndLabels(ctx, sapBtpServiceOperatorClusterIdSecretName, labels)
-}
-
-func (m *manager) getSecretByNameAndLabels(ctx context.Context, secretName string, labels map[string]string) (*corev1.Secret, error) {
-	logger := log.FromContext(ctx)
-	logger.Info("Getting secret by name and labels", logKeyName, secretName, logKeyLabels, labels)
-
-	secrets, err := m.getSecretsByLabels(ctx, labels)
-	if err != nil {
-		return nil, err
-	}
-	if len(secrets) == 0 {
-		logger.Info("No secrets found")
-		return nil, nil
-	}
-	return m.findSecretInList(secrets, secretName, config.ChartNamespace), nil
-}
-
-func (m *manager) getSecretsByLabels(ctx context.Context, labels map[string]string) ([]corev1.Secret, error) {
-	logger := log.FromContext(ctx)
-	secrets := &corev1.SecretList{}
-
-	logger.Info("Listing secrets by labels", logKeyLabels, labels)
-	if err := m.List(ctx, secrets, client.MatchingLabels(labels)); err != nil {
-		logger.Error(err, "Failed to list secrets")
-		return nil, err
-	}
-	return secrets.Items, nil
-}
-
-func (m *manager) findSecretInList(secrets []corev1.Secret, secretName, preferredNamespace string) *corev1.Secret {
-	var fallbackSecret *corev1.Secret
-	for i := range secrets {
-		s := &secrets[i]
-		if s.Name != secretName {
-			continue
-		}
-		if s.Namespace == preferredNamespace {
-			return s
-		}
-		if fallbackSecret == nil {
-			fallbackSecret = s
-		}
-	}
-
-	return fallbackSecret
 }

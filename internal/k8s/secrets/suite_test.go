@@ -15,11 +15,9 @@ import (
 )
 
 const (
-	requiredSecretName                       = "sap-btp-manager"
-	kymaNamespace                            = "kyma-system"
-	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
-	caServerCertSecretName                   = "ca-server-cert"
-	webhookServerCertSecretName              = "webhook-server-cert"
+	kymaNamespace               = "kyma-system"
+	caServerCertSecretName      = "ca-server-cert"
+	webhookServerCertSecretName = "webhook-server-cert"
 )
 
 var (
@@ -40,24 +38,6 @@ var _ = BeforeSuite(func() {
 		WithScheme(scheme).
 		Build()
 })
-
-func requiredSecret() *corev1.Secret {
-	return credsSecretWithNameAndNamespace(requiredSecretName, kymaNamespace)
-}
-
-func credsSecretWithNameAndNamespace(name, namespace string) *corev1.Secret {
-	secret := secretWithNameAndNamespaceManagedByBtpManager(name, namespace)
-	data := map[string][]byte{
-		"clientid":       []byte("dGVzdF9jbGllbnRpZA=="),
-		"clientsecret":   []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
-		"sm_url":         []byte("dGVzdF9zbV91cmw="),
-		"tokenurl":       []byte("dGVzdF90b2tlbnVybA=="),
-		"tokenurlsuffix": []byte("L29hdXRoL3Rva2Vu"),
-		"cluster_id":     []byte("dGVzdF9jbHVzdGVyX2lk"),
-	}
-	secret.Data = data
-	return secret
-}
 
 func secretWithNameAndNamespaceManagedByBtpManager(name, namespace string) *corev1.Secret {
 	secret := secretWithNameAndNamespace(name, namespace)

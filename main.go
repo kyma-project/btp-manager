@@ -139,7 +139,7 @@ func main() {
 	networkPolicyManager := networkpolicy.NewManager(mgr.GetClient(), manifestHandler)
 	driftDetector := drift.NewDetector(mgr.GetClient(), apiServerClient)
 	moduleResourceManager := moduleresource.NewManager(mgr.GetClient(), scheme, driftDetector)
-	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](mgr.GetClient()), secrets.NewRequiredSecretVerifier())
+	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](mgr.GetClient()))
 	certManager := certificate.NewManager(secretsManager, webhookMetrics)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),

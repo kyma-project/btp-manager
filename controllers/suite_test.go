@@ -191,7 +191,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	networkPolicyManager := networkpolicy.NewManager(k8sManager.GetClient(), manifestHandler)
 	driftDetector := drift.NewDetector(k8sManager.GetClient(), k8sClient)
 	moduleResourceManager := moduleresource.NewManager(k8sManager.GetClient(), k8sManager.GetScheme(), driftDetector)
-	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient()), secrets.NewRequiredSecretVerifier())
+	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient()))
 	certManager := certificate.NewManager(secretsManager, metrics)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
