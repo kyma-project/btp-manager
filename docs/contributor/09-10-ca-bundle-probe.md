@@ -52,7 +52,7 @@ After each Job completes, BTP Manager reads the probe annotations and acts as fo
 | No | ok | n/a | No action (public landscape, all good) |
 | No | failed (x509) | n/a | No action (probe logs internally; no annotation written) |
 | Yes | ok | No | No action (TLS healthy, no rotation) |
-| Yes | ok | Yes | Restart `sap-btp-operator` pods |
+| Yes | ok | Yes | Restart `sap-btp-operator` Pods |
 | Yes | failed (x509) | Any | Alert metric set to 1 |
 | Any | failed (other) | Any | No action (probe logs internally; no annotation written) |
 
