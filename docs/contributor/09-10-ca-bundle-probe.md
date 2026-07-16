@@ -10,7 +10,7 @@ The probe is disabled by default (`ProbeInterval: 0s`). It requires a probe imag
 
 ## How It Works
 
-BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On each interval tick, it:
+BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On each interval tick, it performs the following steps:
 
 1. Deletes any leftover probe Job from a previous cycle.
 2. Creates a new Kubernetes Job (`btp-manager-ca-bundle-probe`) in `kyma-system`.
