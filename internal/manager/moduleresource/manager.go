@@ -191,7 +191,7 @@ func (m *Manager) SetConfigMapValues(u *unstructured.Unstructured) error {
 	clusterId := m.driftDetector.ClusterIdFromManager()
 
 	if err := unstructured.SetNestedField(u.Object, clusterId, "data", clusterIdConfigMapKey); err != nil {
-		return fmt.Errorf("failed to set cluster_id: %w", err)
+		return fmt.Errorf("failed to set %s: %w", clusterIdConfigMapKey, err)
 	}
 
 	if err := unstructured.SetNestedField(u.Object, credentialsNamespace, "data", releaseNamespaceConfigMapKey); err != nil {

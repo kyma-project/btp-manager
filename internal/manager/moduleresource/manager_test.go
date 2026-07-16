@@ -2,6 +2,7 @@ package moduleresource
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"testing"
@@ -203,9 +204,10 @@ var _ = Describe("Module Resource Manager", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			Expect(data).To(HaveKey(ClientIdSecretKey))
-			Expect(data).To(HaveKey(ClientSecretKey))
-			Expect(data).To(HaveKey(SmUrlSecretKey))
+			Expect(data).To(HaveKeyWithValue(ClientIdSecretKey, base64.StdEncoding.EncodeToString(secret.Data[ClientIdSecretKey])))
+			Expect(data).To(HaveKeyWithValue(ClientSecretKey, base64.StdEncoding.EncodeToString(secret.Data[ClientSecretKey])))
+			Expect(data).To(HaveKeyWithValue(SmUrlSecretKey, base64.StdEncoding.EncodeToString(secret.Data[SmUrlSecretKey])))
+			Expect(data).To(HaveKeyWithValue(TokenUrlSecretKey, base64.StdEncoding.EncodeToString(secret.Data[TokenUrlSecretKey])))
 			Expect(data).NotTo(HaveKey(ClusterIdSecretKey))
 			Expect(data).NotTo(HaveKey(CredentialsNamespaceSecretKey))
 		})
@@ -483,11 +485,11 @@ func requiredSecret() *corev1.Secret {
 			Namespace: requiredSecretNamespace,
 		},
 		Data: map[string][]byte{
-			ClientIdSecretKey:  []byte("dGVzdF9jbGllbnRpZA=="),
-			ClientSecretKey:    []byte("dGVzdF9jbGllbnRzZWNyZXQ="),
-			SmUrlSecretKey:     []byte("dGVzdF9zbV91cmw="),
-			TokenUrlSecretKey:  []byte("dGVzdF90b2tlbnVybA=="),
-			ClusterIdSecretKey: []byte("dGVzdF9jbHVzdGVyX2lk"),
+			ClientIdSecretKey:  []byte("test_clientid"),
+			ClientSecretKey:    []byte("test_clientsecret"),
+			SmUrlSecretKey:     []byte("test_sm_url"),
+			TokenUrlSecretKey:  []byte("test_tokenurl"),
+			ClusterIdSecretKey: []byte("test_cluster_id"),
 		},
 	}
 	return secret
