@@ -50,6 +50,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/provisioning"
 	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	//+kubebuilder:scaffold:imports
 )
@@ -141,6 +142,7 @@ func main() {
 	moduleResourceManager := moduleresource.NewManager(mgr.GetClient(), scheme, driftDetector)
 	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](mgr.GetClient()))
 	certManager := certificate.NewManager(secretsManager, webhookMetrics)
+	provisioningHandler := provisioning.NewHandler(mgr.GetClient(), driftDetector, moduleResourceManager, networkPolicyManager, certManager, cleanupReconciler)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
@@ -154,6 +156,7 @@ func main() {
 		driftDetector,
 		moduleResourceManager,
 		certManager,
+		provisioningHandler,
 	)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
