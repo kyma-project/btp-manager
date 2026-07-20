@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/metrics"
@@ -39,11 +39,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sgenerictypes "k8s.io/apimachinery/pkg/types"
@@ -162,6 +159,7 @@ type BtpOperatorReconciler struct {
 	certManager            certificate.CertificateManager
 	provisioningHandler    provisioning.Handler
 	watchHandlers          []config.WatchHandler
+	deprovisioningHandler  deprovisioning.Handler
 }
 
 func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, driftDetector drift.Detector, moduleResourceManager moduleresource.ResourceManager, certManager certificate.CertificateManager, provisioningHandler provisioning.Handler) *BtpOperatorReconciler {
@@ -178,6 +176,10 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 		certManager:            certManager,
 		provisioningHandler:    provisioningHandler,
 	}
+}
+
+func (r *BtpOperatorReconciler) SetDeprovisioningHandler(h deprovisioning.Handler) {
+	r.deprovisioningHandler = h
 }
 
 // RBAC neccessary for the operator itself
@@ -346,7 +348,7 @@ func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1al
 	logger.Info("Handling Warning state")
 
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		err := r.handleDeleting(ctx, cr)
+		err := r.deprovisioningHandler.Deprovision(ctx, cr)
 		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 			return ctrl.Result{RequeueAfter: config.ReadyStateRequeueInterval}, err
 		}
@@ -367,485 +369,12 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Deleting state")
 
-	return r.handleDeleting(ctx, cr)
+	return r.deprovisioningHandler.Deprovision(ctx, cr)
 }
 
-func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-
-	requiredSecret, err := r.getSecretByNameAndNamespace(ctx, config.SecretName, config.ChartNamespace)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret in %s namespace", config.SecretName, config.ChartNamespace))
-		return fmt.Errorf("failed to get the required secret: %w", err)
-	}
-
-	r.driftDetector.InitializeFromSecret(requiredSecret)
-
-	if len(cr.GetFinalizers()) == 0 {
-		logger.Info("BtpOperator CR without finalizers - nothing to do, waiting for deletion")
-		return nil
-	}
-
-	if err = r.handleDeprovisioning(ctx, cr); err != nil {
-		logger.Error(err, "deprovisioning failed. Restoring resources")
-		r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
-		return err
-	}
-	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
-
-		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
-		if err != nil {
-			return err
-		}
-		numberOfInstances, err := r.numberOfResources(ctx, instanceGvk)
-		if err != nil {
-			return err
-		}
-		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info(fmt.Sprintf("%d instances, %d bindings - leaving deletion", numberOfInstances, numberOfBindings))
-			return nil
-		}
-	}
-
-	r.instanceBindingService.DisableSISBController()
-
-	logger.Info("Deprovisioning success. Removing finalizers in CR")
-	cr.SetFinalizers([]string{})
-	if err = r.Update(ctx, cr); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) handleDeprovisioning(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-
-	namespaces := &corev1.NamespaceList{}
-	if err := r.List(ctx, namespaces); err != nil {
-		return err
-	}
-
-	if !r.IsForceDelete(cr) {
-		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
-		if err != nil {
-			return err
-		}
-		numberOfInstances, err := r.numberOfResources(ctx, instanceGvk)
-		if err != nil {
-			return err
-		}
-
-		if numberOfBindings > 0 || numberOfInstances > 0 {
-			logger.Info(fmt.Sprintf("Existing resources (%d instances and %d bindings) block BTP Operator deletion.", numberOfInstances, numberOfBindings))
-			msg := fmt.Sprintf("All service instances and bindings must be removed: %d instance(s) and %d binding(s)", numberOfInstances, numberOfBindings)
-			logger.Info(msg)
-
-			// if the reason is already set, do nothing
-			if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) && cr.Status.State == v1alpha1.StateWarning {
-				return nil
-			}
-
-			if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
-				v1alpha1.StateWarning, conditions.ServiceInstancesAndBindingsNotCleaned, msg); updateStatusErr != nil {
-				return updateStatusErr
-			}
-			return nil
-		}
-	}
-	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		// go to a state which starts deleting process
-		if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr,
-			v1alpha1.StateDeleting, conditions.HardDeleting,
-			"BtpOperator is to be deleted after cleaning service instance and binding resources"); updateStatusErr != nil {
-			return updateStatusErr
-		}
-	}
-
-	hardDeleteSucceededCh := make(chan bool, 1)
-	hardDeleteTimeoutReachedCh := make(chan bool, 1)
-	defer close(hardDeleteTimeoutReachedCh)
-
-	go r.handleHardDelete(ctx, namespaces, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh)
-
-	select {
-	case hardDeleteSucceeded := <-hardDeleteSucceededCh:
-		if hardDeleteSucceeded {
-			logger.Info("Service Instances and Service Bindings hard delete succeeded. Removing module resources")
-			if err := r.deleteBtpOperatorResources(ctx); err != nil {
-				logger.Error(err, "failed to remove module resources")
-				if updateStatusErr := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ResourceRemovalFailed, "Unable to remove installed resources"); updateStatusErr != nil {
-					logger.Error(updateStatusErr, "failed to update status")
-					return updateStatusErr
-				}
-				return err
-			}
-		} else {
-			logger.Info("Service Instances and Service Bindings hard delete failed")
-			if err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
-				logger.Error(err, "failed to update status")
-				return err
-			}
-			if err := r.handleSoftDelete(ctx, namespaces); err != nil {
-				logger.Error(err, "failed to soft delete")
-				return err
-			}
-		}
-	case <-time.After(config.HardDeleteTimeout):
-		logger.Info("hard delete timeout reached", "duration", config.HardDeleteTimeout)
-		hardDeleteTimeoutReachedCh <- true
-		if err := r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateDeleting, conditions.SoftDeleting, "Being soft deleted"); err != nil {
-			logger.Error(err, "failed to update status")
-			return err
-		}
-		if err := r.handleSoftDelete(ctx, namespaces); err != nil {
-			logger.Error(err, "failed to soft delete")
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) handleHardDelete(ctx context.Context, namespaces *corev1.NamespaceList, hardDeleteSucceededCh, hardDeleteTimeoutReachedCh chan bool) {
-	logger := log.FromContext(ctx)
-	logger.Info("Deprovisioning BTP Operator - hard delete")
-	defer close(hardDeleteSucceededCh)
-
-	errs := make([]error, 0)
-
-	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
-	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
-		errs = append(errs, err)
-	}
-	if sbCrdExists {
-		if err := r.hardDelete(ctx, bindingGvk, namespaces); err != nil {
-			logger.Error(err, "while deleting Service Bindings")
-			if !errors.Is(err, context.DeadlineExceeded) {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	siCrdExists, err := r.crdExists(ctx, instanceGvk)
-	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
-		errs = append(errs, err)
-	}
-	if siCrdExists {
-		if err := r.hardDelete(ctx, instanceGvk, namespaces); err != nil {
-			logger.Error(err, "while deleting Service Instances")
-			if !errors.Is(err, context.DeadlineExceeded) {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	if len(errs) > 0 {
-		hardDeleteSucceededCh <- false
-		return
-	}
-
-	var sbResourcesLeft, siResourcesLeft bool
-	for {
-		select {
-		case <-hardDeleteTimeoutReachedCh:
-			return
-		default:
-		}
-
-		if sbCrdExists {
-			sbResourcesLeft, err = r.resourcesExist(ctx, namespaces, bindingGvk)
-			if err != nil {
-				logger.Error(err, "ServiceBinding leftover resources check failed")
-				hardDeleteSucceededCh <- false
-				return
-			}
-		}
-
-		if siCrdExists {
-			siResourcesLeft, err = r.resourcesExist(ctx, namespaces, instanceGvk)
-			if err != nil {
-				logger.Error(err, "ServiceInstance leftover resources check failed")
-				hardDeleteSucceededCh <- false
-				return
-			}
-		}
-
-		if !sbResourcesLeft && !siResourcesLeft {
-			hardDeleteSucceededCh <- true
-			return
-		}
-
-		time.Sleep(config.HardDeleteCheckInterval)
-	}
-}
-
-func (r *BtpOperatorReconciler) crdExists(ctx context.Context, gvk schema.GroupVersionKind) (bool, error) {
-	crdName := fmt.Sprintf("%ss.%s", strings.ToLower(gvk.Kind), gvk.Group)
-	crd := &apiextensionsv1.CustomResourceDefinition{}
-
-	if err := r.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return false, nil
-		} else {
-			return false, err
-		}
-	}
-	return true, nil
-}
-
-func (r *BtpOperatorReconciler) hardDelete(ctx context.Context, gvk schema.GroupVersionKind, namespaces *corev1.NamespaceList) error {
-	object := &unstructured.Unstructured{}
-	object.SetGroupVersionKind(gvk)
-	deleteCtx, cancel := context.WithTimeout(ctx, config.DeleteRequestTimeout)
-	defer cancel()
-
-	for _, namespace := range namespaces.Items {
-		if err := r.DeleteAllOf(deleteCtx, object, client.InNamespace(namespace.Name)); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) resourcesExist(ctx context.Context, namespaces *corev1.NamespaceList, gvk schema.GroupVersionKind) (bool, error) {
-	anyLeft := func(namespace string, gvk schema.GroupVersionKind) (bool, error) {
-		list := &unstructured.UnstructuredList{}
-		list.SetGroupVersionKind(gvk)
-		if err := r.List(ctx, list, client.InNamespace(namespace)); err != nil {
-			if !k8serrors.IsNotFound(err) {
-				return false, err
-			}
-		}
-
-		return len(list.Items) > 0, nil
-	}
-
-	for _, namespace := range namespaces.Items {
-		resourcesExist, err := anyLeft(namespace.Name, gvk)
-		if err != nil {
-			return false, err
-		}
-		if resourcesExist {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (r *BtpOperatorReconciler) numberOfResources(ctx context.Context, gvk schema.GroupVersionKind) (int, error) {
-	exists, err := r.crdExists(ctx, gvk)
-	if err != nil {
-		return 0, err
-	}
-	if !exists {
-		return 0, nil
-	}
-
-	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(gvk)
-	err = r.List(ctx, list, client.InNamespace(corev1.NamespaceAll))
-	if err != nil {
-		return 0, err
-	}
-	return len(list.Items), nil
-}
-
-func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-
-	logger.Info("getting module resources to delete")
-	resourcesToDeleteFromApply, err := r.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(r.moduleResourceManager.GetResourcesToApplyPath())
-	if err != nil {
-		logger.Error(err, "while getting objects to delete from manifests")
-		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
-	}
-	logger.Info(fmt.Sprintf("got %d module resources to delete from \"apply\" dir", len(resourcesToDeleteFromApply)))
-
-	resourcesToDeleteFromDelete, err := r.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(r.moduleResourceManager.GetResourcesToDeletePath())
-	if err != nil {
-		logger.Error(err, "while getting objects to delete from manifests")
-		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
-	}
-	logger.Info(fmt.Sprintf("got %d module resources to delete from \"delete\" dir", len(resourcesToDeleteFromDelete)))
-
-	resourcesToDelete := make([]*unstructured.Unstructured, 0)
-	resourcesToDelete = append(resourcesToDelete, resourcesToDeleteFromApply...)
-	resourcesToDelete = append(resourcesToDelete, resourcesToDeleteFromDelete...)
-
-	if err = r.deleteAllOfResourcesTypes(ctx, resourcesToDelete...); err != nil {
-		logger.Error(err, "while deleting module resources")
-		return fmt.Errorf("failed to delete module resources: %w", err)
-	}
-
-	if r.networkPolicyManager != nil {
-		if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
-			logger.Error(err, "while cleaning up network policies during hard delete")
-			return fmt.Errorf("failed to cleanup network policies during hard delete: %w", err)
-		}
-	}
-
-	if err := r.driftDetector.DeleteClusterIdSecret(ctx); err != nil {
-		logger.Error(err, "while deleting cluster ID secret")
-		return fmt.Errorf("failed to delete cluster ID secret: %w", err)
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) deleteAllOfResourcesTypes(ctx context.Context, resourcesToDelete ...*unstructured.Unstructured) error {
-	logger := log.FromContext(ctx)
-	deletedGvks := make(map[string]struct{}, 0)
-	for _, u := range resourcesToDelete {
-		if _, exists := deletedGvks[u.GroupVersionKind().String()]; exists {
-			continue
-		}
-		logger.Info(fmt.Sprintf("deleting all of %s/%s module resources in %s namespace",
-			u.GroupVersionKind().GroupVersion(), u.GetKind(), config.ChartNamespace))
-		if err := r.DeleteAllOf(ctx, u, client.InNamespace(config.ChartNamespace), managedByLabelFilter); err != nil {
-			if !(k8serrors.IsNotFound(err) || k8serrors.IsMethodNotSupported(err) || meta.IsNoMatchError(err)) {
-				return err
-			}
-		}
-		deletedGvks[u.GroupVersionKind().String()] = struct{}{}
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) handleSoftDelete(ctx context.Context, namespaces *corev1.NamespaceList) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Deprovisioning BTP Operator - soft delete")
-
-	logger.Info("Deleting module deployment and webhooks")
-	if err := r.preSoftDeleteCleanup(ctx); err != nil {
-		logger.Error(err, "module deployment and webhooks deletion failed")
-		return err
-	}
-
-	sbCrdExists, err := r.crdExists(ctx, bindingGvk)
-	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", bindingGvk.String())
-		return err
-	}
-
-	siCrdExists, err := r.crdExists(ctx, instanceGvk)
-	if err != nil {
-		logger.Error(err, "while checking CRD existence", "GVK", instanceGvk.String())
-		return err
-	}
-
-	if sbCrdExists {
-		logger.Info("Removing finalizers in Service Bindings and deleting connected Secrets")
-		if err := r.softDelete(ctx, bindingGvk); err != nil {
-			logger.Error(err, "while deleting Service Bindings")
-			return err
-		}
-		if err := r.ensureResourcesDontExist(ctx, bindingGvk); err != nil {
-			logger.Error(err, "Service Bindings still exist")
-			return err
-		}
-	}
-
-	if siCrdExists {
-		logger.Info("Removing finalizers in Service Instances")
-		if err := r.softDelete(ctx, instanceGvk); err != nil {
-			logger.Error(err, "while deleting Service Instances")
-			return err
-		}
-		if err := r.ensureResourcesDontExist(ctx, instanceGvk); err != nil {
-			logger.Error(err, "Service Instances still exist")
-			return err
-		}
-	}
-
-	logger.Info("Deleting module resources")
-	if err := r.deleteBtpOperatorResources(ctx); err != nil {
-		logger.Error(err, "failed to delete module resources")
-		return err
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error {
-	toDelete := []client.Object{
-		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: config.DeploymentName, Namespace: config.ChartNamespace}},
-		&admissionregistrationv1.MutatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: mutatingWebhookName}},
-		&admissionregistrationv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: validatingWebhookName}},
-	}
-	for _, obj := range toDelete {
-		if err := r.Delete(ctx, obj); client.IgnoreNotFound(err) != nil {
-			return err
-		}
-	}
-
-	if r.networkPolicyManager != nil {
-		if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
-			return fmt.Errorf("failed to cleanup network policies during soft delete: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) softDelete(ctx context.Context, gvk schema.GroupVersionKind) error {
-	list := r.GvkToList(gvk)
-
-	if err := r.List(ctx, list); err != nil {
-		return fmt.Errorf("%w; could not list in soft delete", err)
-	}
-
-	isBinding := gvk.Kind == btpOperatorServiceBinding
-	for _, item := range list.Items {
-		if item.GetDeletionTimestamp().IsZero() {
-			if err := r.Delete(ctx, &item); err != nil {
-				return err
-			}
-		}
-		item.SetFinalizers([]string{})
-		if err := r.Update(ctx, &item); err != nil {
-			return err
-		}
-
-		if isBinding {
-			secret := &corev1.Secret{}
-			secret.Name = item.GetName()
-			secret.Namespace = item.GetNamespace()
-			if err := r.Delete(ctx, secret); err != nil && !k8serrors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) GvkToList(gvk schema.GroupVersionKind) *unstructured.UnstructuredList {
-	listGvk := gvk
-	listGvk.Kind = gvk.Kind + "List"
-	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(listGvk)
-	return list
-}
-
-func (r *BtpOperatorReconciler) ensureResourcesDontExist(ctx context.Context, gvk schema.GroupVersionKind) error {
-	list := r.GvkToList(gvk)
-
-	if err := r.List(ctx, list); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-	} else if len(list.Items) > 0 {
-		return fmt.Errorf("list returned %d records", len(list.Items))
-	}
-
-	return nil
+// ReconcileResourcesWithoutStatusChange satisfies deprovisioning.ResourceReconciler.
+func (r *BtpOperatorReconciler) ReconcileResourcesWithoutStatusChange(ctx context.Context, cr *v1alpha1.BtpOperator) {
+	r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
@@ -1146,13 +675,6 @@ func (r *BtpOperatorReconciler) watchMutatingWebhooksPredicates() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) IsForceDelete(cr *v1alpha1.BtpOperator) bool {
-	if _, exists := cr.Labels[forceDeleteLabelKey]; !exists {
-		return false
-	}
-	return cr.Labels[forceDeleteLabelKey] == "true"
-}
-
 func (r *BtpOperatorReconciler) isWebhookCertSignedBySelfSignedCa(ctx context.Context) (bool, error) {
 	caCertificate, err := r.getCertificateFromSecret(ctx, caCertSecretName)
 	if err != nil {
@@ -1217,24 +739,6 @@ func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
 
 func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 	return s.Namespace == config.ChartNamespace && (s.Name == caCertSecretName || s.Name == webhookCertSecretName)
-}
-
-func (r *BtpOperatorReconciler) deleteObject(ctx context.Context, obj client.Object) error {
-	if err := r.apiServerClient.Delete(ctx, obj); err != nil {
-		return fmt.Errorf("while deleting %s %s from %s namespace: %w", obj.GetName(), obj.GetObjectKind().GroupVersionKind().Kind, obj.GetNamespace(), err)
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) getSecretByNameAndNamespace(ctx context.Context, name, namespace string) (*corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	if err := r.apiServerClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, secret); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("while getting %s secret from %s namespace: %w", name, namespace, err)
-	}
-	return secret, nil
 }
 
 func certFieldFromSecretBySecretName(secretName string) (string, error) {

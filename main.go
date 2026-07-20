@@ -44,6 +44,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
@@ -158,6 +159,7 @@ func main() {
 		certManager,
 		provisioningHandler,
 	)
+	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(mgr.GetClient(), apiServerClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
