@@ -385,11 +385,11 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 
 	if err = r.handleDeprovisioning(ctx, cr); err != nil {
 		logger.Error(err, "deprovisioning failed. Restoring resources")
-		r.reconcileResourcesWithoutChangingCrState(ctx, cr, &logger)
+		r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
 		return err
 	}
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		r.reconcileResourcesWithoutChangingCrState(ctx, cr, &logger)
+		r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
 
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
@@ -1202,10 +1202,6 @@ func (r *BtpOperatorReconciler) getSecretDataValueByKey(key string, data map[str
 		return nil, fmt.Errorf("empty value for key: %s", key)
 	}
 	return value, nil
-}
-
-func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, cr *v1alpha1.BtpOperator, logger *logr.Logger) {
-	r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
 }
 
 func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {

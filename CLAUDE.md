@@ -111,7 +111,7 @@ make module-image   # Build and push module image
 
 **Entry point:** `main.go` initializes the controller-runtime manager with leader election, registers reconcilers, sets up health/metrics probes, and starts config watching.
 
-**Primary reconciler:** `controllers/btpoperator_controller.go` (~1250 lines) — contains the main reconciliation logic. It owns the BtpOperator state machine and delegates to internal handler packages for provisioning, deprovisioning, and other concerns.
+**Primary reconciler:** `controllers/btpoperator_controller.go` (~1250 lines) — contains the main reconciliation logic. It owns the BtpOperator state machine and delegates to internal handler packages for provisioning, deprovisioning, and other concerns. All handlers are constructed in `main.go` and injected into `NewBtpOperatorReconciler` via its constructor parameters — the same pattern used for `networkpolicy.Manager`, `drift.Detector`, `moduleresource.Manager`, `certificate.Manager`, and `provisioning.Handler`.
 
 **Supporting reconcilers:**
 - `controllers/serviceinstance_controller.go` — watches ServiceInstance/ServiceBinding resources to trigger BtpOperator status updates when instances or bindings change.
