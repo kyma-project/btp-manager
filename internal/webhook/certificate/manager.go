@@ -92,12 +92,18 @@ var _ CertificateManager = (*Manager)(nil)
 
 func (m *Manager) IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, error) {
 	caSecret, err := m.secretsManager.GetCaServerCertSecret(ctx)
-	if err != nil || caSecret == nil {
+	if err != nil {
 		return false, err
 	}
+	if caSecret == nil {
+		return false, fmt.Errorf("secret %q not found", caCertSecretName)
+	}
 	webhookSecret, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
-	if err != nil || webhookSecret == nil {
+	if err != nil {
 		return false, err
+	}
+	if webhookSecret == nil {
+		return false, fmt.Errorf("secret %q not found", webhookCertSecretName)
 	}
 	return certs.VerifyIfLeafIsSignedByGivenCA(caSecret.Data[caCertSecretCertField], webhookSecret.Data[webhookCertSecretCertField])
 }
@@ -106,14 +112,20 @@ func (m *Manager) GetSecretData(ctx context.Context, name string) (map[string][]
 	switch name {
 	case caCertSecretName:
 		s, err := m.secretsManager.GetCaServerCertSecret(ctx)
-		if err != nil || s == nil {
+		if err != nil {
 			return nil, err
+		}
+		if s == nil {
+			return nil, fmt.Errorf("secret %q not found", name)
 		}
 		return s.Data, nil
 	case webhookCertSecretName:
 		s, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
-		if err != nil || s == nil {
+		if err != nil {
 			return nil, err
+		}
+		if s == nil {
+			return nil, fmt.Errorf("secret %q not found", name)
 		}
 		return s.Data, nil
 	}
