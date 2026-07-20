@@ -438,6 +438,9 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BtpOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if r.deprovisioningHandler == nil {
+		return fmt.Errorf("deprovisioningHandler is not set; call SetDeprovisioningHandler before SetupWithManager")
+	}
 	r.Config = mgr.GetConfig()
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.BtpOperator{},
