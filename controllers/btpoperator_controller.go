@@ -327,6 +327,9 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 
 func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
 	logger.Info("secret verification failed: " + errWithReason.Error())
+	if errWithReason.Reason == conditions.InvalidSecret {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
+	}
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.Reason, errWithReason.Message)
 }
 
