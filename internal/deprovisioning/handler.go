@@ -149,7 +149,9 @@ func (h *handler) Deprovision(ctx context.Context, cr *v1alpha1.BtpOperator) err
 		}
 	}
 
-	h.instanceBindingService.DisableSISBController()
+	if h.instanceBindingService != nil {
+		h.instanceBindingService.DisableSISBController()
+	}
 
 	logger.Info("Deprovisioning success. Removing finalizers in CR")
 	cr.SetFinalizers([]string{})
@@ -400,14 +402,14 @@ func (h *handler) deleteBtpOperatorResources(ctx context.Context) error {
 	resourcesToDeleteFromApply, err := h.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(h.moduleResourceManager.GetResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
-		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+		return fmt.Errorf("failed to create deletable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to delete from \"apply\" dir", len(resourcesToDeleteFromApply)))
 
 	resourcesToDeleteFromDelete, err := h.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(h.moduleResourceManager.GetResourcesToDeletePath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
-		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
+		return fmt.Errorf("failed to create deletable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to delete from \"delete\" dir", len(resourcesToDeleteFromDelete)))
 
