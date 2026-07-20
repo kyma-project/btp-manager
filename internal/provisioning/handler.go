@@ -2,6 +2,7 @@ package provisioning
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -112,6 +113,8 @@ func (h *handler) Provision(ctx context.Context, cr *v1alpha1.BtpOperator) Provi
 	return ProvisionResult{}
 }
 
+var errSecretNotFound = fmt.Errorf("%s Secret in %s namespace not found", config.SecretName, config.ChartNamespace)
+
 func (h *handler) GetAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *conditions.ErrorWithReason) {
 	logger := log.FromContext(ctx)
 
@@ -119,13 +122,16 @@ func (h *handler) GetAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secre
 	secret, err := h.getRequiredSecret(ctx)
 	if err != nil {
 		logger.Error(err, "while getting the required Secret")
-		return nil, conditions.NewErrorWithReason(conditions.MissingSecret, "Secret resource not found")
+		if errors.Is(err, errSecretNotFound) {
+			return nil, conditions.NewErrorWithReason(conditions.MissingSecret, err.Error())
+		}
+		return nil, conditions.NewErrorWithReason(conditions.InvalidSecret, err.Error())
 	}
 
 	logger.Info("verifying the required Secret")
 	if err = verifySecret(secret); err != nil {
 		logger.Error(err, "while verifying the required Secret")
-		return nil, conditions.NewErrorWithReason(conditions.InvalidSecret, "Secret validation failed")
+		return nil, conditions.NewErrorWithReason(conditions.InvalidSecret, err.Error())
 	}
 	return secret, nil
 }
@@ -135,7 +141,7 @@ func (h *handler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 	objKey := client.ObjectKey{Namespace: config.ChartNamespace, Name: config.SecretName}
 	if err := h.client.Get(ctx, objKey, secret); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return nil, fmt.Errorf("%s Secret in %s namespace not found", config.SecretName, config.ChartNamespace)
+			return nil, errSecretNotFound
 		}
 		return nil, fmt.Errorf("unable to get Secret: %w", err)
 	}
