@@ -325,7 +325,7 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateReady, conditions.ReconcileSucceeded, "Module provisioning succeeded")
 }
 
-func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
+func (r *BtpOperatorReconciler) handleSecretVerificationFailure(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
 	logger.Info("secret verification failed: " + errWithReason.Error())
 	if errWithReason.Reason == conditions.InvalidSecret {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
@@ -854,7 +854,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
+		return r.handleSecretVerificationFailure(ctx, cr, logger, errWithReason)
 	}
 
 	r.driftDetector.InitializeFromSecret(requiredSecret)
