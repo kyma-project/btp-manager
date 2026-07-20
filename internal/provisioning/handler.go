@@ -74,6 +74,9 @@ func (h *handler) Provision(ctx context.Context, cr *v1alpha1.BtpOperator) Provi
 	requiredSecret, errWithReason := h.GetAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		logger.Info("secret verification failed: " + errWithReason.Error())
+		if errWithReason.Reason == conditions.InvalidSecret {
+			return ProvisionResult{ErrorReason: errWithReason}
+		}
 		return ProvisionResult{WarningReason: errWithReason}
 	}
 
