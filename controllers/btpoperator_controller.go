@@ -349,7 +349,7 @@ func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1al
 
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
 		if r.deprovisioningHandler == nil {
-			return ctrl.Result{}, fmt.Errorf("deprovisioningHandler is not set")
+			return ctrl.Result{}, fmt.Errorf("deprovisioningHandler is not set; call SetDeprovisioningHandler before starting the manager")
 		}
 		err := r.deprovisioningHandler.Deprovision(ctx, cr)
 		if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
@@ -373,7 +373,7 @@ func (r *BtpOperatorReconciler) HandleDeletingState(ctx context.Context, cr *v1a
 	logger.Info("Handling Deleting state")
 
 	if r.deprovisioningHandler == nil {
-		return fmt.Errorf("deprovisioningHandler is not set")
+		return fmt.Errorf("deprovisioningHandler is not set; call SetDeprovisioningHandler before starting the manager")
 	}
 	return r.deprovisioningHandler.Deprovision(ctx, cr)
 }
