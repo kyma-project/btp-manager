@@ -162,8 +162,10 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 				currentCa, err := reconciler.certManager.GetSecretData(ctx, caCertSecretName)
 				Expect(err).To(BeNil())
-				ca := currentCa[caCertSecretCertField]
-				pk := currentCa[caCertSecretKeyField]
+				ca, ok := currentCa[caCertSecretCertField]
+				Expect(ok).To(BeTrue(), "ca.crt key missing from CA secret")
+				pk, ok := currentCa[caCertSecretKeyField]
+				Expect(ok).To(BeTrue(), "ca.key key missing from CA secret")
 				currentWebhookSecret := getSecret(webhookCertSecretName)
 				originalWebhookSecret := currentWebhookSecret
 

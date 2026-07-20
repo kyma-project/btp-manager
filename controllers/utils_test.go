@@ -736,6 +736,7 @@ func checkHowManySecondsToExpiration(name string) float64 {
 		value = data[webhookCertSecretCertField]
 	}
 	decoded, _ := pem.Decode(value)
+	Expect(decoded).NotTo(BeNil(), "pem.Decode returned nil for secret %q", name)
 	cert, err := x509.ParseCertificate(decoded.Bytes)
 	Expect(err).To(BeNil())
 	diff := cert.NotAfter.Sub(time.Now())

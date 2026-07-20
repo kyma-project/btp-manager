@@ -98,6 +98,10 @@ func (m *Manager) IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, 
 	if caSecret == nil {
 		return false, fmt.Errorf("secret %q not found", caCertSecretName)
 	}
+	caCert, err := getSecretDataValueByKey(caCertSecretCertField, caSecret.Data)
+	if err != nil {
+		return false, fmt.Errorf("CA secret %q: %w", caCertSecretName, err)
+	}
 	webhookSecret, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
 	if err != nil {
 		return false, err
@@ -105,7 +109,11 @@ func (m *Manager) IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, 
 	if webhookSecret == nil {
 		return false, fmt.Errorf("secret %q not found", webhookCertSecretName)
 	}
-	return certs.VerifyIfLeafIsSignedByGivenCA(caSecret.Data[caCertSecretCertField], webhookSecret.Data[webhookCertSecretCertField])
+	webhookCert, err := getSecretDataValueByKey(webhookCertSecretCertField, webhookSecret.Data)
+	if err != nil {
+		return false, fmt.Errorf("webhook secret %q: %w", webhookCertSecretName, err)
+	}
+	return certs.VerifyIfLeafIsSignedByGivenCA(caCert, webhookCert)
 }
 
 func (m *Manager) GetSecretData(ctx context.Context, name string) (map[string][]byte, error) {
