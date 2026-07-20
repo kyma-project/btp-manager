@@ -203,6 +203,7 @@ func (h *handler) ReconcileResourcesWithoutStatusChange(ctx context.Context, cr 
 	secret, errWithReason := h.GetAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
 		logger.Error(errWithReason, "secret verification failed")
+		return
 	}
 	if err := h.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
 		logger.Error(err, "outdated resources deletion failed")

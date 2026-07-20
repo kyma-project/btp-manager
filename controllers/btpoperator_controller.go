@@ -680,9 +680,11 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 		return fmt.Errorf("failed to delete module resources: %w", err)
 	}
 
-	if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
-		logger.Error(err, "while cleaning up network policies during hard delete")
-		return fmt.Errorf("failed to cleanup network policies during hard delete: %w", err)
+	if r.networkPolicyManager != nil {
+		if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
+			logger.Error(err, "while cleaning up network policies during hard delete")
+			return fmt.Errorf("failed to cleanup network policies during hard delete: %w", err)
+		}
 	}
 
 	if err := r.driftDetector.DeleteClusterIdSecret(ctx); err != nil {
@@ -780,8 +782,10 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 		}
 	}
 
-	if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
-		return fmt.Errorf("failed to cleanup network policies during soft delete: %w", err)
+	if r.networkPolicyManager != nil {
+		if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
+			return fmt.Errorf("failed to cleanup network policies during soft delete: %w", err)
+		}
 	}
 
 	return nil
