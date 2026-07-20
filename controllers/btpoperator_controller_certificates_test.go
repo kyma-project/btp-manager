@@ -92,7 +92,7 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 
 	ensureCorrectState := func() {
 		ensureReconciliationQueueIsEmpty()
-		ok, err := reconciler.isWebhookCertSignedBySelfSignedCa(ctx)
+		ok, err := reconciler.certManager.IsWebhookCertSignedBySelfSignedCA(ctx)
 		Expect(err).To(BeNil())
 		Expect(ok).To(BeTrue())
 		ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles()
@@ -160,12 +160,10 @@ var _ = Describe("BTP Operator controller - certificates", Label("certs"), func(
 			It("CA certificate is not changed, webhook certificate is regenerated", func() {
 				beforeCaSecret := getSecret(caCertSecretName)
 
-				currentCa, err := reconciler.getDataFromSecret(ctx, caCertSecretName)
+				currentCa, err := reconciler.certManager.GetSecretData(ctx, caCertSecretName)
 				Expect(err).To(BeNil())
-				ca, err := reconciler.getSecretDataValueByKey(caCertSecretCertField, currentCa)
-				Expect(err).To(BeNil())
-				pk, err := reconciler.getSecretDataValueByKey(caCertSecretKeyField, currentCa)
-				Expect(err).To(BeNil())
+				ca := currentCa[caCertSecretCertField]
+				pk := currentCa[caCertSecretKeyField]
 				currentWebhookSecret := getSecret(webhookCertSecretName)
 				originalWebhookSecret := currentWebhookSecret
 

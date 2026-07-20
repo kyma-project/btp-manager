@@ -729,12 +729,12 @@ func getConfigMap(name string) *corev1.ConfigMap {
 }
 
 func checkHowManySecondsToExpiration(name string) float64 {
-	data, err := reconciler.getDataFromSecret(ctx, name)
+	data, err := reconciler.certManager.GetSecretData(ctx, name)
 	Expect(err).To(BeNil())
-	key, err := certFieldFromSecretBySecretName(name)
-	Expect(err).To(BeNil())
-	value, err := reconciler.getSecretDataValueByKey(key, data)
-	Expect(err).To(BeNil())
+	value := data[caCertSecretCertField]
+	if name == webhookCertSecretName {
+		value = data[webhookCertSecretCertField]
+	}
 	decoded, _ := pem.Decode(value)
 	cert, err := x509.ParseCertificate(decoded.Bytes)
 	Expect(err).To(BeNil())

@@ -48,6 +48,8 @@ func (e CertificateSignError) Error() string {
 
 type CertificateManager interface {
 	PrepareAdmissionWebhooks(ctx context.Context, webhookResources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
+	IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, error)
+	GetSecretData(ctx context.Context, name string) (map[string][]byte, error)
 }
 
 // WebhookMetrics is the metrics sink consumed by the certificate manager.
@@ -87,6 +89,36 @@ func NewManager(secretsManager secrets.Manager, webhookMetrics WebhookMetrics) *
 }
 
 var _ CertificateManager = (*Manager)(nil)
+
+func (m *Manager) IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, error) {
+	caSecret, err := m.secretsManager.GetCaServerCertSecret(ctx)
+	if err != nil || caSecret == nil {
+		return false, err
+	}
+	webhookSecret, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
+	if err != nil || webhookSecret == nil {
+		return false, err
+	}
+	return certs.VerifyIfLeafIsSignedByGivenCA(caSecret.Data[caCertSecretCertField], webhookSecret.Data[webhookCertSecretCertField])
+}
+
+func (m *Manager) GetSecretData(ctx context.Context, name string) (map[string][]byte, error) {
+	switch name {
+	case caCertSecretName:
+		s, err := m.secretsManager.GetCaServerCertSecret(ctx)
+		if err != nil || s == nil {
+			return nil, err
+		}
+		return s.Data, nil
+	case webhookCertSecretName:
+		s, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
+		if err != nil || s == nil {
+			return nil, err
+		}
+		return s.Data, nil
+	}
+	return nil, fmt.Errorf("unknown secret %q", name)
+}
 
 func (m *Manager) PrepareAdmissionWebhooks(ctx context.Context, webhookResources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	logger := log.FromContext(ctx)

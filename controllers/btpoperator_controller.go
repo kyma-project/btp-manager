@@ -26,7 +26,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
-	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	"github.com/kyma-project/btp-manager/internal/deprovisioning"
@@ -684,60 +683,6 @@ func (r *BtpOperatorReconciler) watchMutatingWebhooksPredicates() predicate.Func
 	}
 }
 
-func (r *BtpOperatorReconciler) isWebhookCertSignedBySelfSignedCa(ctx context.Context) (bool, error) {
-	caCertificate, err := r.getCertificateFromSecret(ctx, caCertSecretName)
-	if err != nil {
-		return false, err
-	}
-
-	webhookCertificate, err := r.getCertificateFromSecret(ctx, webhookCertSecretName)
-	if err != nil {
-		return false, err
-	}
-
-	ok, err := certs.VerifyIfLeafIsSignedByGivenCA(caCertificate, webhookCertificate)
-	if err != nil {
-		return false, err
-	}
-
-	return ok, nil
-}
-
-func (r *BtpOperatorReconciler) getDataFromSecret(ctx context.Context, name string) (map[string][]byte, error) {
-	secret := &corev1.Secret{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: config.ChartNamespace, Name: name}, secret); err != nil {
-		return nil, err
-	}
-	return secret.Data, nil
-}
-
-func (r *BtpOperatorReconciler) getCertificateFromSecret(ctx context.Context, secretName string) ([]byte, error) {
-	data, err := r.getDataFromSecret(ctx, secretName)
-	if err != nil {
-		return nil, err
-	}
-	key, err := certFieldFromSecretBySecretName(secretName)
-	if err != nil {
-		return nil, err
-	}
-	cert, err := r.getSecretDataValueByKey(key, data)
-	if err != nil {
-		return nil, err
-	}
-	return cert, nil
-}
-
-func (r *BtpOperatorReconciler) getSecretDataValueByKey(key string, data map[string][]byte) ([]byte, error) {
-	value, ok := data[key]
-	if !ok {
-		return nil, fmt.Errorf("missing key: %s", key)
-	}
-	if len(value) == 0 {
-		return nil, fmt.Errorf("empty value for key: %s", key)
-	}
-	return value, nil
-}
-
 func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
 	return r.isCredentialsSecret(s) || r.isCertSecret(s)
 }
@@ -748,14 +693,4 @@ func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
 
 func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 	return s.Namespace == config.ChartNamespace && (s.Name == caCertSecretName || s.Name == webhookCertSecretName)
-}
-
-func certFieldFromSecretBySecretName(secretName string) (string, error) {
-	switch secretName {
-	case caCertSecretName:
-		return caCertSecretCertField, nil
-	case webhookCertSecretName:
-		return webhookCertSecretCertField, nil
-	}
-	return "", fmt.Errorf("unknown secret %q - cert field undefined", secretName)
 }
