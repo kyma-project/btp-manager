@@ -111,7 +111,7 @@ make module-image   # Build and push module image
 
 **Entry point:** `main.go` initializes the controller-runtime manager with leader election, registers reconcilers, sets up health/metrics probes, and starts config watching.
 
-**Primary reconciler:** `controllers/btpoperator_controller.go` (~2600 lines) — contains the main reconciliation logic. It owns the BtpOperator state machine and drives all provisioning, updating, and deprovisioning work.
+**Primary reconciler:** `controllers/btpoperator_controller.go` (~1250 lines) — contains the main reconciliation logic. It owns the BtpOperator state machine and delegates to internal handler packages for provisioning, deprovisioning, and other concerns.
 
 **Supporting reconcilers:**
 - `controllers/serviceinstance_controller.go` — watches ServiceInstance/ServiceBinding resources to trigger BtpOperator status updates when instances or bindings change.
@@ -154,7 +154,7 @@ Each state has a dedicated handler method (`HandleInitialState`, `HandleProcessi
 |---|---|
 | `api/v1alpha1/` | BtpOperator CRD type definitions |
 | `controllers/` | All reconcilers and config handler |
-| `internal/` | Utilities: `certs/`, `conditions/`, `manifest/`, `metrics/`, `ymlutils/`, `gvksutils/` |
+| `internal/` | Internal packages: `certs/`, `conditions/`, `credentials/`, `gvksutils/`, `k8s/`, `manager/`, `manifest/`, `metrics/`, `provisioning/`, `webhook/`, `ymlutils/` |
 | `module-chart/` | Helm chart for the SAP BTP operator that BTP Manager deploys |
 | `module-resources/apply/` | K8s manifests applied during provisioning |
 | `module-resources/delete/` | K8s manifests deleted during provisioning (outdated resources) |
