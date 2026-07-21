@@ -9,7 +9,7 @@ import (
 )
 
 func TestIsForceDelete_LabelTrue(t *testing.T) {
-	cr := &v1alpha1.BtpOperator{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"force-delete": "true"}}}
+	cr := &v1alpha1.BtpOperator{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{forceDeleteLabelKey: "true"}}}
 	if !IsForceDelete(cr) {
 		t.Fatal("expected force delete = true")
 	}

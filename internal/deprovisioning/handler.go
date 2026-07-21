@@ -41,7 +41,9 @@ const (
 
 	managedByLabelKey   = "app.kubernetes.io/managed-by"
 	forceDeleteLabelKey = "force-delete"
-	deletionFinalizer   = "operator.kyma-project.io/btp-manager"
+
+	operatorLabelPrefix = "operator.kyma-project.io/"
+	deletionFinalizer   = operatorLabelPrefix + operatorName
 )
 
 var (
