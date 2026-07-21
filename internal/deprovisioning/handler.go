@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -40,6 +41,7 @@ const (
 
 	managedByLabelKey   = "app.kubernetes.io/managed-by"
 	forceDeleteLabelKey = "force-delete"
+	deletionFinalizer   = "operator.kyma-project.io/btp-manager"
 )
 
 var (
@@ -154,7 +156,7 @@ func (h *handler) Deprovision(ctx context.Context, cr *v1alpha1.BtpOperator) err
 	}
 
 	logger.Info("Deprovisioning success. Removing finalizers in CR")
-	cr.SetFinalizers([]string{})
+	ctrlutil.RemoveFinalizer(cr, deletionFinalizer)
 	if err = h.client.Update(ctx, cr); err != nil {
 		return err
 	}
