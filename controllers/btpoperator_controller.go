@@ -33,6 +33,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/provisioning"
 	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -159,10 +160,11 @@ type BtpOperatorReconciler struct {
 	driftDetector          drift.Detector
 	moduleResourceManager  moduleresource.ResourceManager
 	certManager            certificate.CertificateManager
+	provisioningHandler    provisioning.Handler
 	watchHandlers          []config.WatchHandler
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, driftDetector drift.Detector, moduleResourceManager moduleresource.ResourceManager, certManager certificate.CertificateManager) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, driftDetector drift.Detector, moduleResourceManager moduleresource.ResourceManager, certManager certificate.CertificateManager, provisioningHandler provisioning.Handler) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
@@ -174,6 +176,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 		driftDetector:          driftDetector,
 		moduleResourceManager:  moduleResourceManager,
 		certManager:            certManager,
+		provisioningHandler:    provisioningHandler,
 	}
 }
 
@@ -311,210 +314,31 @@ func (r *BtpOperatorReconciler) HandleInitialState(ctx context.Context, cr *v1al
 }
 
 func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v1alpha1.BtpOperator) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Handling Processing state")
-
-	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
-	if errWithReason != nil {
-		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
+	log.FromContext(ctx).Info("Handling Processing state")
+	result := r.provisioningHandler.Provision(ctx, cr)
+	if result.WarningReason != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, result.WarningReason.Reason, result.WarningReason.Message)
 	}
-
-	r.driftDetector.InitializeFromSecret(requiredSecret)
-
-	if errWithReason := r.driftDetector.CheckCredentialsNamespaceDrift(ctx, requiredSecret); errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
+	if result.ErrorReason != nil {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, result.ErrorReason.Reason, result.ErrorReason.Message)
 	}
-
-	if errWithReason := r.driftDetector.CheckClusterIdConfigMapDrift(ctx, requiredSecret); errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
-	}
-
-	if errWithReason := r.driftDetector.ResolveClusterIdSecretDrift(ctx, requiredSecret); errWithReason != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
-	}
-
-	if err := r.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
-	}
-
-	if err := r.reconcileResources(ctx, cr, requiredSecret); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ProvisioningFailed, err.Error())
-	}
-
-	if err := r.driftDetector.DeleteChangedResources(ctx); err != nil {
-		logger.Error(err, "while deleting resources")
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ResourceRemovalFailed, err.Error())
-	}
-
-	r.instanceBindingService.EnableSISBController()
-
-	logger.Info("provisioning succeeded")
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateReady, conditions.ReconcileSucceeded, "Module provisioning succeeded")
 }
 
-func (r *BtpOperatorReconciler) handleMissingSecret(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
+func (r *BtpOperatorReconciler) handleSecretVerificationFailure(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
 	logger.Info("secret verification failed: " + errWithReason.Error())
+	if errWithReason.Reason == conditions.InvalidSecret {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
+	}
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.Reason, errWithReason.Message)
 }
 
 func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
-	logger := log.FromContext(ctx)
-
-	logger.Info("getting the required Secret")
-	secret, err := r.getRequiredSecret(ctx)
-	if err != nil {
-		logger.Error(err, "while getting the required Secret")
-		return nil, NewErrorWithReason(conditions.MissingSecret, "Secret resource not found")
-	}
-
-	logger.Info("verifying the required Secret")
-	if err = r.verifySecret(secret); err != nil {
-		logger.Error(err, "while verifying the required Secret")
-		return nil, NewErrorWithReason(conditions.InvalidSecret, "Secret validation failed")
-	}
-	return secret, nil
-}
-
-func (r *BtpOperatorReconciler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error) {
-	secret := &corev1.Secret{}
-	objKey := client.ObjectKey{Namespace: config.ChartNamespace, Name: config.SecretName}
-	if err := r.Get(ctx, objKey, secret); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, fmt.Errorf("%s Secret in %s namespace not found", config.SecretName, config.ChartNamespace)
-		}
-		return nil, fmt.Errorf("unable to get Secret: %w", err)
-	}
-
-	return secret, nil
-}
-
-func (r *BtpOperatorReconciler) verifySecret(secret *corev1.Secret) error {
-	missingKeys := make([]string, 0)
-	missingValues := make([]string, 0)
-	errs := make([]string, 0)
-	requiredKeys := []string{"clientid", "clientsecret", "sm_url", "tokenurl", "cluster_id"}
-	for _, key := range requiredKeys {
-		value, exists := secret.Data[key]
-		if !exists {
-			missingKeys = append(missingKeys, key)
-			continue
-		}
-		if len(value) == 0 {
-			missingValues = append(missingValues, key)
-		}
-	}
-	if len(missingKeys) > 0 {
-		missingKeysMsg := fmt.Sprintf("key(s) %s not found", strings.Join(missingKeys, ", "))
-		errs = append(errs, missingKeysMsg)
-	}
-	if len(missingValues) > 0 {
-		missingValuesMsg := fmt.Sprintf("missing value(s) for %s key(s)", strings.Join(missingValues, ", "))
-		errs = append(errs, missingValuesMsg)
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, ", "))
-	}
-	return nil
-}
-
-func (r *BtpOperatorReconciler) createUnstructuredObjectsFromManifestsDir(manifestsDir string) ([]*unstructured.Unstructured, error) {
-	return r.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(manifestsDir)
-}
-
-func (r *BtpOperatorReconciler) getResourcesToDeletePath() string {
-	return r.moduleResourceManager.GetResourcesToDeletePath()
-}
-
-func (r *BtpOperatorReconciler) addNetworkPoliciesToResources(ctx context.Context, resourcesToApply *[]*unstructured.Unstructured) error {
-	if r.networkPolicyManager == nil {
-		return nil
-	}
-	logger := log.FromContext(ctx)
-	networkPolicies, err := r.networkPolicyManager.LoadNetworkPolicies()
-	if err != nil {
-		logger.Error(err, "while loading network policies")
-		return fmt.Errorf("failed to load network policies: %w", err)
-	}
-	*resourcesToApply = append(*resourcesToApply, networkPolicies...)
-	logger.Info(fmt.Sprintf("added %d network policies to resources to apply", len(networkPolicies)))
-
-	return nil
+	return r.provisioningHandler.GetAndVerifyRequiredSecret(ctx)
 }
 
 func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, s *corev1.Secret) error {
-	logger := log.FromContext(ctx)
-
-	logger.Info("getting module resources to apply")
-	resourcesToApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
-	if err != nil {
-		logger.Error(err, "while creating applicable objects from manifests")
-		return fmt.Errorf("failed to create applicable objects from manifests: %w", err)
-	}
-	logger.Info(fmt.Sprintf("got %d module resources to apply based on %s directory", len(resourcesToApply), r.getResourcesToApplyPath()))
-
-	if cr.IsNetworkPoliciesDisabled() {
-		logger.Info("network policies disabled, cleaning up existing ones")
-		if err := r.cleanupNetworkPolicies(ctx); err != nil {
-			logger.Error(err, "while cleaning up network policies")
-			return fmt.Errorf("failed to cleanup network policies: %w", err)
-		}
-	} else {
-		logger.Info("network policies enabled, loading and adding them to resources")
-		if err := r.addNetworkPoliciesToResources(ctx, &resourcesToApply); err != nil {
-			return err
-		}
-	}
-	if err := r.deleteOldWebhookNetworkPolicy(ctx); err != nil {
-		logger.Error(err, "while deleting old webhook network policy")
-		return fmt.Errorf("failed to delete old webhook network policy: %w", err)
-	}
-
-	if err = r.moduleResourceManager.PrepareModuleResources(ctx, resourcesToApply, s); err != nil {
-		logger.Error(err, "while preparing objects to apply")
-		return fmt.Errorf("failed to prepare objects to apply: %w", err)
-	}
-
-	webhookResources, nonWebhookResources := certificate.PartitionWebhooks(resourcesToApply)
-	preparedWebhooks, err := r.certManager.PrepareAdmissionWebhooks(ctx, webhookResources)
-	if err != nil {
-		logger.Error(err, "while preparing admission webhooks")
-		return fmt.Errorf("failed to prepare admission webhooks: %w", err)
-	}
-	resourcesToApply = append(nonWebhookResources, preparedWebhooks...)
-
-	r.moduleResourceManager.DeleteCreationTimestamp(resourcesToApply...)
-
-	logger.Info(fmt.Sprintf("applying module resources for %d resources", len(resourcesToApply)))
-	if err = r.moduleResourceManager.ApplyOrUpdateResources(ctx, resourcesToApply); err != nil {
-		logger.Error(err, "while applying module resources")
-		return fmt.Errorf("failed to apply module resources: %w", err)
-	}
-
-	logger.Info("waiting for module resources readiness")
-	if err = r.moduleResourceManager.WaitForResourcesReadiness(ctx, resourcesToApply); err != nil {
-		logger.Error(err, "while waiting for module resources readiness")
-		return fmt.Errorf("timed out while waiting for resources readiness: %w", err)
-	}
-
-	return nil
-}
-
-func (r *BtpOperatorReconciler) getResourcesToApplyPath() string {
-	return r.moduleResourceManager.GetResourcesToApplyPath()
-}
-
-func (r *BtpOperatorReconciler) cleanupNetworkPolicies(ctx context.Context) error {
-	if r.networkPolicyManager == nil {
-		return nil
-	}
-	return r.networkPolicyManager.CleanupNetworkPolicies(ctx)
-}
-
-func (r *BtpOperatorReconciler) deleteOldWebhookNetworkPolicy(ctx context.Context) error {
-	if r.networkPolicyManager == nil {
-		return nil
-	}
-	return r.networkPolicyManager.DeleteOldWebhookNetworkPolicy(ctx)
+	return r.provisioningHandler.ReconcileResources(ctx, cr, s)
 }
 
 func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
@@ -564,11 +388,11 @@ func (r *BtpOperatorReconciler) handleDeleting(ctx context.Context, cr *v1alpha1
 
 	if err = r.handleDeprovisioning(ctx, cr); err != nil {
 		logger.Error(err, "deprovisioning failed. Restoring resources")
-		r.reconcileResourcesWithoutChangingCrState(ctx, cr, &logger)
+		r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
 		return err
 	}
 	if cr.IsReasonStringEqual(string(conditions.ServiceInstancesAndBindingsNotCleaned)) {
-		r.reconcileResourcesWithoutChangingCrState(ctx, cr, &logger)
+		r.provisioningHandler.ReconcileResourcesWithoutStatusChange(ctx, cr)
 
 		numberOfBindings, err := r.numberOfResources(ctx, bindingGvk)
 		if err != nil {
@@ -836,14 +660,14 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to delete")
-	resourcesToDeleteFromApply, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToApplyPath())
+	resourcesToDeleteFromApply, err := r.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(r.moduleResourceManager.GetResourcesToApplyPath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
 	}
 	logger.Info(fmt.Sprintf("got %d module resources to delete from \"apply\" dir", len(resourcesToDeleteFromApply)))
 
-	resourcesToDeleteFromDelete, err := r.createUnstructuredObjectsFromManifestsDir(r.getResourcesToDeletePath())
+	resourcesToDeleteFromDelete, err := r.moduleResourceManager.CreateUnstructuredObjectsFromManifestsDir(r.moduleResourceManager.GetResourcesToDeletePath())
 	if err != nil {
 		logger.Error(err, "while getting objects to delete from manifests")
 		return fmt.Errorf("Failed to create deletable objects from manifests: %w", err)
@@ -859,9 +683,11 @@ func (r *BtpOperatorReconciler) deleteBtpOperatorResources(ctx context.Context) 
 		return fmt.Errorf("failed to delete module resources: %w", err)
 	}
 
-	if err := r.cleanupNetworkPolicies(ctx); err != nil {
-		logger.Error(err, "while cleaning up network policies during hard delete")
-		return fmt.Errorf("failed to cleanup network policies during hard delete: %w", err)
+	if r.networkPolicyManager != nil {
+		if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
+			logger.Error(err, "while cleaning up network policies during hard delete")
+			return fmt.Errorf("failed to cleanup network policies during hard delete: %w", err)
+		}
 	}
 
 	if err := r.driftDetector.DeleteClusterIdSecret(ctx); err != nil {
@@ -959,8 +785,10 @@ func (r *BtpOperatorReconciler) preSoftDeleteCleanup(ctx context.Context) error 
 		}
 	}
 
-	if err := r.cleanupNetworkPolicies(ctx); err != nil {
-		return fmt.Errorf("failed to cleanup network policies during soft delete: %w", err)
+	if r.networkPolicyManager != nil {
+		if err := r.networkPolicyManager.CleanupNetworkPolicies(ctx); err != nil {
+			return fmt.Errorf("failed to cleanup network policies during soft delete: %w", err)
+		}
 	}
 
 	return nil
@@ -1026,7 +854,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.handleMissingSecret(ctx, cr, logger, errWithReason)
+		return r.handleSecretVerificationFailure(ctx, cr, logger, errWithReason)
 	}
 
 	r.driftDetector.InitializeFromSecret(requiredSecret)
@@ -1377,19 +1205,6 @@ func (r *BtpOperatorReconciler) getSecretDataValueByKey(key string, data map[str
 		return nil, fmt.Errorf("empty value for key: %s", key)
 	}
 	return value, nil
-}
-
-func (r *BtpOperatorReconciler) reconcileResourcesWithoutChangingCrState(ctx context.Context, cr *v1alpha1.BtpOperator, logger *logr.Logger) {
-	secret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
-	if errWithReason != nil {
-		logger.Error(errWithReason, "secret verification failed")
-	}
-	if err := r.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
-		logger.Error(err, "outdated resources deletion failed")
-	}
-	if err := r.reconcileResources(ctx, cr, secret); err != nil {
-		logger.Error(err, "resources reconciliation failed")
-	}
 }
 
 func (r *BtpOperatorReconciler) isManagedSecret(s *corev1.Secret) bool {
