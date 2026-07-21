@@ -21,6 +21,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+// certA and certB are real self-signed test certificates generated once for these tests.
+const certA = `-----BEGIN CERTIFICATE-----
+MIIBDjCBtaADAgECAgEBMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBmNlcnQtQTAe
+Fw0yNjA3MjExNjQ0MjFaFw0yNjA3MjIxNjQ0MjFaMBExDzANBgNVBAMTBmNlcnQt
+QTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABB+lo3VAL3L7VG3Kuyt2W9jxxZcG
+DGb35cngmqrfeEmQQ7p9Kz3FPeIbWB1hwAHQmjZZwYip11vcVi3MWXpPH2owCgYI
+KoZIzj0EAwIDSAAwRQIhAM2P/q7brtxIrTpAgHf4h7R4O9Wk0pb9vCReK0rgIHAn
+AiAJFUxHr4wMzZetkNMlopEqTv4vA2aYvxrIm0qvz6741w==
+-----END CERTIFICATE-----
+`
+
+const certB = `-----BEGIN CERTIFICATE-----
+MIIBDTCBtaADAgECAgEBMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBmNlcnQtQjAe
+Fw0yNjA3MjExNjQ0MjFaFw0yNjA3MjIxNjQ0MjFaMBExDzANBgNVBAMTBmNlcnQt
+QjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABEeVJBibdup224H6BuoKm1q+0SWX
+hNZyiNO4/Xrnp7ctq69tyfkI5dbDC6VgydgukDif3vhEoeMzU4FGS0T4WxcwCgYI
+KoZIzj0EAwIDRwAwRAIgBl0wahzcqJEsdpTFDusRCKK4TJE4egl7Si6kWa/O8c4C
+ICpl+vSkNJzbvs8fPhWQyqaZ4BpENpJBSigrJvqdQz5N
+-----END CERTIFICATE-----
+`
+
 func testScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(s)
@@ -46,7 +67,7 @@ func TestLoadConfig_EnvOverride(t *testing.T) {
 func TestCollectMount_Present(t *testing.T) {
 	caFile, err := os.CreateTemp("", "ca-*.crt")
 	require.NoError(t, err)
-	content := []byte("-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n")
+	content := []byte(certA)
 	_, err = caFile.Write(content)
 	require.NoError(t, err)
 	caFile.Close()
@@ -220,4 +241,68 @@ func TestClearBtpOperatorProbeAnnotations_NoOp(t *testing.T) {
 	updated := &btpv1alpha1.BtpOperator{}
 	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: "kyma-system", Name: "btpoperator"}, updated))
 	assert.Equal(t, "keep-me", updated.Annotations["some-other-annotation"])
+}
+
+func TestHashCertBundle_EmptyInput(t *testing.T) {
+	assert.Empty(t, hashCertBundle(nil))
+	assert.Empty(t, hashCertBundle([]byte{}))
+	assert.Empty(t, hashCertBundle([]byte("not a cert")))
+}
+
+func TestHashCertBundle_SingleCert_Stable(t *testing.T) {
+	data := []byte(certA)
+	h1 := hashCertBundle(data)
+	h2 := hashCertBundle(data)
+	require.NotEmpty(t, h1)
+	assert.Equal(t, h1, h2)
+}
+
+func TestHashCertBundle_OrderIndependent(t *testing.T) {
+	// Same two certs, different order — hash must be identical.
+	bundleAB := []byte(certA + certB)
+	bundleBA := []byte(certB + certA)
+	hAB := hashCertBundle(bundleAB)
+	hBA := hashCertBundle(bundleBA)
+	require.NotEmpty(t, hAB)
+	assert.Equal(t, hAB, hBA, "hash must not depend on cert order in the file")
+}
+
+func TestHashCertBundle_DifferentCerts_DifferentHash(t *testing.T) {
+	hA := hashCertBundle([]byte(certA))
+	hB := hashCertBundle([]byte(certB))
+	require.NotEmpty(t, hA)
+	require.NotEmpty(t, hB)
+	assert.NotEqual(t, hA, hB)
+}
+
+func TestHashCertBundle_DuplicateCerts_SameAsUnique(t *testing.T) {
+	// A bundle with A+A should hash the same as a bundle with just A.
+	hOnce := hashCertBundle([]byte(certA))
+	hTwice := hashCertBundle([]byte(certA + certA))
+	assert.Equal(t, hOnce, hTwice, "duplicated cert must not change the hash")
+}
+
+func TestCollectMount_HashIsOrderIndependent(t *testing.T) {
+	// Integration: collectMountFromPath must produce the same hash regardless of cert order.
+	bundleAB := []byte(certA + certB)
+	bundleBA := []byte(certB + certA)
+
+	dir := t.TempDir()
+	mountInfo, err := os.CreateTemp("", "mountinfo-*")
+	require.NoError(t, err)
+	defer os.Remove(mountInfo.Name())
+	fmt.Fprintf(mountInfo, "100 99 0:1 / %s rw - tmpfs tmpfs rw\n", dir)
+	mountInfo.Close()
+
+	caAB := filepath.Join(dir, "ca-ab.crt")
+	caBA := filepath.Join(dir, "ca-ba.crt")
+	require.NoError(t, os.WriteFile(caAB, bundleAB, 0600))
+	require.NoError(t, os.WriteFile(caBA, bundleBA, 0600))
+
+	mAB := collectMountFromPath(caAB, dir, mountInfo.Name())
+	mBA := collectMountFromPath(caBA, dir, mountInfo.Name())
+
+	require.True(t, mAB.Present)
+	require.True(t, mBA.Present)
+	assert.Equal(t, mAB.Hash, mBA.Hash, "mount hash must be order-independent")
 }
