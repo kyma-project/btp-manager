@@ -43,13 +43,16 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/configurator"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/provisioning"
 	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	//+kubebuilder:scaffold:imports
 )
@@ -141,6 +144,8 @@ func main() {
 	moduleResourceManager := moduleresource.NewManager(mgr.GetClient(), scheme, driftDetector)
 	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](mgr.GetClient()))
 	certManager := certificate.NewManager(secretsManager, webhookMetrics)
+	provisioningHandler := provisioning.NewHandler(mgr.GetClient(), driftDetector, moduleResourceManager, networkPolicyManager, certManager, cleanupReconciler)
+	sapBtpConfigurator := configurator.NewConfigurator(driftDetector)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
@@ -154,7 +159,10 @@ func main() {
 		driftDetector,
 		moduleResourceManager,
 		certManager,
+		provisioningHandler,
+		sapBtpConfigurator,
 	)
+	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(mgr.GetClient(), apiServerClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
