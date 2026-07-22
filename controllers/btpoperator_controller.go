@@ -26,6 +26,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/configurator"
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/metrics"
@@ -56,7 +57,7 @@ const (
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
 
-	ClusterIdConfigMapKey           = "CLUSTER_ID"
+	ClusterIdConfigMapKey           = drift.ClusterIdConfigMapKey
 	ReleaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
 	ManagementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
 	InitialClusterIdSecretKey       = "INITIAL_CLUSTER_ID"
@@ -71,12 +72,6 @@ const (
 	operatorName = "btp-manager"
 	operandName  = "sap-btp-operator"
 
-	sapBtpServiceOperatorSecretName          = SapBtpServiceOperatorName
-	sapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
-	sapBtpServiceOperatorConfigMapName       = operandName + "-config"
-
-	caCertSecretName      = "ca-server-cert"
-	webhookCertSecretName = "webhook-server-cert"
 	mutatingWebhookName   = operandName + "-mutating-webhook-configuration"
 	validatingWebhookName = operandName + "-validating-webhook-configuration"
 
@@ -97,18 +92,9 @@ const (
 )
 
 const (
-	caCertSecretCertField      = "ca.crt"
-	caCertSecretKeyField       = "ca.key"
-	webhookCertSecretCertField = "tls.crt"
-	webhookCertSecretKeyField  = "tls.key"
-)
-
-const (
-	secretKind                         = "Secret"
-	configMapKind                      = "ConfigMap"
-	deploymentKind                     = "Deployment"
-	mutatingWebhookConfigurationKind   = "MutatingWebhookConfiguration"
-	validatingWebhookConfigurationKind = "ValidatingWebhookConfiguration"
+	secretKind     = "Secret"
+	configMapKind  = "ConfigMap"
+	deploymentKind = "Deployment"
 
 	deploymentAvailableConditionType   = "Available"
 	deploymentProgressingConditionType = "Progressing"
@@ -647,5 +633,5 @@ func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
 }
 
 func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
-	return s.Namespace == config.ChartNamespace && (s.Name == caCertSecretName || s.Name == webhookCertSecretName)
+	return s.Namespace == config.ChartNamespace && (s.Name == certificate.CaCertSecretName || s.Name == certificate.WebhookCertSecretName)
 }

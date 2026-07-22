@@ -18,6 +18,10 @@ import (
 const (
 	ClusterIdConfigMapKey = "CLUSTER_ID"
 
+	SapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
+	SapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
+	SapBtpServiceOperatorConfigMapName       = operandName + "-config"
+
 	clusterIdSecretKey            = "cluster_id"
 	credentialsNamespaceSecretKey = "credentials_namespace"
 	initialClusterIdSecretKey     = "INITIAL_CLUSTER_ID"

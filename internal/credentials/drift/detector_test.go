@@ -572,8 +572,8 @@ var _ = Describe("Drift Detector", func() {
 				Expect(k8sClient.List(ctx, secrets)).To(Succeed())
 				secretNames := extractSecretNames(secrets.Items)
 				Expect(secretNames).To(ContainElements(
-					sapBtpServiceOperatorSecretName,
-					sapBtpServiceOperatorClusterIdSecretName,
+					drift.SapBtpServiceOperatorSecretName,
+					drift.SapBtpServiceOperatorClusterIdSecretName,
 				))
 
 				pods := &corev1.PodList{}
@@ -610,7 +610,7 @@ var _ = Describe("Drift Detector", func() {
 				secrets := &corev1.SecretList{}
 				Expect(k8sClient.List(ctx, secrets)).To(Succeed())
 				secretNames := extractSecretNames(secrets.Items)
-				Expect(secretNames).NotTo(ContainElement(sapBtpServiceOperatorClusterIdSecretName))
+				Expect(secretNames).NotTo(ContainElement(drift.SapBtpServiceOperatorClusterIdSecretName))
 			})
 
 			It("should not delete the operator credentials secret", func() {
@@ -621,7 +621,7 @@ var _ = Describe("Drift Detector", func() {
 				secrets := &corev1.SecretList{}
 				Expect(k8sClient.List(ctx, secrets)).To(Succeed())
 				secretNames := extractSecretNames(secrets.Items)
-				Expect(secretNames).To(ContainElement(sapBtpServiceOperatorSecretName))
+				Expect(secretNames).To(ContainElement(drift.SapBtpServiceOperatorSecretName))
 			})
 		})
 
@@ -650,8 +650,8 @@ var _ = Describe("Drift Detector", func() {
 				secrets := &corev1.SecretList{}
 				Expect(k8sClient.List(ctx, secrets)).To(Succeed())
 				secretNames := extractSecretNames(secrets.Items)
-				Expect(secretNames).NotTo(ContainElement(sapBtpServiceOperatorClusterIdSecretName))
-				Expect(secretNames).NotTo(ContainElement(sapBtpServiceOperatorSecretName))
+				Expect(secretNames).NotTo(ContainElement(drift.SapBtpServiceOperatorClusterIdSecretName))
+				Expect(secretNames).NotTo(ContainElement(drift.SapBtpServiceOperatorSecretName))
 			})
 		})
 

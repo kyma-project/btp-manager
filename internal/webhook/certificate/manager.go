@@ -18,13 +18,13 @@ import (
 )
 
 const (
-	caCertSecretName      = "ca-server-cert"
-	webhookCertSecretName = "webhook-server-cert"
+	CaCertSecretName      = "ca-server-cert"
+	WebhookCertSecretName = "webhook-server-cert"
 
-	caCertSecretCertField      = "ca.crt"
-	caCertSecretKeyField       = "ca.key"
-	webhookCertSecretCertField = "tls.crt"
-	webhookCertSecretKeyField  = "tls.key"
+	CaCertSecretCertField      = "ca.crt"
+	CaCertSecretKeyField       = "ca.key"
+	WebhookCertSecretCertField = "tls.crt"
+	WebhookCertSecretKeyField  = "tls.key"
 
 	MutatingWebhookConfigurationKind   = "MutatingWebhookConfiguration"
 	ValidatingWebhookConfigurationKind = "ValidatingWebhookConfiguration"
@@ -96,29 +96,29 @@ func (m *Manager) IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, 
 		return false, err
 	}
 	if caSecret == nil {
-		return false, fmt.Errorf("secret %q not found", caCertSecretName)
+		return false, fmt.Errorf("secret %q not found", CaCertSecretName)
 	}
-	caCert, err := getSecretDataValueByKey(caCertSecretCertField, caSecret.Data)
+	caCert, err := getSecretDataValueByKey(CaCertSecretCertField, caSecret.Data)
 	if err != nil {
-		return false, fmt.Errorf("CA secret %q: %w", caCertSecretName, err)
+		return false, fmt.Errorf("CA secret %q: %w", CaCertSecretName, err)
 	}
 	webhookSecret, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
 	if err != nil {
 		return false, err
 	}
 	if webhookSecret == nil {
-		return false, fmt.Errorf("secret %q not found", webhookCertSecretName)
+		return false, fmt.Errorf("secret %q not found", WebhookCertSecretName)
 	}
-	webhookCert, err := getSecretDataValueByKey(webhookCertSecretCertField, webhookSecret.Data)
+	webhookCert, err := getSecretDataValueByKey(WebhookCertSecretCertField, webhookSecret.Data)
 	if err != nil {
-		return false, fmt.Errorf("webhook secret %q: %w", webhookCertSecretName, err)
+		return false, fmt.Errorf("webhook secret %q: %w", WebhookCertSecretName, err)
 	}
 	return certs.VerifyIfLeafIsSignedByGivenCA(caCert, webhookCert)
 }
 
 func (m *Manager) GetSecretData(ctx context.Context, name string) (map[string][]byte, error) {
 	switch name {
-	case caCertSecretName:
+	case CaCertSecretName:
 		s, err := m.secretsManager.GetCaServerCertSecret(ctx)
 		if err != nil {
 			return nil, err
@@ -127,7 +127,7 @@ func (m *Manager) GetSecretData(ctx context.Context, name string) (map[string][]
 			return nil, fmt.Errorf("secret %q not found", name)
 		}
 		return s.Data, nil
-	case webhookCertSecretName:
+	case WebhookCertSecretName:
 		s, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
 		if err != nil {
 			return nil, err
@@ -158,7 +158,7 @@ func (m *Manager) PrepareAdmissionWebhooks(ctx context.Context, webhookResources
 		return m.regenerateCertificates(ctx, webhookResources)
 	}
 
-	caBundle := caCertSecret.Data[caCertSecretCertField]
+	caBundle := caCertSecret.Data[CaCertSecretCertField]
 
 	logger.Info("checking webhook certificate")
 	webhookCertSecret, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
@@ -191,7 +191,7 @@ func (m *Manager) regenerateCertificates(ctx context.Context, webhookResources [
 		return nil, fmt.Errorf("while generating CA self signed cert: %w", err)
 	}
 
-	caSecret, err := m.buildCertificateSecret(caCertSecretName, caCertificate, caPrivateKey)
+	caSecret, err := m.buildCertificateSecret(CaCertSecretName, caCertificate, caPrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("while building secret with regenerated CA self signed cert: %w", err)
 	}
@@ -201,7 +201,7 @@ func (m *Manager) regenerateCertificates(ctx context.Context, webhookResources [
 		return nil, fmt.Errorf("while generating webhook signed cert: %w", err)
 	}
 
-	webhookSecret, err := m.buildCertificateSecret(webhookCertSecretName, webhookCertificate, webhookPrivateKey)
+	webhookSecret, err := m.buildCertificateSecret(WebhookCertSecretName, webhookCertificate, webhookPrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("while building regenerated webhook signed cert secret: %w", err)
 	}
@@ -220,17 +220,17 @@ func (m *Manager) regenerateWebhookCertificate(ctx context.Context, webhookResou
 	logger := log.FromContext(ctx)
 	logger.Info("regenerating webhook certificate")
 
-	webhookCertificate, webhookPrivateKey, err := m.generateSignedCert(ctx, caCertSecretData[caCertSecretCertField], caCertSecretData[caCertSecretKeyField])
+	webhookCertificate, webhookPrivateKey, err := m.generateSignedCert(ctx, caCertSecretData[CaCertSecretCertField], caCertSecretData[CaCertSecretKeyField])
 	if err != nil {
 		return nil, fmt.Errorf("while regenerating webhook signed cert: %w", err)
 	}
 
-	webhookSecret, err := m.buildCertificateSecret(webhookCertSecretName, webhookCertificate, webhookPrivateKey)
+	webhookSecret, err := m.buildCertificateSecret(WebhookCertSecretName, webhookCertificate, webhookPrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("while building regenerated webhook signed cert secret: %w", err)
 	}
 
-	preparedWebhooks, err := m.prepareWebhooksManifests(ctx, webhookResources, caCertSecretData[caCertSecretCertField])
+	preparedWebhooks, err := m.prepareWebhooksManifests(ctx, webhookResources, caCertSecretData[CaCertSecretCertField])
 	if err != nil {
 		return nil, fmt.Errorf("while preparing webhooks manifests: %w", err)
 	}
@@ -379,7 +379,7 @@ func (m *Manager) validateWebhookCert(webhookCertSecret *corev1.Secret, caCert [
 	if err := m.validateCert(webhookCertSecret); err != nil {
 		return err
 	}
-	return verifyCASign(caCert, webhookCertSecret.Data[webhookCertSecretCertField])
+	return verifyCASign(caCert, webhookCertSecret.Data[WebhookCertSecretCertField])
 }
 
 func verifyCASign(caCert, signedCert []byte) error {
@@ -406,20 +406,20 @@ func getSecretDataValueByKey(key string, data map[string][]byte) ([]byte, error)
 
 func certFieldFromSecretBySecretName(secretName string) (string, error) {
 	switch secretName {
-	case caCertSecretName:
-		return caCertSecretCertField, nil
-	case webhookCertSecretName:
-		return webhookCertSecretCertField, nil
+	case CaCertSecretName:
+		return CaCertSecretCertField, nil
+	case WebhookCertSecretName:
+		return WebhookCertSecretCertField, nil
 	}
 	return "", fmt.Errorf("unknown secret %q - cert field undefined", secretName)
 }
 
 func privateKeyFieldFromSecretBySecretName(secretName string) (string, error) {
 	switch secretName {
-	case caCertSecretName:
-		return caCertSecretKeyField, nil
-	case webhookCertSecretName:
-		return webhookCertSecretKeyField, nil
+	case CaCertSecretName:
+		return CaCertSecretKeyField, nil
+	case WebhookCertSecretName:
+		return WebhookCertSecretKeyField, nil
 	}
 	return "", fmt.Errorf("unknown secret %q - private key field undefined", secretName)
 }
