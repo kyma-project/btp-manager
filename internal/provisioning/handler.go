@@ -149,6 +149,7 @@ func (h *handler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 }
 
 func (h *handler) ReconcileReady(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) error {
+	h.driftDetector.InitializeFromSecret(secret)
 	if err := h.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
 		return err
 	}
