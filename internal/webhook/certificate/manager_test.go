@@ -210,6 +210,153 @@ var _ = Describe("Certificate Manager", func() {
 		})
 	})
 
+	Describe("IsWebhookCertSignedBySelfSignedCA", func() {
+		Context("when CA secret is missing", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecret = nil
+			})
+
+			It("returns an error", func() {
+				_, err := mgr.IsWebhookCertSignedBySelfSignedCA(ctx)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("ca-server-cert"))
+			})
+		})
+
+		Context("when fetching the CA secret fails", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecretErr = errors.New("api error")
+			})
+
+			It("returns the error", func() {
+				_, err := mgr.IsWebhookCertSignedBySelfSignedCA(ctx)
+				Expect(err).To(MatchError("api error"))
+			})
+		})
+
+		Context("when webhook secret is missing", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecret = caSecret(validCACert, validCAKey)
+				secretsMgr.webhookCertSecret = nil
+			})
+
+			It("returns an error", func() {
+				_, err := mgr.IsWebhookCertSignedBySelfSignedCA(ctx)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("webhook-server-cert"))
+			})
+		})
+
+		Context("when fetching the webhook secret fails", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecret = caSecret(validCACert, validCAKey)
+				secretsMgr.webhookCertErr = errors.New("api error")
+			})
+
+			It("returns the error", func() {
+				_, err := mgr.IsWebhookCertSignedBySelfSignedCA(ctx)
+				Expect(err).To(MatchError("api error"))
+			})
+		})
+
+		Context("when webhook cert is signed by the CA", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecret = caSecret(validCACert, validCAKey)
+				secretsMgr.webhookCertSecret = webhookSecret(validWebhookCert, validWebhookKey)
+			})
+
+			It("returns true", func() {
+				ok, err := mgr.IsWebhookCertSignedBySelfSignedCA(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ok).To(BeTrue())
+			})
+		})
+
+		Context("when webhook cert is signed by a different CA", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecret = caSecret(validCACert, validCAKey)
+				secretsMgr.webhookCertSecret = webhookSecret(wrongSignedWebhookCert, wrongSignedWebhookKey)
+			})
+
+			It("returns false and an error", func() {
+				ok, err := mgr.IsWebhookCertSignedBySelfSignedCA(ctx)
+				Expect(err).To(HaveOccurred())
+				Expect(ok).To(BeFalse())
+			})
+		})
+	})
+
+	Describe("GetSecretData", func() {
+		Context("when requesting CA secret data", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecret = caSecret(validCACert, validCAKey)
+			})
+
+			It("returns the secret data", func() {
+				data, err := mgr.GetSecretData(ctx, caCertSecretName)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(data[caCertField]).To(Equal(validCACert))
+				Expect(data[caKeyField]).To(Equal(validCAKey))
+			})
+		})
+
+		Context("when CA secret is missing", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecret = nil
+			})
+
+			It("returns an error", func() {
+				_, err := mgr.GetSecretData(ctx, caCertSecretName)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("ca-server-cert"))
+			})
+		})
+
+		Context("when requesting webhook secret data", func() {
+			BeforeEach(func() {
+				secretsMgr.webhookCertSecret = webhookSecret(validWebhookCert, validWebhookKey)
+			})
+
+			It("returns the secret data", func() {
+				data, err := mgr.GetSecretData(ctx, webhookCertSecretName)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(data[webhookCertField]).To(Equal(validWebhookCert))
+				Expect(data[webhookKeyField]).To(Equal(validWebhookKey))
+			})
+		})
+
+		Context("when webhook secret is missing", func() {
+			BeforeEach(func() {
+				secretsMgr.webhookCertSecret = nil
+			})
+
+			It("returns an error", func() {
+				_, err := mgr.GetSecretData(ctx, webhookCertSecretName)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("webhook-server-cert"))
+			})
+		})
+
+		Context("when fetching CA secret fails", func() {
+			BeforeEach(func() {
+				secretsMgr.caCertSecretErr = errors.New("api error")
+			})
+
+			It("returns the error", func() {
+				_, err := mgr.GetSecretData(ctx, caCertSecretName)
+				Expect(err).To(MatchError("api error"))
+			})
+		})
+
+		Context("when an unknown secret name is requested", func() {
+			It("returns an error", func() {
+				_, err := mgr.GetSecretData(ctx, "unknown-secret")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("unknown secret"))
+			})
+		})
+	})
+
 	Describe("PartitionWebhooks", func() {
 		It("splits webhook configurations from other resources", func() {
 			mutating := mutatingWebhookConfig("test-mutating")
