@@ -80,10 +80,8 @@ const (
 	chartVersionLabelKey      = "chart-version"
 	kymaProjectModuleLabelKey = "kyma-project.io/module"
 
-	operatorLabelPrefix                       = "operator.kyma-project.io/"
-	previousClusterIdAnnotationKey            = operatorLabelPrefix + "previous-cluster-id"
-	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
-	deletionFinalizer                         = operatorLabelPrefix + operatorName
+	operatorLabelPrefix = "operator.kyma-project.io/"
+	deletionFinalizer   = operatorLabelPrefix + operatorName
 
 	kubernetesAppLabelPrefix = "app.kubernetes.io/"
 	managedByLabelKey        = kubernetesAppLabelPrefix + "managed-by"
