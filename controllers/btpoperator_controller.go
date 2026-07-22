@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
+	"github.com/kyma-project/btp-manager/internal/configurator"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
@@ -157,11 +157,12 @@ type BtpOperatorReconciler struct {
 	moduleResourceManager  moduleresource.ResourceManager
 	certManager            certificate.CertificateManager
 	provisioningHandler    provisioning.Handler
+	configurator           configurator.SapBtpServiceOperatorConfigurator
 	watchHandlers          []config.WatchHandler
 	deprovisioningHandler  deprovisioning.Handler
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, driftDetector drift.Detector, moduleResourceManager moduleresource.ResourceManager, certManager certificate.CertificateManager, provisioningHandler provisioning.Handler) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, driftDetector drift.Detector, moduleResourceManager moduleresource.ResourceManager, certManager certificate.CertificateManager, provisioningHandler provisioning.Handler, cfg configurator.SapBtpServiceOperatorConfigurator) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
@@ -174,6 +175,7 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 		moduleResourceManager:  moduleResourceManager,
 		certManager:            certManager,
 		provisioningHandler:    provisioningHandler,
+		configurator:           cfg,
 	}
 }
 
@@ -393,34 +395,12 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	r.driftDetector.InitializeFromSecret(requiredSecret)
 
-	defaultCredentialsSecret, err := r.driftDetector.GetDefaultCredentialsSecret(ctx)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s Secret", sapBtpServiceOperatorSecretName))
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingDefaultCredentialsSecretFailed, err.Error())
+	result := r.configurator.Check(ctx)
+	if result.ErrorReason != "" {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, result.ErrorReason, result.ErrorMessage)
 	}
-
-	if defaultCredentialsSecret != nil {
-		managerNs := r.driftDetector.CredentialsNamespaceFromManager()
-		if managerNs != defaultCredentialsSecret.Namespace {
-			msg := fmt.Sprintf("credentials namespace changed from %s to %s", defaultCredentialsSecret.Namespace, managerNs)
-			logger.Info(msg)
-			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.CredentialsNamespaceChanged, msg)
-		}
-	}
-
-	sapBtpOperatorConfigMap, err := r.driftDetector.GetSapBtpServiceOperatorConfigMap(ctx)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s ConfigMap", sapBtpServiceOperatorConfigMapName))
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.GettingSapBtpServiceOperatorConfigMapFailed, err.Error())
-	}
-
-	if sapBtpOperatorConfigMap != nil {
-		clusterIdFromCM := sapBtpOperatorConfigMap.Data[strings.ToUpper(ClusterIdSecretKey)]
-		if r.driftDetector.ClusterIdFromManager() != clusterIdFromCM {
-			msg := fmt.Sprintf("cluster ID changed from %s to %s", clusterIdFromCM, r.driftDetector.ClusterIdFromManager())
-			logger.Info(msg)
-			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, conditions.ClusterIdChanged, msg)
-		}
+	if result.ReprocessReason != "" {
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, result.ReprocessReason, result.ReprocessMessage)
 	}
 
 	if err := r.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {

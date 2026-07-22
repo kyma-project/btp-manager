@@ -16,6 +16,8 @@ import (
 )
 
 const (
+	ClusterIdConfigMapKey = "CLUSTER_ID"
+
 	clusterIdSecretKey            = "cluster_id"
 	credentialsNamespaceSecretKey = "credentials_namespace"
 	initialClusterIdSecretKey     = "INITIAL_CLUSTER_ID"
