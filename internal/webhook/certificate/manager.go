@@ -48,6 +48,8 @@ func (e CertificateSignError) Error() string {
 
 type CertificateManager interface {
 	PrepareAdmissionWebhooks(ctx context.Context, webhookResources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
+	IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, error)
+	GetSecretData(ctx context.Context, name string) (map[string][]byte, error)
 }
 
 // WebhookMetrics is the metrics sink consumed by the certificate manager.
@@ -87,6 +89,56 @@ func NewManager(secretsManager secrets.Manager, webhookMetrics WebhookMetrics) *
 }
 
 var _ CertificateManager = (*Manager)(nil)
+
+func (m *Manager) IsWebhookCertSignedBySelfSignedCA(ctx context.Context) (bool, error) {
+	caSecret, err := m.secretsManager.GetCaServerCertSecret(ctx)
+	if err != nil {
+		return false, err
+	}
+	if caSecret == nil {
+		return false, fmt.Errorf("secret %q not found", caCertSecretName)
+	}
+	caCert, err := getSecretDataValueByKey(caCertSecretCertField, caSecret.Data)
+	if err != nil {
+		return false, fmt.Errorf("CA secret %q: %w", caCertSecretName, err)
+	}
+	webhookSecret, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
+	if err != nil {
+		return false, err
+	}
+	if webhookSecret == nil {
+		return false, fmt.Errorf("secret %q not found", webhookCertSecretName)
+	}
+	webhookCert, err := getSecretDataValueByKey(webhookCertSecretCertField, webhookSecret.Data)
+	if err != nil {
+		return false, fmt.Errorf("webhook secret %q: %w", webhookCertSecretName, err)
+	}
+	return certs.VerifyIfLeafIsSignedByGivenCA(caCert, webhookCert)
+}
+
+func (m *Manager) GetSecretData(ctx context.Context, name string) (map[string][]byte, error) {
+	switch name {
+	case caCertSecretName:
+		s, err := m.secretsManager.GetCaServerCertSecret(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if s == nil {
+			return nil, fmt.Errorf("secret %q not found", name)
+		}
+		return s.Data, nil
+	case webhookCertSecretName:
+		s, err := m.secretsManager.GetWebhookServerCertSecret(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if s == nil {
+			return nil, fmt.Errorf("secret %q not found", name)
+		}
+		return s.Data, nil
+	}
+	return nil, fmt.Errorf("unknown secret %q", name)
+}
 
 func (m *Manager) PrepareAdmissionWebhooks(ctx context.Context, webhookResources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	logger := log.FromContext(ctx)

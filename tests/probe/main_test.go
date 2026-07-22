@@ -21,6 +21,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+// certA and certB are real self-signed test certificates valid for 100 years (expire 2126).
+// x509.ParseCertificate does not validate expiry, so these are stable test fixtures.
+const certA = `-----BEGIN CERTIFICATE-----
+MIIBETCBt6ADAgECAgEBMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBmNlcnQtQTAg
+Fw0yNjA3MjExNzE1MTVaGA8yMTI2MDYyNzE3MTUxNVowETEPMA0GA1UEAxMGY2Vy
+dC1BMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEwls12ICy7qAI9LdVz9THuAw
+IwarpGQgnxNK/eJGcSB2HRXXLoDs5FZFxvEaLO8B2I7v3jLJCzLt6CQP/qWBWDAK
+BggqhkjOPQQDAgNJADBGAiEAyW1ebwVF0GOmqaKSbd4VPmo6hOl6wKhfZnCRplI6
+td4CIQCkEvs9atXyWaSeAdpCHPkVaqyx1r0M+q4DtPtm63K8ug==
+-----END CERTIFICATE-----
+`
+
+const certB = `-----BEGIN CERTIFICATE-----
+MIIBDzCBt6ADAgECAgEBMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBmNlcnQtQjAg
+Fw0yNjA3MjExNzE1MTVaGA8yMTI2MDYyNzE3MTUxNVowETEPMA0GA1UEAxMGY2Vy
+dC1CMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+Bg3XMx5P7ZU8XEJ++8vfozT
+BGEzw+Xvn94EzNnbBKhknfqChP1UfYVZ1tC9nf4VyuJKWjzbr5HdLB5vn4ktPjAK
+BggqhkjOPQQDAgNHADBEAiA7KZ0wBZdzeKZzWWJR0SPE9/R59zeNVeOhCsT6b6RL
+0wIgeor8WP6NGWfegdC4D1fGsam15j9nvRrRe6rPo0S1wQk=
+-----END CERTIFICATE-----
+`
+
 func testScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(s)
@@ -46,7 +68,7 @@ func TestLoadConfig_EnvOverride(t *testing.T) {
 func TestCollectMount_Present(t *testing.T) {
 	caFile, err := os.CreateTemp("", "ca-*.crt")
 	require.NoError(t, err)
-	content := []byte("-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n")
+	content := []byte(certA)
 	_, err = caFile.Write(content)
 	require.NoError(t, err)
 	caFile.Close()
@@ -220,4 +242,68 @@ func TestClearBtpOperatorProbeAnnotations_NoOp(t *testing.T) {
 	updated := &btpv1alpha1.BtpOperator{}
 	require.NoError(t, cl.Get(context.Background(), types.NamespacedName{Namespace: "kyma-system", Name: "btpoperator"}, updated))
 	assert.Equal(t, "keep-me", updated.Annotations["some-other-annotation"])
+}
+
+func TestHashCertBundle_EmptyInput(t *testing.T) {
+	assert.Empty(t, hashCertBundle(nil))
+	assert.Empty(t, hashCertBundle([]byte{}))
+	assert.Empty(t, hashCertBundle([]byte("not a cert")))
+}
+
+func TestHashCertBundle_SingleCert_Stable(t *testing.T) {
+	data := []byte(certA)
+	h1 := hashCertBundle(data)
+	h2 := hashCertBundle(data)
+	require.NotEmpty(t, h1)
+	assert.Equal(t, h1, h2)
+}
+
+func TestHashCertBundle_OrderIndependent(t *testing.T) {
+	// Same two certs, different order — hash must be identical.
+	bundleAB := []byte(certA + certB)
+	bundleBA := []byte(certB + certA)
+	hAB := hashCertBundle(bundleAB)
+	hBA := hashCertBundle(bundleBA)
+	require.NotEmpty(t, hAB)
+	assert.Equal(t, hAB, hBA, "hash must not depend on cert order in the file")
+}
+
+func TestHashCertBundle_DifferentCerts_DifferentHash(t *testing.T) {
+	hA := hashCertBundle([]byte(certA))
+	hB := hashCertBundle([]byte(certB))
+	require.NotEmpty(t, hA)
+	require.NotEmpty(t, hB)
+	assert.NotEqual(t, hA, hB)
+}
+
+func TestHashCertBundle_DuplicateCerts_SameAsUnique(t *testing.T) {
+	// A bundle with A+A should hash the same as a bundle with just A.
+	hOnce := hashCertBundle([]byte(certA))
+	hTwice := hashCertBundle([]byte(certA + certA))
+	assert.Equal(t, hOnce, hTwice, "duplicated cert must not change the hash")
+}
+
+func TestCollectMount_HashIsOrderIndependent(t *testing.T) {
+	// Integration: collectMountFromPath must produce the same hash regardless of cert order.
+	bundleAB := []byte(certA + certB)
+	bundleBA := []byte(certB + certA)
+
+	dir := t.TempDir()
+	mountInfo, err := os.CreateTemp("", "mountinfo-*")
+	require.NoError(t, err)
+	defer os.Remove(mountInfo.Name())
+	fmt.Fprintf(mountInfo, "100 99 0:1 / %s rw - tmpfs tmpfs rw\n", dir)
+	mountInfo.Close()
+
+	caAB := filepath.Join(dir, "ca-ab.crt")
+	caBA := filepath.Join(dir, "ca-ba.crt")
+	require.NoError(t, os.WriteFile(caAB, bundleAB, 0600))
+	require.NoError(t, os.WriteFile(caBA, bundleBA, 0600))
+
+	mAB := collectMountFromPath(caAB, dir, mountInfo.Name())
+	mBA := collectMountFromPath(caBA, dir, mountInfo.Name())
+
+	require.True(t, mAB.Present)
+	require.True(t, mBA.Present)
+	assert.Equal(t, mAB.Hash, mBA.Hash, "mount hash must be order-independent")
 }
