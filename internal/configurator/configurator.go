@@ -3,7 +3,6 @@ package configurator
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
@@ -64,7 +63,7 @@ func (c *configurator) Check(ctx context.Context) CheckResult {
 		}
 	}
 	if sapBtpOperatorConfigMap != nil {
-		clusterIdFromCM := sapBtpOperatorConfigMap.Data[strings.ToUpper(clusterIdKey)]
+		clusterIdFromCM := sapBtpOperatorConfigMap.Data[clusterIdKey]
 		if c.driftDetector.ClusterIdFromManager() != clusterIdFromCM {
 			msg := fmt.Sprintf("cluster ID changed from %s to %s", clusterIdFromCM, c.driftDetector.ClusterIdFromManager())
 			logger.Info(msg)
