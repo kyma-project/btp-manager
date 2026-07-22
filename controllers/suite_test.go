@@ -27,6 +27,7 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/configurator"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/generic"
@@ -196,6 +197,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient()))
 	certManager := certificate.NewManager(secretsManager, metrics)
 	provisioningHandler := provisioning.NewHandler(k8sManager.GetClient(), driftDetector, moduleResourceManager, networkPolicyManager, certManager, cleanupReconciler)
+	sapBtpConfigurator := configurator.NewConfigurator(driftDetector)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
@@ -210,6 +212,7 @@ var _ = SynchronizedBeforeSuite(func() {
 		moduleResourceManager,
 		certManager,
 		provisioningHandler,
+		sapBtpConfigurator,
 	)
 	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(k8sManager.GetClient(), k8sClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
 
