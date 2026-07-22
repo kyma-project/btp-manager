@@ -9,8 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const clusterIdKey = "CLUSTER_ID"
-
 // CheckResult tells the reconciler what state transition (if any) to make.
 // All fields empty means no action needed.
 type CheckResult struct {
@@ -63,7 +61,7 @@ func (c *configurator) Check(ctx context.Context) CheckResult {
 		}
 	}
 	if sapBtpOperatorConfigMap != nil {
-		clusterIdFromCM := sapBtpOperatorConfigMap.Data[clusterIdKey]
+		clusterIdFromCM := sapBtpOperatorConfigMap.Data[drift.ClusterIdConfigMapKey]
 		if c.driftDetector.ClusterIdFromManager() != clusterIdFromCM {
 			msg := fmt.Sprintf("cluster ID changed from %s to %s", clusterIdFromCM, c.driftDetector.ClusterIdFromManager())
 			logger.Info(msg)
