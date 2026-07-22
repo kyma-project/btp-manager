@@ -28,12 +28,14 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/generic"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
 	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
 	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/provisioning"
 	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -193,6 +195,7 @@ var _ = SynchronizedBeforeSuite(func() {
 	moduleResourceManager := moduleresource.NewManager(k8sManager.GetClient(), k8sManager.GetScheme(), driftDetector)
 	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient()))
 	certManager := certificate.NewManager(secretsManager, metrics)
+	provisioningHandler := provisioning.NewHandler(k8sManager.GetClient(), driftDetector, moduleResourceManager, networkPolicyManager, certManager, cleanupReconciler)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
@@ -206,7 +209,9 @@ var _ = SynchronizedBeforeSuite(func() {
 		driftDetector,
 		moduleResourceManager,
 		certManager,
+		provisioningHandler,
 	)
+	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(k8sManager.GetClient(), k8sClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
 
 	k8sClientFromManager = k8sManager.GetClient()
 
