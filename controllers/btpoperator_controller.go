@@ -65,8 +65,7 @@ const (
 )
 
 const (
-	SapBtpServiceOperatorName = "sap-btp-service-operator"
-	SapBtpServiceOperatorEnv  = "SAP_BTP_SERVICE_OPERATOR"
+	SapBtpServiceOperatorEnv = "SAP_BTP_SERVICE_OPERATOR"
 
 	moduleName   = "btp-operator"
 	operatorName = "btp-manager"
