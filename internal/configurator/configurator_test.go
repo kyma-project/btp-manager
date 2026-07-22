@@ -11,17 +11,18 @@ import (
 )
 
 type stubReader struct {
-	credNs           string
-	clusterId        string
-	defaultSecret    *corev1.Secret
-	configMap        *corev1.ConfigMap
-	defaultSecretErr error
-	configMapErr     error
+	credNs            string
+	clusterId         string
+	defaultSecret     *corev1.Secret
+	configMap         *corev1.ConfigMap
+	defaultSecretErr  error
+	configMapErr      error
+	initializedSecret *corev1.Secret
 }
 
-func (s *stubReader) InitializeFromSecret(_ *corev1.Secret)   {}
-func (s *stubReader) CredentialsNamespaceFromManager() string { return s.credNs }
-func (s *stubReader) ClusterIdFromManager() string            { return s.clusterId }
+func (s *stubReader) InitializeFromSecret(secret *corev1.Secret) { s.initializedSecret = secret }
+func (s *stubReader) CredentialsNamespaceFromManager() string    { return s.credNs }
+func (s *stubReader) ClusterIdFromManager() string               { return s.clusterId }
 func (s *stubReader) GetDefaultCredentialsSecret(_ context.Context) (*corev1.Secret, error) {
 	return s.defaultSecret, s.defaultSecretErr
 }
@@ -35,6 +36,16 @@ func secret(ns string) *corev1.Secret {
 
 func configMap(clusterId string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{Data: map[string]string{"CLUSTER_ID": clusterId}}
+}
+
+func TestCheck_InitializesFromSecret(t *testing.T) {
+	stub := &stubReader{credNs: "kyma-system", clusterId: "c1"}
+	c := NewConfigurator(stub)
+	passedSecret := secret("kyma-system")
+	c.Check(context.Background(), passedSecret)
+	if stub.initializedSecret != passedSecret {
+		t.Fatalf("expected InitializeFromSecret to be called with the passed secret, got %v", stub.initializedSecret)
+	}
 }
 
 func TestCheck_NoChanges(t *testing.T) {
