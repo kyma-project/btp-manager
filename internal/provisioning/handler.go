@@ -36,7 +36,7 @@ type ProvisionResult struct {
 type Handler interface {
 	Provision(ctx context.Context, cr *v1alpha1.BtpOperator) ProvisionResult
 	GetAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *conditions.ErrorWithReason)
-	ReconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) error
+	ReconcileReady(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) error
 	ReconcileResourcesWithoutStatusChange(ctx context.Context, cr *v1alpha1.BtpOperator)
 }
 
@@ -146,6 +146,13 @@ func (h *handler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 		return nil, fmt.Errorf("unable to get Secret: %w", err)
 	}
 	return secret, nil
+}
+
+func (h *handler) ReconcileReady(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) error {
+	if err := h.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
+		return err
+	}
+	return h.ReconcileResources(ctx, cr, secret)
 }
 
 func (h *handler) ReconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, s *corev1.Secret) error {

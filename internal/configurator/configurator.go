@@ -11,6 +11,7 @@ import (
 )
 
 type OperatorStateReader interface {
+	InitializeFromSecret(s *corev1.Secret)
 	GetDefaultCredentialsSecret(ctx context.Context) (*corev1.Secret, error)
 	GetSapBtpServiceOperatorConfigMap(ctx context.Context) (*corev1.ConfigMap, error)
 	CredentialsNamespaceFromManager() string
@@ -27,7 +28,7 @@ type CheckResult struct {
 }
 
 type SapBtpServiceOperatorConfigurator interface {
-	Check(ctx context.Context) CheckResult
+	Check(ctx context.Context, secret *corev1.Secret) CheckResult
 }
 
 type configurator struct {
@@ -40,8 +41,10 @@ func NewConfigurator(r OperatorStateReader) SapBtpServiceOperatorConfigurator {
 
 var _ SapBtpServiceOperatorConfigurator = (*configurator)(nil)
 
-func (c *configurator) Check(ctx context.Context) CheckResult {
+func (c *configurator) Check(ctx context.Context, secret *corev1.Secret) CheckResult {
 	logger := log.FromContext(ctx)
+
+	c.reader.InitializeFromSecret(secret)
 
 	defaultCredentialsSecret, err := c.reader.GetDefaultCredentialsSecret(ctx)
 	if err != nil {
