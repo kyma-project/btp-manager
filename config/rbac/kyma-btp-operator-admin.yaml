@@ -1,0 +1,47 @@
+# permissions for end users to admin btp-operator module resources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyma-btp-operator-admin
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+- apiGroups:
+  - operator.kyma-project.io
+  resources:
+  - btpoperators
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.kyma-project.io
+  resources:
+  - btpoperators/status
+  verbs:
+  - get
+- apiGroups:
+  - services.cloud.sap.com
+  resources:
+  - serviceinstances
+  - servicebindings
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - services.cloud.sap.com
+  resources:
+  - serviceinstances/status
+  - servicebindings/status
+  verbs:
+  - get
