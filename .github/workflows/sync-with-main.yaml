@@ -3,24 +3,32 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'
-env:
-  GH_TOKEN: ${{ secrets.BOT_TOKEN }}
 permissions:
   contents: write
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
+          repositories: btp-manager
+
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          token: ${{ secrets.BOT_TOKEN }}
+          token: ${{ steps.bot-token.outputs.token }}
       - name: Setup Git User
         run: |
           git config --global user.email ${{ vars.GIT_USER_EMAIL }}
-          git config --global user.name ${{ vars.GIT_GOPHER_BOT_NAME }}
+          git config --global user.name ${{ vars.GIT_USER_NAME }}
           gh auth setup-git
+        env:
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
       - name: Sync with main
         run: |
           git checkout --progress --force -B main origin/main

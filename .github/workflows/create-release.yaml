@@ -4,8 +4,8 @@ run-name: Create release ${{ inputs.name }}
 env:
   IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
-  GIT_EMAIL: team-gopher+1@sap.com
-  GIT_NAME: kyma-gopher-bot
+  GIT_EMAIL: 4345220+kyma-gopher[bot]@users.noreply.github.com
+  GIT_NAME: kyma-gopher
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
 
 permissions:
@@ -253,13 +253,21 @@ jobs:
             exit 1
           fi
 
+      - name: Generate bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
+          repositories: btp-manager
+
       - name: Create PR if anything changed
         id: pr-needed
         if: ${{ !inputs.skip-sec-file-bump }}
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: |
-          prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+          prs=$(gh pr list -A app/kyma-gopher --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
             echo "PR already exists, no need to create a new one"
             echo "PR_NUMBER=$(gh pr list --search "base:main head:${{ env.BRANCH_NAME }}" --json number | jq -r '.[] | .number')" >> $GITHUB_ENV
@@ -274,7 +282,7 @@ jobs:
       - name: Merge PR
         if: ${{ !inputs.skip-sec-file-bump }}
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
         run: |
           if [ "$PR_NUMBER" -gt 0 ]; then
@@ -411,8 +419,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
+          repositories: btp-manager
+
       - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }} # We do use bot token here to trigger workflow uploading logs
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }} # We do use bot token here to trigger workflow uploading logs
         run: |
           gh release edit ${{ inputs.name }} --draft=false

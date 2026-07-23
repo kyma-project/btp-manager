@@ -34,22 +34,28 @@ jobs:
   promote:
     runs-on: ubuntu-latest
     environment: release
-    env:
-      MODULE_MANIFESTS_WITH_USER: "https://${{ vars.GIT_USER_NAME }}:${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
-      # needed by gh cli for GitHub enterprise
-      GH_ENTERPRISE_TOKEN: ${{ secrets.BOT_TOKEN_GITHUB_TOOLS }}
 
     steps:
       - name: Validate required environment variables
         shell: bash
         run: |
-          [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1 
-          [ -z "${{ vars.GIT_USER_EMAIL }}" ] && echo "GIT_USER_EMAIL is required" && exit 1 
-          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1 
-          [ -z "${{ vars.GH_TOOLS_HOST }}" ] && echo "GH_TOOLS_HOST is required" && exit 1 
-          [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1 
-          [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1 
+          [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1
+          [ -z "${{ vars.GIT_USER_EMAIL }}" ] && echo "GIT_USER_EMAIL is required" && exit 1
+          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1
+          [ -z "${{ vars.GH_TOOLS_HOST }}" ] && echo "GH_TOOLS_HOST is required" && exit 1
+          [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1
+          [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1
           echo "Validated"
+
+      - name: Generate enterprise bot token
+        id: enterprise-bot-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.GOPHER_TOOLS_BOT_APP_ID }}
+          private-key: ${{ secrets.GOPHER_TOOLS_BOT_APP_PRIVATE_KEY }}
+          github-api-url: https://${{ vars.GH_TOOLS_HOST }}/api/v3
+          owner: kyma
+          repositories: module-manifests
 
       - name: Validate given release tag
         shell: bash
@@ -68,6 +74,8 @@ jobs:
         run: echo "BRANCH_NAME=btp-manager-module-removal-${TAG}" >> $GITHUB_ENV
 
       - name: Setup git and clone repo
+        env:
+          MODULE_MANIFESTS_WITH_USER: "https://x-access-token:${{ steps.enterprise-bot-token.outputs.token }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
           git config --global user.email ${{ vars.GIT_USER_EMAIL }}
           git config --global user.name ${{ vars.GIT_USER_NAME }}
@@ -86,6 +94,8 @@ jobs:
 
       - name: Commit and push changes
         working-directory: module-manifests
+        env:
+          MODULE_MANIFESTS_WITH_USER: "https://x-access-token:${{ steps.enterprise-bot-token.outputs.token }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
           git add .
           git commit -m "Removal of module version ${TAG} from module-manifests repository"
@@ -97,8 +107,10 @@ jobs:
         shell: bash
         env:
           MODULE_MANIFESTS_REPO_URL: "https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}"
+          GH_ENTERPRISE_TOKEN: ${{ steps.enterprise-bot-token.outputs.token }}
+          GH_HOST: ${{ vars.GH_TOOLS_HOST }}
         run: |
-          prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A ${{ vars.GIT_USER_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+          prs=$(gh pr list -R "${MODULE_MANIFESTS_REPO_URL}" -A app/kyma-gopher --state open --json headRefName | jq -r '.[] | .headRefName')
 
           if echo $prs | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
               echo "Opened PR already exists, no need to create new one, PR will be updated by push from previous step"
@@ -110,6 +122,5 @@ jobs:
             -H ${BRANCH_NAME} \
             -R https://${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}/ \
             --title "Remove BTP Manager version ${TAG}" \
-            --fill \
             --body "${BTP_MANAGER_RELEASES_URL}/${TAG}/${MODULE_CONFIG_FILENAME}" \
             | tee $GITHUB_STEP_SUMMARY

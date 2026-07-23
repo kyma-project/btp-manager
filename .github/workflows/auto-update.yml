@@ -3,8 +3,8 @@ name: Auto update chart/resources
 env:
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
   SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
-  GIT_EMAIL: team-gopher+1@sap.com
-  GIT_NAME: kyma-gopher-bot
+  GIT_EMAIL: 4345220+kyma-gopher[bot]@users.noreply.github.com
+  GIT_NAME: kyma-gopher
   EXTERNAL_IMAGES_REPO: ${{ vars.EXTERNAL_IMAGES_REPO }}
 on:
   workflow_dispatch:
@@ -17,10 +17,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
+          repositories: btp-manager
+
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ steps.bot-token.outputs.token }}
 
       - name: Set up go environment
         uses: actions/setup-go@v7
@@ -52,12 +61,12 @@ jobs:
       - name: Create PR for image-syncer
         if: env.UPDATE_CHART == 'true'
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: |
           export BRANCH_NAME=${BASE_BRANCH_NAME}-update-chart-and-external-images
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
           export MSG="Update module chart to ${TAG}"
-          PRS=$(gh pr list -A $GIT_NAME --state open --json headRefName | jq -r '.[] | .headRefName')
+          PRS=$(gh pr list -A app/kyma-gopher --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $PRS | tr " " '\n' | grep -F -q -x ${BRANCH_NAME}; then
             echo "PR already exists, no need to create a new one"
             echo "CHART_UPDATE_PR_NUMBER=$(gh pr list --search "base:main head:${BRANCH_NAME}" --json number | jq -r '.[] | .number')" >> $GITHUB_ENV
@@ -73,7 +82,7 @@ jobs:
         if: env.UPDATE_CHART == 'true'
         timeout-minutes: 20
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
           PR_NUMBER: ${{ env.CHART_UPDATE_PR_NUMBER }}
         run: |
           sleep 10
@@ -96,7 +105,7 @@ jobs:
       - name: Merge PR
         if: env.UPDATE_CHART == 'true'
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
           PR_NUMBER: ${{ env.CHART_UPDATE_PR_NUMBER }}
         run: |
@@ -133,6 +142,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ steps.bot-token.outputs.token }}
       
       - name: Pull latest changes
         if: env.UPDATE_CHART == 'true'
@@ -140,11 +150,11 @@ jobs:
 
       - name: Check if PR with module resources update is required
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: |
           export BRANCH_NAME=${BASE_BRANCH_NAME}-update-resources
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-          PRS=$(gh pr list -A $GIT_NAME --state all --json headRefName | jq -r '.[] | .headRefName')
+          PRS=$(gh pr list -A app/kyma-gopher --state all --json headRefName | jq -r '.[] | .headRefName')
           if echo $PRS | tr " " '\n' | grep -F -q -x $BRANCH_NAME; then
             echo "PR already exists, no need to create a new one"
             echo "UPDATE_RESOURCES=false" >> $GITHUB_ENV
@@ -164,7 +174,7 @@ jobs:
       - name: Create PR for module resources update
         if: env.UPDATE_RESOURCES == 'true'
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: |
           export MSG="Update module resources to ${TAG}"
           if [ -z "$(git status --porcelain)" ]; then
