@@ -1,0 +1,43 @@
+# permissions for end users to edit btp-operator module resources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyma-btp-operator-edit
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+rules:
+- apiGroups:
+  - operator.kyma-project.io
+  resources:
+  - btpoperators
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - operator.kyma-project.io
+  resources:
+  - btpoperators/status
+  verbs:
+  - get
+- apiGroups:
+  - services.cloud.sap.com
+  resources:
+  - serviceinstances
+  - servicebindings
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - services.cloud.sap.com
+  resources:
+  - serviceinstances/status
+  - servicebindings/status
+  verbs:
+  - get
