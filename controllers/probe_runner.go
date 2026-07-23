@@ -81,6 +81,9 @@ func (r *ProbeRunner) Start(ctx context.Context) error {
 
 	if err := r.runCycle(ctx); err != nil {
 		logger.Error(err, "probe cycle failed")
+		if ctx.Err() != nil {
+			return nil
+		}
 	}
 
 	ticker := time.NewTicker(interval)
