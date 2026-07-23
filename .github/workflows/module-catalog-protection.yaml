@@ -42,7 +42,7 @@ jobs:
           echo "PR Labels: '$PR_LABELS'"
           
           if [[ "$PR_AUTHOR" == "kyma-gopher[bot]" ]]; then
-            echo "PR is from kyma-gopher, module catalog changes are allowed"
+            echo "PR is from kyma-gopher[bot], module catalog changes are allowed"
             exit 0
           fi
 
