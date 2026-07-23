@@ -18,16 +18,16 @@ import (
 const (
 	ClusterIdConfigMapKey = "CLUSTER_ID"
 
-	clusterIdSecretKey            = "cluster_id"
-	credentialsNamespaceSecretKey = "credentials_namespace"
-	initialClusterIdSecretKey     = "INITIAL_CLUSTER_ID"
-
 	operatorName = "btp-manager"
 	operandName  = "sap-btp-operator"
 
-	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
-	sapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
-	sapBtpServiceOperatorConfigMapName       = operandName + "-config"
+	SapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
+	SapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
+	SapBtpServiceOperatorConfigMapName       = operandName + "-config"
+
+	clusterIdSecretKey            = "cluster_id"
+	credentialsNamespaceSecretKey = "credentials_namespace"
+	initialClusterIdSecretKey     = "INITIAL_CLUSTER_ID"
 
 	operatorLabelPrefix                       = "operator.kyma-project.io/"
 	previousClusterIdAnnotationKey            = operatorLabelPrefix + "previous-cluster-id"
@@ -123,14 +123,14 @@ func (d *DriftDetector) CheckCredentialsNamespaceDrift(ctx context.Context, requ
 
 	defaultCredentialsSecret, err := d.GetDefaultCredentialsSecret(ctx)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret", sapBtpServiceOperatorSecretName))
+		logger.Error(err, fmt.Sprintf("while getting %s secret", SapBtpServiceOperatorSecretName))
 		return conditions.NewErrorWithReason(conditions.GettingDefaultCredentialsSecretFailed, err.Error())
 	}
 
 	if defaultCredentialsSecret != nil {
 		d.credentialsNamespaceFromSapBtpServiceOperatorSecret = defaultCredentialsSecret.Namespace
 		if d.credentialsNamespaceFromSapBtpManagerSecret != d.credentialsNamespaceFromSapBtpServiceOperatorSecret {
-			logger.Info(fmt.Sprintf("credentials namespaces between %s secret and %s secret don't match", config.SecretName, sapBtpServiceOperatorSecretName))
+			logger.Info(fmt.Sprintf("credentials namespaces between %s secret and %s secret don't match", config.SecretName, SapBtpServiceOperatorSecretName))
 			if err := d.annotateSecret(ctx, requiredSecret, previousCredentialsNamespaceAnnotationKey, d.credentialsNamespaceFromSapBtpServiceOperatorSecret); err != nil {
 				return conditions.NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
@@ -145,7 +145,7 @@ func (d *DriftDetector) CheckClusterIdConfigMapDrift(ctx context.Context, requir
 
 	sapBtpOperatorConfigMap, err := d.GetSapBtpServiceOperatorConfigMap(ctx)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s ConfigMap", sapBtpServiceOperatorConfigMapName))
+		logger.Error(err, fmt.Sprintf("while getting %s ConfigMap", SapBtpServiceOperatorConfigMapName))
 		return conditions.NewErrorWithReason(conditions.GettingSapBtpServiceOperatorConfigMapFailed, err.Error())
 	}
 
@@ -153,7 +153,7 @@ func (d *DriftDetector) CheckClusterIdConfigMapDrift(ctx context.Context, requir
 		d.clusterIdFromSapBtpServiceOperatorConfigMap = sapBtpOperatorConfigMap.Data[strings.ToUpper(clusterIdSecretKey)]
 		d.clusterIdFromSapBtpServiceOperatorClusterIdSecret = d.clusterIdFromSapBtpServiceOperatorConfigMap
 		if d.clusterIdFromSapBtpManagerSecret != d.clusterIdFromSapBtpServiceOperatorConfigMap {
-			logger.Info(fmt.Sprintf("cluster IDs between %s secret and %s configmap don't match", config.SecretName, sapBtpServiceOperatorConfigMapName))
+			logger.Info(fmt.Sprintf("cluster IDs between %s secret and %s configmap don't match", config.SecretName, SapBtpServiceOperatorConfigMapName))
 			if err := d.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, d.clusterIdFromSapBtpServiceOperatorConfigMap); err != nil {
 				return conditions.NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
 			}
@@ -166,9 +166,9 @@ func (d *DriftDetector) CheckClusterIdConfigMapDrift(ctx context.Context, requir
 func (d *DriftDetector) ResolveClusterIdSecretDrift(ctx context.Context, requiredSecret *corev1.Secret) *conditions.ErrorWithReason {
 	logger := log.FromContext(ctx)
 
-	clusterIdSecret, err := d.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, d.credentialsNamespaceFromSapBtpServiceOperatorSecret)
+	clusterIdSecret, err := d.getSecretByNameAndNamespace(ctx, SapBtpServiceOperatorClusterIdSecretName, d.credentialsNamespaceFromSapBtpServiceOperatorSecret)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("while getting %s secret", sapBtpServiceOperatorClusterIdSecretName))
+		logger.Error(err, fmt.Sprintf("while getting %s secret", SapBtpServiceOperatorClusterIdSecretName))
 		return conditions.NewErrorWithReason(conditions.GettingSapBtpServiceOperatorClusterIdSecretFailed, err.Error())
 	}
 
@@ -177,7 +177,7 @@ func (d *DriftDetector) ResolveClusterIdSecretDrift(ctx context.Context, require
 			d.clusterIdFromSapBtpServiceOperatorClusterIdSecret = string(clusterIdFromSecret)
 		}
 		if d.clusterIdFromSapBtpServiceOperatorConfigMap != d.clusterIdFromSapBtpServiceOperatorClusterIdSecret {
-			logger.Info(fmt.Sprintf("cluster IDs between %s configmap and %s secret don't match", sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorClusterIdSecretName))
+			logger.Info(fmt.Sprintf("cluster IDs between %s configmap and %s secret don't match", SapBtpServiceOperatorConfigMapName, SapBtpServiceOperatorClusterIdSecretName))
 			if err = d.annotateSecret(ctx, requiredSecret, previousClusterIdAnnotationKey, d.clusterIdFromSapBtpServiceOperatorClusterIdSecret); err != nil {
 				logger.Error(err, fmt.Sprintf("while annotating %s secret", requiredSecret.Name))
 				return conditions.NewErrorWithReason(conditions.AnnotatingSecretFailed, err.Error())
@@ -197,7 +197,7 @@ func (d *DriftDetector) ResolveClusterIdSecretDrift(ctx context.Context, require
 }
 
 func (d *DriftDetector) DeleteChangedResources(ctx context.Context) error {
-	clusterIdSecret, err := d.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, d.credentialsNamespaceFromSapBtpServiceOperatorSecret)
+	clusterIdSecret, err := d.getSecretByNameAndNamespace(ctx, SapBtpServiceOperatorClusterIdSecretName, d.credentialsNamespaceFromSapBtpServiceOperatorSecret)
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func (d *DriftDetector) DeleteChangedResources(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	credentialsSecret, err := d.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorSecretName, d.credentialsNamespaceFromSapBtpServiceOperatorSecret)
+	credentialsSecret, err := d.getSecretByNameAndNamespace(ctx, SapBtpServiceOperatorSecretName, d.credentialsNamespaceFromSapBtpServiceOperatorSecret)
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func (d *DriftDetector) DeleteChangedResources(ctx context.Context) error {
 }
 
 func (d *DriftDetector) DeleteClusterIdSecret(ctx context.Context) error {
-	clusterIdSecret, err := d.getSecretByNameAndNamespace(ctx, sapBtpServiceOperatorClusterIdSecretName, d.credentialsNamespaceFromSapBtpManagerSecret)
+	clusterIdSecret, err := d.getSecretByNameAndNamespace(ctx, SapBtpServiceOperatorClusterIdSecretName, d.credentialsNamespaceFromSapBtpManagerSecret)
 	if err != nil {
 		return fmt.Errorf("failed to get cluster ID secret: %w", err)
 	}
@@ -267,7 +267,7 @@ func (d *DriftDetector) GetDefaultCredentialsSecret(ctx context.Context) (*corev
 		return secrets.Items[i].Namespace < secrets.Items[j].Namespace
 	})
 	for i, s := range secrets.Items {
-		if s.Name != sapBtpServiceOperatorSecretName {
+		if s.Name != SapBtpServiceOperatorSecretName {
 			continue
 		}
 		if s.Namespace == d.previousCredentialsNamespace {
@@ -282,7 +282,7 @@ func (d *DriftDetector) GetDefaultCredentialsSecret(ctx context.Context) (*corev
 
 func (d *DriftDetector) GetSapBtpServiceOperatorConfigMap(ctx context.Context) (*corev1.ConfigMap, error) {
 	cm := &corev1.ConfigMap{}
-	if err := d.client.Get(ctx, client.ObjectKey{Namespace: config.ChartNamespace, Name: sapBtpServiceOperatorConfigMapName}, cm); err != nil {
+	if err := d.client.Get(ctx, client.ObjectKey{Namespace: config.ChartNamespace, Name: SapBtpServiceOperatorConfigMapName}, cm); err != nil {
 		if k8serrors.IsNotFound(err) {
 			return nil, nil
 		}

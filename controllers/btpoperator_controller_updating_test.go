@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -104,7 +105,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(err).To(BeNil())
 
 			err = ymlutils.AddSuffixToNameInManifests(getApplyPath(), suffix,
-				sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorSecretName, config.DeploymentName)
+				drift.SapBtpServiceOperatorConfigMapName, drift.SapBtpServiceOperatorSecretName, config.DeploymentName)
 			Expect(err).To(BeNil())
 
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
@@ -145,7 +146,7 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			Expect(err).To(BeNil())
 
 			err = ymlutils.AddSuffixToNameInManifests(getTempPath(), suffix,
-				sapBtpServiceOperatorConfigMapName, sapBtpServiceOperatorSecretName, config.DeploymentName)
+				drift.SapBtpServiceOperatorConfigMapName, drift.SapBtpServiceOperatorSecretName, config.DeploymentName)
 			Expect(err).To(BeNil())
 
 			err = moveOrCopyNFilesFromDirToDir(updateManifestsNum, true, getTempPath(), getApplyPath())

@@ -22,7 +22,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
@@ -30,7 +29,6 @@ import (
 	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	"github.com/kyma-project/btp-manager/internal/deprovisioning"
 	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
-	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 	"github.com/kyma-project/btp-manager/internal/provisioning"
 	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
@@ -59,7 +57,7 @@ const (
 	ClusterIdSecretKey            = "cluster_id"
 	CredentialsNamespaceSecretKey = "credentials_namespace"
 
-	ClusterIdConfigMapKey           = "CLUSTER_ID"
+	ClusterIdConfigMapKey           = drift.ClusterIdConfigMapKey
 	ReleaseNamespaceConfigMapKey    = "RELEASE_NAMESPACE"
 	ManagementNamespaceConfigMapKey = "MANAGEMENT_NAMESPACE"
 	InitialClusterIdSecretKey       = "INITIAL_CLUSTER_ID"
@@ -67,19 +65,12 @@ const (
 )
 
 const (
-	SapBtpServiceOperatorName = "sap-btp-service-operator"
-	SapBtpServiceOperatorEnv  = "SAP_BTP_SERVICE_OPERATOR"
+	SapBtpServiceOperatorEnv = "SAP_BTP_SERVICE_OPERATOR"
 
 	moduleName   = "btp-operator"
 	operatorName = "btp-manager"
 	operandName  = "sap-btp-operator"
 
-	sapBtpServiceOperatorSecretName          = SapBtpServiceOperatorName
-	sapBtpServiceOperatorClusterIdSecretName = operandName + "-clusterid"
-	sapBtpServiceOperatorConfigMapName       = operandName + "-config"
-
-	caCertSecretName      = "ca-server-cert"
-	webhookCertSecretName = "webhook-server-cert"
 	mutatingWebhookName   = operandName + "-mutating-webhook-configuration"
 	validatingWebhookName = operandName + "-validating-webhook-configuration"
 
@@ -89,10 +80,8 @@ const (
 	chartVersionLabelKey      = "chart-version"
 	kymaProjectModuleLabelKey = "kyma-project.io/module"
 
-	operatorLabelPrefix                       = "operator.kyma-project.io/"
-	previousClusterIdAnnotationKey            = operatorLabelPrefix + "previous-cluster-id"
-	previousCredentialsNamespaceAnnotationKey = operatorLabelPrefix + "previous-credentials-namespace"
-	deletionFinalizer                         = operatorLabelPrefix + operatorName
+	operatorLabelPrefix = "operator.kyma-project.io/"
+	deletionFinalizer   = operatorLabelPrefix + operatorName
 
 	kubernetesAppLabelPrefix = "app.kubernetes.io/"
 	managedByLabelKey        = kubernetesAppLabelPrefix + "managed-by"
@@ -100,18 +89,9 @@ const (
 )
 
 const (
-	caCertSecretCertField      = "ca.crt"
-	caCertSecretKeyField       = "ca.key"
-	webhookCertSecretCertField = "tls.crt"
-	webhookCertSecretKeyField  = "tls.key"
-)
-
-const (
-	secretKind                         = "Secret"
-	configMapKind                      = "ConfigMap"
-	deploymentKind                     = "Deployment"
-	mutatingWebhookConfigurationKind   = "MutatingWebhookConfiguration"
-	validatingWebhookConfigurationKind = "ValidatingWebhookConfiguration"
+	secretKind     = "Secret"
+	configMapKind  = "ConfigMap"
+	deploymentKind = "Deployment"
 
 	deploymentAvailableConditionType   = "Available"
 	deploymentProgressingConditionType = "Progressing"
@@ -153,8 +133,6 @@ type BtpOperatorReconciler struct {
 	instanceBindingService InstanceBindingSerivce
 	workqueueSize          int
 	networkPolicyManager   networkpolicy.NetworkPolicyManager
-	driftDetector          drift.Detector
-	moduleResourceManager  moduleresource.ResourceManager
 	certManager            certificate.CertificateManager
 	provisioningHandler    provisioning.Handler
 	configurator           configurator.SapBtpServiceOperatorConfigurator
@@ -162,7 +140,7 @@ type BtpOperatorReconciler struct {
 	deprovisioningHandler  deprovisioning.Handler
 }
 
-func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, driftDetector drift.Detector, moduleResourceManager moduleresource.ResourceManager, certManager certificate.CertificateManager, provisioningHandler provisioning.Handler, cfg configurator.SapBtpServiceOperatorConfigurator) *BtpOperatorReconciler {
+func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, certManager certificate.CertificateManager, provisioningHandler provisioning.Handler, cfg configurator.SapBtpServiceOperatorConfigurator) *BtpOperatorReconciler {
 	return &BtpOperatorReconciler{
 		Client:                 client,
 		apiServerClient:        apiServerClient,
@@ -171,8 +149,6 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 		webhookMetrics:         metrics,
 		watchHandlers:          watchHandlers,
 		networkPolicyManager:   networkPolicyManager,
-		driftDetector:          driftDetector,
-		moduleResourceManager:  moduleResourceManager,
 		certManager:            certManager,
 		provisioningHandler:    provisioningHandler,
 		configurator:           cfg,
@@ -328,22 +304,6 @@ func (r *BtpOperatorReconciler) HandleProcessingState(ctx context.Context, cr *v
 	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateReady, conditions.ReconcileSucceeded, "Module provisioning succeeded")
 }
 
-func (r *BtpOperatorReconciler) handleSecretVerificationFailure(ctx context.Context, cr *v1alpha1.BtpOperator, logger logr.Logger, errWithReason *ErrorWithReason) error {
-	logger.Info("secret verification failed: " + errWithReason.Error())
-	if errWithReason.Reason == conditions.InvalidSecret {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
-	}
-	return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.Reason, errWithReason.Message)
-}
-
-func (r *BtpOperatorReconciler) getAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *ErrorWithReason) {
-	return r.provisioningHandler.GetAndVerifyRequiredSecret(ctx)
-}
-
-func (r *BtpOperatorReconciler) reconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, s *corev1.Secret) error {
-	return r.provisioningHandler.ReconcileResources(ctx, cr, s)
-}
-
 func (r *BtpOperatorReconciler) HandleWarningState(ctx context.Context, cr *v1alpha1.BtpOperator) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Warning state")
@@ -388,14 +348,16 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 	logger := log.FromContext(ctx)
 	logger.Info("Handling Ready state")
 
-	requiredSecret, errWithReason := r.getAndVerifyRequiredSecret(ctx)
+	requiredSecret, errWithReason := r.provisioningHandler.GetAndVerifyRequiredSecret(ctx)
 	if errWithReason != nil {
-		return r.handleSecretVerificationFailure(ctx, cr, logger, errWithReason)
+		logger.Info("secret verification failed: " + errWithReason.Error())
+		if errWithReason.Reason == conditions.InvalidSecret {
+			return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, errWithReason.Reason, errWithReason.Message)
+		}
+		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateWarning, errWithReason.Reason, errWithReason.Message)
 	}
 
-	r.driftDetector.InitializeFromSecret(requiredSecret)
-
-	result := r.configurator.Check(ctx)
+	result := r.configurator.Check(ctx, requiredSecret)
 	if result.ErrorReason != "" {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, result.ErrorReason, result.ErrorMessage)
 	}
@@ -403,11 +365,7 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateProcessing, result.ReprocessReason, result.ReprocessMessage)
 	}
 
-	if err := r.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
-		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
-	}
-
-	if err := r.reconcileResources(ctx, cr, requiredSecret); err != nil {
+	if err := r.provisioningHandler.ReconcileReady(ctx, cr, requiredSecret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
 	}
 
@@ -672,5 +630,5 @@ func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
 }
 
 func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
-	return s.Namespace == config.ChartNamespace && (s.Name == caCertSecretName || s.Name == webhookCertSecretName)
+	return s.Namespace == config.ChartNamespace && (s.Name == certificate.CaCertSecretName || s.Name == certificate.WebhookCertSecretName)
 }
