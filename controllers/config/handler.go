@@ -52,7 +52,7 @@ var (
 
 	EnableLimitedCache = "true"
 
-	ProbeInterval = time.Duration(0)
+	ProbeInterval = time.Hour
 )
 
 type WatchHandler interface {

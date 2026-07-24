@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/conditions"
 
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -118,13 +119,13 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			btpServiceOperatorDeployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: config.DeploymentName, Namespace: kymaNamespace}, btpServiceOperatorDeployment)).To(Succeed())
 
-			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, customCredentialsNamespace), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
+			expectSecretToHaveCredentials(getSecretFromNamespace(drift.SapBtpServiceOperatorSecretName, customCredentialsNamespace), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, customCredentialsNamespace, customCredentialsNamespace)
 
 			_, err = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKey{Name: btpOperatorName, Namespace: kymaNamespace}})
 			Expect(err).To(BeNil())
 
-			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, customCredentialsNamespace), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
+			expectSecretToHaveCredentials(getSecretFromNamespace(drift.SapBtpServiceOperatorSecretName, customCredentialsNamespace), defaultClientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), defaultClusterId, customCredentialsNamespace, customCredentialsNamespace)
 		})
 	})
@@ -184,7 +185,7 @@ var _ = Describe("BTP Operator controller - secret customization", Label("custom
 			Expect(k8sClient.Update(ctx, btpManagerSecret)).To(Succeed())
 
 			Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateReady, metav1.ConditionTrue, conditions.ReconcileSucceeded)))
-			expectSecretToHaveCredentials(getSecretFromNamespace(sapBtpServiceOperatorSecretName, customCredentialsNamespace), clientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
+			expectSecretToHaveCredentials(getSecretFromNamespace(drift.SapBtpServiceOperatorSecretName, customCredentialsNamespace), clientId, defaultClientSecret, defaultSmUrl, defaultTokenUrl)
 			expectConfigMapToHave(getOperatorConfigMap(), clusterId, customCredentialsNamespace, customCredentialsNamespace)
 		})
 	})

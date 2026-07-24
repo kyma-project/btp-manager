@@ -7,12 +7,14 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -88,8 +90,43 @@ func collectMountFromPath(caFile, caBundleMntDir, mountInfoFile string) mountSig
 	if err != nil {
 		return mountSignal{}
 	}
-	sum := sha256.Sum256(data)
-	return mountSignal{Present: true, Hash: fmt.Sprintf("%x", sum), Content: data}
+	hash := hashCertBundle(data)
+	return mountSignal{Present: true, Hash: hash, Content: data}
+}
+
+// hashCertBundle parses all PEM certificates in data, computes a SHA-256 fingerprint
+// (sha256(cert.Raw)) for each, deduplicates, sorts, and returns a SHA-256 hash of the
+// joined sorted fingerprint list. Returns "" when no valid certificates are found.
+// The result is order-independent: the same set of certs in any order produces the same hash.
+func hashCertBundle(data []byte) string {
+	seen := map[string]struct{}{}
+	rest := data
+	for len(rest) > 0 {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			continue
+		}
+		fp := sha256.Sum256(cert.Raw)
+		seen[fmt.Sprintf("%x", fp)] = struct{}{}
+	}
+	if len(seen) == 0 {
+		return ""
+	}
+	fps := make([]string, 0, len(seen))
+	for fp := range seen {
+		fps = append(fps, fp)
+	}
+	sort.Strings(fps)
+	sum := sha256.Sum256([]byte(strings.Join(fps, ",")))
+	return fmt.Sprintf("%x", sum)
 }
 
 // isMountPoint reports whether path appears as a mount destination in mountInfoFile.

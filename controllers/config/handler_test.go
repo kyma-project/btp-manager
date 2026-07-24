@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/metrics"
@@ -223,6 +224,59 @@ var _ = Describe("Handler startup sync", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(gauge.GetValue()).To(Equal(0.0), "ConfigMap in wrong namespace should not set the metric")
 		})
+	})
+})
+
+var _ = Describe("ProbeInterval configuration", func() {
+	var (
+		configMetrics *metrics.ConfigMetrics
+		handler       *config.Handler
+		scheme        *runtime.Scheme
+	)
+
+	BeforeEach(func() {
+		config.ProbeInterval = time.Hour // reset to default before each test
+
+		testRegistry := prometheus.NewRegistry()
+		configMetrics = metrics.NewConfigMetrics(testRegistry)
+
+		scheme = runtime.NewScheme()
+		Expect(clientgoscheme.AddToScheme(scheme)).To(Succeed())
+
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+		handler = config.NewHandler(fakeClient, scheme, configMetrics)
+	})
+
+	It("should default to 60 minutes", func() {
+		Expect(config.ProbeInterval).To(Equal(time.Hour))
+	})
+
+	It("should be overridable via ConfigMap", func() {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      config.ConfigName,
+				Namespace: config.ChartNamespace,
+			},
+			Data: map[string]string{
+				"ProbeInterval": "30m",
+			},
+		}
+		handler.Reconcile(context.Background(), cm)
+		Expect(config.ProbeInterval).To(Equal(30 * time.Minute))
+	})
+
+	It("should keep previous value when ConfigMap contains invalid ProbeInterval", func() {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      config.ConfigName,
+				Namespace: config.ChartNamespace,
+			},
+			Data: map[string]string{
+				"ProbeInterval": "not-a-duration",
+			},
+		}
+		handler.Reconcile(context.Background(), cm)
+		Expect(config.ProbeInterval).To(Equal(time.Hour))
 	})
 })
 

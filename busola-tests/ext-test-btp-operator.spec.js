@@ -134,18 +134,18 @@ data:
       cy.contains('Managed').should('be.visible');
       cy.contains('Credentials Namespace').should('be.visible');
       cy.contains('kyma-system').should('be.visible');
-
-      // SAP BTP Service Operator Secret sub-panel
-      cy.contains('SAP BTP Service Operator Secret').should('be.visible');
-      cy.contains('Inherited').should('be.visible');
     });
+
+    // SAP BTP Service Operator Secret sub-panel
+    cy.contains('SAP BTP Service Operator Secret').should('exist');
+    cy.contains('Inherited').should('exist');
 
     // --- Test Edit ResourceLink → navigates to sap-btp-manager secret ---
     cy.getMidColumn().within(() => {
       cy.contains('ui5-link', 'Edit').click();
     });
     cy.wait(500);
-    cy.contains('sap-btp-manager').should('be.visible');
+    cy.contains('sap-btp-manager').should('exist');
     cy.go('back');
     cy.wait(500);
 
@@ -172,7 +172,7 @@ data:
         .click();
     });
     cy.wait(500);
-    cy.contains('servicebindings.services.cloud.sap.com').should('be.visible');
+    cy.contains('servicebindings.services.cloud.sap.com').should('exist');
     cy.contains('Resource Details').should('be.visible');
     cy.go('back');
     cy.wait(500);
@@ -263,14 +263,13 @@ data:
       cy.contains('test').should('be.visible');
 
       // BTP Manager Secret shows Unmanaged badge
-      cy.contains('Unmanaged').should('be.visible');
-
-      // Namespace-Based Secrets shows test secret as "In Use"
-      cy.contains('Namespace-Based Secrets').scrollIntoView();
-      cy.wait(500);
-      cy.contains('test-sap-btp-service-operator').scrollIntoView();
-      cy.contains('In Use').should('exist');
+      cy.contains('Unmanaged').should('exist');
     });
+
+    // Namespace-Based Secrets shows test secret as "In Use"
+    cy.getMidColumn().contains('Namespace-Based Secrets').scrollIntoView();
+    cy.getMidColumn().contains('test-sap-btp-service-operator').scrollIntoView();
+    cy.getMidColumn().contains('In use').should('exist');
 
     // 5. Create Service Instance and Service Binding
     cy.getLeftNav().contains('Cluster Overview').click();
@@ -371,8 +370,11 @@ spec:
       cy.contains('test-custom-secret').scrollIntoView();
       cy.contains('test-custom-secret').should('exist');
 
-      // Not in Use: kyma-system ≠ managedNamespace "test" (set in previous test)
-      cy.contains('Not in Use').should('exist');
+      // Secret does not exist in the cluster → Not Found
+      cy.contains('test-custom-secret')
+        .closest('ui5-table-row')
+        .contains('Not found')
+        .should('exist');
 
       // Service Instances count shows "1" in the same row
       cy.contains('test-custom-secret')

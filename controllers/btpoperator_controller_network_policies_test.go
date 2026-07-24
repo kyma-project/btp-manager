@@ -74,7 +74,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			btpOperator = &v1alpha1.BtpOperator{}
 			btpOperator.Name = "test-btpoperator"
 			btpOperator.Namespace = "kyma-system"
-			Expect(reconciler.cleanupNetworkPolicies(ctx)).To(Succeed())
+			Expect(reconciler.networkPolicyManager.CleanupNetworkPolicies(ctx)).To(Succeed())
 		})
 
 		It("Should load and prepare network policies", func() {
@@ -105,7 +105,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				})
 				Expect(k8sClient.Create(ctx, policy)).To(Succeed())
 			}
-			err := reconciler.cleanupNetworkPolicies(ctx)
+			err := reconciler.networkPolicyManager.CleanupNetworkPolicies(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			for _, name := range expectedPolicyNames {
 				_, getErr := getNetworkPolicy(ctx, name, "kyma-system")
@@ -149,7 +149,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				Client:               k8sClient,
 				networkPolicyManager: npMgr,
 			}
-			err := reconciler.cleanupNetworkPolicies(context.Background())
+			err := reconciler.networkPolicyManager.CleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -165,7 +165,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 				kymaProjectModuleLabelKey: moduleName,
 			})
 			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
-			err := reconciler.cleanupNetworkPolicies(context.Background())
+			err := reconciler.networkPolicyManager.CleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
 			_, getErr := getNetworkPolicy(context.Background(), "test-cleanup-policy", "kyma-system")
 			Expect(getErr).To(HaveOccurred())
@@ -179,7 +179,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			}
 			testPolicy := createMockNetworkPolicy("test-unmanaged-policy")
 			Expect(k8sClient.Create(context.Background(), testPolicy)).To(Succeed())
-			err := reconciler.cleanupNetworkPolicies(context.Background())
+			err := reconciler.networkPolicyManager.CleanupNetworkPolicies(context.Background())
 			Expect(err).NotTo(HaveOccurred())
 			_, getErr := getNetworkPolicy(context.Background(), "test-unmanaged-policy", "kyma-system")
 			Expect(getErr).NotTo(HaveOccurred())
@@ -338,7 +338,7 @@ var _ = Describe("BTP Operator Network Policies", func() {
 			Expect(k8sClient.Create(context.Background(), oldPolicy)).To(Succeed())
 			_, err := getNetworkPolicy(context.Background(), "kyma-project.io--btp-operator-allow-to-webhook", "kyma-system")
 			Expect(err).NotTo(HaveOccurred())
-			err = reconciler.deleteOldWebhookNetworkPolicy(context.Background())
+			err = reconciler.networkPolicyManager.DeleteOldWebhookNetworkPolicy(context.Background())
 			Expect(err).NotTo(HaveOccurred())
 			_, err = getNetworkPolicy(context.Background(), "kyma-project.io--btp-operator-allow-to-webhook", "kyma-system")
 			Expect(err).To(HaveOccurred())

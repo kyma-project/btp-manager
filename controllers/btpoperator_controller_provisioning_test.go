@@ -55,7 +55,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				secret, err := createSecretWithoutKeys()
 				Expect(err).To(BeNil())
 				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.InvalidSecret)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.InvalidSecret)))
 			})
 		})
 
@@ -64,7 +64,7 @@ var _ = Describe("BTP Operator controller - provisioning", func() {
 				secret, err := createSecretWithoutValues()
 				Expect(err).To(BeNil())
 				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
-				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateWarning, metav1.ConditionFalse, conditions.InvalidSecret)))
+				Eventually(updateCh).Should(Receive(matchReadyCondition(v1alpha1.StateError, metav1.ConditionFalse, conditions.InvalidSecret)))
 			})
 		})
 
