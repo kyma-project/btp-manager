@@ -18,9 +18,6 @@ import (
 const (
 	kymaNamespace = "kyma-system"
 
-	caCertSecretName      = "ca-server-cert"
-	webhookCertSecretName = "webhook-server-cert"
-
 	caCertField      = "ca.crt"
 	caKeyField       = "ca.key"
 	webhookCertField = "tls.crt"
@@ -114,14 +111,14 @@ func (f *fakeSecretsManager) GetSapBtpServiceOperatorClusterIdSecret(_ context.C
 
 func caSecret(cert, key []byte) *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: caCertSecretName, Namespace: kymaNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: certificate.CaCertSecretName, Namespace: kymaNamespace},
 		Data:       map[string][]byte{caCertField: cert, caKeyField: key},
 	}
 }
 
 func webhookSecret(cert, key []byte) *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: webhookCertSecretName, Namespace: kymaNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: certificate.WebhookCertSecretName, Namespace: kymaNamespace},
 		Data:       map[string][]byte{webhookCertField: cert, webhookKeyField: key},
 	}
 }

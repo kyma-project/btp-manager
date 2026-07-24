@@ -36,7 +36,7 @@ type ProvisionResult struct {
 type Handler interface {
 	Provision(ctx context.Context, cr *v1alpha1.BtpOperator) ProvisionResult
 	GetAndVerifyRequiredSecret(ctx context.Context) (*corev1.Secret, *conditions.ErrorWithReason)
-	ReconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) error
+	ReconcileReady(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) error
 	ReconcileResourcesWithoutStatusChange(ctx context.Context, cr *v1alpha1.BtpOperator)
 }
 
@@ -99,7 +99,7 @@ func (h *handler) Provision(ctx context.Context, cr *v1alpha1.BtpOperator) Provi
 		return ProvisionResult{ErrorReason: conditions.NewErrorWithReason(conditions.ProvisioningFailed, err.Error())}
 	}
 
-	if err := h.ReconcileResources(ctx, cr, requiredSecret); err != nil {
+	if err := h.reconcileResources(ctx, cr, requiredSecret); err != nil {
 		return ProvisionResult{ErrorReason: conditions.NewErrorWithReason(conditions.ProvisioningFailed, err.Error())}
 	}
 
@@ -148,7 +148,14 @@ func (h *handler) getRequiredSecret(ctx context.Context) (*corev1.Secret, error)
 	return secret, nil
 }
 
-func (h *handler) ReconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, s *corev1.Secret) error {
+func (h *handler) ReconcileReady(ctx context.Context, cr *v1alpha1.BtpOperator, secret *corev1.Secret) error {
+	if err := h.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
+		return err
+	}
+	return h.reconcileResources(ctx, cr, secret)
+}
+
+func (h *handler) reconcileResources(ctx context.Context, cr *v1alpha1.BtpOperator, s *corev1.Secret) error {
 	logger := log.FromContext(ctx)
 
 	logger.Info("getting module resources to apply")
@@ -217,7 +224,7 @@ func (h *handler) ReconcileResourcesWithoutStatusChange(ctx context.Context, cr 
 	if err := h.moduleResourceManager.DeleteOutdatedResources(ctx); err != nil {
 		logger.Error(err, "outdated resources deletion failed")
 	}
-	if err := h.ReconcileResources(ctx, cr, secret); err != nil {
+	if err := h.reconcileResources(ctx, cr, secret); err != nil {
 		logger.Error(err, "resources reconciliation failed")
 	}
 }
