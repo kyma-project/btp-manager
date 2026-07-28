@@ -11,8 +11,13 @@ rules:
   resources:
   - btpoperators
   verbs:
+  - create
+  - delete
+  - deletecollection
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - operator.kyma-project.io
