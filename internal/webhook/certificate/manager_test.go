@@ -35,7 +35,7 @@ var _ = Describe("Certificate Manager", func() {
 				result, err := mgr.PrepareAdmissionWebhooks(ctx, nil)
 
 				Expect(err).NotTo(HaveOccurred())
-				Expect(secretNamesIn(result)).To(ConsistOf(caCertSecretName, webhookCertSecretName))
+				Expect(secretNamesIn(result)).To(ConsistOf(certificate.CaCertSecretName, certificate.WebhookCertSecretName))
 			})
 
 			It("increments the regeneration counter", func() {
@@ -64,7 +64,7 @@ var _ = Describe("Certificate Manager", func() {
 				result, err := mgr.PrepareAdmissionWebhooks(ctx, nil)
 
 				Expect(err).NotTo(HaveOccurred())
-				Expect(secretNamesIn(result)).To(ConsistOf(caCertSecretName, webhookCertSecretName))
+				Expect(secretNamesIn(result)).To(ConsistOf(certificate.CaCertSecretName, certificate.WebhookCertSecretName))
 			})
 
 			It("increments the regeneration counter", func() {
@@ -86,8 +86,8 @@ var _ = Describe("Certificate Manager", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				names := secretNamesIn(result)
-				Expect(names).To(ConsistOf(webhookCertSecretName))
-				Expect(names).NotTo(ContainElement(caCertSecretName))
+				Expect(names).To(ConsistOf(certificate.WebhookCertSecretName))
+				Expect(names).NotTo(ContainElement(certificate.CaCertSecretName))
 			})
 
 			It("increments the regeneration counter", func() {
@@ -118,8 +118,8 @@ var _ = Describe("Certificate Manager", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				names := secretNamesIn(result)
-				Expect(names).To(ConsistOf(webhookCertSecretName))
-				Expect(names).NotTo(ContainElement(caCertSecretName))
+				Expect(names).To(ConsistOf(certificate.WebhookCertSecretName))
+				Expect(names).NotTo(ContainElement(certificate.CaCertSecretName))
 			})
 
 			It("increments the regeneration counter", func() {
@@ -140,7 +140,7 @@ var _ = Describe("Certificate Manager", func() {
 				result, err := mgr.PrepareAdmissionWebhooks(ctx, nil)
 
 				Expect(err).NotTo(HaveOccurred())
-				Expect(secretNamesIn(result)).To(ConsistOf(caCertSecretName, webhookCertSecretName))
+				Expect(secretNamesIn(result)).To(ConsistOf(certificate.CaCertSecretName, certificate.WebhookCertSecretName))
 			})
 
 			It("increments the regeneration counter", func() {
@@ -293,7 +293,7 @@ var _ = Describe("Certificate Manager", func() {
 			})
 
 			It("returns the secret data", func() {
-				data, err := mgr.GetSecretData(ctx, caCertSecretName)
+				data, err := mgr.GetSecretData(ctx, certificate.CaCertSecretName)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(data[caCertField]).To(Equal(validCACert))
 				Expect(data[caKeyField]).To(Equal(validCAKey))
@@ -306,7 +306,7 @@ var _ = Describe("Certificate Manager", func() {
 			})
 
 			It("returns an error", func() {
-				_, err := mgr.GetSecretData(ctx, caCertSecretName)
+				_, err := mgr.GetSecretData(ctx, certificate.CaCertSecretName)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("ca-server-cert"))
 			})
@@ -318,7 +318,7 @@ var _ = Describe("Certificate Manager", func() {
 			})
 
 			It("returns the secret data", func() {
-				data, err := mgr.GetSecretData(ctx, webhookCertSecretName)
+				data, err := mgr.GetSecretData(ctx, certificate.WebhookCertSecretName)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(data[webhookCertField]).To(Equal(validWebhookCert))
 				Expect(data[webhookKeyField]).To(Equal(validWebhookKey))
@@ -331,7 +331,7 @@ var _ = Describe("Certificate Manager", func() {
 			})
 
 			It("returns an error", func() {
-				_, err := mgr.GetSecretData(ctx, webhookCertSecretName)
+				_, err := mgr.GetSecretData(ctx, certificate.WebhookCertSecretName)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("webhook-server-cert"))
 			})
@@ -343,7 +343,7 @@ var _ = Describe("Certificate Manager", func() {
 			})
 
 			It("returns the error", func() {
-				_, err := mgr.GetSecretData(ctx, caCertSecretName)
+				_, err := mgr.GetSecretData(ctx, certificate.CaCertSecretName)
 				Expect(err).To(MatchError("api error"))
 			})
 		})

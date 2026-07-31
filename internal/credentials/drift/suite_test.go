@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -19,11 +20,8 @@ import (
 const (
 	kymaNamespace = "kyma-system"
 
-	sapBtpManagerSecretName                  = "sap-btp-manager"
-	sapBtpServiceOperatorSecretName          = "sap-btp-service-operator"
-	sapBtpServiceOperatorClusterIdSecretName = "sap-btp-operator-clusterid"
-	sapBtpServiceOperatorConfigMapName       = "sap-btp-operator-config"
-	operandName                              = "sap-btp-operator"
+	sapBtpManagerSecretName = "sap-btp-manager"
+	operandName             = "sap-btp-operator"
 
 	managedByLabelKey = "app.kubernetes.io/managed-by"
 	instanceLabelKey  = "app.kubernetes.io/instance"
@@ -77,7 +75,7 @@ func btpManagerSecret(clusterID, credentialsNamespace string, annotations map[st
 func operatorSecret(namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sapBtpServiceOperatorSecretName,
+			Name:      drift.SapBtpServiceOperatorSecretName,
 			Namespace: namespace,
 			Labels:    map[string]string{managedByLabelKey: operatorName},
 		},
@@ -87,7 +85,7 @@ func operatorSecret(namespace string) *corev1.Secret {
 func clusterIdSecret(namespace, initialClusterID string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sapBtpServiceOperatorClusterIdSecretName,
+			Name:      drift.SapBtpServiceOperatorClusterIdSecretName,
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
@@ -99,7 +97,7 @@ func clusterIdSecret(namespace, initialClusterID string) *corev1.Secret {
 func operatorConfigMap(clusterID string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sapBtpServiceOperatorConfigMapName,
+			Name:      drift.SapBtpServiceOperatorConfigMapName,
 			Namespace: kymaNamespace,
 		},
 		Data: map[string]string{

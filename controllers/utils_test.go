@@ -21,6 +21,8 @@ import (
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -715,11 +717,11 @@ func getSecret(name string) *corev1.Secret {
 }
 
 func getOperatorSecret() *corev1.Secret {
-	return getSecret(sapBtpServiceOperatorSecretName)
+	return getSecret(drift.SapBtpServiceOperatorSecretName)
 }
 
 func getOperatorConfigMap() *corev1.ConfigMap {
-	return getConfigMap(sapBtpServiceOperatorConfigMapName)
+	return getConfigMap(drift.SapBtpServiceOperatorConfigMapName)
 }
 func getConfigMap(name string) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{}
@@ -731,9 +733,9 @@ func getConfigMap(name string) *corev1.ConfigMap {
 func checkHowManySecondsToExpiration(name string) float64 {
 	data, err := reconciler.certManager.GetSecretData(ctx, name)
 	Expect(err).To(BeNil())
-	value := data[caCertSecretCertField]
-	if name == webhookCertSecretName {
-		value = data[webhookCertSecretCertField]
+	value := data[certificate.CaCertSecretCertField]
+	if name == certificate.WebhookCertSecretName {
+		value = data[certificate.WebhookCertSecretCertField]
 	}
 	decoded, _ := pem.Decode(value)
 	Expect(decoded).NotTo(BeNil(), "pem.Decode returned nil for secret %q", name)
@@ -745,8 +747,8 @@ func checkHowManySecondsToExpiration(name string) float64 {
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
 	Eventually(func() error {
-		secret := getSecret(caCertSecretName)
-		ca, ok := secret.Data[caCertSecretCertField]
+		secret := getSecret(certificate.CaCertSecretName)
+		ca, ok := secret.Data[certificate.CaCertSecretCertField]
 		if !ok || ca == nil {
 			return fmt.Errorf("CA bundle not found in secret")
 		}

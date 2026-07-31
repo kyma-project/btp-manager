@@ -76,6 +76,13 @@ See the documentation related to the BtpOperator custom resource (CR):
 * [Service Binding Custom Resource](./resources/02-30-service-binding-cr.md)
 
 
+## Authorization
+
+To assign access permissions to the SAP BTP Operator module resources, use the following [aggregated ClusterRoles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles):
+
+- `kyma-btp-operator-view` - Grants read-only access to BtpOperator, ServiceInstance, and ServiceBinding CRs and their status.
+- `kyma-btp-operator-edit` - Grants full access to BtpOperator, ServiceInstance, and ServiceBinding CRs and read-only access to their status.
+
 ## Resource Consumption
 
 To learn more about the resources used by the SAP BTP Operator module, see [Kyma Modules' Sizing](https://help.sap.com/docs/btp/sap-business-technology-platform-internal/kyma-modules-sizing?locale=en-US&state=DRAFT&version=Internal#sap-btp-operator).

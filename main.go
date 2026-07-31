@@ -156,8 +156,6 @@ func main() {
 			configHandler,
 		},
 		networkPolicyManager,
-		driftDetector,
-		moduleResourceManager,
 		certManager,
 		provisioningHandler,
 		sapBtpConfigurator,

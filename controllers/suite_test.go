@@ -208,8 +208,6 @@ var _ = SynchronizedBeforeSuite(func() {
 			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
 		networkPolicyManager,
-		driftDetector,
-		moduleResourceManager,
 		certManager,
 		provisioningHandler,
 		sapBtpConfigurator,

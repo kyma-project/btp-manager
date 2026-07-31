@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +30,7 @@ var _ = Describe("Configuration controller", func() {
 			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
 
 			existing := &corev1.ConfigMap{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: sapBtpServiceOperatorConfigMapName, Namespace: kymaNamespace}, existing)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: drift.SapBtpServiceOperatorConfigMapName, Namespace: kymaNamespace}, existing)).To(Succeed())
 			existing.Data = map[string]string{
 				EnableLimitedCacheConfigMapKey: "false",
 			}
