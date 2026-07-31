@@ -34,6 +34,10 @@ on:
         type: boolean
         description: 'Do not publish'
         default: false
+      force:
+        type: boolean
+        description: 'Skip version validation (use when intentionally skipping versions)'
+        default: false
 
 jobs:
   validate-release:
@@ -71,6 +75,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
           NAME: ${{ inputs.name }}
+          FORCE: ${{ inputs.force }}
         run: python3 scripts/python/release_label_validator.py
 
 

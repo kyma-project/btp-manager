@@ -15,6 +15,7 @@ with open('.github/release.yml', 'r') as file:
 print(f"One of these labels is required on PR: {label_pool}")
 token = os.getenv('GITHUB_TOKEN')
 repo = os.getenv('REPOSITORY')
+force = os.getenv('FORCE', 'false').lower() == 'true'
 
 response = requests.get(f'https://api.github.com/repos/{repo}/releases/latest', headers={'Authorization': f'token {token}'})
 response.raise_for_status()
@@ -53,6 +54,46 @@ if invalid_prs:
     sys.exit(1)
 
 print("\nAll PRs have exactly one required label")
+
+if force:
+    print("\nforce=true: skipping version increment and kind/feature checks")
+    sys.exit(0)
+
+latest_release_name = latest_release['name'].lstrip('v').split(".")
+new_release_name = os.getenv('NAME').lstrip('v').split(".")
+
+try:
+    latest_parts = [int(x) for x in latest_release_name]
+    new_parts = [int(x) for x in new_release_name]
+
+    if len(latest_parts) == 3 and len(new_parts) == 3:
+        latest_major, latest_minor, latest_patch = latest_parts
+        new_major, new_minor, new_patch = new_parts
+
+        skip_detected = False
+        if new_major > latest_major + 1:
+            skip_detected = True
+        elif new_major == latest_major:
+            if new_minor > latest_minor + 1:
+                skip_detected = True
+            elif new_minor == latest_minor and new_patch > latest_patch + 1:
+                skip_detected = True
+
+        if skip_detected:
+            latest_ver = latest_release['name']
+            new_ver = os.getenv('NAME')
+            print(f"\nVersion {new_ver} skips more than one increment over the latest release {latest_ver}.")
+            print("If this is intentional, re-run the workflow with force=true.")
+            sys.exit(1)
+
+        if new_parts <= latest_parts:
+            new_ver = os.getenv('NAME')
+            latest_ver = latest_release['name']
+            print(f"\nVersion {new_ver} does not increment over the latest release {latest_ver}.")
+            print("If this is intentional, re-run the workflow with force=true.")
+            sys.exit(1)
+except ValueError:
+    print("\nWarning: could not parse version numbers for increment check, skipping")
 
 if feature_prs:
     latest_release_name = latest_release['name'].split(".")
