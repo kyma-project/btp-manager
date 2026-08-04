@@ -13,7 +13,7 @@ jobs:
         id: bot-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          client-id: ${{ vars.GOPHER_BOT_APP_ID }}
           private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
           repositories: btp-manager
 
