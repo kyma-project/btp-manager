@@ -48,10 +48,11 @@ jobs:
         run: |
           [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1
           [ -z "${{ vars.GH_TOOLS_HOST }}" ] && echo "GH_TOOLS_HOST is required" && exit 1
+          [ -z "${{ vars.GIT_TOOLS_USER_EMAIL }}" ] && echo "GIT_TOOLS_USER_EMAIL is required" && exit 1
+          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1
           [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1
           [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1
           echo "Validated"
-
       - name: Generate enterprise bot token
         id: enterprise-bot-token
         uses: actions/create-github-app-token@v3
