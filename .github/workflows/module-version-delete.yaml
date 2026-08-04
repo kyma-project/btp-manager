@@ -55,16 +55,6 @@ jobs:
           owner: kyma
           repositories: module-manifests
 
-      - name: Get bot user ID
-        id: bot-id
-        env:
-          GH_ENTERPRISE_TOKEN: ${{ steps.enterprise-bot-token.outputs.token }}
-          GH_HOST: ${{ vars.GH_TOOLS_HOST }}
-          APP_SLUG: ${{ steps.enterprise-bot-token.outputs.app-slug }}
-        run: |
-          BOT_USER_ID=$(gh api --hostname "${GH_HOST}" "/users/${APP_SLUG}[bot]" --jq '.id')
-          echo "bot-user-id=${BOT_USER_ID}" >> "$GITHUB_OUTPUT"
-
       - name: Validate given release tag
         shell: bash
         run: |
@@ -84,11 +74,9 @@ jobs:
       - name: Setup git and clone repo
         env:
           MODULE_MANIFESTS_WITH_USER: "https://x-access-token:${{ steps.enterprise-bot-token.outputs.token }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
-          APP_SLUG: ${{ steps.enterprise-bot-token.outputs.app-slug }}
-          BOT_USER_ID: ${{ steps.bot-id.outputs.bot-user-id }}
         run: |
-          git config --global user.email "${BOT_USER_ID}+${APP_SLUG}[bot]@users.noreply.${{ vars.GH_TOOLS_HOST }}"
-          git config --global user.name "${APP_SLUG}[bot]"
+          git config --global user.email "${{ vars.GIT_TOOLS_USER_EMAIL }}"
+          git config --global user.name "${{ vars.GIT_USER_NAME }}"
           git clone ${MODULE_MANIFESTS_WITH_USER}
 
       - name: Create branch

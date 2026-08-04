@@ -4,6 +4,8 @@ env:
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
   SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
   EXTERNAL_IMAGES_REPO: ${{ vars.EXTERNAL_IMAGES_REPO }}
+  GIT_EMAIL: ${{ vars.GIT_USER_EMAIL }}
+  GIT_NAME: ${{ vars.GIT_USER_NAME }}
 on:
   workflow_dispatch:
   schedule:
@@ -23,15 +25,6 @@ jobs:
           private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: btp-manager
-
-      - name: Get bot user ID
-        env:
-          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
-          APP_SLUG: ${{ steps.bot-token.outputs.app-slug }}
-        run: |
-          BOT_USER_ID=$(gh api "/users/${APP_SLUG}[bot]" --jq '.id')
-          echo "GIT_EMAIL=${BOT_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_ENV"
-          echo "GIT_NAME=${APP_SLUG}" >> "$GITHUB_ENV"
 
       - name: Checkout code
         uses: actions/checkout@v7

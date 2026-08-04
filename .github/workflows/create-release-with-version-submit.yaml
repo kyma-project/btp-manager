@@ -5,6 +5,8 @@ env:
   IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
+  GIT_EMAIL: ${{ vars.GIT_USER_EMAIL }}
+  GIT_NAME: ${{ vars.GIT_USER_NAME }}
 
 permissions:
   contents: write
@@ -264,15 +266,6 @@ jobs:
           client-id: ${{ vars.GOPHER_BOT_APP_ID }}
           private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
           repositories: btp-manager
-
-      - name: Get bot user ID
-        env:
-          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
-          APP_SLUG: ${{ steps.bot-token.outputs.app-slug }}
-        run: |
-          BOT_USER_ID=$(gh api "/users/${APP_SLUG}[bot]" --jq '.id')
-          echo "GIT_EMAIL=${BOT_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_ENV"
-          echo "GIT_NAME=${APP_SLUG}" >> "$GITHUB_ENV"
 
       - name: Create PR if anything changed
         id: pr-needed
