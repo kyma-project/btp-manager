@@ -3,9 +3,9 @@ name: Auto update chart/resources
 env:
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
   SAP_BTP_SERVICE_OPERATOR_REPO: https://github.com/sap/sap-btp-service-operator
-  GIT_EMAIL: 4345220+kyma-gopher[bot]@users.noreply.github.com
-  GIT_NAME: kyma-gopher
   EXTERNAL_IMAGES_REPO: ${{ vars.EXTERNAL_IMAGES_REPO }}
+  GIT_EMAIL: ${{ vars.GIT_USER_EMAIL }}
+  GIT_NAME: ${{ vars.GIT_USER_NAME }}
 on:
   workflow_dispatch:
   schedule:
@@ -21,7 +21,7 @@ jobs:
         id: bot-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          client-id: ${{ vars.GOPHER_BOT_APP_ID }}
           private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: btp-manager
