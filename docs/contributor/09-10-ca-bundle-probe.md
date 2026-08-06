@@ -69,7 +69,7 @@ Mount detection is based solely on the presence of the `rt-bootstrapper-certs` v
 | **PROBE_TOKENURL_OVERRIDE** | Environment variable | None | Override the token URL used by the probe (for testing). |
 | **PROBE_FORCE_HASH** | Environment variable | None | Force a specific hash value (for testing). |
 
-The probe is disabled if either `ProbeInterval` is `0` or `PROBE_IMAGE` is not set.
+The probe is disabled if either **ProbeInterval** is `0` or **PROBE_IMAGE** is not set.
 
 To disable the probe at runtime, patch the `sap-btp-manager` ConfigMap in `kyma-system`:
 
