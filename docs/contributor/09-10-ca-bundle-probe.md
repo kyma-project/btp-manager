@@ -6,7 +6,7 @@ The CA bundle probe is a periodic background job that checks whether the TLS cer
 
 It is designed for Kyma clusters where the `rt-bootstrapper` module is active. In such clusters, a custom CA bundle is injected into Pods using a volume mount named `rt-bootstrapper-certs`. The probe detects this mount and uses the custom bundle as the certificate pool for TLS verification.
 
-The probe requires a probe image to be configured using the **PROBE_IMAGE** environment variable. If **PROBE_IMAGE** is not set, or if `ProbeInterval` is set to `0`, the probe is disabled and `Start()` returns immediately.
+The probe requires a probe image to be configured using the **PROBE_IMAGE** environment variable. If **PROBE_IMAGE** is not set, or if **ProbeInterval** is set to `0`, the probe is disabled and `Start()` returns immediately.
 
 ## How It Works
 
