@@ -107,6 +107,8 @@ make module-image   # Build and push module image
 
 ### Architecture
 
+For a diagram and component overview, see [BTP Manager Architecture](./docs/contributor/02-20-architecture.md).
+
 #### Core Components
 
 **Entry point:** `main.go` initializes the controller-runtime manager with leader election, registers reconcilers, sets up health/metrics probes, and starts config watching.
