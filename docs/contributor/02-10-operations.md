@@ -20,7 +20,7 @@ If you want to provision the SAP BTP service operator in a cluster without Kyma 
 
 ### Process
 
-![Provisioning diagram](../assets/provisioning.drawio.svg)
+![Provisioning diagram](../assets/provisioning.drawio.png)
 
 The provisioning process is part of a module reconciliation.
 
@@ -56,7 +56,7 @@ The provisioning process is part of a module reconciliation.
 
 ## Deprovisioning
 
-![Deprovisioning diagram](../assets/deprovisioning.drawio.svg)
+![Deprovisioning diagram](../assets/deprovisioning.drawio.png)
 
 1. To start the deprovisioning process, run the following command:
 
