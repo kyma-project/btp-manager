@@ -2,7 +2,7 @@
 
 ## Symptom
 
-You have a `ServiceInstance` configured with `parametersFrom` referencing a Secret and `watchParametersFromChanges: true`, but updating the Secret does not trigger an update of the service instance.
+You have a service instance configured with **parametersFrom** referencing a Secret and `watchParametersFromChanges: true`, but updating the Secret does not trigger an update of the service instance.
 
 ## Cause
 
@@ -18,7 +18,7 @@ You can do this imperatively:
 kubectl label secret {SECRET_NAME} -n {NAMESPACE} services.cloud.sap.com/managed-by-sap-btp-operator=true
 ```
 
-Or include the label in your Secret manifest:
+Or include the label in your Secret manifest.
 
 ```yaml
 apiVersion: v1
@@ -36,4 +36,4 @@ stringData:
     }
 ```
 
-Once the label is present, the operator detects it immediately — no restart or waiting is required — and reconciles the `ServiceInstance` on the next Secret change.
+Once the label is present, the operator detects it immediately — no restart or waiting is required — and reconciles the service instance on the next Secret change.

@@ -2,7 +2,7 @@
 
 You can set input parameters for your resources.
 
-To pass additional parameters stored outside your resource spec, create a Kubernetes Secret manually in the same namespace as your ServiceInstance or ServiceBinding, and reference it using the `parametersFrom` field.
+To pass additional parameters stored outside your resource spec, create a Kubernetes Secret manually in the same namespace as your ServiceInstance or ServiceBinding, and reference it using the **parametersFrom** field.
 
 ## Procedure
 
@@ -30,7 +30,7 @@ Otherwise, the specification is invalid, and further processing of the ServiceIn
 
 ## Examples
 
-The following example shows a ServiceInstance `spec` that uses both `parameters` and `parametersFrom`:
+The following example shows a ServiceInstance `spec` that uses both **parameters** and **parametersFrom**:
 
 ```yaml
 spec:
@@ -44,7 +44,7 @@ spec:
   watchParametersFromChanges: true
 ```
 
-The Secret referenced by `parametersFrom` must be created in the same namespace as the ServiceInstance:
+The Secret referenced by **parametersFrom** must be created in the same namespace as the ServiceInstance:
 
 ```yaml
 apiVersion: v1
@@ -64,7 +64,7 @@ stringData:
     }'
 ```
 
-The values from `parameters` and `parametersFrom` are merged into a single JSON payload sent to the service broker:
+The values from **parameters** and **parametersFrom** are merged into a single JSON payload sent to the service broker:
 
 ```json
 {
