@@ -1,4 +1,4 @@
-# ServiceInstance Not Updated When Watched Parameters Secret Is Modified
+# Service Instance Not Updated When Watched Parameters Secret Is Modified
 
 ## Symptom
 
@@ -36,4 +36,4 @@ stringData:
     }
 ```
 
-Once the label is present, the operator detects it immediately — no restart or waiting is required — and reconciles the service instance on the next Secret change.
+Once the label is present, the operator detects it immediately and reconciles the service instance on the next Secret change. No restart or waiting is required.
