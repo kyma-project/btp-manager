@@ -13,12 +13,12 @@ To set input parameters, go to the `spec` of the service instance or service bin
   All valid YAML or JSON constructs are supported.
 * **parametersFrom**: Specifies which Secret (that you create manually in the same namespace) and which key in it to include in the set of parameters sent to the service broker.
   The key contains a `string` that represents a JSON file. The **parametersFrom** field is a list that supports multiple sources referenced per `spec`.
-  The ServiceInstance resource can specify multiple related Secrets.
+  The service instance resource can specify multiple related Secrets.
 
 For service instance resources, you can also use the following parameter:
 
 * **watchParametersFromChanges**: Use this field together with **parametersFrom**.
-  This field is only relevant for service instance resources because you cannot update service binding resources. Set it to `true` to have the ServiceInstance automatically reconcile whenever the referenced Secret changes.
+  This field is only relevant for service instance resources because you cannot update service binding resources. Set it to `true` to have the service instance automatically reconcile whenever the referenced Secret changes.
   By default, it is set to `false`.
 
 > [!CAUTION]
@@ -26,7 +26,7 @@ For service instance resources, you can also use the following parameter:
 
 If you specify multiple sources in the **parameters** and **parametersFrom** fields, the final payload merges all of them at the top level.
 To avoid errors, do not use the same top-level parameter name in multiple sources in the **parameters** and **parametersFrom** fields.
-Otherwise, the specification is invalid, and further processing of the ServiceInstance or ServiceBinding resources stops with the status `Error`.
+Otherwise, the specification is invalid, and further processing of the service instance or service binding resources stops with the status `Error`.
 
 ## Examples
 
