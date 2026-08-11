@@ -22,7 +22,7 @@ For ServiceInstance resources, you can also use the following parameter:
   By default, it is set to `false`.
 
 > [!CAUTION]
-> For change detection to work, the Secret referenced in **parametersFrom** must have the label `services.cloud.sap.com/managed-by-sap-btp-operator: "true"`. Without this label, the SAP BTP Service Operator does not watch the Secret, and changes to it are not detected — even if **watchParametersFromChanges** is set to `true`.
+> When using **watchParametersFromChanges**, the referenced Secret must have the label `services.cloud.sap.com/managed-by-sap-btp-operator: "true"`. Without this label, the SAP BTP Service Operator does not watch the Secret, and changes to it are not detected.
 
 If you specify multiple sources in the **parameters** and **parametersFrom** fields, the final payload merges all of them at the top level.
 To avoid errors, do not use the same top-level parameter name in multiple sources in the **parameters** and **parametersFrom** fields.
@@ -41,7 +41,7 @@ spec:
     - secretKeyRef:
         name: {SECRET_NAME}
         key: secret-parameter
-  watchParametersFromChanges: true      
+  watchParametersFromChanges: true
 ```
 
 The Secret referenced by `parametersFrom` must be created in the same namespace as the ServiceInstance:

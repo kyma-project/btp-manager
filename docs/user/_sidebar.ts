@@ -24,6 +24,8 @@ export default [
     ] },
   { text: 'Troubleshooting', link: './troubleshooting/README', collapsed: true, items: [
     { text: 'You Cannot Delete Leftover Service Instances and Bindings', link: './troubleshooting/05-01-leftover-resources' },
-    { text: 'Resource CR Missing from the Cluster', link: './troubleshooting/05-02-resource-cr-missing-from-cluster' }
+    { text: 'Resource CR Missing from the Cluster', link: './troubleshooting/05-02-resource-cr-missing-from-cluster' },
+    { text: 'ServiceInstance Not Updated When Watched Parameters Secret Is Modified', link: './troubleshooting/05-03-watched-secret-not-detected' },
+    { text: 'SAP BTP Operator Not Working After Deleting the Service Binding', link: './troubleshooting/05-04-operator-not-working-after-deleting-binding' }
     ] }
 ];
