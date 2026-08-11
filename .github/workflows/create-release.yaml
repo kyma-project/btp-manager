@@ -4,9 +4,9 @@ run-name: Create release ${{ inputs.name }}
 env:
   IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
-  GIT_EMAIL: 4345220+kyma-gopher[bot]@users.noreply.github.com
-  GIT_NAME: kyma-gopher
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
+  GIT_EMAIL: ${{ vars.GIT_USER_EMAIL }}
+  GIT_NAME: ${{ vars.GIT_USER_NAME }}
 
 permissions:
   contents: write
@@ -33,6 +33,10 @@ on:
       dry-run:
         type: boolean
         description: 'Do not publish'
+        default: false
+      force:
+        type: boolean
+        description: 'Skip version validation (use when intentionally skipping versions)'
         default: false
 
 jobs:
@@ -71,6 +75,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
           NAME: ${{ inputs.name }}
+          FORCE: ${{ inputs.force }}
         run: python3 scripts/python/release_label_validator.py
 
 
@@ -96,6 +101,7 @@ jobs:
 
   run-unit-tests:
     name: Unit tests
+    needs: [validate-release]
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
 
   run-e2e-tests:
@@ -255,9 +261,9 @@ jobs:
 
       - name: Generate bot token
         id: bot-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          client-id: ${{ vars.GOPHER_BOT_APP_ID }}
           private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
           repositories: btp-manager
 
@@ -421,9 +427,9 @@ jobs:
 
       - name: Generate bot token
         id: bot-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          client-id: ${{ vars.GOPHER_BOT_APP_ID }}
           private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
           repositories: btp-manager
 

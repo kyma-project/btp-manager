@@ -36,18 +36,18 @@ jobs:
         shell: bash
         run: |
           [ -z "${{ vars.DOC_URL }}" ] && echo "DOC_URL is required" && exit 1
-          [ -z "${{ vars.GIT_USER_EMAIL }}" ] && echo "GIT_USER_EMAIL is required" && exit 1
-          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1
           [ -z "${{ vars.GH_TOOLS_HOST }}" ] && echo "GH_TOOLS_HOST is required" && exit 1
+          [ -z "${{ vars.GIT_TOOLS_USER_EMAIL }}" ] && echo "GIT_TOOLS_USER_EMAIL is required" && exit 1
+          [ -z "${{ vars.GIT_USER_NAME }}" ] && echo "GIT_USER_NAME is required" && exit 1
           [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1
           [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1
           echo "Validated"
 
       - name: Generate enterprise bot token
         id: enterprise-bot-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.GOPHER_TOOLS_BOT_APP_ID }}
+          client-id: ${{ vars.GOPHER_TOOLS_BOT_APP_ID }}
           private-key: ${{ secrets.GOPHER_TOOLS_BOT_APP_PRIVATE_KEY }}
           github-api-url: https://${{ vars.GH_TOOLS_HOST }}/api/v3
           owner: kyma
@@ -62,8 +62,8 @@ jobs:
         env:
           MODULE_MANIFESTS_WITH_USER: "https://x-access-token:${{ steps.enterprise-bot-token.outputs.token }}@${{ vars.GH_TOOLS_HOST }}/kyma/${{ vars.MODULE_MANIFESTS_REPO_NAME }}.git"
         run: |
-          git config --global user.email ${{ vars.GIT_USER_EMAIL }}
-          git config --global user.name ${{ vars.GIT_USER_NAME }}
+          git config --global user.email "${{ vars.GIT_TOOLS_USER_EMAIL }}"
+          git config --global user.name "${{ vars.GIT_USER_NAME }}"
           git clone ${MODULE_MANIFESTS_WITH_USER}
 
       - name: Set branch name

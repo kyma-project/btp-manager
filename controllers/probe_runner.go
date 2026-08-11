@@ -79,6 +79,13 @@ func (r *ProbeRunner) Start(ctx context.Context) error {
 
 	logger.Info("CA bundle probe runner started", "interval", interval, "image", r.probeImage)
 
+	if err := r.runCycle(ctx); err != nil {
+		logger.Error(err, "probe cycle failed")
+		if ctx.Err() != nil {
+			return nil
+		}
+	}
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 

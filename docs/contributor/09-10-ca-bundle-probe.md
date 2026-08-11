@@ -6,11 +6,11 @@ The CA bundle probe is a periodic background job that checks whether the TLS cer
 
 It is designed for Kyma clusters where the `rt-bootstrapper` module is active. In such clusters, a custom CA bundle is injected into Pods using a volume mount named `rt-bootstrapper-certs`. The probe detects this mount and uses the custom bundle as the certificate pool for TLS verification.
 
-The probe is disabled by default (`ProbeInterval: 0s`). It requires a probe image to be configured using the **PROBE_IMAGE** environment variable.
+The probe requires a probe image to be configured using the **PROBE_IMAGE** environment variable. If **PROBE_IMAGE** is not set, or if **ProbeInterval** is set to `0`, the probe is disabled and `Start()` returns immediately.
 
 ## How It Works
 
-BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On each interval tick, it performs the following steps:
+BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On startup, it runs one probe cycle immediately (before the first interval tick). After that, it repeats the cycle on every interval tick. Each cycle performs the following steps:
 
 1. Deletes any leftover probe Job from a previous cycle.
 2. Creates a new Kubernetes Job (`btp-manager-ca-bundle-probe`) in `kyma-system`.
@@ -19,6 +19,8 @@ BTP Manager runs a `ProbeRunner` as a controller-runtime `Runnable`. On each int
 5. Updates the `btpmanager_credential_probe_status` Prometheus metric.
 6. If the CA bundle hash changed and TLS is healthy, restarts the `sap-btp-operator` Pods.
 7. Updates the `tls-probe-last-hash` annotation on the `BtpOperator` CR.
+
+If the startup cycle fails and the context has been cancelled (for example, because the manager is shutting down), `Start()` returns without error instead of proceeding to the ticker loop.
 
 ## Probe Job
 
@@ -62,10 +64,18 @@ Mount detection is based solely on the presence of the `rt-bootstrapper-certs` v
 
 | Parameter | Source | Default | Description |
 |---|---|---|---|
-| **ProbeInterval** | ConfigMap `sap-btp-manager` / CLI flag `--probe-interval` | `0s` (disabled) | How often to run the probe. Set to `0` to disable. |
+| **ProbeInterval** | ConfigMap `sap-btp-manager` / CLI flag `--probe-interval` | `1h` | How often to run the probe. Set to `0` to disable. |
 | **PROBE_IMAGE** | Environment variable | None | Container image for the probe Job. Required to enable the probe. |
 | **PROBE_TOKENURL_OVERRIDE** | Environment variable | None | Override the token URL used by the probe (for testing). |
 | **PROBE_FORCE_HASH** | Environment variable | None | Force a specific hash value (for testing). |
+
+The probe is disabled if either **ProbeInterval** is `0` or **PROBE_IMAGE** is not set.
+
+To disable the probe at runtime, patch the `sap-btp-manager` ConfigMap in `kyma-system`:
+
+```bash
+kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"ProbeInterval":"0"}}'
+```
 
 ## Metric
 

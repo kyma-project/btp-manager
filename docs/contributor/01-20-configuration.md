@@ -44,7 +44,7 @@ Usage of ./manager:
   -enable-limited-cache string
       Enable limited cache for the SAP BTP service operator. When enabled, caches only Secrets and ConfigMaps with the label "services.cloud.sap.com/managed-by-sap-btp-operator: true". (default "false")
   -probe-interval duration
-      CA bundle probe interval. 0 disables the probe. (default 0s)
+      CA bundle probe interval. 0 disables the probe. (default 1h0m0s)
   -secret-name string
     	Secret name with input values for sap-btp-operator chart templating. (default "sap-btp-manager")
   -status-update-check-interval duration
@@ -87,5 +87,5 @@ data:
   ReadyTimeout: 1m
   HardDeleteCheckInterval: 10s
   EnableLimitedCache: false
-  ProbeInterval: 0s
+  ProbeInterval: 1h
 ```
