@@ -15,6 +15,7 @@ with open('.github/release.yml', 'r') as file:
 print(f"One of these labels is required on PR: {label_pool}")
 token = os.getenv('GITHUB_TOKEN')
 repo = os.getenv('REPOSITORY')
+force = os.getenv('FORCE', 'false').lower() == 'true'
 
 response = requests.get(f'https://api.github.com/repos/{repo}/releases/latest', headers={'Authorization': f'token {token}'})
 response.raise_for_status()
@@ -54,9 +55,60 @@ if invalid_prs:
 
 print("\nAll PRs have exactly one required label")
 
+if force:
+    print("\nforce=true: skipping version increment and kind/feature checks")
+    sys.exit(0)
+
+name_input = os.getenv('NAME')
+if not name_input:
+    print("Error: NAME environment variable is not set")
+    sys.exit(1)
+
+latest_release_name = latest_release['name'].lstrip('v').split(".")
+new_release_name = name_input.lstrip('v').split(".")
+
+try:
+    latest_parts = [int(x) for x in latest_release_name]
+    new_parts = [int(x) for x in new_release_name]
+
+    if len(latest_parts) == 3 and len(new_parts) == 3:
+        latest_major, latest_minor, latest_patch = latest_parts
+        new_major, new_minor, new_patch = new_parts
+
+        skip_detected = False
+        if new_major > latest_major + 1:
+            skip_detected = True
+        elif new_major == latest_major + 1:
+            if new_minor > 0 or new_patch > 0:
+                skip_detected = True
+        elif new_major == latest_major:
+            if new_minor > latest_minor + 1:
+                skip_detected = True
+            elif new_minor == latest_minor and new_patch > latest_patch + 1:
+                skip_detected = True
+
+        if skip_detected:
+            latest_ver = latest_release['name']
+            print(f"\nVersion {name_input} skips more than one increment over the latest release {latest_ver}.")
+            print("If this is intentional, re-run the workflow with force=true.")
+            sys.exit(1)
+
+        if tuple(new_parts) < tuple(latest_parts):
+            latest_ver = latest_release['name']
+            print(f"\nVersion {name_input} is not newer than the latest release {latest_ver}.")
+            print("If this is intentional, re-run the workflow with force=true.")
+            sys.exit(1)
+        if tuple(new_parts) == tuple(latest_parts):
+            latest_ver = latest_release['name']
+            print(f"\nVersion {name_input} does not increment over the latest release {latest_ver}.")
+            print("If this is intentional, re-run the workflow with force=true.")
+            sys.exit(1)
+except ValueError:
+    print("\nWarning: could not parse version numbers for increment check, skipping")
+
 if feature_prs:
     latest_release_name = latest_release['name'].split(".")
-    new_release_name = os.getenv('NAME').split(".")
+    new_release_name = name_input.split(".")
     if latest_release_name[0] == new_release_name[0] and latest_release_name[1] == new_release_name[1]:
         print("\nThese PRs have kind/feature label, but only the patch version number was bumped:\n" + '\n'.join([f"PR: {pr}" for pr in feature_prs]))
         sys.exit(1)
