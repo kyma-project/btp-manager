@@ -25,4 +25,4 @@ When you delete the binding and re-create it, the new binding has different cred
 
 ## Related Information
 
-[Customize the Default Credentials and Access](03-11-customize_secret.md)
+[Customize the Default Credentials and Access](../03-11-customize_secret.md)
