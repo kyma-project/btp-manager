@@ -10,7 +10,8 @@ When your Kyma runtime was provisioned, an SAP Service Manager service instance 
 
 When you delete the binding, the Kyma infrastructure still holds the old credentials and keeps refreshing the `sap-btp-manager` Secret with them. If you re-create the binding, the new binding has different credentials, but the Secret is still not updated. The SAP BTP Operator module can't authenticate, so the entire SAP BTP module remains non-functional until the operations team manually updates the credentials on your behalf.
 
-Alternatively, if the `sap-btp-manager` Secret itself was deleted from the cluster, Kyma's automatic reconciliation restores it within 24 hours — no support ticket is needed. If you can't wait, you can restore the Secret immediately by following [Customize the Default Credentials and Access](../03-11-customize_secret.md) using the credentials from the existing binding.
+> ### Note:
+> Alternatively, if the `sap-btp-manager` Secret itself was deleted from the cluster, Kyma's automatic reconciliation restores it within 24 hours — no support ticket is needed. If you can't wait, you can restore the Secret immediately by following [Customize the Default Credentials and Access](../03-11-customize_secret.md) using the credentials from the existing binding.
 
 Each Kyma runtime has a dedicated Service Manager instance in a one-to-one relationship. If you have multiple Kyma runtimes, you have multiple Service Manager instances, each with its own binding. The Service Manager instance name in the SAP BTP cockpit matches the Kyma instance ID of the corresponding Kyma runtime. You need this mapping to identify the correct instance when raising a support ticket.
 
@@ -26,8 +27,6 @@ Each Kyma runtime has a dedicated Service Manager instance in a one-to-one relat
 
 4. Check the binding's creation timestamp and compare it with the Service Manager instance's creation timestamp:
    - If the binding was created later, it was deleted and recreated. This confirms you're in the scenario described by this guide.
-
-   > [!NOTE]
    - If the timestamps match, the binding has not been recreated and this guide does not apply. Instead, the issue may be caused by the `sap-btp-manager` Secret being deleted from the cluster. For guidance, see [Cause](#cause).
 
 5. Download the binding credentials as a JSON file.
