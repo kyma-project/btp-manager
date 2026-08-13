@@ -24,10 +24,11 @@ Each Kyma runtime has a dedicated Service Manager instance in a one-to-one relat
    - If no binding exists, re-create it, then proceed to the next step.
    - If a binding already exists (whether original or re-created), proceed to the next step.
 
-4. Check the binding's creation timestamp and compare it with the Service Manager instance's creation timestamp. If the binding was created later, it was deleted and re-created — this confirms you're in the scenario described by this guide.
+4. Check the binding's creation timestamp and compare it with the Service Manager instance's creation timestamp:
+   - If the binding was created later, it was deleted and recreated. This confirms you're in the scenario described by this guide.
 
    > [!NOTE]
-   > If the timestamps match, the binding has not been re-created and this guide does not apply. The issue may instead be caused by the `sap-btp-manager` Secret being deleted from the cluster. See the [Cause](#cause) section for guidance.
+   - If the timestamps match, the binding has not been recreated and this guide does not apply. Instead, the issue may be caused by the `sap-btp-manager` Secret being deleted from the cluster. For guidance, see [Cause](#cause).
 
 5. Download the binding credentials as a JSON file.
 
