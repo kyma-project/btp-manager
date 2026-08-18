@@ -8,7 +8,7 @@ You deleted the SAP Service Manager service binding in the SAP BTP cockpit and t
 
 When your Kyma runtime was provisioned, an SAP Service Manager service instance with the `service-operator-access` plan and a corresponding service binding were created automatically. The credentials from that binding are used to populate the `sap-btp-manager` Secret in your cluster, which the SAP BTP Operator module relies on to function.
 
-When you delete the binding, the Kyma infrastructure still holds the old credentials and keeps refreshing the `sap-btp-manager` Secret with them. If you re-create the binding, the new binding has different credentials, but the Secret is still not updated. The SAP BTP Operator module can't authenticate, so the entire SAP BTP module remains non-functional until the operations team manually updates the credentials on your behalf.
+When you delete the binding, the Kyma infrastructure still holds the old credentials and keeps refreshing the `sap-btp-manager` Secret with them. If you re-create the binding, the new binding has different credentials, but the Secret is still not updated. You can't create new service instances because the SAP BTP Operator module can't authenticate. The support team must manually update the credentials on your behalf.
 
 > ### Note:
 > Alternatively, if the `sap-btp-manager` Secret itself was deleted from the cluster, Kyma's automatic reconciliation restores it within 24 hours — no support ticket is needed. If you can't wait, you can restore the Secret immediately by following [Customize the Default Credentials and Access](../03-11-customize_secret.md) using the credentials from the existing binding.
@@ -36,4 +36,6 @@ Each Kyma runtime has a dedicated Service Manager instance in a one-to-one relat
    - Your Kyma runtime instance ID
    - The Service Manager instance name (which equals your Kyma instance ID)
 
-7. Wait for the operations team to confirm that the credentials have been updated and the `sap-btp-manager` Secret on your cluster has been restored. Then verify that the SAP BTP Operator module is functioning again by checking that your service instances and bindings are no longer reporting errors.
+7. Wait for the support team to confirm that the credentials have been updated and the `sap-btp-manager` Secret in your cluster reflects the new credentials.
+
+8. To verify the fix, create a service instance. If it's created without errors, the issue is resolved.
