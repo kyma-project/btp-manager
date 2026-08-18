@@ -8,7 +8,7 @@ metadata:
   labels:
     "services.cloud.sap.com/managed-by-sap-btp-operator": "true"
 data:
-  CLUSTER_ID: 509a9aa7-87fc-4727-9c5d-7b6afa761e5b
+  CLUSTER_ID: c67f0791-6807-461b-bc75-ba3bb4603d3f
   MANAGEMENT_NAMESPACE: kyma-system
   RELEASE_NAMESPACE: kyma-system
   ENABLE_LIMITED_CACHE: "true"
