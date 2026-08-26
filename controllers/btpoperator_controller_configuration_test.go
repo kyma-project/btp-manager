@@ -69,6 +69,12 @@ var _ = Describe("Configuration controller", func() {
 		})
 
 		It("should restart SAP BTP service operator pod when EnableLimitedCache changes", func() {
+			// Establish a known baseline so the change below is a real "true" → "false" transition.
+			createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "true"})
+			Eventually(func() string { return config.EnableLimitedCache }).
+				WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).
+				Should(Equal("true"))
+
 			pod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "sap-btp-operator-test",

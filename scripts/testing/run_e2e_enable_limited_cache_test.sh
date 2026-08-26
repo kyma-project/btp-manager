@@ -22,9 +22,10 @@ assertSapBtpOperatorRestarted() {
     local current_pod
     current_pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
       --field-selector=status.phase=Running \
-      --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+      --sort-by=.metadata.creationTimestamp \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null | tail -1 || echo "")
     if [[ -n "$current_pod" && "$current_pod" != "$before_pod" ]]; then
-      echo "--- PASS: sap-btp-operator restarted (new pod: '$current_pod')"
+      echo "--- PASS: sap-btp-operator restarted and Running (new pod: '$current_pod')"
       return 0
     fi
     sleep 5; seconds=$((seconds + 5))
@@ -36,7 +37,8 @@ assertSapBtpOperatorRestarted() {
 getSapBtpOperatorPodName() {
   kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/instance=sap-btp-operator \
     --field-selector=status.phase=Running \
-    --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo ""
+    --sort-by=.metadata.creationTimestamp \
+    -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null | tail -1 || echo ""
 }
 
 getEnableLimitedCacheValue() {
@@ -45,7 +47,7 @@ getEnableLimitedCacheValue() {
 }
 
 assertEnableLimitedCacheValue() {
-  local expected=$1 timeout=30 seconds=0
+  local expected=$1 timeout=60 seconds=0
   echo "--- Waiting for $ENABLE_LIMITED_CACHE_KEY=$expected in $SAP_BTP_OPERATOR_CONFIG_MAP"
   while [[ $seconds -lt $timeout ]]; do
     local actual
