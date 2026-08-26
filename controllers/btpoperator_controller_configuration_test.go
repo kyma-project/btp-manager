@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -65,6 +66,26 @@ var _ = Describe("Configuration controller", func() {
 			Eventually(func() map[string]string {
 				return getOperatorConfigMap().Data
 			}).Should(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "true"))
+		})
+
+		It("should restart SAP BTP service operator pod when EnableLimitedCache changes", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sap-btp-operator-test",
+					Namespace: kymaNamespace,
+					Labels:    map[string]string{"app.kubernetes.io/instance": "sap-btp-operator"},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "manager", Image: "fake-image"}},
+				},
+			}
+			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+
+			createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "false"})
+
+			Eventually(func() error {
+				return k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), &corev1.Pod{})
+			}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(MatchError(ContainSubstring("not found")))
 		})
 	})
 

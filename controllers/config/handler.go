@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-project/btp-manager/internal/metrics"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -201,6 +202,7 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 	}
 
 	beforeConfig := configSnapshot()
+	oldEnableLimitedCache := EnableLimitedCache
 
 	logger.Info("reconciling configuration update", "config", cm.Data)
 
@@ -267,5 +269,32 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 	changedFields := changedSnapshotKeys(beforeConfig, afterConfig)
 	logger.Info("configuration snapshot updated", "changedFields", changedFields)
 
+	if EnableLimitedCache != oldEnableLimitedCache {
+		if err := r.restartSapBtpServiceOperatorPods(ctx); err != nil {
+			logger.Error(err, "while restarting SAP BTP service operator pods after EnableLimitedCache change")
+		}
+	}
+
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
+}
+
+// restartSapBtpServiceOperatorPods deletes all SAP BTP Service Operator pods so the
+// Deployment recreates them. This is required for config keys whose values are read
+// only at pod startup (e.g. EnableLimitedCache) — updating the ConfigMap alone has no
+// runtime effect without a restart.
+func (r *Handler) restartSapBtpServiceOperatorPods(ctx context.Context) error {
+	podList := &corev1.PodList{}
+	if err := r.List(ctx, podList,
+		client.InNamespace(ChartNamespace),
+		client.MatchingLabels{"app.kubernetes.io/instance": "sap-btp-operator"},
+	); err != nil {
+		return err
+	}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if err := r.Delete(ctx, pod); err != nil && !k8serrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }

@@ -89,3 +89,6 @@ jobs:
 
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"
+
+      - name: Run EnableLimitedCache test
+        run: "./scripts/testing/run_e2e_enable_limited_cache_test.sh"
