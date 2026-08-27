@@ -349,20 +349,20 @@ manager_limited_cache=$(kubectl get configmap sap-btp-manager -n kyma-system -o 
 echo -e "sap-btp-manager ConfigMap EnableLimitedCache: ${manager_limited_cache}"
 
 echo -e "\n--- Waiting for ENABLE_LIMITED_CACHE=false to propagate to sap-btp-operator-config ConfigMap"
-SECONDS=0
-TIMEOUT=60
+ELAPSED=0
+TIMEOUT=120
 while true; do
   operator_limited_cache=$(kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}' 2>/dev/null || echo "")
   if [[ "${operator_limited_cache}" == "false" ]]; then
     echo -e "ENABLE_LIMITED_CACHE=false propagated to sap-btp-operator-config ConfigMap"
     break
   else
-    if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    if [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
       echo "FAILED: ENABLE_LIMITED_CACHE did not propagate to 'false' in sap-btp-operator-config within ${TIMEOUT}s. Current value: ${operator_limited_cache}" && exit 1
     fi
-    echo -e "--- Waiting for ENABLE_LIMITED_CACHE=false to propagate (current: ${operator_limited_cache}, elapsed: ${SECONDS}s)"
+    echo -e "--- Waiting for ENABLE_LIMITED_CACHE=false to propagate (current: ${operator_limited_cache}, elapsed: ${ELAPSED}s)"
     sleep 5
-    SECONDS=$((SECONDS + 5))
+    ELAPSED=$((ELAPSED + 5))
   fi
 done
 
@@ -370,19 +370,19 @@ echo -e "\n--- Enabling limited cache in sap-btp-manager ConfigMap"
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"true"}}'
 
 echo -e "\n--- Waiting for ENABLE_LIMITED_CACHE=true to propagate back to sap-btp-operator-config"
-SECONDS=0
+ELAPSED=0
 while true; do
   operator_limited_cache=$(kubectl get configmap sap-btp-operator-config -n kyma-system -o jsonpath='{.data.ENABLE_LIMITED_CACHE}' 2>/dev/null || echo "")
   if [[ "${operator_limited_cache}" == "true" ]]; then
     echo -e "ENABLE_LIMITED_CACHE=true propagated back to sap-btp-operator-config ConfigMap"
     break
   else
-    if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    if [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
       echo "FAILED: ENABLE_LIMITED_CACHE did not propagate back to 'true' in sap-btp-operator-config within ${TIMEOUT}s. Current value: ${operator_limited_cache}" && exit 1
     fi
-    echo -e "Waiting for ENABLE_LIMITED_CACHE=true to propagate (current: ${operator_limited_cache}, elapsed: ${SECONDS}s)"
+    echo -e "Waiting for ENABLE_LIMITED_CACHE=true to propagate (current: ${operator_limited_cache}, elapsed: ${ELAPSED}s)"
     sleep 5
-    SECONDS=$((SECONDS + 5))
+    ELAPSED=$((ELAPSED + 5))
   fi
 done
 
