@@ -4,9 +4,9 @@ run-name: Create release ${{ inputs.name }}
 env:
   IMAGE_REPO: europe-docker.pkg.dev/kyma-project/prod/btp-manager
   KYMA_BTP_MANAGER_REPO: ${{ github.repository_owner }}/btp-manager
-  GIT_EMAIL: team-gopher+1@sap.com
-  GIT_NAME: kyma-gopher-bot
   BRANCH_NAME: sec-scanners-config-${{ inputs.name }}
+  GIT_EMAIL: ${{ vars.GIT_USER_EMAIL }}
+  GIT_NAME: ${{ vars.GIT_USER_NAME }}
 
 permissions:
   contents: write
@@ -34,6 +34,10 @@ on:
         type: boolean
         description: 'Do not publish'
         default: false
+      force:
+        type: boolean
+        description: 'Skip version validation (use when intentionally skipping versions)'
+        default: false
 
 jobs:
   validate-release:
@@ -42,7 +46,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -58,7 +62,7 @@ jobs:
         run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }}"
 
       - name: Setup python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.9'
           cache: 'pip'
@@ -71,6 +75,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
           NAME: ${{ inputs.name }}
+          FORCE: ${{ inputs.force }}
         run: python3 scripts/python/release_label_validator.py
 
 
@@ -84,13 +89,24 @@ jobs:
       context: .
       tags: ${{ inputs.name }}
 
+  build-probe-image:
+    name: Build probe image
+    needs: [validate-release]
+    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+    with:
+      name: ca-bundle-probe
+      dockerfile: tests/probe/Dockerfile
+      context: .
+      tags: ${{ inputs.name }}
+
   run-unit-tests:
     name: Unit tests
+    needs: [validate-release]
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"
 
   run-e2e-tests:
     name: E2E tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     uses: "./.github/workflows/run-e2e-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -102,15 +118,21 @@ jobs:
 
   run-stress-tests:
     name: Stress tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     runs-on: ubuntu-latest
+    env:
+      OPERATOR_POST_STARTUP_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_STARTUP_MEM_THRESHOLD }}
+      OPERATOR_POST_INSTANCES_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_INSTANCES_MEM_THRESHOLD }}
+      OPERATOR_POST_SECRETS_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_SECRETS_MEM_THRESHOLD }}
+      OPERATOR_MEM_EXPECTED_INCREASE: ${{ vars.OPERATOR_MEM_EXPECTED_INCREASE }}
+      MEM_REF_URL: ${{ vars.MEM_REF_URL }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up go environment
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 
@@ -122,28 +144,38 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/await_image.sh "$IMAGE_REPO:${{ inputs.name }}"
 
-      - name: Install BTP Manager and SAP BTP Operator
+      - name: Bump probe image tag
+        run: sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.name }}|g" config/manager/set_external_images.yaml
+
+      - name: Install BTP Manager and SAP BTP Operator - LimitedCache enabled
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy ci"
+        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy true"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+        run: "./scripts/testing/check_top.sh ${OPERATOR_POST_STARTUP_MEM_THRESHOLD} ${MEM_REF_URL}"
 
       - name: Run stress test - instances and bindings
         run: "./scripts/testing/stress-mem-instances-bindings.sh 500 30"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+        run: "./scripts/testing/check_top.sh ${OPERATOR_POST_INSTANCES_MEM_THRESHOLD} ${MEM_REF_URL}"
 
       - name: Run stress test - secrets and configmaps
-        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120"
+        run: "./scripts/testing/stress-mem-secrets-configmaps.sh 120 100"
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
-        run: "./scripts/testing/check_top.sh"
+        run: "./scripts/testing/check_top.sh ${OPERATOR_POST_SECRETS_MEM_THRESHOLD} ${MEM_REF_URL}"
+
+      - name: Run stress test - large labeled secrets
+        run: "./scripts/testing/stress-mem-large-labeled-secrets.sh 8"
+
+      - name: BTP Manager and SAP BTP Operator controller resources usage
+        run: "./scripts/testing/check_top_increased.sh ${OPERATOR_MEM_EXPECTED_INCREASE}"
+
 
   run-performance-tests:
     name: Performance tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     uses: "./.github/workflows/run-performance-tests-reusable.yaml"
     secrets: inherit
     with:
@@ -154,7 +186,7 @@ jobs:
 
   run-e2e-upgrade-tests:
     name: E2E upgrade tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     secrets: inherit
     if: ${{ inputs.credentials == 'real' }}
     uses: "./.github/workflows/run-e2e-upgrade-tests-reusable.yaml"
@@ -164,7 +196,7 @@ jobs:
 
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests
-    needs: build-image
+    needs: [build-image, build-probe-image]
     secrets: inherit
     uses: "./.github/workflows/run-e2e-upgrade-while-deleting-tests-reusable.yaml"
     with:
@@ -174,7 +206,7 @@ jobs:
 
   run-e2e-sap-btp-manager-secret-customization-test:
     name: E2E BTP Manager secret customization test
-    needs: build-image
+    needs: [build-image, build-probe-image]
     secrets: inherit
     uses: "./.github/workflows/run-e2e-sap-btp-manager-secret-customization-test-reusable.yaml"
     with:
@@ -182,14 +214,24 @@ jobs:
       image-registry: europe-docker.pkg.dev/kyma-project/prod/btp-manager
       image-tag: ${{ github.event.inputs.name }}
 
+  run-ca-bundle-probe-e2e:
+    name: CA bundle probe E2E tests
+    needs: [build-image, build-probe-image]
+    secrets: inherit
+    uses: "./.github/workflows/run-e2e-ca-bundle-probe-tests-reusable.yaml"
+    with:
+      release: "true"
+      image-tag: ${{ github.event.inputs.name }}
+      image-repo: europe-docker.pkg.dev/kyma-project/prod/btp-manager
+
   bump-sec-scanners-config:
     name: Bump sec-scanners-config
-    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test]
+    needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, run-ca-bundle-probe-e2e, build-probe-image]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: git pull
@@ -197,6 +239,14 @@ jobs:
       - name: Update sec-scanners-config.yaml
         if: ${{ !inputs.skip-sec-file-bump }}
         run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
+
+      - name: Bump probe image tag in set_external_images.yaml
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.name }}|g" config/manager/set_external_images.yaml
+
+      - name: Update component-config.yaml
+        if: ${{ !inputs.skip-sec-file-bump }}
+        run: scripts/create_component_config.sh ${{ inputs.name }}
 
       - name: Check if any PR was merged during release
         env:
@@ -210,13 +260,21 @@ jobs:
             exit 1
           fi
 
+      - name: Generate bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
+          repositories: btp-manager
+
       - name: Create PR if anything changed
         id: pr-needed
         if: ${{ !inputs.skip-sec-file-bump }}
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: |
-          prs=$(gh pr list -A ${{ env.GIT_NAME }} --state open --json headRefName | jq -r '.[] | .headRefName')
+          prs=$(gh pr list -A app/kyma-gopher --state open --json headRefName | jq -r '.[] | .headRefName')
           if echo $prs | tr " " '\n' | grep -F -q -x ${{ env.BRANCH_NAME }}; then
             echo "PR already exists, no need to create a new one"
             echo "PR_NUMBER=$(gh pr list --search "base:main head:${{ env.BRANCH_NAME }}" --json number | jq -r '.[] | .number')" >> $GITHUB_ENV
@@ -231,7 +289,7 @@ jobs:
       - name: Merge PR
         if: ${{ !inputs.skip-sec-file-bump }}
         env:
-          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
           REPOSITORY: ${{ env.KYMA_BTP_MANAGER_REPO }}
         run: |
           if [ "$PR_NUMBER" -gt 0 ]; then
@@ -290,7 +348,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ needs.bump-sec-scanners-config.outputs.latest_commit}}
@@ -308,7 +366,7 @@ jobs:
           fi
 
       - name: Set up go environment
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 
@@ -365,13 +423,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      - name: Generate bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GOPHER_BOT_APP_ID }}
+          private-key: ${{ secrets.GOPHER_BOT_APP_PRIVATE_KEY }}
+          repositories: btp-manager
+
       - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }} # We do use bot token here to trigger workflow uploading logs
         run: |
           gh release edit ${{ inputs.name }} --draft=false
 

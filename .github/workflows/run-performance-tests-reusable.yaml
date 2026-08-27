@@ -25,10 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up go environment
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 
@@ -39,14 +39,25 @@ jobs:
         if: ${{ inputs.release == 'false' }}
         run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
+      - name: Build and push probe image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
       - name: Install BTP Manager and SAP BTP Operator
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SM_URL: ${{ secrets.SM_URL }}
-          SM_TOKEN_URL: ${{ secrets.TOKENURL }}  
+          SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
       - name: Edit sap-btp-manager secret in a loop
         run: |
@@ -92,10 +103,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up go environment
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 
@@ -106,6 +117,17 @@ jobs:
         if: ${{ inputs.release == 'false' }}
         run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
+      - name: Build and push probe image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
       - name: Install BTP Manager and SAP BTP Operator
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -113,7 +135,7 @@ jobs:
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
       - name: Delete and apply sap-btp-manager secret in a loop
         run: |
@@ -172,10 +194,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up go environment
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 
@@ -186,6 +208,17 @@ jobs:
         if: ${{ inputs.release == 'false' }}
         run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
+      - name: Build and push probe image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
       - name: Install BTP Manager and SAP BTP Operator
         env:
           SM_CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -193,7 +226,7 @@ jobs:
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
       - name: Scale down btp-manager-controller-manager 
         run: |
@@ -245,10 +278,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up go environment
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 
@@ -263,6 +296,11 @@ jobs:
         run: |
           kubectl apply -f ./deployments/prerequisites.yaml
           kubectl apply -f ./examples/btp-manager-secret.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
 
       - name: Build BTP Manager
         timeout-minutes: 2

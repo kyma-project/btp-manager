@@ -139,7 +139,7 @@ actionForExistingResource() {
         local r=$(resource "$yaml")
         local g=$(group "$yaml")
         if ! [[ "${rbac[$gvk]+x}" ]]; then
-          rbac[$gvk]='//+kubebuilder:rbac:groups=\"'$g'\",resources=\"'$r'\",verbs=\"delete\"'
+          rbac[$gvk]='//+kubebuilder:rbac:groups="'$g'",resources="'$r'",verbs=delete'
         fi
     fi
 }

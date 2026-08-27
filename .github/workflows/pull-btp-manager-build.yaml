@@ -6,15 +6,31 @@ on:
       paths-ignore:
          - "**.md"
          - "sec-scanners-config.yaml"
+         - "component-config.yaml"
 
 permissions:
    id-token: write # This is required for requesting the JWT token
    contents: read # This is required for actions/checkout
 
 jobs:
+   restricted-gate:
+      runs-on: ubuntu-latest
+      environment: restricted
+      steps:
+         - run: echo "Build approved"
+
    build-image:
+      needs: restricted-gate
       uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
-      with: 
+      with:
          name: btp-manager
          dockerfile: Dockerfile
+         context: .
+
+   build-probe-image:
+      needs: restricted-gate
+      uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+      with:
+         name: ca-bundle-probe
+         dockerfile: tests/probe/Dockerfile
          context: .

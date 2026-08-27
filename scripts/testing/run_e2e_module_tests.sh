@@ -17,15 +17,23 @@ set -E          # needs to be set if we want the ERR trap
 set -o pipefail # prevents errors in a pipeline from being masked
 
 waitForBtpOperatorCrReadiness () {
-  echo -e "\n--- Waiting for BtpOperator CR to be ready"
+  local timeout=${1:-300}
+  echo -e "\n--- Waiting for BtpOperator CR to be ready (timeout: ${timeout}s)"
+  local seconds=0
   while true; do
     operator_status=$(kubectl get btpoperators/btpoperator -n kyma-system -o json)
     state_status=$(echo $operator_status | jq -r '.status.state')
     if [[ $state_status == "Ready" ]]; then
       break
-    else
-      echo -e "\n--- Waiting for BtpOperator CR to be ready"; sleep 5;
     fi
+    if [[ ${seconds} -ge ${timeout} ]]; then
+      reason=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .reason')
+      message=$(echo $operator_status | jq -r '.status.conditions[] | select(.type=="Ready") | .message')
+      echo -e "\n--- ERROR: BtpOperator CR did not reach Ready within ${timeout}s (state=${state_status}, reason=${reason}, message=${message})"
+      exit 1
+    fi
+    echo -e "\n--- Waiting for BtpOperator CR to be ready (state=${state_status}, ${seconds}s/${timeout}s)"; sleep 5;
+    seconds=$((seconds + 5))
   done
 }
 
@@ -192,7 +200,7 @@ echo -e "\n--- Disabling network policies via annotation"
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies=true
 
 echo -e "\n--- Waiting for network policies to be cleaned up"
-sleep 10
+sleep 30
 
 if checkNetworkPoliciesDeleted; then
   echo -e "--- Network policies correctly deleted after disable annotation"
@@ -205,7 +213,7 @@ echo -e "\n--- Re-enabling network policies by removing the disable annotation"
 kubectl annotate btpoperators/btpoperator -n kyma-system operator.kyma-project.io/btp-operator-disable-network-policies-
 
 echo -e "\n--- Waiting for network policies to be recreated"
-sleep 10
+sleep 30
 
 if checkNetworkPoliciesExist; then
   echo -e "--- Network policies correctly recreated after removing disable annotation"
@@ -417,6 +425,90 @@ if [[ "${CREDENTIALS}" == "real" ]]; then
   echo -e "\n-- Service Instance has been updated - reconciliation after parameters change succeeded"
 fi
 
+echo -e "\n--- Testing certificate rotation"
+
+echo -e "\n--- Saving current CA bundle from mutating webhook"
+CA_BUNDLE_BEFORE=$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')
+if [[ -z "${CA_BUNDLE_BEFORE}" ]]; then
+  echo "ERROR: caBundle is empty before cert rotation test" && exit 1
+fi
+
+echo -e "\n--- Deleting ca-server-cert secret to trigger cert rotation"
+kubectl delete secret ca-server-cert -n kyma-system
+
+echo -e "\n--- Waiting for ca-server-cert to be recreated"
+SECONDS=0
+TIMEOUT=60
+until kubectl get secret ca-server-cert -n kyma-system >/dev/null 2>&1; do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "ERROR: ca-server-cert was not recreated within ${TIMEOUT}s" && exit 1
+  fi
+  echo "Waiting for ca-server-cert to be recreated (${SECONDS}s/${TIMEOUT}s)"
+  sleep 5
+done
+echo "ca-server-cert recreated"
+
+echo -e "\n--- Waiting for CA bundle in webhook configuration to be updated"
+SECONDS=0
+TIMEOUT=60
+until [[ -n "$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}' 2>/dev/null)" ]] && \
+  [[ "$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')" != "${CA_BUNDLE_BEFORE}" ]]; do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "ERROR: CA bundle in webhook was not updated within ${TIMEOUT}s" && exit 1
+  fi
+  echo "Waiting for CA bundle to be updated (${SECONDS}s/${TIMEOUT}s)"
+  sleep 5
+done
+echo "CA bundle updated in mutating webhook"
+
+echo -e "\n--- Verifying CA bundle in webhook is a valid certificate (not a private key)"
+CA_BUNDLE_AFTER=$(kubectl get mutatingwebhookconfiguration sap-btp-operator-mutating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')
+CA_BUNDLE_DECODED=$(echo "${CA_BUNDLE_AFTER}" | base64 -d)
+if echo "${CA_BUNDLE_DECODED}" | grep -q "BEGIN CERTIFICATE"; then
+  echo "CA bundle contains a valid certificate"
+else
+  echo "ERROR: CA bundle does not contain a certificate - may contain a private key instead" && exit 1
+fi
+
+echo -e "\n--- Verifying validating webhook also has the updated CA bundle"
+CA_BUNDLE_VALIDATING=$(kubectl get validatingwebhookconfiguration sap-btp-operator-validating-webhook-configuration -o jsonpath='{.webhooks[0].clientConfig.caBundle}')
+if [[ "${CA_BUNDLE_VALIDATING}" == "${CA_BUNDLE_AFTER}" ]]; then
+  echo "Validating webhook CA bundle matches mutating webhook CA bundle"
+else
+  echo "ERROR: Validating webhook CA bundle does not match mutating webhook CA bundle" && exit 1
+fi
+
+waitForBtpOperatorCrReadiness 120
+echo "Certificate rotation test completed successfully"
+
+echo -e "\n--- Testing sap-btp-manager secret deletion and recovery"
+
+echo -e "\n--- Saving sap-btp-manager secret before deletion"
+SECRET_JSON=$(kubectl get secret sap-btp-manager -n kyma-system -o json | \
+  jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp, .metadata.annotations, .metadata.managedFields, .metadata.ownerReferences)')
+
+echo -e "\n--- Deleting sap-btp-manager secret while CR is in Ready state"
+kubectl delete secret sap-btp-manager -n kyma-system
+
+echo -e "\n--- Waiting for BtpOperator CR to leave Ready state"
+SECONDS=0
+TIMEOUT=60
+until [[ "$(kubectl get btpoperators/btpoperator -n kyma-system -o jsonpath='{.status.state}')" != "Ready" ]]; do
+  if [[ ${SECONDS} -ge ${TIMEOUT} ]]; then
+    echo "ERROR: BtpOperator CR did not leave Ready state within ${TIMEOUT}s after secret deletion" && exit 1
+  fi
+  echo "Waiting for CR to leave Ready state (${SECONDS}s/${TIMEOUT}s)"
+  sleep 5
+done
+echo "BtpOperator CR left Ready state after secret deletion"
+
+echo -e "\n--- Recreating sap-btp-manager secret from saved copy"
+echo "${SECRET_JSON}" | kubectl apply -f -
+
+echo -e "\n--- Waiting for BtpOperator CR to recover to Ready state"
+waitForBtpOperatorCrReadiness 120
+echo "BtpOperator CR recovered to Ready after secret recreation"
+
 echo -e "\n---Uninstalling..."
 
 # remove btp-operator (ServiceInstance and ServiceBinding should be deleted as well)
@@ -501,6 +593,7 @@ if [[ "${CREDENTIALS}" != "real" ]]
 then
   echo -e "\n--- Creating sap-btp-manager configmap with HardDeleteTimeout 10s"
   kubectl apply -f ${YAML_DIR}/e2e-test-configmap.yaml
+  kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"HardDeleteTimeout":"10s"}}'
 fi
 
 echo -e "\n--- Adding force delete label"
@@ -535,6 +628,8 @@ make undeploy
 #clean up and ignore errors
 kubectl delete -f ./examples/btp-manager-secret.yaml || echo "ignoring failure during secret removal"
 kubectl delete -f ./deployments/prerequisites.yaml || echo "ignoring failure during prerequisites removal"
+
+kubectl patch secret ${SI_PARAMS_SECRET_NAME} -p '{"metadata":{"finalizers":null}}' --type=merge || echo "ignoring failure during params secret patching"
 kubectl delete secret ${SI_PARAMS_SECRET_NAME} || echo "ignoring failure during params secret removal"
 
 echo -e "\n--- All objects cleaned up, test completed successfully"

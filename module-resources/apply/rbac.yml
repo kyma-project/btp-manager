@@ -82,50 +82,6 @@ rules:
 ---
 # Source: sap-btp-operator/templates/rbac.yml
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: sap-btp-operator-metrics-reader
-rules:
-  - nonResourceURLs:
-      - /metrics
-    verbs:
-      - get
----
-# Source: sap-btp-operator/templates/rbac.yml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: sap-btp-operator-proxy-role
-rules:
-  - apiGroups:
-      - authentication.k8s.io
-    resources:
-      - tokenreviews
-    verbs:
-      - create
-  - apiGroups:
-      - authorization.k8s.io
-    resources:
-      - subjectaccessreviews
-    verbs:
-      - create
----
-# Source: sap-btp-operator/templates/rbac.yml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: sap-btp-operator-proxy-rolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: sap-btp-operator-proxy-role
-subjects:
-  - kind: ServiceAccount
-    name: sap-btp-operator
-    namespace: kyma-system
----
-# Source: sap-btp-operator/templates/rbac.yml
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: sap-btp-operator-manager-rolebinding

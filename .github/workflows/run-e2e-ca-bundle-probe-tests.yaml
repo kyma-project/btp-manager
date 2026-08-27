@@ -1,0 +1,20 @@
+name: Run CA bundle probe E2E tests
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, ready_for_review ]
+    paths-ignore:
+      - "**.md"
+      - "sec-scanners-config.yaml"
+      - "component-config.yaml"
+      - "external-images.yaml"
+      - "module-chart/**"
+  workflow_dispatch:
+
+jobs:
+  run-ca-bundle-probe-e2e:
+    uses: "./.github/workflows/run-e2e-ca-bundle-probe-tests-reusable.yaml"
+    with:
+      release: "false"
+      image-tag: latest
+      image-repo: localhost:5000/btp-manager

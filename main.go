@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -41,7 +43,17 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers"
 	"github.com/kyma-project/btp-manager/controllers/config"
+	"github.com/kyma-project/btp-manager/internal/configurator"
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/deprovisioning"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
+	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
+	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/provisioning"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -81,6 +93,7 @@ func main() {
 	flag.DurationVar(&config.HardDeleteTimeout, "hard-delete-timeout", config.HardDeleteTimeout, "Hard delete timeout.")
 	flag.DurationVar(&config.DeleteRequestTimeout, "delete-request-timeout", config.DeleteRequestTimeout, "Delete request timeout in hard delete.")
 	flag.StringVar(&config.EnableLimitedCache, "enable-limited-cache", config.EnableLimitedCache, "Enable limited cache for sap-btp-operator.")
+	flag.DurationVar(&config.ProbeInterval, "probe-interval", config.ProbeInterval, "CA bundle probe interval. 0 disables the probe.")
 	flag.DurationVar(&config.StatusUpdateTimeout, "status-update-timeout", config.StatusUpdateTimeout, "Status update timeout.")
 	flag.DurationVar(&config.StatusUpdateCheckInterval, "status-update-check-interval", config.StatusUpdateCheckInterval, "Status update retry interval.")
 	flag.StringVar(&config.ManagerResourcesPath, "manager-resources-path", config.ManagerResourcesPath, "Path to the directory with BTP Manager resources.")
@@ -92,7 +105,6 @@ func main() {
 
 	requiredEnvs := []string{
 		controllers.SapBtpServiceOperatorEnv,
-		controllers.KubeRbacProxyEnv,
 	}
 	if err := ensureRequiredEnvs(requiredEnvs...); err != nil {
 		setupLog.Error(err, "missing required environment variables")
@@ -126,6 +138,14 @@ func main() {
 	configMetrics := btpmanagermetrics.NewConfigMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	configHandler := config.NewHandler(mgr.GetClient(), scheme, configMetrics)
+	manifestHandler := &manifest.Handler{Scheme: scheme}
+	networkPolicyManager := networkpolicy.NewManager(mgr.GetClient(), manifestHandler)
+	driftDetector := drift.NewDetector(mgr.GetClient(), apiServerClient)
+	moduleResourceManager := moduleresource.NewManager(mgr.GetClient(), scheme, driftDetector)
+	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](mgr.GetClient()))
+	certManager := certificate.NewManager(secretsManager, webhookMetrics)
+	provisioningHandler := provisioning.NewHandler(mgr.GetClient(), driftDetector, moduleResourceManager, networkPolicyManager, certManager, cleanupReconciler)
+	sapBtpConfigurator := configurator.NewConfigurator(driftDetector)
 	reconciler := controllers.NewBtpOperatorReconciler(
 		mgr.GetClient(),
 		apiServerClient,
@@ -135,7 +155,12 @@ func main() {
 		[]config.WatchHandler{
 			configHandler,
 		},
+		networkPolicyManager,
+		certManager,
+		provisioningHandler,
+		sapBtpConfigurator,
 	)
+	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(mgr.GetClient(), apiServerClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
@@ -144,6 +169,18 @@ func main() {
 
 	if err := mgr.Add(configHandler); err != nil {
 		setupLog.Error(err, "unable to register config handler as runnable")
+		os.Exit(1)
+	}
+
+	// Apply ConfigMap config synchronously before starting the manager so that
+	// runnables like ProbeRunner read the correct config values at startup.
+	if applyErr := configHandler.ApplyFromAPI(context.Background(), mgr.GetAPIReader()); applyErr != nil {
+		setupLog.Info("config ConfigMap not applied at startup (will be applied on first reconcile)", "reason", applyErr)
+	}
+
+	probeRunner := controllers.NewProbeRunner(mgr.GetClient(), ctrlmetrics.Registry)
+	if err := mgr.Add(probeRunner); err != nil {
+		setupLog.Error(err, "unable to register probe runner as runnable")
 		os.Exit(1)
 	}
 

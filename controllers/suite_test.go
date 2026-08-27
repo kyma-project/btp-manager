@@ -27,7 +27,17 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 	"github.com/kyma-project/btp-manager/internal/certs"
+	"github.com/kyma-project/btp-manager/internal/configurator"
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/deprovisioning"
+	"github.com/kyma-project/btp-manager/internal/k8s/generic"
+	"github.com/kyma-project/btp-manager/internal/k8s/networkpolicy"
+	"github.com/kyma-project/btp-manager/internal/k8s/secrets"
+	"github.com/kyma-project/btp-manager/internal/manager/moduleresource"
+	"github.com/kyma-project/btp-manager/internal/manifest"
 	btpmanagermetrics "github.com/kyma-project/btp-manager/internal/metrics"
+	"github.com/kyma-project/btp-manager/internal/provisioning"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	"github.com/prometheus/client_golang/prometheus"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -35,6 +45,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -50,7 +61,6 @@ import (
 
 const (
 	fakeSapBtpOperatorImage = "local.test/sap/sap-btp-service-operator/controller:v0.0.1"
-	fakeKubeRbacProxyImage  = "local.test/brancz/kube-rbac-proxy:v0.0.1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -180,6 +190,14 @@ var _ = SynchronizedBeforeSuite(func() {
 	metrics := btpmanagermetrics.NewWebhookMetrics(testRegistry)
 	configMetrics := btpmanagermetrics.NewConfigMetrics(testRegistry)
 	cleanupReconciler := NewInstanceBindingControllerManager(ctx, k8sManager.GetClient(), k8sManager.GetScheme(), cfg)
+	manifestHandler := &manifest.Handler{Scheme: k8sManager.GetScheme()}
+	networkPolicyManager := networkpolicy.NewManager(k8sManager.GetClient(), manifestHandler)
+	driftDetector := drift.NewDetector(k8sManager.GetClient(), k8sClient)
+	moduleResourceManager := moduleresource.NewManager(k8sManager.GetClient(), k8sManager.GetScheme(), driftDetector)
+	secretsManager := secrets.NewManager(generic.NewObjectManager[*corev1.Secret, *corev1.SecretList](k8sManager.GetClient()))
+	certManager := certificate.NewManager(secretsManager, metrics)
+	provisioningHandler := provisioning.NewHandler(k8sManager.GetClient(), driftDetector, moduleResourceManager, networkPolicyManager, certManager, cleanupReconciler)
+	sapBtpConfigurator := configurator.NewConfigurator(driftDetector)
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
@@ -189,7 +207,12 @@ var _ = SynchronizedBeforeSuite(func() {
 		[]config.WatchHandler{
 			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
 		},
+		networkPolicyManager,
+		certManager,
+		provisioningHandler,
+		sapBtpConfigurator,
 	)
+	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(k8sManager.GetClient(), k8sClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
 
 	k8sClientFromManager = k8sManager.GetClient()
 
@@ -223,9 +246,6 @@ var _ = SynchronizedBeforeSuite(func() {
 
 	if os.Getenv(SapBtpServiceOperatorEnv) == "" {
 		Expect(os.Setenv(SapBtpServiceOperatorEnv, fakeSapBtpOperatorImage)).To(Succeed())
-	}
-	if os.Getenv(KubeRbacProxyEnv) == "" {
-		Expect(os.Setenv(KubeRbacProxyEnv, fakeKubeRbacProxyImage)).To(Succeed())
 	}
 
 	err = reconciler.SetupWithManager(k8sManager)

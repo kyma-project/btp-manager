@@ -35,7 +35,7 @@ jobs:
       versions: ${{ steps.get-versions.outputs.k3s_versions }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - id: get-versions
         name: Get K3s versions
@@ -59,7 +59,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare-tests.outputs.versions) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Prepare K3s cluster and docker registry
         run: "./scripts/testing/k3s-setup.sh ${{ matrix.version }} --wait"
@@ -68,10 +68,16 @@ jobs:
         if: ${{ inputs.release == 'false' }}
         run: ./scripts/testing/build-and-push-image.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }}
 
-      - name: Set up go environment
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.mod'
+      - name: Build and push probe image to k3s registry
+        if: ${{ inputs.release == 'false' }}
+        run: |
+          ./scripts/testing/build-and-push-image.sh localhost:5000/ca-bundle-probe:${{ inputs.image-tag }} tests/probe/Dockerfile
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
+
+      - name: Bump probe image tag for release
+        if: ${{ inputs.release == 'true' }}
+        run: |
+          sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${{ inputs.image-tag }}|g" config/manager/set_external_images.yaml
 
       - name: Install BTP operator
         env:
@@ -79,7 +85,7 @@ jobs:
           SM_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           SM_URL: ${{ secrets.SM_URL }}
           SM_TOKEN_URL: ${{ secrets.TOKENURL }}
-        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }} ci"
+        run: "./scripts/testing/install_module.sh ${{ inputs.image-repo }}:${{ inputs.image-tag }} ${{ inputs.credentials-mode }}"
 
       - name: Run tests
         run: "./scripts/testing/run_e2e_module_tests.sh ${{ inputs.credentials-mode }} ci"

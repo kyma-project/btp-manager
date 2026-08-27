@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - "**.md"
       - "sec-scanners-config.yaml"
+      - "component-config.yaml"
       - "external-images.yaml"
       - "module-chart/**"
 
@@ -14,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Run govulncheck
         uses: golang/govulncheck-action@v1

@@ -10,7 +10,7 @@ You cannot access your Kyma cluster where the service instances and bindings wer
 
 ## Solution
 
-> [!Warning]
+> ### Caution
 > This cleanup procedure deletes all service instances and bindings associated with the inaccessible cluster.
 
 1. To access the Service Manager API, perform the following actions:

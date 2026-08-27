@@ -22,6 +22,7 @@ if [[ $# -eq 2 ]]; then
   # upgrade from one given version to another given version
   UPGRADE_IMAGE=${1}
   BASE_IMAGE=${2}
+  BASE_IMAGE_TAG="${BASE_IMAGE##*:}"
 elif [[ $# -eq 1 ]]; then
   # upgrade from the latest release to the given version
   UPGRADE_IMAGE=${1}
@@ -47,7 +48,12 @@ echo "-- TO: ${UPGRADE_IMAGE}"
 
 echo -e "\n--- PREPARING ENVIRONMENT"
 
-# deploy base image
+# Temporarily check out the base release so all installed files match that version
+git fetch origin tag "${BASE_IMAGE_TAG}" --no-tags
+CURRENT_COMMIT=$(git rev-parse HEAD)
+git checkout "${BASE_IMAGE_TAG}"
+
+# deploy base image using matching files from the base release
 scripts/testing/install_module.sh "${BASE_IMAGE}" dummy
 
 SI_NAME=auditlog-management-si-dummy
@@ -71,6 +77,19 @@ BASE_SAP_BTP_OPERATOR_CHART_VER=$(kubectl get -n kyma-system deployment/${SAP_BT
 OLD_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER=$(kubectl get -n kyma-system deployment/${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} -o jsonpath='{.metadata.resourceVersion}')
 echo -e "\n--- SAP BTP Service Operator chart version before upgrade: ${BASE_SAP_BTP_OPERATOR_CHART_VER}"
 echo -e "\n--- Current ${SAP_BTP_OPERATOR_DEPLOYMENT_NAME} deployment resource version: ${OLD_SAP_BTP_SERVICE_OPERATOR_DEPLOY_RES_VER}"
+
+# Restore the current version for the upgrade
+git checkout "${CURRENT_COMMIT}"
+
+# Patch set_external_images.yaml so kustomize deploys the correct probe image.
+UPGRADE_IMAGE_TAG="${UPGRADE_IMAGE##*:}"
+if [[ "${UPGRADE_IMAGE_TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  # release: use the prod registry image at the release tag
+  sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:${UPGRADE_IMAGE_TAG}|g" config/manager/set_external_images.yaml
+else
+  # PR/dev: use the locally built image pushed to the k3s registry
+  sed -i "s|europe-docker.pkg.dev/kyma-project/prod/ca-bundle-probe:[^ ]*|localhost:5000/ca-bundle-probe:${UPGRADE_IMAGE_TAG}|g" config/manager/set_external_images.yaml
+fi
 
 echo -e "\n--- UPGRADING MODULE"
 

@@ -1,0 +1,108 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: kyma-system
+  name: kyma-project.io--btp-operator-allow-to-apiserver
+  labels:
+    kyma-project.io/module: btp-operator
+spec:
+  podSelector:
+    matchLabels:
+      kyma-project.io/module: btp-operator
+  policyTypes:
+  - Egress
+  egress:
+  - ports:
+    - port: 443
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: kyma-system
+  name: kyma-project.io--btp-operator-to-dns
+  labels:
+    kyma-project.io/module: btp-operator
+    purpose: dns
+spec:
+  podSelector:
+    matchLabels:
+      kyma-project.io/module: btp-operator
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+      to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+    - ports:
+        - port: 8053
+          protocol: UDP
+        - port: 8053
+          protocol: TCP
+      to:
+        - namespaceSelector:
+            matchLabels:
+              gardener.cloud/purpose: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+      to:
+        - namespaceSelector:
+            matchLabels:
+              gardener.cloud/purpose: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: node-local-dns
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: kyma-system
+  name: kyma-project.io--allow-btp-operator-metrics
+  labels:
+    kyma-project.io/module: btp-operator
+spec:
+  podSelector:
+    matchLabels:
+      kyma-project.io/module: btp-operator
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kyma-system
+      podSelector:
+        matchLabels:
+          networking.kyma-project.io/metrics-scraping: allowed
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: kyma-system
+  name: kyma-project.io--allow-btp-operator-webhook
+spec:
+  podSelector:
+    matchLabels:
+      kyma-project.io/module: btp-operator
+      app.kubernetes.io/instance: sap-btp-operator
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+      - protocol: TCP
+        port: 9443

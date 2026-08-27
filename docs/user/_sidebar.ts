@@ -1,10 +1,8 @@
 export default [
-  { text: 'SAP BTP Operator Module', link: './README' },
   { text: 'Create the <code>sap-btp-manager</code> Secret', link: './03-00-create-btp-manager-secret' },
   { text: 'Install the SAP BTP Operator Module', link: './03-05-install-module' },
   { text: 'Preconfigured Credentials and Access', link: './03-10-preconfigured-secret' },
   { text: 'Customize the Default Credentials and Access', link: './03-11-customize_secret' },
-  { text: 'Network Policies', link: './03-15-network-policies' },
   { text: 'Create Service Instances and Service Bindings', link: './03-30-create-instances-and-bindings' },
   { text: 'Update Service Instances', link: './03-31-update-service-instances' },
   { text: 'Delete Service Bindigs and Service Instances', link: './03-32-delete-bindings-and-instances' },
@@ -26,6 +24,8 @@ export default [
     ] },
   { text: 'Troubleshooting', link: './troubleshooting/README', collapsed: true, items: [
     { text: 'You Cannot Delete Leftover Service Instances and Bindings', link: './troubleshooting/05-01-leftover-resources' },
-    { text: 'Resource CR Missing from the Cluster', link: './troubleshooting/05-02-resource-cr-missing-from-cluster' }
+    { text: 'Resource CR Missing from the Cluster', link: './troubleshooting/05-02-resource-cr-missing-from-cluster' },
+    { text: 'Service Instance Not Updated When Watched Parameters Secret Is Modified', link: './troubleshooting/05-03-watched-secret-not-detected' },
+    { text: 'SAP BTP Operator Not Working After Deleting the Service Binding', link: './troubleshooting/05-04-operator-not-working-after-deleting-binding' }
     ] }
 ];

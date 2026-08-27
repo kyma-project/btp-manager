@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ca-bundle-webhook
+  namespace: kyma-system
+spec:
+  selector:
+    app: ca-bundle-webhook
+  ports:
+    - port: 443
+      targetPort: 8443

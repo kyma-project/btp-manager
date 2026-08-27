@@ -44,3 +44,5 @@ vendor/**
 /vendor
 
 debug.sh
+
+/docs/superpowers/

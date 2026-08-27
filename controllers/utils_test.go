@@ -21,6 +21,8 @@ import (
 	"github.com/kyma-project/btp-manager/internal/conditions"
 	"github.com/kyma-project/btp-manager/internal/ymlutils"
 
+	"github.com/kyma-project/btp-manager/internal/credentials/drift"
+	"github.com/kyma-project/btp-manager/internal/webhook/certificate"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -257,6 +259,11 @@ func assertResourcesRemoval(uns ...*unstructured.Unstructured) {
 }
 
 func moveOrCopyNFilesFromDirToDir(filesNum int, deleteFiles bool, srcDir, targetDir string) error {
+	stableFiles := map[string]bool{
+		"configmap.yml":  true,
+		"deployment.yml": true,
+		"secret.yml":     true,
+	}
 	if err := os.Mkdir(targetDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -264,8 +271,12 @@ func moveOrCopyNFilesFromDirToDir(filesNum int, deleteFiles bool, srcDir, target
 	if err != nil {
 		return err
 	}
-	for i, f := range files {
-		if i >= filesNum {
+	copied := 0
+	for _, f := range files {
+		if stableFiles[f.Name()] {
+			continue
+		}
+		if copied >= filesNum {
 			break
 		}
 		input, err := os.ReadFile(fmt.Sprintf("%s%c%s", srcDir, os.PathSeparator, f.Name()))
@@ -280,6 +291,7 @@ func moveOrCopyNFilesFromDirToDir(filesNum int, deleteFiles bool, srcDir, target
 				return err
 			}
 		}
+		copied++
 	}
 
 	return nil
@@ -615,7 +627,7 @@ func checkIfNoBindingSecretExists() {
 }
 
 func checkIfNoBtpResourceExists() {
-	gvks, err := ymlutils.GatherChartGvks(config.ChartPath)
+	gvks, err := ymlutils.GatherChartGvks(os.DirFS(config.ChartPath))
 	Expect(err).To(BeNil())
 
 	found := false
@@ -705,11 +717,11 @@ func getSecret(name string) *corev1.Secret {
 }
 
 func getOperatorSecret() *corev1.Secret {
-	return getSecret(sapBtpServiceOperatorSecretName)
+	return getSecret(drift.SapBtpServiceOperatorSecretName)
 }
 
 func getOperatorConfigMap() *corev1.ConfigMap {
-	return getConfigMap(sapBtpServiceOperatorConfigMapName)
+	return getConfigMap(drift.SapBtpServiceOperatorConfigMapName)
 }
 func getConfigMap(name string) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{}
@@ -719,13 +731,14 @@ func getConfigMap(name string) *corev1.ConfigMap {
 }
 
 func checkHowManySecondsToExpiration(name string) float64 {
-	data, err := reconciler.getDataFromSecret(ctx, name)
+	data, err := reconciler.certManager.GetSecretData(ctx, name)
 	Expect(err).To(BeNil())
-	key, err := certFieldFromSecretBySecretName(name)
-	Expect(err).To(BeNil())
-	value, err := reconciler.getSecretDataValueByKey(key, data)
-	Expect(err).To(BeNil())
+	value := data[certificate.CaCertSecretCertField]
+	if name == certificate.WebhookCertSecretName {
+		value = data[certificate.WebhookCertSecretCertField]
+	}
 	decoded, _ := pem.Decode(value)
+	Expect(decoded).NotTo(BeNil(), "pem.Decode returned nil for secret %q", name)
 	cert, err := x509.ParseCertificate(decoded.Bytes)
 	Expect(err).To(BeNil())
 	diff := cert.NotAfter.Sub(time.Now())
@@ -734,8 +747,8 @@ func checkHowManySecondsToExpiration(name string) float64 {
 
 func ensureAllWebhooksManagedByBtpOperatorHaveCorrectCABundles() {
 	Eventually(func() error {
-		secret := getSecret(caCertSecretName)
-		ca, ok := secret.Data[caCertSecretCertField]
+		secret := getSecret(certificate.CaCertSecretName)
+		ca, ok := secret.Data[certificate.CaCertSecretCertField]
 		if !ok || ca == nil {
 			return fmt.Errorf("CA bundle not found in secret")
 		}
