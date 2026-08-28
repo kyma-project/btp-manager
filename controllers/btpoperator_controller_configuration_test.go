@@ -91,7 +91,7 @@ var _ = Describe("Configuration controller", func() {
 
 			Eventually(func() error {
 				return k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), &corev1.Pod{})
-			}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(MatchError(ContainSubstring("not found")))
+			}).WithTimeout(time.Second * 30).WithPolling(k8sOpsPollingInterval).Should(MatchError(ContainSubstring("not found")))
 		})
 	})
 

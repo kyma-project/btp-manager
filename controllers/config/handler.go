@@ -5,13 +5,13 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/kyma-project/btp-manager/internal/certs"
 	"github.com/kyma-project/btp-manager/internal/metrics"
 
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,8 +64,9 @@ type WatchHandler interface {
 
 type Handler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	configMetrics *metrics.ConfigMetrics
+	Scheme            *runtime.Scheme
+	configMetrics     *metrics.ConfigMetrics
+	pendingPodRestart atomic.Bool
 }
 
 func configSnapshot() map[string]any {
@@ -173,6 +174,13 @@ func (r *Handler) Start(ctx context.Context) error {
 	return nil
 }
 
+// ConsumePodRestartPending returns true if a pod restart was requested since the last call,
+// and atomically resets the flag. Used by the reconciler to restart sap-btp-operator pods
+// after EnableLimitedCache has been propagated to sap-btp-operator-config.
+func (r *Handler) ConsumePodRestartPending() bool {
+	return r.pendingPodRestart.Swap(false)
+}
+
 // ApplyFromAPI reads the config ConfigMap using a direct API reader (bypassing the cache)
 // and applies its values. Intended to be called before mgr.Start() to ensure config vars
 // are set before runnables start. Does not trigger pod restarts.
@@ -195,10 +203,7 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 	r.applyValues(ctx, cm)
 
 	if EnableLimitedCache != oldEnableLimitedCache {
-		logger := log.FromContext(ctx)
-		if err := r.restartSapBtpServiceOperatorPods(ctx); err != nil {
-			logger.Error(err, "failed to restart SAP BTP service operator pods after EnableLimitedCache change")
-		}
+		r.pendingPodRestart.Store(true)
 	}
 
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
@@ -282,25 +287,4 @@ func (r *Handler) applyValues(ctx context.Context, cm *corev1.ConfigMap) {
 	afterConfig := configSnapshot()
 	changedFields := changedSnapshotKeys(beforeConfig, afterConfig)
 	logger.Info("configuration snapshot updated", "changedFields", changedFields)
-}
-
-// restartSapBtpServiceOperatorPods deletes all SAP BTP Service Operator pods so the
-// Deployment recreates them. This is required for config keys whose values are read
-// only at pod startup (e.g. EnableLimitedCache) — updating the ConfigMap alone has no
-// runtime effect without a restart.
-func (r *Handler) restartSapBtpServiceOperatorPods(ctx context.Context) error {
-	podList := &corev1.PodList{}
-	if err := r.List(ctx, podList,
-		client.InNamespace(ChartNamespace),
-		client.MatchingLabels{"app.kubernetes.io/instance": "sap-btp-operator"},
-	); err != nil {
-		return err
-	}
-	for i := range podList.Items {
-		pod := &podList.Items[i]
-		if err := r.Delete(ctx, pod); err != nil && !k8serrors.IsNotFound(err) {
-			return err
-		}
-	}
-	return nil
 }

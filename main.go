@@ -161,6 +161,7 @@ func main() {
 		sapBtpConfigurator,
 	)
 	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(mgr.GetClient(), apiServerClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
+	reconciler.SetConfigHandler(configHandler)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
