@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -139,7 +138,6 @@ type BtpOperatorReconciler struct {
 	configurator           configurator.SapBtpServiceOperatorConfigurator
 	watchHandlers          []config.WatchHandler
 	deprovisioningHandler  deprovisioning.Handler
-	configHandler          *config.Handler
 }
 
 func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Client, scheme *runtime.Scheme, instanceBindingSerivice InstanceBindingSerivce, metrics *metrics.WebhookMetrics, watchHandlers []config.WatchHandler, networkPolicyManager networkpolicy.NetworkPolicyManager, certManager certificate.CertificateManager, provisioningHandler provisioning.Handler, cfg configurator.SapBtpServiceOperatorConfigurator) *BtpOperatorReconciler {
@@ -159,10 +157,6 @@ func NewBtpOperatorReconciler(client client.Client, apiServerClient client.Clien
 
 func (r *BtpOperatorReconciler) SetDeprovisioningHandler(h deprovisioning.Handler) {
 	r.deprovisioningHandler = h
-}
-
-func (r *BtpOperatorReconciler) SetConfigHandler(h *config.Handler) {
-	r.configHandler = h
 }
 
 // RBAC neccessary for the operator itself
@@ -373,12 +367,6 @@ func (r *BtpOperatorReconciler) HandleReadyState(ctx context.Context, cr *v1alph
 
 	if err := r.provisioningHandler.ReconcileReady(ctx, cr, requiredSecret); err != nil {
 		return r.UpdateBtpOperatorStatus(ctx, cr, v1alpha1.StateError, conditions.ReconcileFailed, err.Error())
-	}
-
-	if r.configHandler != nil && r.configHandler.ConsumePodRestartPending() {
-		if restartErr := r.restartSapBtpOperatorPods(ctx); restartErr != nil {
-			logger.Error(restartErr, "failed to restart sap-btp-operator pods after EnableLimitedCache change")
-		}
 	}
 
 	logger.Info("reconciliation succeeded")
@@ -643,22 +631,4 @@ func (r *BtpOperatorReconciler) isCredentialsSecret(s *corev1.Secret) bool {
 
 func (r *BtpOperatorReconciler) isCertSecret(s *corev1.Secret) bool {
 	return s.Namespace == config.ChartNamespace && (s.Name == certificate.CaCertSecretName || s.Name == certificate.WebhookCertSecretName)
-}
-
-func (r *BtpOperatorReconciler) restartSapBtpOperatorPods(ctx context.Context) error {
-	podList := &corev1.PodList{}
-	if err := r.List(ctx, podList,
-		client.InNamespace(config.ChartNamespace),
-		client.MatchingLabels{"app.kubernetes.io/instance": "sap-btp-operator"},
-	); err != nil {
-		return err
-	}
-	var errs []error
-	for i := range podList.Items {
-		pod := &podList.Items[i]
-		if err := r.Delete(ctx, pod); err != nil && !k8serrors.IsNotFound(err) {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
 }

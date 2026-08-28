@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/kyma-project/btp-manager/internal/certs"
@@ -64,9 +63,8 @@ type WatchHandler interface {
 
 type Handler struct {
 	client.Client
-	Scheme            *runtime.Scheme
-	configMetrics     *metrics.ConfigMetrics
-	pendingPodRestart atomic.Bool
+	Scheme        *runtime.Scheme
+	configMetrics *metrics.ConfigMetrics
 }
 
 func configSnapshot() map[string]any {
@@ -174,13 +172,6 @@ func (r *Handler) Start(ctx context.Context) error {
 	return nil
 }
 
-// ConsumePodRestartPending returns true if a pod restart was requested since the last call,
-// and atomically resets the flag. Used by the reconciler to restart sap-btp-operator pods
-// after EnableLimitedCache has been propagated to sap-btp-operator-config.
-func (r *Handler) ConsumePodRestartPending() bool {
-	return r.pendingPodRestart.Swap(false)
-}
-
 // ApplyFromAPI reads the config ConfigMap using a direct API reader (bypassing the cache)
 // and applies its values. Intended to be called before mgr.Start() to ensure config vars
 // are set before runnables start. Does not trigger pod restarts.
@@ -199,12 +190,7 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 		return []reconcile.Request{}
 	}
 
-	oldEnableLimitedCache := EnableLimitedCache
 	r.applyValues(ctx, cm)
-
-	if EnableLimitedCache != oldEnableLimitedCache {
-		r.pendingPodRestart.Store(true)
-	}
 
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 
-	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -29,13 +28,6 @@ var _ = Describe("Configuration controller", func() {
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
-
-			existing := &corev1.ConfigMap{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: drift.SapBtpServiceOperatorConfigMapName, Namespace: kymaNamespace}, existing)).To(Succeed())
-			existing.Data = map[string]string{
-				EnableLimitedCacheConfigMapKey: "false",
-			}
-			Expect(k8sClient.Update(ctx, existing)).To(Succeed())
 
 			originalValue = config.EnableLimitedCache
 		})
@@ -73,6 +65,12 @@ var _ = Describe("Configuration controller", func() {
 			createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "true"})
 			Eventually(func() string { return config.EnableLimitedCache }).
 				WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).
+				Should(Equal("true"))
+			// Wait for sap-btp-operator-config to also reflect "true" so the false→true
+			// watcher event is fully processed before creating the pod.
+			Eventually(func() string {
+				return getOperatorConfigMap().Data[EnableLimitedCacheConfigMapKey]
+			}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).
 				Should(Equal("true"))
 
 			pod := &corev1.Pod{
