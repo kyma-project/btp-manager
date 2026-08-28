@@ -104,7 +104,7 @@ var _ = Describe("OperatorConfigHandler", func() {
 	})
 
 	Describe("Reconcile", func() {
-		sabBtpOperatorLabel := map[string]string{"app.kubernetes.io/instance": "sap-btp-operator"}
+		sapBtpOperatorLabel := map[string]string{"app.kubernetes.io/instance": "sap-btp-operator"}
 
 		newPod := func(name string, labels map[string]string) *corev1.Pod {
 			return &corev1.Pod{
