@@ -80,10 +80,10 @@ echo "══  Step 1: change EnableLimitedCache to false  ══"
 kubectl patch cm "$BTP_MANAGER_CONFIG_MAP" -n "$NAMESPACE" \
   --type=merge -p '{"data":{"EnableLimitedCache":"false"}}'
 
+assertEnableLimitedCacheValue "false"
+
 assertSapBtpOperatorRestarted "$BEFORE_POD"
 AFTER_POD=$(getSapBtpOperatorPodName)
-
-assertEnableLimitedCacheValue "false"
 
 echo ""
 echo "══  Step 2: restore EnableLimitedCache to true  ══"
