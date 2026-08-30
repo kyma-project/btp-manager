@@ -120,7 +120,7 @@ var _ = Describe("OperatorConfigHandler", func() {
 		}
 
 		It("deletes pods with the sap-btp-operator label and returns empty requests", func() {
-			pod := newPod("btp-op-pod", sabBtpOperatorLabel)
+			pod := newPod("btp-op-pod", sapBtpOperatorLabel)
 			Expect(fakeClient.Create(context.Background(), pod)).To(Succeed())
 
 			requests := handler.Reconcile(context.Background(), nil)
