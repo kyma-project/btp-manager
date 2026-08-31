@@ -174,17 +174,30 @@ func (r *Handler) Start(ctx context.Context) error {
 
 // ApplyFromAPI reads the config ConfigMap using a direct API reader (bypassing the cache)
 // and applies its values. Intended to be called before mgr.Start() to ensure config vars
-// are set before runnables start.
+// are set before runnables start. Does not trigger pod restarts.
 func (r *Handler) ApplyFromAPI(ctx context.Context, reader client.Reader) error {
 	cm := &corev1.ConfigMap{}
 	if err := reader.Get(ctx, types.NamespacedName{Name: ConfigName, Namespace: ChartNamespace}, cm); err != nil {
 		return err
 	}
-	r.Reconcile(ctx, cm)
+	r.applyValues(ctx, cm)
 	return nil
 }
 
 func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.Request {
+	cm, ok := obj.(*corev1.ConfigMap)
+	if !ok {
+		return []reconcile.Request{}
+	}
+
+	r.applyValues(ctx, cm)
+
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
+}
+
+// applyValues parses cm.Data and updates all matching config vars. Called by both
+// ApplyFromAPI (startup, no side effects) and Reconcile (live change, may trigger restart).
+func (r *Handler) applyValues(ctx context.Context, cm *corev1.ConfigMap) {
 	logger := log.FromContext(ctx)
 	parseDuration := func(raw string, defaultValue time.Duration, key string) time.Duration {
 		parsed, err := time.ParseDuration(raw)
@@ -195,13 +208,7 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 		return parsed
 	}
 
-	cm, ok := obj.(*corev1.ConfigMap)
-	if !ok {
-		return []reconcile.Request{}
-	}
-
 	beforeConfig := configSnapshot()
-
 	logger.Info("reconciling configuration update", "config", cm.Data)
 
 	for k, v := range cm.Data {
@@ -266,6 +273,4 @@ func (r *Handler) Reconcile(ctx context.Context, obj client.Object) []reconcile.
 	afterConfig := configSnapshot()
 	changedFields := changedSnapshotKeys(beforeConfig, afterConfig)
 	logger.Info("configuration snapshot updated", "changedFields", changedFields)
-
-	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: BtpOperatorCrName, Namespace: KymaSystemNamespaceName}}}
 }

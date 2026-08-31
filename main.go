@@ -138,6 +138,7 @@ func main() {
 	configMetrics := btpmanagermetrics.NewConfigMetrics(ctrlmetrics.Registry)
 	cleanupReconciler := controllers.NewInstanceBindingControllerManager(signalContext, mgr.GetClient(), mgr.GetScheme(), restCfg)
 	configHandler := config.NewHandler(mgr.GetClient(), scheme, configMetrics)
+	operatorConfigHandler := config.NewOperatorConfigHandler(mgr.GetClient())
 	manifestHandler := &manifest.Handler{Scheme: scheme}
 	networkPolicyManager := networkpolicy.NewManager(mgr.GetClient(), manifestHandler)
 	driftDetector := drift.NewDetector(mgr.GetClient(), apiServerClient)
@@ -154,6 +155,7 @@ func main() {
 		webhookMetrics,
 		[]config.WatchHandler{
 			configHandler,
+			operatorConfigHandler,
 		},
 		networkPolicyManager,
 		certManager,
@@ -161,7 +163,6 @@ func main() {
 		sapBtpConfigurator,
 	)
 	reconciler.SetDeprovisioningHandler(deprovisioning.NewHandler(mgr.GetClient(), apiServerClient, reconciler, reconciler, cleanupReconciler, driftDetector, moduleResourceManager, networkPolicyManager))
-
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BtpOperator")
 		os.Exit(1)

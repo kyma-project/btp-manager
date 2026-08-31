@@ -198,6 +198,8 @@ var _ = SynchronizedBeforeSuite(func() {
 	certManager := certificate.NewManager(secretsManager, metrics)
 	provisioningHandler := provisioning.NewHandler(k8sManager.GetClient(), driftDetector, moduleResourceManager, networkPolicyManager, certManager, cleanupReconciler)
 	sapBtpConfigurator := configurator.NewConfigurator(driftDetector)
+	testConfigHandler := config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics)
+	testOperatorConfigHandler := config.NewOperatorConfigHandler(k8sManager.GetClient())
 	reconciler = NewBtpOperatorReconciler(
 		k8sManager.GetClient(),
 		k8sClient,
@@ -205,7 +207,8 @@ var _ = SynchronizedBeforeSuite(func() {
 		cleanupReconciler,
 		metrics,
 		[]config.WatchHandler{
-			config.NewHandler(k8sManager.GetClient(), k8sManager.GetScheme(), configMetrics),
+			testConfigHandler,
+			testOperatorConfigHandler,
 		},
 		networkPolicyManager,
 		certManager,

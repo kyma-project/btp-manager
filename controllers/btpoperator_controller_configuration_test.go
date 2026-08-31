@@ -6,10 +6,10 @@ import (
 	"github.com/kyma-project/btp-manager/api/v1alpha1"
 	"github.com/kyma-project/btp-manager/controllers/config"
 
-	"github.com/kyma-project/btp-manager/internal/credentials/drift"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,13 +28,6 @@ var _ = Describe("Configuration controller", func() {
 			cr.SetLabels(map[string]string{forceDeleteLabelKey: "true"})
 			Eventually(func() error { return k8sClient.Create(ctx, cr) }).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).Should(Succeed())
 			Eventually(updateCh).Should(Receive(matchState(v1alpha1.StateReady)))
-
-			existing := &corev1.ConfigMap{}
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: drift.SapBtpServiceOperatorConfigMapName, Namespace: kymaNamespace}, existing)).To(Succeed())
-			existing.Data = map[string]string{
-				EnableLimitedCacheConfigMapKey: "false",
-			}
-			Expect(k8sClient.Update(ctx, existing)).To(Succeed())
 
 			originalValue = config.EnableLimitedCache
 		})
@@ -65,6 +58,38 @@ var _ = Describe("Configuration controller", func() {
 			Eventually(func() map[string]string {
 				return getOperatorConfigMap().Data
 			}).Should(HaveKeyWithValue(EnableLimitedCacheConfigMapKey, "true"))
+		})
+
+		It("should restart SAP BTP service operator pod when EnableLimitedCache changes", func() {
+			// Establish a known baseline so the change below is a real "true" → "false" transition.
+			createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "true"})
+			Eventually(func() string { return config.EnableLimitedCache }).
+				WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).
+				Should(Equal("true"))
+			// Wait for sap-btp-operator-config to also reflect "true" so the false→true
+			// watcher event is fully processed before creating the pod.
+			Eventually(func() string {
+				return getOperatorConfigMap().Data[EnableLimitedCacheConfigMapKey]
+			}).WithTimeout(k8sOpsTimeout).WithPolling(k8sOpsPollingInterval).
+				Should(Equal("true"))
+
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sap-btp-operator-test",
+					Namespace: kymaNamespace,
+					Labels:    map[string]string{"app.kubernetes.io/instance": "sap-btp-operator"},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "manager", Image: "fake-image"}},
+				},
+			}
+			Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+
+			createOrUpdateConfigMap(map[string]string{"EnableLimitedCache": "false"})
+
+			Eventually(func() error {
+				return k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), &corev1.Pod{})
+			}).WithTimeout(time.Second * 30).WithPolling(k8sOpsPollingInterval).Should(MatchError(ContainSubstring("not found")))
 		})
 	})
 
