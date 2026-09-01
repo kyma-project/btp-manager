@@ -96,9 +96,9 @@ When the **EnableLimitedCache** value changes in the `sap-btp-manager` ConfigMap
 
 ### Restart Flow
 
-`Handler` observes the `sap-btp-manager` ConfigMap. When **EnableLimitedCache** changes, it updates the in-memory configuration and triggers a BtpOperator reconciliation, which propagates the new value to the `sap-btp-operator-config` ConfigMap.
+`Handler` (see: [`handler.go`](../../controllers/config/handler.go)) observes the `sap-btp-manager` ConfigMap. When **EnableLimitedCache** changes, it updates the in-memory configuration and triggers a BtpOperator reconciliation, which propagates the new value to the `sap-btp-operator-config` ConfigMap. 
 
-`OperatorConfigHandler` observes `sap-btp-operator-config`. When **ENABLE_LIMITED_CACHE** changes there, it deletes the SAP BTP service operator Pods. The Deployment recreates them with the updated configuration already in place.
+`OperatorConfigHandler` (see: [`operator_config_handler.go`](../../controllers/config/operator_config_handler.go)) observes `sap-btp-operator-config`. When **ENABLE_LIMITED_CACHE** changes there, it deletes the SAP BTP service operator Pods. The Deployment recreates them with the updated configuration already in place. 
 
 ### Prerequisites
 
