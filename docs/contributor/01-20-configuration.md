@@ -92,7 +92,7 @@ data:
 
 ## SAP BTP Service Operator Pod Restart on EnableLimitedCache Change
 
-When the `EnableLimitedCache` value changes in the `sap-btp-manager` ConfigMap, BTP Manager automatically restarts the SAP BTP service operator Pods so the new value takes effect.
+When the **EnableLimitedCache** value changes in the `sap-btp-manager` ConfigMap, BTP Manager automatically restarts the SAP BTP service operator Pods so the new value takes effect.
 
 ### Restart Flow
 
