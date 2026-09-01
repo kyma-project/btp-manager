@@ -89,3 +89,20 @@ data:
   EnableLimitedCache: false
   ProbeInterval: 1h
 ```
+
+## SAP BTP Service Operator Pod Restart on EnableLimitedCache Change
+
+When the **EnableLimitedCache** value changes in the `sap-btp-manager` ConfigMap, BTP Manager automatically restarts the SAP BTP service operator Pods so the new value takes effect.
+
+### Restart Flow
+
+`Handler` (see: [`handler.go`](../../controllers/config/handler.go)) observes the `sap-btp-manager` ConfigMap. When **EnableLimitedCache** changes, it updates the in-memory configuration and triggers a BtpOperator reconciliation, which propagates the new value to the `sap-btp-operator-config` ConfigMap. 
+
+`OperatorConfigHandler` (see: [`operator_config_handler.go`](../../controllers/config/operator_config_handler.go)) observes `sap-btp-operator-config`. When **ENABLE_LIMITED_CACHE** changes there, it deletes the SAP BTP service operator Pods. The Deployment recreates them with the updated configuration already in place. 
+
+### Prerequisites
+
+For the restart to trigger, the following conditions must be met:
+- The `sap-btp-manager` ConfigMap must have the label `app.kubernetes.io/managed-by: btp-manager` or `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without it, the informer cache does not observe the ConfigMap. For details, see [`cache.go`](../../controllers/cache.go).
+- The **EnableLimitedCache** value must actually change — setting it to the same value already present in `sap-btp-operator-config` does not trigger a restart.
+- The BtpOperator CR must be in `Ready` state, as `sap-btp-operator-config` exists only after a successful provisioning.
