@@ -104,5 +104,5 @@ When the `EnableLimitedCache` value changes in the `sap-btp-manager` ConfigMap, 
 
 For the restart to trigger, the following conditions must be met:
 - The `sap-btp-manager` ConfigMap must have the label `app.kubernetes.io/managed-by: btp-manager` or `app.kubernetes.io/managed-by: kcp-kyma-environment-broker`. Without it, the informer cache does not observe the ConfigMap. For details, see [`cache.go`](../../controllers/cache.go).
-- The `EnableLimitedCache` value must actually change — setting it to the same value already present in `sap-btp-operator-config` does not trigger a restart.
+- The **EnableLimitedCache** value must actually change — setting it to the same value already present in `sap-btp-operator-config` does not trigger a restart.
 - The BtpOperator CR must be in `Ready` state, as `sap-btp-operator-config` exists only after a successful provisioning.
