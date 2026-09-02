@@ -387,21 +387,9 @@ while true; do
 done
 
 echo -e "\n--- Waiting for sap-btp-operator pod to be Ready after restart"
-ELAPSED=0
-TIMEOUT=120
-while true; do
-  READY_COUNT=$(kubectl get pods -n kyma-system -l app.kubernetes.io/instance=sap-btp-operator \
-    -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' 2>/dev/null | grep -c "True") || READY_COUNT=0
-  if [[ "${READY_COUNT}" -gt 0 ]]; then
-    echo -e "--- sap-btp-operator pod is Ready"
-    break
-  fi
-  if [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
-    echo "FAILED: sap-btp-operator pod not Ready within ${TIMEOUT}s" && exit 1
-  fi
-  sleep 5
-  ELAPSED=$((ELAPSED + 5))
-done
+sleep 2
+kubectl wait pod -n kyma-system -l app.kubernetes.io/instance=sap-btp-operator \
+  --for=condition=Ready --timeout=120s
 
 echo -e "\n--- EnableLimitedCache ConfigMap propagation test completed successfully"
 
