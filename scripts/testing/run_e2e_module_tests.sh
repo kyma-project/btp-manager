@@ -102,6 +102,12 @@ checkNetworkPoliciesExist() {
   return 0
 }
 
+getSapBtpOperatorRunningPod() {
+  kubectl get pods -n kyma-system -l app.kubernetes.io/instance=sap-btp-operator \
+    -o go-template='{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}' \
+    2>/dev/null | head -1 || echo ""
+}
+
 checkNetworkPoliciesDeleted() {
   echo -e "\n--- Checking if network policies are deleted"
   local policies=(
@@ -366,6 +372,8 @@ while true; do
   fi
 done
 
+SAP_BTP_OPERATOR_POD_BEFORE=$(getSapBtpOperatorRunningPod)
+
 echo -e "\n--- Enabling limited cache in sap-btp-manager ConfigMap"
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"true"}}'
 
@@ -386,10 +394,24 @@ while true; do
   fi
 done
 
-echo -e "\n--- Waiting for sap-btp-operator pod to be Ready after restart"
+echo -e "\n--- Waiting for sap-btp-operator pod to restart"
 sleep 2
-kubectl wait pod -n kyma-system -l app.kubernetes.io/instance=sap-btp-operator \
-  --for=condition=Ready --timeout=120s
+ELAPSED=0
+while true; do
+  SAP_BTP_OPERATOR_POD_AFTER=$(getSapBtpOperatorRunningPod)
+  if [[ -n "${SAP_BTP_OPERATOR_POD_AFTER}" && "${SAP_BTP_OPERATOR_POD_AFTER}" != "${SAP_BTP_OPERATOR_POD_BEFORE}" ]]; then
+    echo -e "--- sap-btp-operator pod restarted "
+    break
+  elif [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
+    echo -e "FAILED: sap-btp-operator pod was not restarted within ${TIMEOUT}s" && exit 1
+  fi
+  sleep 5
+  ELAPSED=$((ELAPSED + 5))
+done
+
+echo -e "\n--- Waiting for sap-btp-operator pod to be Ready"
+kubectl wait pod "${SAP_BTP_OPERATOR_POD_AFTER}" -n kyma-system --for=condition=Ready --timeout=120s
+echo -e "--- sap-btp-operator pod is Ready"
 
 echo -e "\n--- EnableLimitedCache ConfigMap propagation test completed successfully"
 
