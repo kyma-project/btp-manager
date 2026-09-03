@@ -347,6 +347,8 @@ if [[ "${operator_limited_cache_default}" != "true" ]]; then
   echo "Expected ENABLE_LIMITED_CACHE to be 'true' by default, but got: ${operator_limited_cache_default}" && exit 1
 fi
 
+SAP_BTP_OPERATOR_POD_BEFORE=$(getSapBtpOperatorRunningPod)
+
 echo -e "\n--- Disabling limited cache in sap-btp-manager ConfigMap"
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"false"}}'
 
@@ -372,7 +374,24 @@ while true; do
   fi
 done
 
-SAP_BTP_OPERATOR_POD_BEFORE=$(getSapBtpOperatorRunningPod)
+echo -e "\n--- Waiting for sap-btp-operator pod to restart after disabling limited cache"
+sleep 2
+ELAPSED=0
+while true; do
+  SAP_BTP_OPERATOR_POD_AFTER_FALSE=$(getSapBtpOperatorRunningPod)
+  if [[ -n "${SAP_BTP_OPERATOR_POD_AFTER_FALSE}" && "${SAP_BTP_OPERATOR_POD_AFTER_FALSE}" != "${SAP_BTP_OPERATOR_POD_BEFORE}" ]]; then
+    echo -e "--- sap-btp-operator pod restarted"
+    break
+  elif [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
+    echo -e "FAILED: sap-btp-operator pod was not restarted within ${TIMEOUT}s" && exit 1
+  fi
+  sleep 5
+  ELAPSED=$((ELAPSED + 5))
+done
+
+echo -e "\n--- Waiting for sap-btp-operator pod to be Ready"
+kubectl wait pod "${SAP_BTP_OPERATOR_POD_AFTER_FALSE}" -n kyma-system --for=condition=Ready --timeout=120s
+echo -e "--- sap-btp-operator pod is Ready"
 
 echo -e "\n--- Enabling limited cache in sap-btp-manager ConfigMap"
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"true"}}'
@@ -399,7 +418,7 @@ sleep 2
 ELAPSED=0
 while true; do
   SAP_BTP_OPERATOR_POD_AFTER=$(getSapBtpOperatorRunningPod)
-  if [[ -n "${SAP_BTP_OPERATOR_POD_AFTER}" && "${SAP_BTP_OPERATOR_POD_AFTER}" != "${SAP_BTP_OPERATOR_POD_BEFORE}" ]]; then
+  if [[ -n "${SAP_BTP_OPERATOR_POD_AFTER}" && "${SAP_BTP_OPERATOR_POD_AFTER}" != "${SAP_BTP_OPERATOR_POD_AFTER_FALSE}" ]]; then
     echo -e "--- sap-btp-operator pod restarted "
     break
   elif [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
