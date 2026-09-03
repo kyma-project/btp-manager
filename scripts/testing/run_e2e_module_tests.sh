@@ -102,6 +102,33 @@ checkNetworkPoliciesExist() {
   return 0
 }
 
+getSapBtpOperatorRunningPod() {
+  kubectl get pods -n kyma-system -l app.kubernetes.io/instance=sap-btp-operator \
+    -o go-template='{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}' \
+    2>/dev/null | head -1 || echo ""
+}
+
+waitForSapBtpOperatorPodRestart() {
+  local before_pod=$1
+  local elapsed=0
+  sleep 2
+  echo -e "\n--- Waiting for sap-btp-operator pod to restart"
+  while true; do
+    SAP_BTP_OPERATOR_RESTARTED_POD=$(getSapBtpOperatorRunningPod)
+    if [[ -n "${SAP_BTP_OPERATOR_RESTARTED_POD}" && "${SAP_BTP_OPERATOR_RESTARTED_POD}" != "${before_pod}" ]]; then
+      echo -e "--- sap-btp-operator pod restarted (new pod: ${SAP_BTP_OPERATOR_RESTARTED_POD})"
+      break
+    elif [[ ${elapsed} -ge ${TIMEOUT} ]]; then
+      echo -e "FAILED: sap-btp-operator pod was not restarted within ${TIMEOUT}s" && exit 1
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+  done
+  echo -e "\n--- Waiting for sap-btp-operator pod to be Ready"
+  kubectl wait pod "${SAP_BTP_OPERATOR_RESTARTED_POD}" -n kyma-system --for=condition=Ready --timeout=120s
+  echo -e "--- sap-btp-operator pod is Ready"
+}
+
 checkNetworkPoliciesDeleted() {
   echo -e "\n--- Checking if network policies are deleted"
   local policies=(
@@ -341,6 +368,8 @@ if [[ "${operator_limited_cache_default}" != "true" ]]; then
   echo "Expected ENABLE_LIMITED_CACHE to be 'true' by default, but got: ${operator_limited_cache_default}" && exit 1
 fi
 
+SAP_BTP_OPERATOR_POD_BEFORE=$(getSapBtpOperatorRunningPod)
+
 echo -e "\n--- Disabling limited cache in sap-btp-manager ConfigMap"
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"false"}}'
 
@@ -366,6 +395,9 @@ while true; do
   fi
 done
 
+waitForSapBtpOperatorPodRestart "${SAP_BTP_OPERATOR_POD_BEFORE}"
+SAP_BTP_OPERATOR_POD_AFTER_FALSE=${SAP_BTP_OPERATOR_RESTARTED_POD}
+
 echo -e "\n--- Enabling limited cache in sap-btp-manager ConfigMap"
 kubectl patch configmap sap-btp-manager -n kyma-system --type merge -p '{"data":{"EnableLimitedCache":"true"}}'
 
@@ -385,6 +417,8 @@ while true; do
     ELAPSED=$((ELAPSED + 5))
   fi
 done
+
+waitForSapBtpOperatorPodRestart "${SAP_BTP_OPERATOR_POD_AFTER_FALSE}"
 
 echo -e "\n--- EnableLimitedCache ConfigMap propagation test completed successfully"
 
