@@ -51,6 +51,18 @@ jobs:
           [ -z "${{ vars.IMAGE_REPO }}" ] && echo "IMAGE_REPO is required" && exit 1
           [ -z "${{ vars.MODULE_MANIFESTS_REPO_NAME }}" ] && echo "MODULE_MANIFESTS_REPO_NAME is required" && exit 1
           echo "Validated"
+
+      - name: Validate release tag input
+        if: inputs.releaseTag != 'use latest release'
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.releaseTag }}
+        shell: bash
+        run: |
+          tag_re='^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'
+          if ! [[ "$INPUT_RELEASE_TAG" =~ $tag_re ]]; then
+            echo "::error::Invalid releaseTag: $INPUT_RELEASE_TAG"; exit 1
+          fi
+
       - name: Generate enterprise bot token
         id: enterprise-bot-token
         uses: actions/create-github-app-token@v3
@@ -71,16 +83,17 @@ jobs:
 
       - name: Validate given release tag
         if: inputs.releaseTag != 'use latest release'
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.releaseTag }}
         shell: bash
         run: |
-          echo "Validating given release tag: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
-          release_info=$(gh release view --repo $BTP_MANAGER_REPO ${{ inputs.releaseTag }})
-          if [ $? -eq 0 ]; then
-              echo "TAG=${{ inputs.releaseTag }}" >> $GITHUB_ENV
-              echo "Submitting module release tag: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
+          echo "Validating given release tag: $INPUT_RELEASE_TAG" | tee $GITHUB_STEP_SUMMARY
+          if gh release view --repo "$BTP_MANAGER_REPO" "$INPUT_RELEASE_TAG"; then
+              echo "TAG=$INPUT_RELEASE_TAG" >> $GITHUB_ENV
+              echo "Submitting module release tag: $INPUT_RELEASE_TAG" | tee $GITHUB_STEP_SUMMARY
           else
-              echo "Release tag not found: ${{ inputs.releaseTag }}" | tee $GITHUB_STEP_SUMMARY
-              exit 1  
+              echo "Release tag not found: $INPUT_RELEASE_TAG" | tee $GITHUB_STEP_SUMMARY
+              exit 1
           fi
 
       - name: Set branch name

@@ -82,7 +82,7 @@ jobs:
   build-image:
     name: Build image
     needs: [validate-release]
-    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@9958cda786d567317447fc83549d186fdcf40ec6 # main
     with:
       name: btp-manager
       dockerfile: Dockerfile
@@ -92,7 +92,7 @@ jobs:
   build-probe-image:
     name: Build probe image
     needs: [validate-release]
-    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
+    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@9958cda786d567317447fc83549d186fdcf40ec6 # main
     with:
       name: ca-bundle-probe
       dockerfile: tests/probe/Dockerfile
