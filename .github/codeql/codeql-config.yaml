@@ -4,7 +4,7 @@ paths-ignore:
   - "vendor/"
   - "**/*_test.go"
   - "**/*.pb.go"
-  - "testdata/"
+  - "**/testdata/**"
 
 queries:
   - uses: security-extended
