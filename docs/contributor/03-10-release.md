@@ -43,14 +43,14 @@ To create a release, follow these steps:
    i.  Go to the **Actions** tab, and choose the **Create release** workflow, and next **Run workflow**.  
    ii. Provide a version, for example, 1.2.0.
    iii. Choose real or dummy credentials for Service Manager.
-   iv. Choose whether to bump or not to bump the security scanner config.
+   iv. Choose whether to bump or not to bump `component-config.yaml` and `set_external_images.yaml`.
    v. Choose whether you want to publish the release.
 2. The GitHub action, defined in the [`create-release`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that are part of this release are labeled correctly. Additionally, it stops the release process if a feature has been added, but only the patch version number has been bumped up.
 3. The GitHub action asynchronously initiates unit tests.
 4. The Image Builder builds binary images.
 5. The Image Builder uploads the binary images to the Docker registry.
 6. The GitHub action initiates test jobs (stress tests, performance tests, upgrade tests, secret customization tests) using the built image. E2E upgrade tests run only with real credentials for SAP Service Manager. E2E tests are executed in parallel on the k3s clusters for the most recent k3s versions, using the specified credentials. The most recent k3s version to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable.
-7. If in step "Run the **Create release** GitHub action", you chose to bump the security scanner config, the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
+7. If in step "Run the **Create release** GitHub action", you chose to bump the config files, the GitHub action creates a PR with updated `component-config.yaml` and `set_external_images.yaml` that includes the new GitHub tag version.
 8. The GitHub action creates a GitHub tag and draft release with the provided name. The GitHub action also uploads module manifests in the `btp-manager.yaml` file and the module's default custom resource (CR) in the `btp-operator.yaml` as GitHub release assets.
 9. If you chose to publish the release in step "Run the **Create release** GitHub action", the GitHub action publishes the release.
 
@@ -64,14 +64,14 @@ To create a release, follow these steps:
    i.  Go to the **Actions** tab, and choose the **Create release** workflow, and next  **Run workflow**.  
    ii. Provide a version, for example, 1.2.0  
    iii. Choose real or dummy credentials for Service Manager  
-   iv. Choose whether to bump or not to bump the security scanner config  
+   iv. Choose whether to bump or not to bump `component-config.yaml` and `set_external_images.yaml`  
    v. Choose whether you want to publish the release
 2. The GitHub action, defined in the [`create-release`](/.github/workflows/create-release.yaml) file, validates the release by checking if the GitHub tag already exists, if there are any old Docker images for that GitHub tag, and if merged PRs that are part of this release are labeled correctly. Additionally, it stops the release process if a feature has been added, but only the patch version number has been bumped up.
 3. The GitHub action asynchronously initiates unit tests.
 4. The Image Builder builds binary images.
 5. The Image Builder uploads the binary images to registry.
 6. The GitHub action initiates test jobs (stress tests, performance tests, upgrade tests, secret customization tests) using the built image. E2E upgrade tests run only with real credentials for the Service Manager. E2E tests are executed in parallel on the k3s clusters for the most recent k3s versions and with the specified credentials. The number of the most recent k3s versions to be used is defined in the **vars.LAST_K3S_VERSIONS** GitHub variable.
-7. If you chose to bump the security scanner config in step "Run the **Create release** GitHub action", the GitHub action creates a PR with a new security scanner config that includes the new GitHub tag version.
+7. If you chose to bump the config files in step "Run the **Create release** GitHub action", the GitHub action creates a PR with updated `component-config.yaml` and `set_external_images.yaml` that includes the new GitHub tag version.
 8. The GitHub action creates a GitHub tag and draft release with the provided name. The GitHub action also uploads module manifests in the `btp-manager.yaml` file and module's default CR in the `btp-operator.yaml` as GitHub release assets.
 9. If you chose to publish in step "Run the **Create release** GitHub action", the GitHub action publishes the release.
 10. In the `module-manifests` repository, the GitHub action creates a PR with `module-config.yaml` for the new version of the module. If the PR for the given version already exists, the GitHub action updates the existing PR with the new `module-config.yaml`.
