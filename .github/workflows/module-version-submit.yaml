@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           tag_re='^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'
-          if [[ -n "$INPUT_RELEASE_TAG" ]] && ! [[ "$INPUT_RELEASE_TAG" =~ $tag_re ]]; then
+          if ! [[ "$INPUT_RELEASE_TAG" =~ $tag_re ]]; then
             echo "::error::Invalid releaseTag: $INPUT_RELEASE_TAG"; exit 1
           fi
 
