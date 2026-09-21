@@ -1,0 +1,10 @@
+name: "CodeQL configuration"
+
+paths-ignore:
+  - "vendor/"
+  - "**/*_test.go"
+  - "**/*.pb.go"
+  - "**/testdata/**"
+
+queries:
+  - uses: security-extended
