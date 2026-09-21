@@ -28,7 +28,7 @@ on:
           - real
       skip-sec-file-bump:
         type: boolean
-        description: 'Do not bump sec-scanners-config file'
+        description: 'Do not bump component-config.yaml and set_external_images.yaml'
         default: false
       dry-run:
         type: boolean
@@ -235,10 +235,6 @@ jobs:
         with:
           fetch-depth: 0
       - run: git pull
-
-      - name: Update sec-scanners-config.yaml
-        if: ${{ !inputs.skip-sec-file-bump }}
-        run: scripts/create_scan_config.sh $IMAGE_REPO:${{ inputs.name }} "sec-scanners-config.yaml" ${{ inputs.name }}
 
       - name: Bump probe image tag in set_external_images.yaml
         run: |

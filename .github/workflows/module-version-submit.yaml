@@ -19,8 +19,6 @@ env:
   # File names
   DEFAULT_CR_FILENAME: btp-operator.yaml
   MANIFEST_FILENAME: btp-manager.yaml
-  SCAN_CONFIG_FILENAME: sec-scanners-config.yaml
-
   # needed by gh cli for local repo
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -111,7 +109,7 @@ jobs:
           name: ${FULL_MODULE_NAME}
           version: ${TAG}
           team: kyma/Gopher
-          repository: https://github.com/kyma-project/btp-manager.git
+          repository: https://github.com/kyma-project/btp-manager
           repositoryTag: ${TAG}
           manifest: ${MANIFEST_FILENAME}
           defaultCR: ${DEFAULT_CR_FILENAME}
@@ -122,7 +120,6 @@ jobs:
             group: apps
             version: v1
             kind: Deployment
-          security: ${SCAN_CONFIG_FILENAME}
           associatedResources:
             - group: services.cloud.sap.com
               kind: ServiceInstance
