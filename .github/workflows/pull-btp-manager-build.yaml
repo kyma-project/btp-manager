@@ -5,7 +5,6 @@ on:
       types: [ opened, synchronize, reopened, ready_for_review ]
       paths-ignore:
          - "**.md"
-         - "sec-scanners-config.yaml"
          - "component-config.yaml"
 
 permissions:
