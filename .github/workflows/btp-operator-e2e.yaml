@@ -11,6 +11,9 @@ on:
       - 'examples/btp-operator.yaml'
       - '.github/workflows/btp-operator-e2e.yaml'
 
+permissions:
+  contents: read
+
 jobs:
   e2e-tests:
     name: Run E2E Tests

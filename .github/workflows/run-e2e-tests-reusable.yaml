@@ -27,6 +27,9 @@ on:
         default: 1
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   prepare-tests:
     # job waits until Prow job uploads docker image
