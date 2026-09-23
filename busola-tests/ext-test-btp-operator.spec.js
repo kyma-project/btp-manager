@@ -217,37 +217,35 @@ data:
     cy.inspectTab('Edit');
 
     // Add skip-reconciliation label
-    cy.contains('Labels').click();
+    cy.contains('ui5-button', 'Add').filter(':visible').first().click();
 
-    cy.get('[placeholder="Enter value"]:visible')
-      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Labels value')
-      .first()
+    cy.get('[accessible-name="Labels key"]:visible')
+      .last()
+      .find('input')
+      .type('kyma-project.io/skip-reconciliation', { force: true });
+
+    cy.get('[accessible-name="Labels value"]:visible')
+      .last()
       .find('input, textarea')
       .first()
       .type('true', { force: true });
-
-    cy.get('[placeholder="Enter key"]:visible')
-      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Labels key')
-      .first()
-      .find('input')
-      .type('kyma-project.io/skip-reconciliation', { force: true });
 
     cy.saveChanges('Edit');
     cy.wait(2000);
 
     // Add credentials_namespace data field
-    cy.get('[placeholder="Enter value"]:visible')
-      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Data value')
-      .first()
+    cy.contains('ui5-button', 'Add').filter(':visible').last().click();
+
+    cy.get('[accessible-name="Data key"]:visible')
+      .last()
+      .find('input')
+      .type('credentials_namespace', { force: true });
+
+    cy.get('[accessible-name="Data value"]:visible')
+      .last()
       .find('input, textarea')
       .first()
       .type('test', { force: true });
-
-    cy.get('[placeholder="Enter key"]:visible')
-      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Data key')
-      .first()
-      .find('input')
-      .type('credentials_namespace', { force: true });
 
     cy.saveChanges('Edit');
     cy.wait(5000);
