@@ -216,12 +216,33 @@ data:
 
     cy.inspectTab('Edit');
 
-    // Add credentials_namespace data field (Data section is open by default)
-    cy.get('[placeholder="Enter key"][accessible-name="Data key"]:visible')
-      .last()
+    // Add skip-reconciliation label
+    cy.get('.edit-form [data-testid="labels"]').find('[role="button"]').first().click();
+
+    cy.get('[placeholder="Enter key"][accessible-name="Labels key"]:visible').last()
       .find('input')
-      .click()
-      .type('credentials_namespace');
+      .then(($input) => {
+        $input[0].value = 'kyma-project.io/skip-reconciliation';
+        $input[0].dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+    cy.get('[placeholder="Enter value"][accessible-name="Labels value"]:visible').last()
+      .find('input')
+      .then(($input) => {
+        $input[0].value = 'true';
+        $input[0].dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+    cy.saveChanges('Edit');
+    cy.wait(2000);
+
+    // Add credentials_namespace data field (Data section is open by default)
+    cy.get('[placeholder="Enter key"][accessible-name="Data key"]:visible').last()
+      .find('input')
+      .then(($input) => {
+        $input[0].value = 'credentials_namespace';
+        $input[0].dispatchEvent(new Event('input', { bubbles: true }));
+      });
 
     cy.get('ui5-textarea[accessible-name="Data value"]:visible')
       .last()
