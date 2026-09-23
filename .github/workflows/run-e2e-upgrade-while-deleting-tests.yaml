@@ -13,6 +13,9 @@ on:
       - "external-images.yaml"
       - "module-chart/**"
 
+permissions:
+  contents: read
+
 jobs:
   run-e2e-upgrade-while-deleting-tests:
     name: E2E upgrade while deleting tests

@@ -2,8 +2,11 @@
 
 name: Run unit tests (reusable)
 
-on: 
+on:
   workflow_call
+
+permissions:
+  contents: read
 
 jobs:
   build:
