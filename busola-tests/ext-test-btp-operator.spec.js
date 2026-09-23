@@ -223,14 +223,14 @@ data:
       .then(($el) => {
         $el[0].value = 'kyma-project.io/skip-reconciliation';
         $el[0].dispatchEvent(new CustomEvent('input', { bubbles: true, detail: { value: 'kyma-project.io/skip-reconciliation' } }));
-        $el[0].dispatchEvent(new Event('blur', { bubbles: true }));
+        $el[0].dispatchEvent(new Event('focusout', { bubbles: true }));
       });
 
     cy.get('[placeholder="Enter value"][accessible-name="Labels value"]:visible').last()
       .then(($el) => {
         $el[0].value = 'true';
         $el[0].dispatchEvent(new CustomEvent('input', { bubbles: true, detail: { value: 'true' } }));
-        $el[0].dispatchEvent(new Event('blur', { bubbles: true }));
+        $el[0].dispatchEvent(new Event('focusout', { bubbles: true }));
       });
 
     cy.saveChanges('Edit');
@@ -241,7 +241,7 @@ data:
       .then(($el) => {
         $el[0].value = 'credentials_namespace';
         $el[0].dispatchEvent(new CustomEvent('input', { bubbles: true, detail: { value: 'credentials_namespace' } }));
-        $el[0].dispatchEvent(new Event('blur', { bubbles: true }));
+        $el[0].dispatchEvent(new Event('focusout', { bubbles: true }));
       });
 
     cy.get('ui5-textarea[accessible-name="Data value"]:visible')
