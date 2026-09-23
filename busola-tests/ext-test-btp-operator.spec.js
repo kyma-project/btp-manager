@@ -217,7 +217,7 @@ data:
     cy.inspectTab('Edit');
 
     // Add skip-reconciliation label — expand the Labels section first
-    cy.get('.edit-form [data-testid="labels"]').find('[role="button"]').click();
+    cy.get('.edit-form [data-testid="labels"]').find('[role="button"]').first().click();
 
     cy.get('[accessible-name="Labels key"]:visible')
       .last()
