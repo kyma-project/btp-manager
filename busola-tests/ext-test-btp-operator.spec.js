@@ -216,8 +216,8 @@ data:
 
     cy.inspectTab('Edit');
 
-    // Add skip-reconciliation label
-    cy.contains('ui5-button', 'Add').filter(':visible').first().click();
+    // Add skip-reconciliation label — expand the Labels section first
+    cy.get('.edit-form [data-testid="labels"]').find('[role="button"]').click();
 
     cy.get('[accessible-name="Labels key"]:visible')
       .last()
@@ -233,9 +233,7 @@ data:
     cy.saveChanges('Edit');
     cy.wait(2000);
 
-    // Add credentials_namespace data field
-    cy.contains('ui5-button', 'Add').filter(':visible').last().click();
-
+    // Add credentials_namespace data field (Data section is open by default)
     cy.get('[accessible-name="Data key"]:visible')
       .last()
       .find('input')
