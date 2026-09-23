@@ -216,34 +216,18 @@ data:
 
     cy.inspectTab('Edit');
 
-    // Add skip-reconciliation label — expand the Labels section first
-    cy.get('.edit-form [data-testid="labels"]').find('[role="button"]').first().click();
-
-    cy.get('[accessible-name="Labels key"]:visible')
-      .last()
-      .find('input')
-      .type('kyma-project.io/skip-reconciliation', { force: true });
-
-    cy.get('[accessible-name="Labels value"]:visible')
-      .last()
-      .find('input, textarea')
-      .first()
-      .type('true', { force: true });
-
-    cy.saveChanges('Edit');
-    cy.wait(2000);
-
     // Add credentials_namespace data field (Data section is open by default)
-    cy.get('[accessible-name="Data key"]:visible')
+    cy.get('[placeholder="Enter key"][accessible-name="Data key"]:visible')
       .last()
       .find('input')
-      .type('credentials_namespace', { force: true });
+      .click()
+      .type('credentials_namespace');
 
-    cy.get('[accessible-name="Data value"]:visible')
+    cy.get('ui5-textarea[accessible-name="Data value"]:visible')
       .last()
-      .find('input, textarea')
-      .first()
-      .type('test', { force: true });
+      .find('textarea')
+      .click()
+      .type('test');
 
     cy.saveChanges('Edit');
     cy.wait(5000);
