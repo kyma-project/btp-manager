@@ -217,38 +217,37 @@ data:
     cy.inspectTab('Edit');
 
     // Add skip-reconciliation label
-    cy.get('.edit-form [data-testid="labels"]').find('[role="button"]').first().click();
+    cy.contains('Labels').click();
 
-    cy.get('[placeholder="Enter key"][accessible-name="Labels key"]:visible').last()
-      .then(($el) => {
-        $el[0].value = 'kyma-project.io/skip-reconciliation';
-        $el[0].dispatchEvent(new CustomEvent('input', { bubbles: true, detail: { value: 'kyma-project.io/skip-reconciliation' } }));
-        $el[0].dispatchEvent(new Event('focusout', { bubbles: true }));
-      });
+    cy.get('[placeholder="Enter value"]:visible')
+      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Labels value')
+      .first()
+      .find('input, textarea')
+      .first()
+      .type('true', { force: true });
 
-    cy.get('[placeholder="Enter value"][accessible-name="Labels value"]:visible').last()
-      .then(($el) => {
-        $el[0].value = 'true';
-        $el[0].dispatchEvent(new CustomEvent('input', { bubbles: true, detail: { value: 'true' } }));
-        $el[0].dispatchEvent(new Event('focusout', { bubbles: true }));
-      });
+    cy.get('[placeholder="Enter key"]:visible')
+      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Labels key')
+      .first()
+      .find('input')
+      .type('kyma-project.io/skip-reconciliation', { force: true });
 
     cy.saveChanges('Edit');
     cy.wait(2000);
 
-    // Add credentials_namespace data field (Data section is open by default)
-    cy.get('[placeholder="Enter key"][accessible-name="Data key"]:visible').last()
-      .then(($el) => {
-        $el[0].value = 'credentials_namespace';
-        $el[0].dispatchEvent(new CustomEvent('input', { bubbles: true, detail: { value: 'credentials_namespace' } }));
-        $el[0].dispatchEvent(new Event('focusout', { bubbles: true }));
-      });
+    // Add credentials_namespace data field
+    cy.get('[placeholder="Enter value"]:visible')
+      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Data value')
+      .first()
+      .find('input, textarea')
+      .first()
+      .type('test', { force: true });
 
-    cy.get('ui5-textarea[accessible-name="Data value"]:visible')
-      .last()
-      .find('textarea')
-      .click()
-      .type('test');
+    cy.get('[placeholder="Enter key"]:visible')
+      .filter((index, el) => !el.value && el.getAttribute('accessible-name') === 'Data key')
+      .first()
+      .find('input')
+      .type('credentials_namespace', { force: true });
 
     cy.saveChanges('Edit');
     cy.wait(5000);
