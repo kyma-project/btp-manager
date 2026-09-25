@@ -1,9 +1,12 @@
 name: Markdown link check
 
-on: 
+on:
     pull_request:
     schedule:
-      - cron: '0 0 * * *' 
+      - cron: '0 0 * * *'
+
+permissions:
+  contents: read
 
 jobs:
   markdown-link-check:

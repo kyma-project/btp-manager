@@ -27,6 +27,9 @@ on:
         required: true
         default: fast
 
+permissions:
+  contents: read
+
 jobs:
   promote:
     name: Promote to ${{ inputs.channel }}

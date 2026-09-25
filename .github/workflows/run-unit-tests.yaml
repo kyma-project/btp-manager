@@ -12,6 +12,9 @@ on:
       - "external-images.yaml"
       - "module-chart/**"
 
+permissions:
+  contents: read
+
 jobs:
   run-unit-tests:
     uses: "./.github/workflows/run-unit-tests-reusable.yaml"

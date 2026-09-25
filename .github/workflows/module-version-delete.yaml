@@ -30,6 +30,9 @@ on:
         description: "Module version"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   promote:
     runs-on: ubuntu-latest

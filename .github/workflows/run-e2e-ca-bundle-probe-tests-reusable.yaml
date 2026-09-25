@@ -16,6 +16,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   run-ca-bundle-probe-e2e:
     runs-on: ubuntu-latest
