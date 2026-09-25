@@ -132,3 +132,79 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 ### Results
 
 You can use a given service in your Kyma cluster.
+
+## Create a Cross-Namespace Service Binding
+
+By default, a `ServiceBinding` must reside in the same namespace as its `ServiceInstance`. To bind to an instance in a different namespace, the `ServiceInstance` must explicitly opt in using annotations.
+
+### Prerequisites
+
+* An existing `ServiceInstance` in a source namespace (for example, `instance-namespace`).
+* A target namespace where the binding will live (for example, `app-namespace`).
+
+### Procedure
+
+1. Annotate the `ServiceInstance` to allow cross-namespace bindings.
+
+   To allow bindings from any namespace, run:
+
+   ```bash
+   kubectl annotate serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} \
+     -n {INSTANCE_NAMESPACE} \
+     services.cloud.sap.com/allowCrossNamespaceBinding="true"
+   ```
+
+   To restrict bindings to specific namespaces, also add the allowlist annotation:
+
+   ```bash
+   kubectl annotate serviceinstances.services.cloud.sap.com {SERVICE_INSTANCE_NAME} \
+     -n {INSTANCE_NAMESPACE} \
+     services.cloud.sap.com/allowedNamespacesForBinding="{APP_NAMESPACE_A},{APP_NAMESPACE_B}"
+   ```
+
+   Alternatively, include both annotations in your `ServiceInstance` YAML:
+
+   ```yaml
+   apiVersion: services.cloud.sap.com/v1
+   kind: ServiceInstance
+   metadata:
+     name: {SERVICE_INSTANCE_NAME}
+     namespace: {INSTANCE_NAMESPACE}
+     annotations:
+       services.cloud.sap.com/allowCrossNamespaceBinding: "true"
+       services.cloud.sap.com/allowedNamespacesForBinding: "{APP_NAMESPACE_A},{APP_NAMESPACE_B}"
+   spec:
+     serviceOfferingName: {SERVICE_OFFERING_NAME}
+     servicePlanName: {SERVICE_PLAN_NAME}
+   ```
+
+2. Create the `ServiceBinding` in the target namespace, referencing the instance's namespace in `spec.serviceInstanceNamespace`:
+
+   ```yaml
+   kubectl create -f - <<EOF
+   apiVersion: services.cloud.sap.com/v1
+   kind: ServiceBinding
+   metadata:
+     name: {BINDING_NAME}
+     namespace: {APP_NAMESPACE}
+   spec:
+     serviceInstanceName: {SERVICE_INSTANCE_NAME}
+     serviceInstanceNamespace: {INSTANCE_NAMESPACE}
+     secretName: {BINDING_NAME}
+   EOF
+   ```
+
+3. To verify the binding status, run:
+
+   ```bash
+   kubectl get servicebindings.services.cloud.sap.com {BINDING_NAME} -n {APP_NAMESPACE}
+   ```
+
+   You see the status `Created`.
+
+> [!WARNING]
+> If the `ServiceInstance` is missing the `services.cloud.sap.com/allowCrossNamespaceBinding: "true"` annotation, or the binding's namespace is not in the `allowedNamespacesForBinding` allowlist, the binding is blocked. The `Succeeded` condition is set to `false` with reason `Blocked`. The error message displayed is identical to the one shown when the instance does not exist, so verify the annotation is present if the instance exists but the binding remains blocked.
+
+### Results
+
+Your application in `{APP_NAMESPACE}` can use the credentials from the `ServiceBinding` Secret to communicate with the service instance provisioned in `{INSTANCE_NAMESPACE}`.
