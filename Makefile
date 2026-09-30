@@ -33,7 +33,7 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
-GOLINT_VER = v2.1.5
+GOLINT_VER = v2.14.0
 ifeq (,$(GOLINT_TIMEOUT))
 GOLINT_TIMEOUT=2m
 endif
