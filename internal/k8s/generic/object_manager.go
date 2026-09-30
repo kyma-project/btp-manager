@@ -24,7 +24,7 @@ func kindOf[T client.Object](object T) string {
 		return k
 	}
 	t := reflect.TypeOf(object)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	return t.Name()
