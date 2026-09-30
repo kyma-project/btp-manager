@@ -61,7 +61,7 @@ jobs:
       - name: Check for existing artifacts from previous release runs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/check_artifacts_existence.sh $RELEASE_NAME"
+        run: './scripts/check_artifacts_existence.sh "$RELEASE_NAME"'
 
       - name: Setup python
         uses: actions/setup-python@v7
@@ -124,7 +124,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_NAME: ${{ inputs.name }}
-    env:
       OPERATOR_POST_STARTUP_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_STARTUP_MEM_THRESHOLD }}
       OPERATOR_POST_INSTANCES_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_INSTANCES_MEM_THRESHOLD }}
       OPERATOR_POST_SECRETS_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_SECRETS_MEM_THRESHOLD }}
@@ -153,7 +152,7 @@ jobs:
 
       - name: Install BTP Manager and SAP BTP Operator - LimitedCache enabled
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:$RELEASE_NAME dummy true"
+        run: './scripts/testing/install_module.sh "$IMAGE_REPO:$RELEASE_NAME" dummy true'
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh ${OPERATOR_POST_STARTUP_MEM_THRESHOLD} ${MEM_REF_URL}"
