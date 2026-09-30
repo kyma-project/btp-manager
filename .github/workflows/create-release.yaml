@@ -43,6 +43,8 @@ jobs:
   validate-release:
     name: Validate release
     runs-on: ubuntu-latest
+    env:
+      RELEASE_NAME: ${{ inputs.name }}
 
     steps:
       - name: Checkout code
@@ -52,14 +54,14 @@ jobs:
       
       - name: Check if tag already exists
         run: |
-          if [ $(git tag -l ${{ inputs.name }}) ]; then
+          if [ $(git tag -l "$RELEASE_NAME") ]; then
             echo "::error ::Tag ${{ inputs.name }} already exists" && exit 1
           fi
 
       - name: Check for existing artifacts from previous release runs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "./scripts/check_artifacts_existence.sh ${{ inputs.name }}"
+        run: './scripts/check_artifacts_existence.sh "$RELEASE_NAME"'
 
       - name: Setup python
         uses: actions/setup-python@v7
@@ -121,6 +123,7 @@ jobs:
     needs: [build-image, build-probe-image]
     runs-on: ubuntu-latest
     env:
+      RELEASE_NAME: ${{ inputs.name }}
       OPERATOR_POST_STARTUP_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_STARTUP_MEM_THRESHOLD }}
       OPERATOR_POST_INSTANCES_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_INSTANCES_MEM_THRESHOLD }}
       OPERATOR_POST_SECRETS_MEM_THRESHOLD: ${{ vars.OPERATOR_POST_SECRETS_MEM_THRESHOLD }}
@@ -149,7 +152,7 @@ jobs:
 
       - name: Install BTP Manager and SAP BTP Operator - LimitedCache enabled
         timeout-minutes: 2
-        run: "./scripts/testing/install_module.sh $IMAGE_REPO:${{ inputs.name }} dummy true"
+        run: './scripts/testing/install_module.sh "$IMAGE_REPO:$RELEASE_NAME" dummy true'
 
       - name: BTP Manager and SAP BTP Operator controller resources usage
         run: "./scripts/testing/check_top.sh ${OPERATOR_POST_STARTUP_MEM_THRESHOLD} ${MEM_REF_URL}"
@@ -227,6 +230,8 @@ jobs:
     name: Bump sec-scanners-config
     needs: [validate-release, run-unit-tests, run-e2e-tests, run-stress-tests, run-performance-tests, run-e2e-upgrade-tests, run-e2e-upgrade-while-deleting-tests, run-e2e-sap-btp-manager-secret-customization-test, run-ca-bundle-probe-e2e, build-probe-image]
     runs-on: ubuntu-latest
+    env:
+      RELEASE_NAME: ${{ inputs.name }}
 
     steps:
       - name: Checkout code
@@ -241,7 +246,7 @@ jobs:
 
       - name: Update component-config.yaml
         if: ${{ !inputs.skip-sec-file-bump }}
-        run: scripts/create_component_config.sh ${{ inputs.name }}
+        run: scripts/create_component_config.sh "$RELEASE_NAME"
 
       - name: Check if any PR was merged during release
         env:
@@ -277,7 +282,7 @@ jobs:
             echo "Nothing changed, no need to create PR"
             echo "PR_NUMBER=-1" >> $GITHUB_ENV
           else
-            PR_STATUS=$(scripts/create_sec_scanner_bump_pr.sh ${{ inputs.name }})
+            PR_STATUS=$(scripts/create_sec_scanner_bump_pr.sh "$RELEASE_NAME")
             echo "PR_NUMBER=$(echo "$PR_STATUS" | tail -n 1)" >> $GITHUB_ENV          
           fi
 
