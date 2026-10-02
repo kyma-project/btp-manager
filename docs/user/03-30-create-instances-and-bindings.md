@@ -166,7 +166,7 @@ As a security hardening measure, you can add one of the following annotations to
 
 Without these annotations, any namespace can create cross-namespace bindings for this instance.
 
-If the service instance restricts cross-namespace bindings using the annotations, the `Succeeded` condition of the binding is set to `false` with reason `Blocked`. The binding automatically retries when the service instance's annotations change.
+If the binding's namespace is not permitted by the service instance's annotations, the `Succeeded` condition of the binding is set to `false` with reason `Blocked`. The binding automatically retries when the service instance's annotations change.
 
 When a cross-namespace binding is blocked, the binding status shows a message indicating that the service instance couldn't be found or doesn't allow cross-namespace binding. You see the same message when the instance doesn't exist. If you see it and you're sure the instance name and namespace are correct, check whether the service instance has cross-namespace binding restrictions set.
 
