@@ -161,7 +161,7 @@ The application in the binding's namespace can use the Secret referenced in the 
 
 As a security hardening measure, you can add one of the following annotations to the service instance to restrict which namespaces can create cross-namespace bindings:
 
-- `services.cloud.sap.com/allowCrossNamespaceBinding: "false"` - to block cross-namespace bindings from all namespaces
+- `services.cloud.sap.com/allowCrossNamespaceBinding: "false"` - to block cross-namespace bindings from all other namespaces
 - `services.cloud.sap.com/allowedNamespacesForBinding` - to limit cross-namespace bindings to specific namespaces, add the annotation with a comma-separated list of allowed namespaces (with no spaces), for example: `services.cloud.sap.com/allowedNamespacesForBinding: "ns1,ns2"`.
 
 Without these annotations, any namespace can create cross-namespace bindings for this instance.
