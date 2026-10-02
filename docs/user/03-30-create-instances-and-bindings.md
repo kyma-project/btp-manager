@@ -68,12 +68,10 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 ## Create a Service Binding
 
-To create a service binding, use either Kyma dashboard or kubectl.
-
 With a ServiceBinding custom resource (CR), your application can get access credentials for communicating with an SAP BTP service.
 These access credentials are available to applications through a Secret resource generated in your cluster.
 
-### Procedure
+To create a service binding, use either Kyma dashboard or kubectl.
 
 <!-- tabs:start -->
 #### **Kyma Dashboard**
@@ -91,7 +89,7 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 #### **kubectl**
 
-1. To create a ServiceBinding CR, replace the palceholders and run the following command:
+1. To create a ServiceBinding CR, replace the placeholders and run the following command:
 
       ```yaml
       kubectl create -f - <<EOF
@@ -118,9 +116,9 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
     kubectl get servicebindings.services.cloud.sap.com {BINDING_NAME} -n {NAMESPACE}
     ```
 
-    You see the staus `Created`.
+    You see the status `Created`.
 
-3.  Verify the Secret is created with the name specified in the  **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that the applications need to use the service:
+3.  Verify the Secret is created with the name specified in the **spec.secretName** field of the ServiceBinding CR. The Secret contains access credentials that applications need to use the service:
 
     ```bash
     kubectl get secrets {SECRET_NAME} -n {NAMESPACE}
@@ -129,6 +127,47 @@ To access Kyma dashboard, use the link available in the **Kyma Environment** sec
 
 <!-- tabs:end -->
 
-### Results
-
 You can use a given service in your Kyma cluster.
+
+## Create a Service Binding for a Service Instance in a Different Namespace
+
+1. To create a service binding for a service instance in a different namespace, set the **serviceInstanceNamespace** field in the ServiceBinding `spec` to the namespace where the service instance resides. Replace the placeholders and run:
+
+    ```yaml
+    kubectl create -f - <<EOF
+    apiVersion: services.cloud.sap.com/v1
+    kind: ServiceBinding
+    metadata:
+      name: {BINDING_NAME}
+      namespace: {BINDING_NAMESPACE}
+    spec:
+      serviceInstanceName: {SERVICE_INSTANCE_NAME}
+      serviceInstanceNamespace: {INSTANCE_NAMESPACE}
+      secretName: {SECRET_NAME}
+    EOF
+    ```
+
+2. To check your service binding status, run:
+
+    ```bash
+    kubectl get servicebindings.services.cloud.sap.com {BINDING_NAME} -n {BINDING_NAMESPACE}
+    ```
+
+    You see the status `Created`.
+
+The application in the binding's namespace can use the Secret referenced in the **spec.secretName** field to access the service instance provisioned in the namespace specified in the **spec.serviceInstanceNamespace** field.
+
+### Restrict Cross-Namespace Bindings
+
+To restrict which namespaces can create cross-namespace bindings, add one of the following annotations to the service instance:
+
+- `services.cloud.sap.com/allowCrossNamespaceBinding: "false"` - to block cross-namespace bindings from all other namespaces
+- `services.cloud.sap.com/allowedNamespacesForBinding` - to limit cross-namespace bindings to specific namespaces, add the annotation with a comma-separated list of allowed namespaces (with no spaces), for example: `services.cloud.sap.com/allowedNamespacesForBinding: "ns1,ns2"`.
+
+Without these annotations, any namespace can create cross-namespace bindings for this instance.
+
+If the binding's namespace is not permitted by the service instance's annotations, the `Succeeded` condition of the binding is set to `false` with reason `Blocked`. The binding automatically retries when the service instance's annotations change.
+
+When a cross-namespace binding is blocked, the binding status shows a message indicating that the service instance couldn't be found or doesn't allow cross-namespace binding. You see the same message when the instance doesn't exist. If you see it and you're sure the instance name and namespace are correct, check whether the service instance has cross-namespace binding restrictions set.
+
+To resolve a blocked binding, either remove the restriction from the service instance or update the `services.cloud.sap.com/allowedNamespacesForBinding` annotation to include the binding's namespace.
