@@ -17,7 +17,7 @@ manager:
   fips: "fips140=on"
   image:
     repository: ghcr.io/sap/sap-btp-service-operator/controller
-    tag: v0.12.2
+    tag: v0.12.3
     sha: ""
   secret:
     b64encoded: false
@@ -44,6 +44,8 @@ manager:
   imagePullSecrets: []
   #   - name: registrySecretName
   disablePreDeleteJob: false
+  preDeleteJob:
+    resources: {}
   pullSecretTemplate:
   # creates a secret to be used in imagePullSecrets from a template
   # output of data will be in form {"auths":{"myhost":{"auth":<encoded username:password>},"myhost1":{"auth":<encoded username:password>}}}
