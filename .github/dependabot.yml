@@ -33,3 +33,7 @@ updates:
     commit-message:
       prefix: "github-actions"
       include: "scope"
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
