@@ -30,7 +30,7 @@ jobs:
         run: "./scripts/testing/k3s-setup.sh --wait"
 
       - name: Wait for image to be ready
-        uses: wechuli/allcheckspassed@e4240aa9cc76fd6828ce27a71ad16c406c25adb3
+        uses: wechuli/allcheckspassed@1e77c91db5ec91faa94bf441f91b91327d269ab0
         with:
           delay: '1'
           retries: '15'
