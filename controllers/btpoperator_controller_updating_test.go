@@ -178,6 +178,8 @@ var _ = Describe("BTP Operator controller - updating", func() {
 
 	When("remove some manifests and bump chart version", Label("test-update"), func() {
 		It("resources without manifests should be removed, unchanged resources should stay and receive new chart version", func() {
+			Eventually(actualWorkqueueSize).WithTimeout(workqueueTimeout).WithPolling(workqueuePollingInterval).Should(Equal(0))
+
 			allManifests, err := manifestHandler.GetManifestsFromDir(getApplyPath())
 			Expect(err).To(BeNil())
 			err = moveOrCopyNFilesFromDirToDir(len(allManifests), true, getApplyPath(), getTempPath())
@@ -202,7 +204,6 @@ var _ = Describe("BTP Operator controller - updating", func() {
 			err = ymlutils.UpdateChartVersion(chartUpdatePathForProcess, newChartVersion)
 			Expect(err).To(BeNil())
 
-			Eventually(actualWorkqueueSize).WithTimeout(workqueueTimeout).WithPolling(workqueuePollingInterval).Should(Equal(0))
 			_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: apimachienerytypes.NamespacedName{
 				Namespace: cr.Namespace,
 				Name:      cr.Name,

@@ -182,7 +182,7 @@ GINKGO ?= $(LOCALBIN)/ginkgo
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download & Build ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.27.4
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo@v2.34.0
 
 ##@ Checks
 
