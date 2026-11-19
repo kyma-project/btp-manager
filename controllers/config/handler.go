@@ -250,7 +250,11 @@ func (r *Handler) applyValues(ctx context.Context, cm *corev1.ConfigMap) {
 			var bits int
 			bits, err = strconv.Atoi(v)
 			if err == nil {
-				certs.SetRsaKeyBits(bits)
+				if bits < 2048 || bits > 8192 {
+					logger.Info("RsaKeyBits out of safe range, ignoring", k, v)
+				} else {
+					certs.SetRsaKeyBits(bits)
+				}
 			}
 		case "EnableLimitedCache":
 			EnableLimitedCache = v
